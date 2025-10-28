@@ -27,16 +27,15 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <cstdlib>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 
-#include <folly/portability/PThread.h>
-#include <folly/portability/Stdlib.h>
-
 #ifdef _WIN32
-#include <folly/portability/Windows.h>
+#include <windows.h>
 #else
+#include <pthread.h>
 #include <sys/resource.h>
 #endif
 

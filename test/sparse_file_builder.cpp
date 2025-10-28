@@ -25,11 +25,10 @@
 #include <cstdint>
 
 #ifdef _WIN32
-#include <folly/portability/Windows.h>
+#include <windows.h>
 #include <winioctl.h>
 #else
 #include <cerrno>
-
 #include <fcntl.h>
 #include <unistd.h>
 #endif

@@ -30,8 +30,10 @@
 #include <cstdlib>
 #include <iostream>
 
-#include <folly/portability/PThread.h>
-#include <folly/portability/Unistd.h>
+#ifndef _WIN32
+#include <pthread.h>
+#include <unistd.h>
+#endif
 
 #if __has_include(<boost/process/v2/environment.hpp>) && defined(DWARFS_HAVE_CLOSE_RANGE)
 #define BOOST_PROCESS_VERSION 2

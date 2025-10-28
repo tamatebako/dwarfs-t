@@ -37,8 +37,11 @@
 #include <utility>
 #include <vector>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <folly/CPortability.h>
-#include <folly/portability/Unistd.h>
 #include <folly/system/HardwareConcurrency.h>
 
 #include <fmt/format.h>

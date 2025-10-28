@@ -35,7 +35,9 @@
 #include <string_view>
 #include <vector>
 
-#include <folly/portability/Windows.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/join.hpp>

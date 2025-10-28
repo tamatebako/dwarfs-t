@@ -49,9 +49,13 @@
 #include <fmt/ranges.h>
 #endif
 
+#include <cstdlib>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <folly/Synchronized.h>
-#include <folly/portability/Stdlib.h>
-#include <folly/portability/Unistd.h>
 #include <folly/small_vector.h>
 #include <folly/stats/Histogram.h>
 

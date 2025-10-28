@@ -43,7 +43,10 @@
 
 #include <fmt/format.h>
 
-#include <folly/portability/Windows.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <folly/system/ThreadName.h>
 
 #include <dwarfs/error.h>

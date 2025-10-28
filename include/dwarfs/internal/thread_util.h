@@ -31,9 +31,9 @@
 #include <thread>
 
 #ifdef _WIN32
-#include <folly/portability/Windows.h>
+#include <windows.h>
 #else
-#include <folly/portability/PThread.h>
+#include <pthread.h>
 #endif
 
 namespace dwarfs::internal {

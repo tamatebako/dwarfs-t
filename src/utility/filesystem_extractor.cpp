@@ -36,7 +36,7 @@
 // This is required to avoid Windows.h being pulled in by libarchive
 // and polluting our environment with all sorts of shit.
 #ifdef _WIN32
-#include <folly/portability/Windows.h>
+#include <windows.h>
 #endif
 
 #include <archive.h>
@@ -47,9 +47,12 @@
 #include <fmt/ranges.h>
 #endif
 
+#include <fcntl.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <folly/ExceptionString.h>
-#include <folly/portability/Fcntl.h>
-#include <folly/portability/Unistd.h>
 #include <folly/system/ThreadName.h>
 
 #include <dwarfs/config.h>

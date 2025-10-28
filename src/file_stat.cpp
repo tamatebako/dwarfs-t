@@ -37,13 +37,12 @@
 #include <vector>
 
 #ifdef _WIN32
-#include <folly/portability/Windows.h>
+#include <windows.h>
 #include <winioctl.h>
 #else
 #include <fcntl.h>
+#include <unistd.h>
 #endif
-
-#include <folly/portability/Unistd.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>

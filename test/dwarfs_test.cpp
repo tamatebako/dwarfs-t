@@ -34,7 +34,9 @@
 #include <gtest/gtest.h>
 
 // This needs to be included *after* gtest.h
-#include <folly/portability/Unistd.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 #include <fmt/format.h>
 

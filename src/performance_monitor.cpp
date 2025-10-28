@@ -36,13 +36,13 @@
 #include <vector>
 
 #ifdef _WIN32
-#include <folly/portability/Windows.h>
+#include <windows.h>
 #else
 #include <sys/time.h>
+#include <unistd.h>
 #endif
 
 #include <folly/lang/Bits.h>
-#include <folly/portability/Unistd.h>
 #include <folly/stats/Histogram.h>
 
 #include <fmt/format.h>

@@ -33,12 +33,12 @@
 #include <cstring>
 #include <iostream>
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/ioctl.h>
+#include <unistd.h>
 #endif
-
-#include <folly/portability/Unistd.h>
-#include <folly/portability/Windows.h>
 
 #include <dwarfs/terminal_ansi.h>
 

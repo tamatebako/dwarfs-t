@@ -21,7 +21,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <folly/portability/Windows.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <folly/system/ThreadName.h>
 
 #include <dwarfs/error.h>

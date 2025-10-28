@@ -25,11 +25,10 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstdlib>
 #include <numeric>
 #include <tuple>
 #include <vector>
-
-#include <folly/portability/Stdlib.h>
 
 #include <dwarfs/binary_literals.h>
 #include <dwarfs/detail/scoped_env.h>

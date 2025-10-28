@@ -27,10 +27,9 @@
  */
 
 #include <cerrno>
+#include <cstdlib>
 #include <iostream>
 #include <system_error>
-
-#include <folly/portability/Stdlib.h>
 
 #include <dwarfs/detail/scoped_env.h>
 

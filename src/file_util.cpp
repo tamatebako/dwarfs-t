@@ -29,8 +29,11 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <folly/FileUtil.h>
-#include <folly/portability/Windows.h>
 
 #include <dwarfs/conv.h>
 #include <dwarfs/file_util.h>
