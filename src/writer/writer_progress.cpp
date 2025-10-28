@@ -25,7 +25,7 @@
 #include <windows.h>
 #endif
 
-#include <folly/system/ThreadName.h>
+#include "dwarfs/internal/thread_name.h"
 
 #include <dwarfs/error.h>
 #include <dwarfs/util.h>
@@ -43,7 +43,7 @@ writer_progress::writer_progress(update_function_type func,
     : prog_{std::make_unique<internal::progress>()}
     , running_(true)
     , thread_([this, interval, func = std::move(func)]() mutable {
-      folly::setThreadName("progress");
+      dwarfs::compat::setThreadName("progress");
 #ifdef _WIN32
       ::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 #endif

@@ -42,7 +42,7 @@
 #endif
 
 #include <folly/CPortability.h>
-#include <folly/system/HardwareConcurrency.h>
+// hardware_concurrency() is now in dwarfs/util.h
 
 #include <fmt/format.h>
 

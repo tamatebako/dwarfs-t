@@ -34,7 +34,7 @@
 #include <thread>
 #include <unordered_map>
 
-#include <folly/system/ThreadName.h>
+#include "dwarfs/internal/thread_name.h"
 
 #include <dwarfs/block_decompressor.h>
 #include <dwarfs/checksum.h>
@@ -696,7 +696,7 @@ filesystem_writer_<LoggerPolicy>::~filesystem_writer_() noexcept {
 
 template <typename LoggerPolicy>
 void filesystem_writer_<LoggerPolicy>::writer_thread() {
-  folly::setThreadName("writer");
+  dwarfs::compat::setThreadName("writer");
 
   for (;;) {
     block_holder_type holder;

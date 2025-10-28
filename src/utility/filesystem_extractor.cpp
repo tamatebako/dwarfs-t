@@ -53,7 +53,7 @@
 #endif
 
 #include <folly/ExceptionString.h>
-#include <folly/system/ThreadName.h>
+#include "dwarfs/internal/thread_name.h"
 
 #include <dwarfs/config.h>
 #include <dwarfs/counting_semaphore.h>
@@ -297,7 +297,7 @@ class filesystem_extractor_ final : public filesystem_extractor::impl {
   }
 
   void pump(std::ostream& os, int fd) {
-    folly::setThreadName("pump");
+    dwarfs::compat::setThreadName("pump");
 
     std::array<char, 1024> buf;
 

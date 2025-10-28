@@ -42,7 +42,7 @@
 #include <fmt/format.h>
 
 #include <folly/stats/Histogram.h>
-#include <folly/system/ThreadName.h>
+#include "dwarfs/internal/thread_name.h"
 
 #include <parallel_hashmap/phmap.h>
 
