@@ -78,6 +78,9 @@ add_library(
 
   $<IF:${DWARFS_GIT_BUILD},${CMAKE_CURRENT_BINARY_DIR},${CMAKE_CURRENT_SOURCE_DIR}>/src/version.cpp
 
+  src/metadata/serialization/cereal_binary_serializer.cpp
+  $<$<BOOL:${DWARFS_LEGACY_THRIFT_SUPPORT}>:src/metadata/serialization/thrift_compact_serializer.cpp>
+
   src/compression/base.cpp
   src/compression/null.cpp
   src/compression/zstd.cpp
@@ -208,7 +211,7 @@ add_cpp2_thrift_library(thrift/history.thrift
 add_cpp2_thrift_library(thrift/features.thrift
                         TARGET dwarfs_features_thrift OUTPUT_PATH dwarfs)
 
-target_link_libraries(dwarfs_common PRIVATE dwarfs_folly_lite PkgConfig::LIBCRYPTO PkgConfig::XXHASH PkgConfig::ZSTD)
+target_link_libraries(dwarfs_common PRIVATE dwarfs_folly_lite PkgConfig::LIBCRYPTO PkgConfig::XXHASH PkgConfig::ZSTD PkgConfig::YAMLCPP)
 target_link_libraries(dwarfs_compressor PRIVATE dwarfs_common)
 target_link_libraries(dwarfs_decompressor PRIVATE dwarfs_common)
 target_link_libraries(dwarfs_reader PUBLIC dwarfs_common dwarfs_decompressor)

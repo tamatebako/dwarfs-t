@@ -229,6 +229,7 @@ if(WITH_LIBDWARFS)
   endif()
   pkg_check_modules(XXHASH REQUIRED IMPORTED_TARGET libxxhash>=${XXHASH_REQUIRED_VERSION})
   pkg_check_modules(ZSTD REQUIRED IMPORTED_TARGET libzstd>=${ZSTD_REQUIRED_VERSION})
+  pkg_check_modules(YAMLCPP REQUIRED IMPORTED_TARGET yaml-cpp>=0.6.0)
   if(TRY_ENABLE_LZ4)
     pkg_check_modules(LIBLZ4 IMPORTED_TARGET liblz4>=${LIBLZ4_REQUIRED_VERSION})
   endif()
@@ -608,6 +609,16 @@ if(WITH_TESTS)
         target_sources(dwarfs_compressor_tests PRIVATE test/ricepp_compressor_test.cpp)
       endif()
     endif()
+
+    # Metadata serialization tests
+    add_executable(metadata_tests
+      test/metadata/domain_model_test.cpp
+      test/metadata/cereal_serializer_test.cpp
+      test/metadata/thrift_compat_test.cpp
+      test/metadata/integration_test.cpp
+      test/metadata/performance_test.cpp
+    )
+    list(APPEND DWARFS_TESTS metadata_tests)
   endif()
 
   if(WITH_TOOLS)

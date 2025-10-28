@@ -1,0 +1,33 @@
+# DwarFS Metadata Serialization Configuration
+#
+# This file configures the serialization formats available for metadata
+# persistence. It follows the configuration-driven architecture to eliminate
+# hardcoding and enable extensibility.
+
+serialization:
+  # Default format for new file system images
+  default_format: cereal_binary
+
+  # Available serialization formats
+  formats:
+    # Cereal Binary Archive (modern format)
+    cereal_binary:
+      enabled: true
+      name: "Cereal Binary"
+      description: "Modern serialization format using Cereal library"
+      magic_bytes: [0xCE, 0xEA, 0x01]
+      class: CerealBinarySerializer
+      read_write: true
+      priority: 100
+      version: 1
+
+    # Thrift Compact Protocol (legacy format)
+    thrift_compact:
+      enabled: true
+      name: "Thrift Compact"
+      description: "Legacy Apache Thrift format for backward compatibility"
+      magic_bytes: [0x82, 0x21]
+      class: ThriftCompactSerializer
+      read_only: true
+      priority: 50
+      requires_build_flag: DWARFS_LEGACY_THRIFT_SUPPORT
