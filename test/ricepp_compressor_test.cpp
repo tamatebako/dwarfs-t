@@ -31,7 +31,7 @@
 
 #include <fmt/format.h>
 
-#include <folly/lang/Bits.h>
+#include <dwarfs/internal/endian.h>
 
 #include <nlohmann/json.hpp>
 
@@ -59,7 +59,7 @@ generate_random_data(std::mt19937_64& rng, size_t count,
                                           << unused_lsb_count);
   std::generate(data.begin(), data.end(), [&]() {
     auto v = dist(rng) == 0 ? full(rng) : noise(rng);
-    return folly::Endian::big<ValueType>(v & mask);
+    return dwarfs::compat::Endian::big<ValueType>(v & mask);
   });
   return data;
 }
@@ -72,7 +72,7 @@ shared_byte_buffer make_test_data(int components, int pixels, int unused_lsb) {
   std::vector<std::vector<ValueType>> data(components);
 
   auto random_value = [&]() {
-    return folly::Endian::big<ValueType>(any_value(rng) << unused_lsb);
+    return dwarfs::compat::Endian::big<ValueType>(any_value(rng) << unused_lsb);
   };
 
   for (auto& d : data) {

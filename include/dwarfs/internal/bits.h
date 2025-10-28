@@ -130,6 +130,84 @@ class Bits {
     return std::popcount(value);
 #endif
   }
+
+  /**
+   * \brief Packed bit operations (folly::Bits<T> replacement)
+   *
+   * Provides bit-level get/set operations on arrays for packed integer vectors.
+   */
+  template <typename T>
+  class PackedBits {
+   public:
+    using UnderlyingType = T;
+    static constexpr size_t bitsPerBlock = sizeof(T) * 8;
+
+    /**
+     * \brief Get value from bit array
+     * \param data Pointer to data array
+     * \param bitOffset Bit offset from start
+     * \param numBits Number of bits to read
+     * \return Value read from bit array
+     */
+    static T get(T const* data, size_t bitOffset, size_t numBits) {
+      if (numBits == 0 || numBits > bitsPerBlock) {
+        return 0;
+      }
+
+      size_t const blockIndex = bitOffset / bitsPerBlock;
+      size_t const bitIndex = bitOffset % bitsPerBlock;
+
+      T result = data[blockIndex] >> bitIndex;
+
+      if (bitIndex + numBits > bitsPerBlock) {
+        // Value spans two blocks
+        size_t const bitsInFirstBlock = bitsPerBlock - bitIndex;
+        size_t const bitsInSecondBlock = numBits - bitsInFirstBlock;
+        T const secondPart = data[blockIndex + 1] << bitsInFirstBlock;
+        result |= secondPart;
+      }
+
+      // Mask to numBits
+      T const mask = (numBits == bitsPerBlock)
+          ? static_cast<T>(~T{0})
+          : ((static_cast<T>(1) << numBits) - 1);
+      return result & mask;
+    }
+
+    /**
+     * \brief Set value in bit array
+     * \param data Pointer to data array
+     * \param bitOffset Bit offset from start
+     * \param numBits Number of bits to write
+     * \param value Value to write
+     */
+    static void set(T* data, size_t bitOffset, size_t numBits, T value) {
+      if (numBits == 0 || numBits > bitsPerBlock) {
+        return;
+      }
+
+      size_t const blockIndex = bitOffset / bitsPerBlock;
+      size_t const bitIndex = bitOffset % bitsPerBlock;
+
+      T const mask = (numBits == bitsPerBlock)
+          ? static_cast<T>(~T{0})
+          : ((static_cast<T>(1) << numBits) - 1);
+      value &= mask;
+
+      T const clearMask = ~(mask << bitIndex);
+      data[blockIndex] = (data[blockIndex] & clearMask) | (value << bitIndex);
+
+      if (bitIndex + numBits > bitsPerBlock) {
+        // Value spans two blocks
+        size_t const bitsInFirstBlock = bitsPerBlock - bitIndex;
+        size_t const bitsInSecondBlock = numBits - bitsInFirstBlock;
+        T const secondMask = ((static_cast<T>(1) << bitsInSecondBlock) - 1);
+        T const secondClearMask = ~secondMask;
+        data[blockIndex + 1] = (data[blockIndex + 1] & secondClearMask) |
+                                (value >> bitsInFirstBlock);
+      }
+    }
+  };
 };
 
 /**
@@ -145,5 +223,11 @@ inline int findLastSet(uint64_t value) {
 inline int findFirstSet(uint64_t value) {
   return Bits::findFirstSet(value);
 }
+
+/**
+ * \brief Packed bit operations template (folly::Bits<T> replacement)
+ */
+template <typename T>
+using PackedBits = Bits::PackedBits<T>;
 
 } // namespace dwarfs::compat

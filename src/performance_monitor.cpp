@@ -42,7 +42,7 @@
 #include <unistd.h>
 #endif
 
-#include <folly/lang/Bits.h>
+#include "dwarfs/internal/bits.h"
 #include "dwarfs/internal/histogram.h"
 
 #include <fmt/format.h>
@@ -79,7 +79,7 @@ class single_timer {
     total_time_.fetch_add(elapsed);
 
     if ((samples_.fetch_add(1) % histogram_interval) == 0) {
-      auto log_time = folly::findLastSet(elapsed);
+      auto log_time = dwarfs::compat::findLastSet(elapsed);
       std::lock_guard lock(log_hist_mutex_);
       log_hist_.addValue(log_time);
     }

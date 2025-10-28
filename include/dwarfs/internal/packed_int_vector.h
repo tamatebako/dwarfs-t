@@ -32,7 +32,7 @@
 #include <limits>
 #include <vector>
 
-#include <folly/lang/BitsClass.h>
+#include "dwarfs/internal/bits.h"
 
 namespace dwarfs::internal {
 
@@ -40,7 +40,7 @@ template <typename T>
 class packed_int_vector {
  public:
   using value_type = T;
-  using bits_type = folly::Bits<T>;
+  using bits_type = dwarfs::compat::PackedBits<T>;
   using underlying_type = typename bits_type::UnderlyingType;
   using size_type = size_t;
 

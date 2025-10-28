@@ -36,8 +36,8 @@
 #include <fmt/format.h>
 
 #include <folly/Synchronized.h>
-#include <folly/lang/Bits.h>
 
+#include <dwarfs/internal/bits.h>
 #include <dwarfs/internal/endian.h>
 
 #include <range/v3/algorithm/fold_left.hpp>

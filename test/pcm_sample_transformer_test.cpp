@@ -25,7 +25,7 @@
 
 #include <vector>
 
-#include <folly/lang/Bits.h>
+#include <dwarfs/internal/endian.h>
 
 #include <dwarfs/pcm_sample_transformer.h>
 
@@ -54,10 +54,10 @@ TEST(pcm_sample_transformer, uint8_8bit) {
 
 TEST(pcm_sample_transformer, uint16_12bit_be_msb) {
   std::vector<uint16_t> tmp{
-      folly::Endian::big<uint16_t>(0),    folly::Endian::big<uint16_t>(1),
-      folly::Endian::big<uint16_t>(2047), folly::Endian::big<uint16_t>(2048),
-      folly::Endian::big<uint16_t>(2049), folly::Endian::big<uint16_t>(4094),
-      folly::Endian::big<uint16_t>(4095),
+      dwarfs::compat::Endian::big<uint16_t>(0),    dwarfs::compat::Endian::big<uint16_t>(1),
+      dwarfs::compat::Endian::big<uint16_t>(2047), dwarfs::compat::Endian::big<uint16_t>(2048),
+      dwarfs::compat::Endian::big<uint16_t>(2049), dwarfs::compat::Endian::big<uint16_t>(4094),
+      dwarfs::compat::Endian::big<uint16_t>(4095),
   };
   std::vector<uint8_t> packed;
   std::vector<int32_t> unpacked;
@@ -85,13 +85,13 @@ TEST(pcm_sample_transformer, uint16_12bit_be_msb) {
 
 TEST(pcm_sample_transformer, uint16_12bit_be_lsb) {
   std::vector<uint16_t> tmp{
-      folly::Endian::big<uint16_t>(0 * 16),
-      folly::Endian::big<uint16_t>(1 * 16),
-      folly::Endian::big<uint16_t>(2047 * 16),
-      folly::Endian::big<uint16_t>(2048 * 16),
-      folly::Endian::big<uint16_t>(2049 * 16),
-      folly::Endian::big<uint16_t>(4094 * 16),
-      folly::Endian::big<uint16_t>(4095 * 16),
+      dwarfs::compat::Endian::big<uint16_t>(0 * 16),
+      dwarfs::compat::Endian::big<uint16_t>(1 * 16),
+      dwarfs::compat::Endian::big<uint16_t>(2047 * 16),
+      dwarfs::compat::Endian::big<uint16_t>(2048 * 16),
+      dwarfs::compat::Endian::big<uint16_t>(2049 * 16),
+      dwarfs::compat::Endian::big<uint16_t>(4094 * 16),
+      dwarfs::compat::Endian::big<uint16_t>(4095 * 16),
   };
   std::vector<uint8_t> packed;
   std::vector<int32_t> unpacked;
@@ -119,10 +119,10 @@ TEST(pcm_sample_transformer, uint16_12bit_be_lsb) {
 
 TEST(pcm_sample_transformer, int16_16bit_be) {
   std::vector<int16_t> tmp{
-      folly::Endian::big<int16_t>(-32768), folly::Endian::big<int16_t>(-32767),
-      folly::Endian::big<int16_t>(-1),     folly::Endian::big<int16_t>(0),
-      folly::Endian::big<int16_t>(1),      folly::Endian::big<int16_t>(32766),
-      folly::Endian::big<int16_t>(32767),
+      dwarfs::compat::Endian::big<int16_t>(-32768), dwarfs::compat::Endian::big<int16_t>(-32767),
+      dwarfs::compat::Endian::big<int16_t>(-1),     dwarfs::compat::Endian::big<int16_t>(0),
+      dwarfs::compat::Endian::big<int16_t>(1),      dwarfs::compat::Endian::big<int16_t>(32766),
+      dwarfs::compat::Endian::big<int16_t>(32767),
   };
   std::vector<uint8_t> packed;
   std::vector<int32_t> unpacked;
@@ -150,13 +150,13 @@ TEST(pcm_sample_transformer, int16_16bit_be) {
 
 TEST(pcm_sample_transformer, int16_14bit_le_lsb) {
   std::vector<int16_t> tmp{
-      folly::Endian::little<int16_t>(-8192 * 4),
-      folly::Endian::little<int16_t>(-8191 * 4),
-      folly::Endian::little<int16_t>(-1 * 4),
-      folly::Endian::little<int16_t>(0 * 4),
-      folly::Endian::little<int16_t>(1 * 4),
-      folly::Endian::little<int16_t>(8190 * 4),
-      folly::Endian::little<int16_t>(8191 * 4),
+      dwarfs::compat::Endian::little<int16_t>(-8192 * 4),
+      dwarfs::compat::Endian::little<int16_t>(-8191 * 4),
+      dwarfs::compat::Endian::little<int16_t>(-1 * 4),
+      dwarfs::compat::Endian::little<int16_t>(0 * 4),
+      dwarfs::compat::Endian::little<int16_t>(1 * 4),
+      dwarfs::compat::Endian::little<int16_t>(8190 * 4),
+      dwarfs::compat::Endian::little<int16_t>(8191 * 4),
   };
   std::vector<uint8_t> packed;
   std::vector<int32_t> unpacked;
@@ -184,13 +184,13 @@ TEST(pcm_sample_transformer, int16_14bit_le_lsb) {
 
 TEST(pcm_sample_transformer, int32_24bit_be_lsb) {
   std::vector<int32_t> tmp{
-      folly::Endian::big<int32_t>(-8388608 * 256),
-      folly::Endian::big<int32_t>(-8388607 * 256),
-      folly::Endian::big<int32_t>(-1 * 256),
-      folly::Endian::big<int32_t>(0 * 256),
-      folly::Endian::big<int32_t>(1 * 256),
-      folly::Endian::big<int32_t>(8388606 * 256),
-      folly::Endian::big<int32_t>(8388607 * 256),
+      dwarfs::compat::Endian::big<int32_t>(-8388608 * 256),
+      dwarfs::compat::Endian::big<int32_t>(-8388607 * 256),
+      dwarfs::compat::Endian::big<int32_t>(-1 * 256),
+      dwarfs::compat::Endian::big<int32_t>(0 * 256),
+      dwarfs::compat::Endian::big<int32_t>(1 * 256),
+      dwarfs::compat::Endian::big<int32_t>(8388606 * 256),
+      dwarfs::compat::Endian::big<int32_t>(8388607 * 256),
   };
   std::vector<uint8_t> packed;
   std::vector<int32_t> unpacked;
@@ -218,13 +218,13 @@ TEST(pcm_sample_transformer, int32_24bit_be_lsb) {
 
 TEST(pcm_sample_transformer, int32_24bit_le_msb) {
   std::vector<int32_t> tmp{
-      folly::Endian::little<int32_t>(-8388608),
-      folly::Endian::little<int32_t>(-8388607),
-      folly::Endian::little<int32_t>(-1),
-      folly::Endian::little<int32_t>(0),
-      folly::Endian::little<int32_t>(1),
-      folly::Endian::little<int32_t>(8388606),
-      folly::Endian::little<int32_t>(8388607),
+      dwarfs::compat::Endian::little<int32_t>(-8388608),
+      dwarfs::compat::Endian::little<int32_t>(-8388607),
+      dwarfs::compat::Endian::little<int32_t>(-1),
+      dwarfs::compat::Endian::little<int32_t>(0),
+      dwarfs::compat::Endian::little<int32_t>(1),
+      dwarfs::compat::Endian::little<int32_t>(8388606),
+      dwarfs::compat::Endian::little<int32_t>(8388607),
   };
   std::vector<uint8_t> packed;
   std::vector<int32_t> unpacked;
@@ -252,13 +252,13 @@ TEST(pcm_sample_transformer, int32_24bit_le_msb) {
 
 TEST(pcm_sample_transformer, int24_20bit_be_lsb) {
   std::vector<int32_t> const tmp{
-      folly::Endian::big<int32_t>(-524288 * 16),
-      folly::Endian::big<int32_t>(-524287 * 16),
-      folly::Endian::big<int32_t>(-1 * 16),
-      folly::Endian::big<int32_t>(0 * 16),
-      folly::Endian::big<int32_t>(1 * 16),
-      folly::Endian::big<int32_t>(524286 * 16),
-      folly::Endian::big<int32_t>(524287 * 16),
+      dwarfs::compat::Endian::big<int32_t>(-524288 * 16),
+      dwarfs::compat::Endian::big<int32_t>(-524287 * 16),
+      dwarfs::compat::Endian::big<int32_t>(-1 * 16),
+      dwarfs::compat::Endian::big<int32_t>(0 * 16),
+      dwarfs::compat::Endian::big<int32_t>(1 * 16),
+      dwarfs::compat::Endian::big<int32_t>(524286 * 16),
+      dwarfs::compat::Endian::big<int32_t>(524287 * 16),
   };
   std::vector<uint8_t> packed;
   std::vector<int32_t> unpacked;
