@@ -27,7 +27,7 @@
 #include <string_view>
 #include <vector>
 
-#include <folly/String.h>
+#include <dwarfs/internal/hex.h>
 
 #include <nlohmann/json.hpp>
 
@@ -106,7 +106,7 @@ class file_scanner_ final : public file_scanner::impl {
   }
 
   std::string format_key(std::string_view key) const {
-    return fmt::format("{}", folly::hexlify(key));
+    return fmt::format("{}", dwarfs::compat::hexlify(key));
   }
 
   void dump_value(std::ostream& os, std::integral auto val) const {
@@ -588,7 +588,7 @@ void file_scanner_<LoggerPolicy>::dump_value(std::ostream& os,
      << ",\n"
      << R"(        "size": )" << fmt::format("{}", p->size()) << ",\n"
      << R"(        "refcnt": )" << fmt::format("{}", p->refcount()) << ",\n"
-     << R"(        "hash": ")" << folly::hexlify(p->hash()) << "\",\n"
+     << R"(        "hash": ")" << dwarfs::compat::hexlify(p->hash()) << "\",\n"
      << R"(        "invalid": )" << (p->is_invalid() ? "true" : "false")
      << ",\n"
      << R"(        "inode_num": )"

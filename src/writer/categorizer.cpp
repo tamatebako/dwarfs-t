@@ -29,7 +29,6 @@
 
 #include <fmt/format.h>
 
-#include <folly/String.h>
 
 #include <nlohmann/json.hpp>
 
