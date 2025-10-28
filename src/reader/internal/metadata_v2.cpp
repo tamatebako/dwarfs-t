@@ -57,7 +57,7 @@
 
 #include <folly/Synchronized.h>
 #include <folly/small_vector.h>
-#include <folly/stats/Histogram.h>
+#include "dwarfs/internal/histogram.h"
 
 #include <parallel_hashmap/phmap.h>
 
@@ -1086,8 +1086,8 @@ metadata_v2_data::unpack_shared_files(logger& lgr) const {
 }
 
 void metadata_v2_data::analyze_chunks(std::ostream& os) const {
-  folly::Histogram<size_t> block_refs{1, 0, 1024};
-  folly::Histogram<size_t> chunk_count{1, 0, 65536};
+  dwarfs::compat::Histogram<size_t> block_refs{1, 0, 1024};
+  dwarfs::compat::Histogram<size_t> chunk_count{1, 0, 65536};
   size_t mergeable_chunks{0};
 
   for (size_t i = 1; i < meta_.chunk_table().size(); ++i) {

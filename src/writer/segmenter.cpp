@@ -41,7 +41,7 @@
 #include <folly/hash/Hash.h>
 #include <folly/small_vector.h>
 #include <folly/sorted_vector_types.h>
-#include <folly/stats/Histogram.h>
+#include "dwarfs/internal/histogram.h"
 
 #include <dwarfs/compiler.h>
 #include <dwarfs/compression_constraints.h>
@@ -100,7 +100,7 @@ struct segmenter_stats {
   uint64_t bloom_lookups{0};
   uint64_t bloom_hits{0};
   uint64_t bloom_true_positives{0};
-  folly::Histogram<uint64_t> l2_collision_vec_size;
+  dwarfs::compat::Histogram<uint64_t> l2_collision_vec_size;
 };
 
 template <typename KeyT, typename ValT, size_t MaxCollInline = 2>
@@ -1371,7 +1371,7 @@ class segmenter_ final : public segmenter::impl, private SegmentingPolicy {
   repeating_sequence_map_type repeating_sequence_hash_values_;
   repeating_collisions_map_type repeating_collisions_;
 
-  folly::Histogram<uint64_t> match_counts_;
+  dwarfs::compat::Histogram<uint64_t> match_counts_;
 };
 
 template <typename LoggerPolicy, typename GranularityPolicy>

@@ -41,7 +41,7 @@
 
 #include <fmt/format.h>
 
-#include <folly/stats/Histogram.h>
+#include "dwarfs/internal/histogram.h"
 #include "dwarfs/internal/thread_name.h"
 
 #include <parallel_hashmap/phmap.h>
@@ -802,7 +802,7 @@ class block_cache_ final : public block_cache::impl {
   mutable std::atomic<size_t> blocks_tidied_{0};
   mutable std::atomic<size_t> active_expired_{0};
   mutable std::atomic<size_t> sequential_prefetches_{0};
-  mutable folly::Histogram<size_t> active_set_size_{1, 0, 1024};
+  mutable dwarfs::compat::Histogram<size_t> active_set_size_{1, 0, 1024};
 
   mutable std::shared_mutex mx_wg_;
   mutable worker_group wg_;

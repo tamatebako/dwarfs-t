@@ -36,7 +36,7 @@
 #include <utility>
 #include <vector>
 
-#include <folly/stats/Histogram.h>
+#include "dwarfs/internal/histogram.h"
 
 #include <range/v3/view/enumerate.hpp>
 
@@ -218,7 +218,7 @@ class inode_reader_ final : public inode_reader_v2::impl {
   mutable std::mutex readahead_cache_mutex_;
   mutable readahead_cache_type readahead_cache_;
   mutable std::mutex iovec_sizes_mutex_;
-  mutable folly::Histogram<size_t> iovec_sizes_;
+  mutable dwarfs::compat::Histogram<size_t> iovec_sizes_;
   mutable std::once_flag hole_data_init_flag_;
   mutable readonly_memory_mapping hole_data_;
 };

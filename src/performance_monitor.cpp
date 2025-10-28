@@ -43,7 +43,7 @@
 #endif
 
 #include <folly/lang/Bits.h>
-#include <folly/stats/Histogram.h>
+#include "dwarfs/internal/histogram.h"
 
 #include <fmt/format.h>
 #if FMT_VERSION >= 110000
@@ -126,7 +126,7 @@ class single_timer {
  private:
   std::atomic<uint64_t> samples_{};
   std::atomic<uint64_t> total_time_{};
-  folly::Histogram<size_t> log_hist_;
+  dwarfs::compat::Histogram<size_t> log_hist_;
   std::mutex mutable log_hist_mutex_;
   std::string const namespace_;
   std::string const name_;
