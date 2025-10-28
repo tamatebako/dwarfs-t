@@ -253,10 +253,8 @@ if(WITH_LIBDWARFS)
     find_package(mimalloc ${MIMALLOC_REQUIRED_VERSION} REQUIRED CONFIG)
   endif()
 
-  include(${CMAKE_SOURCE_DIR}/cmake/thrift_library.cmake)
-
-  include(${CMAKE_SOURCE_DIR}/cmake/folly.cmake)
-  include(${CMAKE_SOURCE_DIR}/cmake/thrift.cmake)
+  # Thrift and Folly dependencies removed - using Cereal for serialization
+  # Configuration-driven registry pattern for serializers
 
   if(ENABLE_RICEPP)
     # TODO: support FetchContent
@@ -880,7 +878,7 @@ foreach(tgt ${LIBDWARFS_TARGETS} ${LIBDWARFS_OBJECT_TARGETS}
     target_compile_options(${tgt} PRIVATE -Wno-stringop-overflow)
   endif()
 
-  if(NOT ${tgt} MATCHES "folly|fsst|thrift")
+  if(NOT ${tgt} MATCHES "fsst")
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
        "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
       target_compile_options(${tgt} PRIVATE
@@ -1005,7 +1003,7 @@ if(ENABLE_COVERAGE)
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
     COMMAND llvm-profdata merge -sparse ${CMAKE_BINARY_DIR}/profile/*.profraw -o ${CMAKE_BINARY_DIR}/coverage/dwarfs.profdata
     COMMAND llvm-cov export -instr-profile=${CMAKE_BINARY_DIR}/coverage/dwarfs.profdata
-                -skip-branches -ignore-filename-regex="\(fsst\|folly\|fbthrift\|build[^/]*\)/"
+                -skip-branches -ignore-filename-regex="\(fsst\|build[^/]*\)/"
                 -format=lcov ${_PROFILE_OBJECTS} > ${CMAKE_BINARY_DIR}/coverage/coverage.info
     COMMAND genhtml -o ${CMAKE_BINARY_DIR}/coverage/html
                 --no-branch-coverage --missed --show-details
@@ -1022,7 +1020,7 @@ if(CMAKE_BUILD_TYPE STREQUAL Release)
   set_source_files_properties(fsst/fsst_avx512.cpp PROPERTIES COMPILE_FLAGS -O1)
 endif()
 
-foreach(tgt dwarfs_test_helpers dwarfs_follybenchmark_lite thrift1
+foreach(tgt dwarfs_test_helpers
             ${LIBDWARFS_TARGETS} ${LIBDWARFS_OBJECT_TARGETS}
             ${BINARY_TARGETS} ${TEST_TARGETS} ${MAIN_TARGETS})
   if(TARGET ${tgt})
@@ -1119,8 +1117,8 @@ add_custom_target(
       dwarfs_install.cmake package_version.cmake
       CPackConfig.cmake CPackSourceConfig.cmake _CPack_Packages
       CTestTestfile.cmake Testing
-      fbthrift folly zstd ricepp tools fake_folly
-      include src thrift universal bin lib man1 man5
+      zstd ricepp tools
+      include src universal bin lib man1 man5
       vcpkg-manifest-install.log
       Makefile compile_commands.json
       artifacts.env source-artifacts.env
