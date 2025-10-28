@@ -124,7 +124,7 @@ class fsblock {
  public:
   fsblock(section_type type, block_compressor const& bc,
           shared_byte_buffer data, std::shared_ptr<compression_progress> pctx,
-          folly::Function<void(size_t)> set_block_cb = nullptr);
+          std::function<void(size_t)> set_block_cb = nullptr);
 
   fsblock(section_type type, compression_type compression,
           std::span<uint8_t const> data);
@@ -202,7 +202,7 @@ class raw_fsblock : public fsblock::impl {
   raw_fsblock(section_type type, block_compressor const& bc,
               shared_byte_buffer data,
               std::shared_ptr<compression_progress> pctx,
-              folly::Function<void(size_t)> set_block_cb)
+              std::function<void(size_t)> set_block_cb)
       : type_{type}
       , bc_{bc}
       , uncompressed_size_{data.size()}
@@ -302,7 +302,7 @@ class raw_fsblock : public fsblock::impl {
   std::optional<section_header_v2> mutable header_;
   compression_type comp_type_;
   std::shared_ptr<compression_progress> pctx_;
-  folly::Function<void(size_t)> set_block_cb_;
+  std::function<void(size_t)> set_block_cb_;
 };
 
 class compressed_fsblock : public fsblock::impl {
@@ -489,7 +489,7 @@ class rewritten_fsblock : public fsblock::impl {
 fsblock::fsblock(section_type type, block_compressor const& bc,
                  shared_byte_buffer data,
                  std::shared_ptr<compression_progress> pctx,
-                 folly::Function<void(size_t)> set_block_cb)
+                 std::function<void(size_t)> set_block_cb)
     : impl_(std::make_unique<raw_fsblock>(type, bc, std::move(data),
                                           std::move(pctx),
                                           std::move(set_block_cb))) {}

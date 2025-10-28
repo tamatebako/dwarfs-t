@@ -38,7 +38,6 @@
  *
  * Components replaced:
  * - Endian conversions (folly::Endian)
- * - Type-erased functions (folly::Function)
  * - String conversions (folly::to, folly::tryTo)
  * - Compiler hints (folly::assume_unreachable)
  * - Enum utilities (folly::to_underlying)
