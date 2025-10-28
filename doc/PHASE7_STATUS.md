@@ -10,17 +10,17 @@
 | Category | Status | Files Modified | Notes |
 |----------|--------|----------------|-------|
 | **Planning** | ✅ Complete | 1 | Implementation plan created |
-| **Compatibility Headers** | ✅ Complete | 3 | All missing headers created |
+| **Compatibility Headers** | ✅ Complete | 4 | All missing headers created |
 | **Endian Operations** | ✅ Complete | 2/2 | Priority 1 - All 25 usages replaced |
-| **String Utilities** | ⏳ Pending | 0/5 | Ready to start |
+| **String Utilities** | ✅ Complete | 3/3 | Priority 2 - All ~8 usages replaced |
 | **Portability Headers** | ⏳ Pending | 0/13 | Ready to start |
 | **System Utilities** | ⏳ Pending | 0/9 | Ready to start |
 | **Container Types** | ⏳ Pending | 0/5 | Ready to start |
 | **Bit Operations** | ⏳ Pending | 0/3 | Ready to start |
 | **Utility Functions** | ⏳ Pending | 0/8 | Ready to start |
 
-**Overall Progress:** 3/10 phases complete (30%)
-**Folly Usages Replaced:** 25/101 (24.8%)
+**Overall Progress:** 4/10 phases complete (40%)
+**Folly Usages Replaced:** 33/101 (32.7%)
 
 ---
 
@@ -101,31 +101,43 @@ Comprehensive plan detailing:
 **Commit:** `cba5cadb` - `refactor: replace folly::Endian with dwarfs::compat::Endian`
 
 **Folly Usages Eliminated:** 25/101 (24.8%)
+### 5. String Utilities Replacement ✅
+
+**Priority:** 2 (High usage, simple replacement)
+
+**Files Modified:** 3
+1. `src/writer/categorizer.cpp` - Removed unused include
+2. `src/writer/internal/file_scanner.cpp` - 2 usages
+3. `src/util.cpp` - 6 usages
+
+**Changes Made:**
+- Removed `#include <folly/String.h>` from categorizer.cpp (unused)
+- Replaced `folly::hexlify()` → `dwarfs::compat::hexlify()` (2 usages)
+- Replaced `folly::prettyPrint()` → `dwarfs::compat::prettyPrint()` (2 usages)
+- Replaced `folly::exceptionStr()` → `dwarfs::compat::exceptionStr()` (3 usages)
+- Replaced `folly::hexDump()` → `dwarfs::compat::hexDump()` (1 usage)
+- Replaced `folly::hardware_concurrency()` → `std::thread::hardware_concurrency()` (1 usage)
+- Replaced Folly portability headers with standard headers in util.cpp
+
+**New Compatibility Header Created:**
+- `include/dwarfs/internal/pretty_print.h` (179 lines)
+  - Implements `prettyPrint()` for bytes (IEC units) and time (HMS format)
+  - Provides `PRETTY_BYTES_IEC` and `PRETTY_TIME_HMS` enums
+
+**Existing Compatibility Headers Used:**
+- `include/dwarfs/internal/hex.h` - hexlify, hexDump
+- `include/dwarfs/internal/exception_string.h` - exceptionStr
+
+**Commit:** `5e895e1b` - `refactor: replace folly string utilities with std library`
+
+**Folly Usages Eliminated:** 8 (cumulative: 33/101 = 32.7%)
+
 
 ---
 
 ## Remaining Work
 
-### Phase 2: String Utilities (Next)
-
-**Priority:** High (high usage, simple replacement)
-
-**Files to modify:** 5
-1. `src/reader/filesystem_options.cpp`
-2. `src/writer/inode_fragments.cpp`
-3. `src/conv.cpp`
-4. `src/logger.cpp`
-5. `src/util.cpp`
-
-**Replacements:**
-- `#include <folly/Conv.h>` → `#include "dwarfs/internal/conv.h"`
-- `#include <folly/String.h>` → `#include "dwarfs/internal/string_utils.h"` (if needed)
-- `folly::to<T>()` → `dwarfs::compat::to<T>()`
-- `folly::tryTo<T>()` → `dwarfs::compat::tryTo<T>()`
-
-**Estimated effort:** 1 hour
-
-### Phase 3: Portability Headers
+### Phase 3: Portability Headers (Next)
 
 **Priority:** Many files affected
 
@@ -212,7 +224,7 @@ ctest --test-dir build-test --verbose
 
 1. ✅ `refactor: add missing compatibility headers for folly replacement`
 2. ✅ `refactor: replace folly::Endian with dwarfs::compat::Endian` (commit cba5cadb)
-3. ⏳ `refactor: replace folly string utilities with dwarfs::compat`
+3. ✅ `refactor: replace folly string utilities with std library` (commit 5e895e1b)
 4. ⏳ `refactor: replace folly portability headers with standard headers`
 5. ⏳ `refactor: replace folly system utilities (ThreadName, HardwareConcurrency)`
 6. ⏳ `refactor: replace folly::Histogram with dwarfs::compat::Histogram`
@@ -233,8 +245,9 @@ ctest --test-dir build-test --verbose
 - `include/dwarfs/internal/unreachable.h` (85 lines)
 - `include/dwarfs/internal/exception_string.h` (92 lines)
 - `include/dwarfs/internal/histogram.h` (214 lines)
+- `include/dwarfs/internal/pretty_print.h` (179 lines)
 
-**Total new code:** ~911 lines
+**Total new code:** ~1,090 lines
 
 ---
 
@@ -300,11 +313,11 @@ ctest --test-dir build-test --verbose
 - [ ] No performance regressions
 - [ ] Code compiles on all platforms
 
-**Current completion: 25% of planning/preparation work**
-**Estimated time to completion: ~10 hours**
+**Current completion: 40% of implementation work**
+**Estimated time to completion: ~8 hours**
 
 ---
 
-**Status:** Ready to proceed with source file modifications
-**Next Action:** Commit compatibility headers and begin string utility replacements
+**Status:** String utilities complete, proceeding with portability headers
+**Next Action:** Replace portability headers (folly/portability/*.h)
 **Blocking Issues:** None
