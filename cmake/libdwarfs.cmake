@@ -202,16 +202,9 @@ add_library(
   fsst/fsst_avx512_unroll4.inc
 )
 
-add_cpp2_thrift_library(thrift/metadata.thrift FROZEN
-                        TARGET dwarfs_metadata_thrift OUTPUT_PATH dwarfs)
-add_cpp2_thrift_library(thrift/compression.thrift
-                        TARGET dwarfs_compression_thrift OUTPUT_PATH dwarfs)
-add_cpp2_thrift_library(thrift/history.thrift
-                        TARGET dwarfs_history_thrift OUTPUT_PATH dwarfs)
-add_cpp2_thrift_library(thrift/features.thrift
-                        TARGET dwarfs_features_thrift OUTPUT_PATH dwarfs)
+# Thrift libraries removed - now using Cereal for serialization
 
-target_link_libraries(dwarfs_common PRIVATE dwarfs_folly_lite PkgConfig::LIBCRYPTO PkgConfig::XXHASH PkgConfig::ZSTD PkgConfig::YAMLCPP)
+target_link_libraries(dwarfs_common PRIVATE PkgConfig::LIBCRYPTO PkgConfig::XXHASH PkgConfig::ZSTD PkgConfig::YAMLCPP)
 target_link_libraries(dwarfs_compressor PRIVATE dwarfs_common)
 target_link_libraries(dwarfs_decompressor PRIVATE dwarfs_common)
 target_link_libraries(dwarfs_reader PUBLIC dwarfs_common dwarfs_decompressor)
@@ -234,7 +227,7 @@ if(ENABLE_RICEPP)
   target_link_libraries(dwarfs_common PRIVATE ${RICEPP_OBJECT_TARGETS})
 endif()
 
-target_link_libraries(dwarfs_common PRIVATE dwarfs_thrift_lite)
+# dwarfs_thrift_lite removed - Cereal serialization is header-only
 
 if(WIN32)
   target_link_libraries(dwarfs_common PRIVATE bcrypt.lib)
@@ -272,10 +265,6 @@ target_link_libraries(
   PUBLIC
   Boost::boost
   Boost::chrono
-  dwarfs_compression_thrift
-  dwarfs_metadata_thrift
-  dwarfs_history_thrift
-  dwarfs_features_thrift
   dwarfs_fsst
 )
 
@@ -294,12 +283,6 @@ list(APPEND LIBDWARFS_TARGETS
 )
 
 list(APPEND LIBDWARFS_OBJECT_TARGETS
-  dwarfs_folly_lite
-  dwarfs_thrift_lite
-  dwarfs_compression_thrift
-  dwarfs_metadata_thrift
-  dwarfs_history_thrift
-  dwarfs_features_thrift
   dwarfs_fsst
 )
 
@@ -336,7 +319,6 @@ if(NOT STATIC_BUILD_DO_NOT_USE)
 
             # other
             ${RICEPP_OBJECT_TARGETS}
-            folly_deps
     EXPORT dwarfs-targets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
