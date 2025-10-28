@@ -40,6 +40,8 @@
 #include <folly/Synchronized.h>
 #include <folly/lang/Bits.h>
 
+#include <dwarfs/internal/endian.h>
+
 #include <dwarfs/error.h>
 #include <dwarfs/logger.h>
 #include <dwarfs/map_util.h>
@@ -218,7 +220,7 @@ template <>
 struct endian<endianness::BIG> {
   template <typename T>
   static T convert(T x) {
-    return folly::Endian::big(x);
+    return dwarfs::compat::Endian::big(x);
   }
 };
 
@@ -226,7 +228,7 @@ template <>
 struct endian<endianness::LITTLE> {
   template <typename T>
   static T convert(T x) {
-    return folly::Endian::little(x);
+    return dwarfs::compat::Endian::little(x);
   }
 };
 
@@ -647,7 +649,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_aiff(
     return false;
   }
 
-  file_header.size = folly::Endian::big(file_header.size);
+  file_header.size = dwarfs::compat::Endian::big(file_header.size);
 
   parser.check_size("file", file_header.size,
                     mm.size() - offsetof(file_hdr_t, form));
@@ -675,10 +677,10 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_aiff(
       meta.sample_endianness = endianness::BIG;
       meta.sample_signedness = signedness::SIGNED;
       meta.sample_padding = padding::LSB;
-      meta.bits_per_sample = folly::Endian::big(comm.sample_size);
+      meta.bits_per_sample = dwarfs::compat::Endian::big(comm.sample_size);
       meta.bytes_per_sample = (meta.bits_per_sample + 7) / 8;
-      meta.number_of_channels = folly::Endian::big(comm.num_chan);
-      num_sample_frames = folly::Endian::big(comm.num_sample_frames);
+      meta.number_of_channels = dwarfs::compat::Endian::big(comm.num_chan);
+      num_sample_frames = dwarfs::compat::Endian::big(comm.num_sample_frames);
 
       meta_valid = check_metadata(meta, "AIFF", path);
 
@@ -697,8 +699,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_aiff(
         return false;
       }
 
-      ssnd.offset = folly::Endian::big(ssnd.offset);
-      ssnd.block_size = folly::Endian::big(ssnd.block_size);
+      ssnd.offset = dwarfs::compat::Endian::big(ssnd.offset);
+      ssnd.block_size = dwarfs::compat::Endian::big(ssnd.block_size);
 
       file_off_t pcm_start =
           chunk->pos + sizeof(chunk_hdr_t) + sizeof(ssnd) + ssnd.offset;
@@ -788,8 +790,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
     return false;
   }
 
-  caff_hdr.version = folly::Endian::big(caff_hdr.version);
-  caff_hdr.flags = folly::Endian::big(caff_hdr.flags);
+  caff_hdr.version = dwarfs::compat::Endian::big(caff_hdr.version);
+  caff_hdr.flags = dwarfs::compat::Endian::big(caff_hdr.flags);
 
   if (caff_hdr.version != 1 || caff_hdr.flags != 0) {
     LOG_WARN << "[CAF] " << path
@@ -824,7 +826,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
         return false;
       }
 
-      fmt.format_flags = folly::Endian::big(fmt.format_flags);
+      fmt.format_flags = dwarfs::compat::Endian::big(fmt.format_flags);
 
       if (fmt.format_flags & kCAFLinearPCMFormatFlagIsFloat) {
         LOG_VERBOSE << "[CAF] " << path
@@ -832,7 +834,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
         return false;
       }
 
-      fmt.frames_per_packet = folly::Endian::big(fmt.frames_per_packet);
+      fmt.frames_per_packet = dwarfs::compat::Endian::big(fmt.frames_per_packet);
 
       if (fmt.frames_per_packet != 1) {
         LOG_WARN << "[CAF] " << path << ": unsupported frames per packet: "
@@ -840,7 +842,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
         return false;
       }
 
-      fmt.bytes_per_packet = folly::Endian::big(fmt.bytes_per_packet);
+      fmt.bytes_per_packet = dwarfs::compat::Endian::big(fmt.bytes_per_packet);
 
       meta.sample_endianness =
           (fmt.format_flags & kCAFLinearPCMFormatFlagIsLittleEndian)
@@ -848,8 +850,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
               : endianness::BIG;
       meta.sample_signedness = signedness::SIGNED;
       meta.sample_padding = padding::LSB;
-      meta.bits_per_sample = folly::Endian::big(fmt.bits_per_channel);
-      meta.number_of_channels = folly::Endian::big(fmt.channels_per_frame);
+      meta.bits_per_sample = dwarfs::compat::Endian::big(fmt.bits_per_channel);
+      meta.number_of_channels = dwarfs::compat::Endian::big(fmt.channels_per_frame);
 
       if (fmt.bytes_per_packet == 0) {
         LOG_WARN << "[CAF] " << path << ": bytes per packet must not be zero";
@@ -973,7 +975,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_wav_like(
     return false;
   }
 
-  file_header.size = folly::Endian::little(file_header.size);
+  file_header.size = dwarfs::compat::Endian::little(file_header.size);
 
   if (file_header.form_sv() != FormatPolicy::wave_id) {
     return false;
@@ -1016,12 +1018,12 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_wav_like(
         return false;
       }
 
-      fmt.format_code = folly::Endian::little(fmt.format_code);
-      fmt.num_channels = folly::Endian::little(fmt.num_channels);
-      fmt.samples_per_sec = folly::Endian::little(fmt.samples_per_sec);
-      fmt.avg_bytes_per_sec = folly::Endian::little(fmt.avg_bytes_per_sec);
-      fmt.block_align = folly::Endian::little(fmt.block_align);
-      fmt.bits_per_sample = folly::Endian::little(fmt.bits_per_sample);
+      fmt.format_code = dwarfs::compat::Endian::little(fmt.format_code);
+      fmt.num_channels = dwarfs::compat::Endian::little(fmt.num_channels);
+      fmt.samples_per_sec = dwarfs::compat::Endian::little(fmt.samples_per_sec);
+      fmt.avg_bytes_per_sec = dwarfs::compat::Endian::little(fmt.avg_bytes_per_sec);
+      fmt.block_align = dwarfs::compat::Endian::little(fmt.block_align);
+      fmt.bits_per_sample = dwarfs::compat::Endian::little(fmt.bits_per_sample);
 
       bool const is_extensible =
           chunk->size() == 40 &&
@@ -1029,8 +1031,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_wav_like(
 
       if (is_extensible) {
         fmt.valid_bits_per_sample =
-            folly::Endian::little(fmt.valid_bits_per_sample);
-        fmt.sub_format_code = folly::Endian::little(fmt.sub_format_code);
+            dwarfs::compat::Endian::little(fmt.valid_bits_per_sample);
+        fmt.sub_format_code = dwarfs::compat::Endian::little(fmt.sub_format_code);
       } else {
         fmt.sub_format_code = 0;
       }

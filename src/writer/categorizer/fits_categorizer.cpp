@@ -38,6 +38,8 @@
 #include <folly/Synchronized.h>
 #include <folly/lang/Bits.h>
 
+#include <dwarfs/internal/endian.h>
+
 #include <range/v3/algorithm/fold_left.hpp>
 #include <range/v3/view/chunk.hpp>
 
@@ -169,7 +171,7 @@ uint16_t merge_sample_bits<uint16_t>(std::span<uint8_t const> imagedata) {
   b16 |= fold_left_bit_or<uint16_t>(imagedata.subspan(
       size * kAlignment, imagedata.size_bytes() % kAlignment));
 
-  return folly::Endian::big(b16);
+  return dwarfs::compat::Endian::big(b16);
 }
 
 template <>
