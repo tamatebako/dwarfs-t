@@ -11,6 +11,7 @@
 |----------|--------|----------------|-------|
 | **Planning** | ✅ Complete | 1 | Implementation plan created |
 | **Compatibility Headers** | ✅ Complete | 3 | All missing headers created |
+| **Endian Operations** | ✅ Complete | 2/2 | Priority 1 - All 25 usages replaced |
 | **String Utilities** | ⏳ Pending | 0/5 | Ready to start |
 | **Portability Headers** | ⏳ Pending | 0/13 | Ready to start |
 | **System Utilities** | ⏳ Pending | 0/9 | Ready to start |
@@ -18,7 +19,8 @@
 | **Bit Operations** | ⏳ Pending | 0/3 | Ready to start |
 | **Utility Functions** | ⏳ Pending | 0/8 | Ready to start |
 
-**Overall Progress:** 2/9 phases complete (22%)
+**Overall Progress:** 3/10 phases complete (30%)
+**Folly Usages Replaced:** 25/101 (24.8%)
 
 ---
 
@@ -77,6 +79,28 @@ Comprehensive plan detailing:
 - ✅ `include/dwarfs/internal/demangle.h` - Symbol demangling
 
 **Total compatibility headers:** 11
+
+### 4. Endian Operations Replacement ✅
+
+**Priority:** 1 (Highest - 25 usages)
+
+**Files Modified:** 2
+1. `src/writer/categorizer/fits_categorizer.cpp` - 1 usage
+2. `src/writer/categorizer/pcmaudio_categorizer.cpp` - 24 usages
+
+**Changes Made:**
+- Added `#include <dwarfs/internal/endian.h>` to both files
+- Replaced all `folly::Endian::` → `dwarfs::compat::Endian::`
+- Used Boost.Endian as backend for cross-platform byte order operations
+- No functional changes - drop-in API replacement
+
+**Methods Replaced:**
+- `folly::Endian::big()` → `dwarfs::compat::Endian::big()`
+- `folly::Endian::little()` → `dwarfs::compat::Endian::little()`
+
+**Commit:** `cba5cadb` - `refactor: replace folly::Endian with dwarfs::compat::Endian`
+
+**Folly Usages Eliminated:** 25/101 (24.8%)
 
 ---
 
@@ -187,14 +211,15 @@ ctest --test-dir build-test --verbose
 ## Commits Planned
 
 1. ✅ `refactor: add missing compatibility headers for folly replacement`
-2. ⏳ `refactor: replace folly string utilities with dwarfs::compat`
-3. ⏳ `refactor: replace folly portability headers with standard headers`
-4. ⏳ `refactor: replace folly system utilities (ThreadName, HardwareConcurrency)`
-5. ⏳ `refactor: replace folly::Histogram with dwarfs::compat::Histogram`
-6. ⏳ `refactor: replace folly containers (small_vector, Synchronized)`
-7. ⏳ `refactor: replace folly::Bits with dwarfs::compat::Bits`
-8. ⏳ `refactor: replace remaining folly utilities`
-9. ⏳ `docs: update PHASE7_STATUS.md with completion report`
+2. ✅ `refactor: replace folly::Endian with dwarfs::compat::Endian` (commit cba5cadb)
+3. ⏳ `refactor: replace folly string utilities with dwarfs::compat`
+4. ⏳ `refactor: replace folly portability headers with standard headers`
+5. ⏳ `refactor: replace folly system utilities (ThreadName, HardwareConcurrency)`
+6. ⏳ `refactor: replace folly::Histogram with dwarfs::compat::Histogram`
+7. ⏳ `refactor: replace folly containers (small_vector, Synchronized)`
+8. ⏳ `refactor: replace folly::Bits with dwarfs::compat::Bits`
+9. ⏳ `refactor: replace remaining folly utilities`
+10. ⏳ `docs: update PHASE7_STATUS.md with completion report`
 
 ---
 
