@@ -8,8 +8,8 @@
 
 ## Executive Summary
 
-**Progress:** 72/101 Folly usages replaced (71.3%)
-**Commits:** 5 phases successfully completed and pushed
+**Progress:** 79/101 Folly usages replaced (78.2%)
+**Commits:** 6 phases successfully completed and pushed
 **Next Steps:** Replace remaining utility libraries or proceed with static library testing
 
 ---
@@ -122,13 +122,33 @@
 
 ---
 
+### ✅ Priority 6: folly::stats::Histogram (COMPLETE)
+**Files:** 5 files
+**Usages:** 7 replacements
+**Status:** All `folly::stats::Histogram` replaced with [`dwarfs::compat::Histogram`](include/dwarfs/internal/histogram.h:1)
+
+**Replacements:**
+- `folly::stats::Histogram<T>` → `dwarfs::compat::Histogram<T>`
+- `folly::Histogram<T>` → `dwarfs::compat::Histogram<T>`
+- `<folly/stats/Histogram.h>` → `"dwarfs/internal/histogram.h"`
+
+**Files Modified:**
+- [`src/writer/segmenter.cpp`](src/writer/segmenter.cpp:44) (3 usages)
+- [`src/performance_monitor.cpp`](src/performance_monitor.cpp:46) (1 usage)
+- [`src/reader/internal/block_cache.cpp`](src/reader/internal/block_cache.cpp:44) (1 usage)
+- [`src/reader/internal/inode_reader_v2.cpp`](src/reader/internal/inode_reader_v2.cpp:39) (1 usage)
+- [`src/reader/internal/metadata_v2.cpp`](src/reader/internal/metadata_v2.cpp:60) (2 usages)
+
+**Implementation:** Uses logarithmic bucketing for efficient performance monitoring and statistical analysis
+
+---
+
 ## Remaining Folly Dependencies
 
 ### Summary by Category
 
 | Category | Files (src) | Files (include) | Total | Priority |
 |----------|-------------|-----------------|-------|----------|
-| folly::stats::Histogram | 5 | 0 | 5 | High |
 | folly::lang::Bits* | 4 | 1 | 5 | High |
 | folly::Synchronized | 4 | 0 | 4 | Medium |
 | folly::Conv | 4 | 0 | 4 | Low |
@@ -137,27 +157,11 @@
 | folly::sorted_vector | 2 | 0 | 2 | Low |
 | folly::lang::Assume | 2 | 0 | 2 | Low |
 | Others | 7 | 0 | 7 | Low |
-| **TOTAL** | **29** | **1** | **30** | - |
+| **TOTAL** | **22** | **1** | **23** | - |
 
 ---
 
-### Priority 6: folly::stats::Histogram (Medium Priority)
-
-**Files:**
-- [`src/writer/segmenter.cpp`](src/writer/segmenter.cpp:44)
-- [`src/performance_monitor.cpp`](src/performance_monitor.cpp:46)
-- [`src/reader/internal/block_cache.cpp`](src/reader/internal/block_cache.cpp:44)
-- [`src/reader/internal/metadata_v2.cpp`](src/reader/internal/metadata_v2.cpp:60)
-- [`src/reader/internal/inode_reader_v2.cpp`](src/reader/internal/inode_reader_v2.cpp:39)
-
-**Replacement Options:**
-1. Create `dwarfs::Histogram` using standard containers
-2. Use third-party histogram library
-3. Simplify to basic statistics if full histogram not needed
-
----
-
-### Priority 7: folly::lang::Bits (Medium Priority)
+### Priority 7: folly::lang::Bits (High Priority)
 
 **Files:**
 - [`include/dwarfs/internal/packed_int_vector.h`](include/dwarfs/internal/packed_int_vector.h:35) (BitsClass)
@@ -249,20 +253,18 @@ ctest --test-dir build-test --output-on-failure
 4. **System utilities** - dwarfs::compat implementations
 
 **⚠️ Remaining Dependencies:**
-1. **folly::stats::Histogram** - 5 files
-2. **folly::lang::Bits** - 5 files (1 in public header)
-3. **Other utilities** - 20 files
+1. **folly::lang::Bits** - 5 files (1 in public header)
+2. **Other utilities** - 18 files
 
-**Total:** 30 remaining Folly dependencies
+**Total:** 23 remaining Folly dependencies
 
 ---
 
 ### Path to Static Library
 
 **Option A: Complete Folly Removal** (Recommended for clean separation)
-1. Replace Priority 6: folly::stats::Histogram (5 files)
-2. Replace Priority 7: folly::lang::Bits (5 files)
-3. Replace Priority 8: Remaining utilities (20 files)
+1. Replace Priority 7: folly::lang::Bits (5 files)
+2. Replace Priority 8: Remaining utilities (18 files)
 4. Remove Folly dependency entirely
 5. Test static library build
 
@@ -315,8 +317,7 @@ ctest --test-dir build-test --output-on-failure
 ### Short-Term Actions (Next 1-2 days)
 
 **If Option A (Complete Removal):**
-1. Implement Priority 6: folly::stats::Histogram replacement
-2. Implement Priority 7: folly::lang::Bits replacement
+1. Implement Priority 7: folly::lang::Bits replacement
 3. Continue with Priority 8
 4. Test thoroughly
 
@@ -353,15 +354,15 @@ ctest --test-dir build-test --output-on-failure
 ## Key Metrics
 
 ### Code Changes
-- **Files Modified:** 44 files
-- **Folly Usages Removed:** 72 / 101 (71.3%)
-- **Commits:** 5 semantic commits
-- **Lines Changed:** ~165 lines
+- **Files Modified:** 49 files
+- **Folly Usages Removed:** 79 / 101 (78.2%)
+- **Commits:** 6 semantic commits
+- **Lines Changed:** ~177 lines
 
 ### Dependencies Reduced
 - **Before:** 101 Folly usages across 50+ files
-- **After:** 29 Folly usages in 29 files
-- **Reduction:** 71.3% of Folly dependencies removed
+- **After:** 22 Folly usages in 22 files
+- **Reduction:** 78.2% of Folly dependencies removed
 
 ### Quality Metrics
 - **Build Status:** ⚠️ Untested (CMake version)
@@ -399,15 +400,15 @@ ctest --test-dir build-test --output-on-failure
 
 ## Conclusion
 
-**Significant progress achieved:** 71.3% of Folly dependencies removed across 5 priority areas.
+**Significant progress achieved:** 78.2% of Folly dependencies removed across 6 priority areas.
 
-**Remaining work:** 29 Folly usages in internal utilities - strategic decision needed.
+**Remaining work:** 22 Folly usages in internal utilities - strategic decision needed.
 
 **Public API Status:** ✅ CLEAN - All public headers now use standard library types only.
 
-**Recommendation:** Choose **Option A (Complete Removal)** - with public API already clean, focus on replacing remaining internal utilities (Histogram, Bits, etc.) to achieve zero Folly dependency.
+**Recommendation:** Choose **Option A (Complete Removal)** - with public API already clean and Histogram replaced, focus on replacing remaining internal utilities (Bits, etc.) to achieve zero Folly dependency.
 
-**Next Immediate Step:** Replace folly::stats::Histogram (Priority 6) or proceed to CI testing to verify current changes.
+**Next Immediate Step:** Replace folly::lang::Bits (Priority 7) or proceed to CI testing to verify current changes.
 
 ---
 
