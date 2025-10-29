@@ -28,7 +28,7 @@
 
 #include <dwarfs/writer/internal/inode_hole_mapper.h>
 
-#include <dwarfs/gen-cpp2/metadata_types.h>
+#include "dwarfs/metadata/domain/metadata.h"
 
 namespace dwarfs::writer::internal {
 
@@ -53,7 +53,7 @@ inode_hole_mapper::inode_hole_mapper(size_t hole_block_index, size_t block_size,
   assert(std::has_single_bit(block_size));
 }
 
-void inode_hole_mapper::map_hole(dwarfs::thrift::metadata::chunk& out,
+void inode_hole_mapper::map_hole(dwarfs::domain::chunk& out,
                                  file_size_t const size) {
   auto const size64 = static_cast<uint64_t>(size);
   uint64_t offset = size64 & ((UINT64_C(1) << block_size_bits_) - 1);
@@ -77,7 +77,7 @@ void inode_hole_mapper::map_hole(dwarfs::thrift::metadata::chunk& out,
 }
 
 bool inode_hole_mapper::is_hole(
-    dwarfs::thrift::metadata::chunk const& chk) const {
+    dwarfs::domain::chunk const& chk) const {
   return chk.block().value() == hole_block_index_;
 }
 

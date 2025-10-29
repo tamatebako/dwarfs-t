@@ -31,7 +31,7 @@
 #include <set>
 #include <string>
 
-#include <dwarfs/gen-cpp2/features_types.h>
+#include <dwarfs/metadata/domain/feature.h>
 
 namespace dwarfs::internal {
 
@@ -41,8 +41,8 @@ class feature_set {
   static std::set<std::string>
   get_unsupported(std::set<std::string> const& wanted_features);
 
-  void add(feature f);
-  bool has(feature f) const;
+  void add(metadata::domain::feature f);
+  bool has(metadata::domain::feature f) const;
 
   void set(std::set<std::string> const& features);
   std::set<std::string> const& get() const { return features_; }

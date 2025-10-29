@@ -29,11 +29,12 @@
 #include <cassert>
 #include <cstring>
 #include <span>
+#include <sstream>
 
 #include <FLAC++/decoder.h>
 #include <FLAC++/encoder.h>
 
-#include <thrift/lib/cpp2/protocol/Serializer.h>
+#include <cereal/archives/binary.hpp>
 
 #include <fmt/format.h>
 
@@ -43,11 +44,10 @@
 #include <dwarfs/decompressor_registry.h>
 #include <dwarfs/error.h>
 #include <dwarfs/malloc_byte_buffer.h>
+#include <dwarfs/metadata/domain/flac_block_header.h>
 #include <dwarfs/option_map.h>
 #include <dwarfs/pcm_sample_transformer.h>
 #include <dwarfs/varint.h>
-
-#include <dwarfs/gen-cpp2/compression_types.h>
 
 #include "base.h"
 
@@ -108,20 +108,20 @@ class dwarfs_flac_stream_decoder final : public FLAC::Decoder::Stream {
  public:
   dwarfs_flac_stream_decoder(
       std::span<uint8_t const> data,
-      thrift::compression::flac_block_header const& header)
+      dwarfs::metadata::domain::flac_block_header const& header)
       : data_{data}
       , header_{header}
-      , bytes_per_sample_{(header_.flags().value() & kBytesPerSampleMask) + 1}
-      , xfm_{header_.flags().value() & kFlagBigEndian
+      , bytes_per_sample_{(header_.flags & kBytesPerSampleMask) + 1}
+      , xfm_{header_.flags & kFlagBigEndian
                  ? pcm_sample_endianness::Big
                  : pcm_sample_endianness::Little,
-             header_.flags().value() & kFlagSigned
+             header_.flags & kFlagSigned
                  ? pcm_sample_signedness::Signed
                  : pcm_sample_signedness::Unsigned,
-             header_.flags().value() & kFlagLsbPadding
+             header_.flags & kFlagLsbPadding
                  ? pcm_sample_padding::Lsb
                  : pcm_sample_padding::Msb,
-             bytes_per_sample_, header_.bits_per_sample().value()} {}
+             bytes_per_sample_, header_.bits_per_sample} {}
 
   void set_target(mutable_byte_buffer target) {
     DWARFS_CHECK(!target_, "target buffer already set");
@@ -206,7 +206,7 @@ class dwarfs_flac_stream_decoder final : public FLAC::Decoder::Stream {
   mutable_byte_buffer target_;
   std::vector<FLAC__int32> tmp_;
   std::span<uint8_t const> data_;
-  thrift::compression::flac_block_header const& header_;
+  dwarfs::metadata::domain::flac_block_header const& header_;
   int const bytes_per_sample_;
   pcm_sample_transformer<FLAC__int32> xfm_;
   size_t pos_{0};
@@ -284,8 +284,6 @@ class flac_block_compressor final : public block_compressor::impl {
     auto compressed = malloc_byte_buffer::create(); // TODO: make configurable
 
     {
-      using namespace ::apache::thrift;
-
       compressed.reserve(5 * data.size() / 8); // optimistic guess
       compressed.resize(varint::max_size);
 
@@ -293,13 +291,17 @@ class flac_block_compressor final : public block_compressor::impl {
       pos += varint::encode(data.size(), compressed.data() + pos);
       compressed.resize(pos);
 
-      thrift::compression::flac_block_header hdr;
-      hdr.num_channels() = num_channels;
-      hdr.bits_per_sample() = bits_per_sample;
-      hdr.flags() = flags;
+      dwarfs::metadata::domain::flac_block_header hdr;
+      hdr.num_channels = static_cast<uint16_t>(num_channels);
+      hdr.bits_per_sample = static_cast<uint8_t>(bits_per_sample);
+      hdr.flags = flags;
 
-      std::string hdrbuf;
-      CompactSerializer::serialize(hdr, &hdrbuf);
+      std::ostringstream oss(std::ios::binary);
+      {
+        cereal::BinaryOutputArchive archive(oss);
+        archive(hdr);
+      }
+      std::string hdrbuf = oss.str();
 
       compressed.append(hdrbuf.data(), hdrbuf.size());
     }
@@ -428,14 +430,14 @@ class flac_block_decompressor final : public block_decompressor_base {
   compression_type type() const override { return compression_type::FLAC; }
 
   std::optional<std::string> metadata() const override {
-    auto const flags = header_.flags().value();
+    auto const flags = header_.flags;
     nlohmann::json meta{
         {"endianness", flags & kFlagBigEndian ? "big" : "little"},
         {"signedness", flags & kFlagSigned ? "signed" : "unsigned"},
         {"padding", flags & kFlagLsbPadding ? "lsb" : "msb"},
         {"bytes_per_sample", (flags & kBytesPerSampleMask) + 1},
-        {"bits_per_sample", header_.bits_per_sample().value()},
-        {"number_of_channels", header_.num_channels().value()},
+        {"bits_per_sample", header_.bits_per_sample},
+        {"number_of_channels", header_.num_channels},
     };
     return meta.dump();
   }
@@ -474,18 +476,28 @@ class flac_block_decompressor final : public block_decompressor_base {
   size_t uncompressed_size() const override { return uncompressed_size_; }
 
  private:
-  static thrift::compression::flac_block_header
-  decode_header(folly::span<uint8_t const>& span) {
-    using namespace ::apache::thrift;
-    thrift::compression::flac_block_header hdr;
-    auto size = CompactSerializer::deserialize(
-        folly::ByteRange{span.data(), span.size()}, hdr);
-    span = span.subspan(size);
+  static dwarfs::metadata::domain::flac_block_header
+  decode_header(std::span<uint8_t const>& span) {
+    dwarfs::metadata::domain::flac_block_header hdr;
+
+    std::string str(reinterpret_cast<char const*>(span.data()), span.size());
+    std::istringstream iss(str, std::ios::binary);
+
+    std::streampos start_pos = iss.tellg();
+    {
+      cereal::BinaryInputArchive archive(iss);
+      archive(hdr);
+    }
+    std::streampos end_pos = iss.tellg();
+
+    size_t bytes_read = static_cast<size_t>(end_pos - start_pos);
+    span = span.subspan(bytes_read);
+
     return hdr;
   }
 
   uint64_t const uncompressed_size_;
-  thrift::compression::flac_block_header const header_;
+  dwarfs::metadata::domain::flac_block_header const header_;
   std::unique_ptr<dwarfs_flac_stream_decoder> decoder_;
 };
 

@@ -103,6 +103,11 @@ class Histogram {
   uint64_t count() const { return count_; }
 
   /**
+   * \brief Get total count (alias for count, for Folly compatibility)
+   */
+  uint64_t computeTotalCount() const { return count_; }
+
+  /**
    * \brief Get sum of all values
    */
   T sum() const { return sum_; }

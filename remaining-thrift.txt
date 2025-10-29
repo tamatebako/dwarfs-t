@@ -1,0 +1,171 @@
+src/reader/filesystem_v2.cpp:399:  std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const {
+src/reader/filesystem_v2.cpp:403:  std::unique_ptr<thrift::metadata::metadata> unpacked_metadata() const {
+src/reader/filesystem_v2.cpp:407:  std::unique_ptr<thrift::metadata::fs_options> thawed_fs_options() const {
+src/reader/filesystem_v2.cpp:1512:  std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const override {
+src/reader/filesystem_v2.cpp:1515:  std::unique_ptr<thrift::metadata::metadata>
+src/reader/filesystem_v2.cpp:1519:  std::unique_ptr<thrift::metadata::fs_options>
+src/reader/filesystem_v2.cpp:1644:std::unique_ptr<thrift::metadata::metadata>
+src/reader/filesystem_v2.cpp:1649:std::unique_ptr<thrift::metadata::metadata>
+src/reader/filesystem_v2.cpp:1654:std::unique_ptr<thrift::metadata::fs_options>
+src/reader/internal/time_resolution_handler.cpp:41:using ::apache::thrift::frozen::View;
+src/reader/internal/time_resolution_handler.cpp:81:    ::apache::thrift::frozen::View<thrift::metadata::metadata> meta)
+src/reader/internal/time_resolution_handler.cpp:85:    ::apache::thrift::frozen::View<thrift::metadata::history_entry> hist)
+src/reader/internal/metadata_analyzer.cpp:48:using namespace ::apache::thrift::frozen;
+src/reader/internal/metadata_analyzer.cpp:66:Layout<thrift::metadata::metadata> const&
+src/reader/internal/metadata_analyzer.cpp:67:get_layout(MappedFrozen<thrift::metadata::metadata> const& meta) {
+src/reader/internal/metadata_analyzer.cpp:69:      std::unique_ptr<Layout<thrift::metadata::metadata>>>();
+src/reader/internal/metadata_analyzer.cpp:76:  frozen_analyzer(MappedFrozen<thrift::metadata::metadata> const& meta,
+src/reader/internal/metadata_analyzer.cpp:129:  MappedFrozen<thrift::metadata::metadata> const& meta_;
+src/reader/internal/metadata_analyzer.cpp:486:    MappedFrozen<thrift::metadata::metadata> const& meta,
+src/reader/internal/metadata_v2.cpp:90:#include <dwarfs/gen-cpp2/metadata_layouts.h>
+src/reader/internal/metadata_v2.cpp:91:#include <dwarfs/gen-cpp2/metadata_types_custom_protocol.h>
+src/reader/internal/metadata_v2.cpp:102:using ::apache::thrift::frozen::MappedFrozen;
+src/reader/internal/metadata_v2.cpp:103:using ::apache::thrift::frozen::View;
+src/reader/internal/metadata_v2.cpp:105:::apache::thrift::frozen::schema::Schema
+src/reader/internal/metadata_v2.cpp:107:  ::apache::thrift::frozen::schema::Schema schema;
+src/reader/internal/metadata_v2.cpp:109:      ::apache::thrift::CompactSerializer::deserialize(data, schema);
+src/reader/internal/metadata_v2.cpp:144:  using namespace ::apache::thrift::frozen;
+src/reader/internal/metadata_v2.cpp:154:MappedFrozen<thrift::metadata::metadata>
+src/reader/internal/metadata_v2.cpp:155:check_frozen(MappedFrozen<thrift::metadata::metadata> meta) {
+src/reader/internal/metadata_v2.cpp:195:void parse_fs_options(View<thrift::metadata::fs_options> opt,
+src/reader/internal/metadata_v2.cpp:206:get_fs_options(View<thrift::metadata::fs_options> opt) {
+src/reader/internal/metadata_v2.cpp:214:    MappedFrozen<thrift::metadata::metadata> const& meta,
+src/reader/internal/metadata_v2.cpp:234:get_category_info(MappedFrozen<thrift::metadata::metadata> const& meta,
+src/reader/internal/metadata_v2.cpp:442:  std::unique_ptr<thrift::metadata::metadata> unpack() const {
+src/reader/internal/metadata_v2.cpp:443:    return std::make_unique<thrift::metadata::metadata>(unpack_metadata());
+src/reader/internal/metadata_v2.cpp:446:  std::unique_ptr<thrift::metadata::metadata> thaw() const {
+src/reader/internal/metadata_v2.cpp:447:    return std::make_unique<thrift::metadata::metadata>(meta_.thaw());
+src/reader/internal/metadata_v2.cpp:450:  std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const {
+src/reader/internal/metadata_v2.cpp:452:      return std::make_unique<thrift::metadata::fs_options>(
+src/reader/internal/metadata_v2.cpp:466:  thrift::metadata::metadata unpack_metadata() const;
+src/reader/internal/metadata_v2.cpp:649:  MappedFrozen<thrift::metadata::metadata> meta_;
+src/reader/internal/metadata_v2.cpp:686:    , meta_{check_frozen(map_frozen<thrift::metadata::metadata>(schema, data_))}
+src/reader/internal/metadata_v2.cpp:1686:    ::apache::thrift::DebugProtocolWriter::Options dpwo;
+src/reader/internal/metadata_v2.cpp:1688:    os << ::apache::thrift::debugString(deserialize_schema(schema_), dpwo)
+src/reader/internal/metadata_v2.cpp:1726:    ::apache::thrift::DebugProtocolWriter::Options dpwo;
+src/reader/internal/metadata_v2.cpp:1728:    os << ::apache::thrift::debugString(meta_.thaw(), dpwo) << '\n';
+src/reader/internal/metadata_v2.cpp:1789:thrift::metadata::metadata metadata_v2_data::unpack_metadata() const {
+src/reader/internal/metadata_v2.cpp:2461:std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::thaw() const {
+src/reader/internal/metadata_v2.cpp:2465:std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::unpack() const {
+src/reader/internal/metadata_v2.cpp:2469:std::unique_ptr<thrift::metadata::fs_options>
+src/reader/internal/metadata_types.cpp:47:#include <dwarfs/gen-cpp2/metadata_types_custom_protocol.h>
+src/reader/internal/metadata_types.cpp:83:      std::unique_ptr<frozen::Layout<thrift::metadata::metadata>>>();
+src/reader/internal/metadata_types.cpp:107:  std::vector<thrift::metadata::directory> directories;
+src/reader/internal/metadata_types.cpp:191:       << size_with_unit(sizeof(thrift::metadata::directory) *
+src/reader/internal/metadata_types.cpp:199:      std::unique_ptr<frozen::Layout<thrift::metadata::metadata>>>();
+src/reader/internal/metadata_types.cpp:203:      frozen::Layout<std::vector<thrift::metadata::directory>>>>();
+src/reader/internal/metadata_types.cpp:504:    ::apache::thrift::frozen::View<thrift::metadata::string_table> v,
+src/reader/internal/metadata_types.cpp:559:    ::apache::thrift::frozen::View<std::vector<std::string>> v,
+src/writer/internal/metadata_freezer.cpp:32:#include <dwarfs/gen-cpp2/metadata_layouts.h>
+src/writer/internal/metadata_freezer.cpp:33:#include <dwarfs/gen-cpp2/metadata_types.h>
+src/writer/internal/metadata_freezer.cpp:43:  using namespace ::apache::thrift::frozen;
+src/writer/internal/metadata_freezer.cpp:71:  freeze(thrift::metadata::metadata const& data) const override {
+src/writer/internal/metadata_builder.cpp:49:#include <dwarfs/gen-cpp2/metadata_types.h>
+src/writer/internal/metadata_builder.cpp:60:get_conversion_factors(thrift::metadata::fs_options const* fs_options) {
+src/writer/internal/metadata_builder.cpp:83:  inode_size_provider(thrift::metadata::metadata const& md)
+src/writer/internal/metadata_builder.cpp:128:  using chunks_t = typename decltype(std::declval<thrift::metadata::metadata>()
+src/writer/internal/metadata_builder.cpp:131:      typename decltype(std::declval<thrift::metadata::metadata>()
+src/writer/internal/metadata_builder.cpp:134:      typename decltype(std::declval<thrift::metadata::metadata>()
+src/writer/internal/metadata_builder.cpp:156:    requires(std::same_as<std::decay_t<T>, thrift::metadata::metadata>)
+src/writer/internal/metadata_builder.cpp:158:                    thrift::metadata::fs_options const* orig_fs_options,
+src/writer/internal/metadata_builder.cpp:242:  thrift::metadata::metadata const& build() override;
+src/writer/internal/metadata_builder.cpp:245:  using chunks_t = typename decltype(std::declval<thrift::metadata::metadata>()
+src/writer/internal/metadata_builder.cpp:248:      typename decltype(std::declval<thrift::metadata::metadata>()
+src/writer/internal/metadata_builder.cpp:251:      typename decltype(std::declval<thrift::metadata::metadata>()
+src/writer/internal/metadata_builder.cpp:254:      typename decltype(std::declval<thrift::metadata::metadata>()
+src/writer/internal/metadata_builder.cpp:258:      typename decltype(std::declval<thrift::metadata::metadata>()
+src/writer/internal/metadata_builder.cpp:264:  void upgrade_metadata(thrift::metadata::fs_options const* orig_fs_options,
+src/writer/internal/metadata_builder.cpp:302:  thrift::metadata::metadata md_;
+src/writer/internal/metadata_builder.cpp:357:  md_.dir_entries() = std::vector<thrift::metadata::dir_entry>();
+src/writer/internal/metadata_builder.cpp:370:  thrift::metadata::directory sentinel;
+src/writer/internal/metadata_builder.cpp:876:thrift::metadata::metadata const& metadata_builder_<LoggerPolicy>::build() {
+src/writer/internal/metadata_builder.cpp:879:  thrift::metadata::fs_options fsopts;
+src/writer/internal/metadata_builder.cpp:972:    thrift::metadata::metadata tmp;
+src/writer/internal/metadata_builder.cpp:984:    thrift::metadata::metadata tmp;
+src/writer/internal/metadata_builder.cpp:1087:  thrift::metadata::metadata newmd;
+src/writer/internal/metadata_builder.cpp:1111:  std::vector<thrift::metadata::chunk> shared_chunks;
+src/writer/internal/metadata_builder.cpp:1200:    thrift::metadata::fs_options const* orig_fs_options,
+src/writer/internal/metadata_builder.cpp:1204:  // std::cout << apache::thrift::debugString(md_);
+src/writer/internal/metadata_builder.cpp:1206:  thrift::metadata::history_entry histent;
+src/writer/internal/metadata_builder.cpp:1216:  if (apache::thrift::is_non_optional_field_set_manually_or_by_serializer(
+src/writer/internal/metadata_builder.cpp:1269:    logger& lgr, thrift::metadata::metadata const& md,
+src/writer/internal/metadata_builder.cpp:1270:    thrift::metadata::fs_options const* orig_fs_options,
+src/writer/internal/metadata_builder.cpp:1277:    logger& lgr, thrift::metadata::metadata&& md,
+src/writer/internal/metadata_builder.cpp:1278:    thrift::metadata::fs_options const* orig_fs_options,
+src/metadata/serialization/thrift_converter.cpp:41:std::optional<T> convert_optional(const apache::thrift::optional_field_ref<const T&> opt) {
+src/metadata/serialization/thrift_converter.cpp:57:    const apache::thrift::optional_field_ref<const std::vector<T>&> opt) {
+src/metadata/serialization/thrift_converter.cpp:73:    const apache::thrift::optional_field_ref<const std::map<K, V>&> opt) {
+src/metadata/serialization/thrift_converter.cpp:89:    const apache::thrift::optional_field_ref<const std::set<T>&> opt) {
+src/metadata/serialization/thrift_converter.cpp:99:    const thrift::metadata::chunk& thrift_chunk) {
+src/metadata/serialization/thrift_converter.cpp:108:    const thrift::metadata::directory& thrift_dir) {
+src/metadata/serialization/thrift_converter.cpp:117:    const thrift::metadata::inode_data& thrift_inode) {
+src/metadata/serialization/thrift_converter.cpp:143:    const thrift::metadata::dir_entry& thrift_entry) {
+src/metadata/serialization/thrift_converter.cpp:151:    const thrift::metadata::fs_options& thrift_opts) {
+src/metadata/serialization/thrift_converter.cpp:170:    const thrift::metadata::string_table& thrift_table) {
+src/metadata/serialization/thrift_converter.cpp:182:    const thrift::metadata::inode_size_cache& thrift_cache) {
+src/metadata/serialization/thrift_converter.cpp:194:    const thrift::metadata::history_entry& thrift_entry) {
+src/metadata/serialization/thrift_converter.cpp:210:    const thrift::metadata::metadata& thrift_meta) {
+include/dwarfs/reader/filesystem_v2.h:65:namespace thrift::metadata {
+include/dwarfs/reader/filesystem_v2.h:68:} // namespace thrift::metadata
+include/dwarfs/reader/filesystem_v2.h:513:  std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const;
+include/dwarfs/reader/filesystem_v2.h:514:  std::unique_ptr<thrift::metadata::metadata> unpacked_metadata() const;
+include/dwarfs/reader/filesystem_v2.h:516:  std::unique_ptr<thrift::metadata::fs_options> thawed_fs_options() const;
+include/dwarfs/reader/filesystem_v2.h:532:    virtual std::unique_ptr<thrift::metadata::metadata>
+include/dwarfs/reader/filesystem_v2.h:534:    virtual std::unique_ptr<thrift::metadata::metadata>
+include/dwarfs/reader/filesystem_v2.h:536:    virtual std::unique_ptr<thrift::metadata::fs_options>
+include/dwarfs/reader/internal/time_resolution_handler.h:36:#include <dwarfs/gen-cpp2/metadata_layouts.h>
+include/dwarfs/reader/internal/time_resolution_handler.h:49:      ::apache::thrift::frozen::View<thrift::metadata::metadata> meta);
+include/dwarfs/reader/internal/time_resolution_handler.h:51:      ::apache::thrift::frozen::View<thrift::metadata::history_entry> hist);
+include/dwarfs/reader/internal/metadata_analyzer.h:36:#include <dwarfs/gen-cpp2/metadata_layouts.h>
+include/dwarfs/reader/internal/metadata_analyzer.h:37:#include <dwarfs/gen-cpp2/metadata_types.h>
+include/dwarfs/reader/internal/metadata_analyzer.h:44:  using MappedFrozen = ::apache::thrift::frozen::MappedFrozen<T>;
+include/dwarfs/reader/internal/metadata_analyzer.h:46:  metadata_analyzer(MappedFrozen<thrift::metadata::metadata> const& meta,
+include/dwarfs/reader/internal/metadata_analyzer.h:53:  MappedFrozen<thrift::metadata::metadata> const& meta_;
+include/dwarfs/reader/internal/metadata_v2.h:57:namespace thrift::metadata {
+include/dwarfs/reader/internal/metadata_v2.h:60:} // namespace thrift::metadata
+include/dwarfs/reader/internal/metadata_v2.h:286:  std::unique_ptr<thrift::metadata::metadata> thaw() const;
+include/dwarfs/reader/internal/metadata_v2.h:288:  std::unique_ptr<thrift::metadata::metadata> unpack() const;
+include/dwarfs/reader/internal/metadata_v2.h:290:  std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const;
+include/dwarfs/reader/internal/metadata_types.h:50:#include <dwarfs/gen-cpp2/metadata_layouts.h>
+include/dwarfs/reader/internal/metadata_types.h:63:      ::apache::thrift::frozen::MappedFrozen<thrift::metadata::metadata>;
+include/dwarfs/reader/internal/metadata_types.h:65:  using directories_view = ::apache::thrift::frozen::Layout<
+include/dwarfs/reader/internal/metadata_types.h:66:      std::vector<thrift::metadata::directory>>::View;
+include/dwarfs/reader/internal/metadata_types.h:68:      ::apache::thrift::frozen::Bundled<directories_view>;
+include/dwarfs/reader/internal/metadata_types.h:93:    : public ::apache::thrift::frozen::View<thrift::metadata::inode_data> {
+include/dwarfs/reader/internal/metadata_types.h:95:      ::apache::thrift::frozen::View<thrift::metadata::inode_data>;
+include/dwarfs/reader/internal/metadata_types.h:97:      ::apache::thrift::frozen::MappedFrozen<thrift::metadata::metadata>;
+include/dwarfs/reader/internal/metadata_types.h:128:      ::apache::thrift::frozen::View<thrift::metadata::inode_data>;
+include/dwarfs/reader/internal/metadata_types.h:130:      ::apache::thrift::frozen::View<thrift::metadata::dir_entry>;
+include/dwarfs/reader/internal/metadata_types.h:206:      ::apache::thrift::frozen::MappedFrozen<thrift::metadata::metadata>;
+include/dwarfs/reader/internal/metadata_types.h:211:             ::apache::thrift::frozen::View<thrift::metadata::chunk> v) {
+include/dwarfs/reader/internal/metadata_types.h:264:      ::apache::thrift::frozen::MappedFrozen<thrift::metadata::metadata>;
+include/dwarfs/writer/internal/inode.h:45:namespace thrift::metadata {
+include/dwarfs/writer/internal/inode.h:81:  append_chunks_to(std::vector<thrift::metadata::chunk>& vec,
+include/dwarfs/writer/internal/metadata_builder.h:40:namespace thrift::metadata {
+include/dwarfs/writer/internal/metadata_builder.h:43:} // namespace thrift::metadata
+include/dwarfs/writer/internal/metadata_builder.h:71:  metadata_builder(logger& lgr, thrift::metadata::metadata const& md,
+include/dwarfs/writer/internal/metadata_builder.h:72:                   thrift::metadata::fs_options const* orig_fs_options,
+include/dwarfs/writer/internal/metadata_builder.h:75:  metadata_builder(logger& lgr, thrift::metadata::metadata&& md,
+include/dwarfs/writer/internal/metadata_builder.h:76:                   thrift::metadata::fs_options const* orig_fs_options,
+include/dwarfs/writer/internal/metadata_builder.h:149:  thrift::metadata::metadata const& build() { return impl_->build(); }
+include/dwarfs/writer/internal/metadata_builder.h:182:    virtual thrift::metadata::metadata const& build() = 0;
+include/dwarfs/writer/internal/metadata_freezer.h:36:namespace thrift::metadata {
+include/dwarfs/writer/internal/metadata_freezer.h:48:  freeze(thrift::metadata::metadata const& data) const {
+include/dwarfs/writer/internal/metadata_freezer.h:57:    freeze(thrift::metadata::metadata const& data) const = 0;
+include/dwarfs/metadata/serialization/thrift_converter.h:36:#include <dwarfs/gen-cpp2/metadata_types.h>
+include/dwarfs/metadata/serialization/thrift_converter.h:72: * thrift::metadata::metadata thrift_meta;
+include/dwarfs/metadata/serialization/thrift_converter.h:91:   * thrift::metadata::metadata thrift_meta = deserialize_thrift();
+include/dwarfs/metadata/serialization/thrift_converter.h:97:      const thrift::metadata::metadata& thrift_meta);
+include/dwarfs/metadata/serialization/thrift_converter.h:106:      const thrift::metadata::chunk& thrift_chunk);
+include/dwarfs/metadata/serialization/thrift_converter.h:115:      const thrift::metadata::directory& thrift_dir);
+include/dwarfs/metadata/serialization/thrift_converter.h:124:      const thrift::metadata::inode_data& thrift_inode);
+include/dwarfs/metadata/serialization/thrift_converter.h:133:      const thrift::metadata::dir_entry& thrift_entry);
+include/dwarfs/metadata/serialization/thrift_converter.h:142:      const thrift::metadata::fs_options& thrift_opts);
+include/dwarfs/metadata/serialization/thrift_converter.h:151:      const thrift::metadata::string_table& thrift_table);
+include/dwarfs/metadata/serialization/thrift_converter.h:160:      const thrift::metadata::inode_size_cache& thrift_cache);
+include/dwarfs/metadata/serialization/thrift_converter.h:169:      const thrift::metadata::history_entry& thrift_entry);
+include/dwarfs/metadata/serialization/thrift_compact_serializer.h:71: * │  │   1. Deserialize Thrift bytes → thrift::metadata   │  │
+include/dwarfs/metadata/serialization/thrift_compact_serializer.h:146:   * 3. Convert thrift::metadata to domain::metadata using ThriftConverter
+include/dwarfs/metadata/serialization/thrift_compact_serializer.h:186:      thrift::metadata::metadata thrift_meta;
+include/dwarfs/metadata/serialization/thrift_compact_serializer.h:189:      size_t bytes_read = apache::thrift::CompactSerializer::deserialize(
+include/dwarfs/metadata/serialization/thrift_compact_serializer.h:202:    } catch (const apache::thrift::protocol::TProtocolException& e) {

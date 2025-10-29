@@ -42,12 +42,12 @@
 
 namespace dwarfs {
 
-namespace thrift::metadata {
+namespace domain {
 
 class inode_data;
 class metadata;
 
-} // namespace thrift::metadata
+} // namespace domain
 
 class os_access;
 
@@ -92,7 +92,7 @@ class entry : public entry_interface {
   bool is_directory() const override;
   virtual void walk(std::function<void(entry*)> const& f);
   void
-  pack(thrift::metadata::inode_data& entry_v2, global_entry_data const& data,
+  pack(domain::inode_data& entry_v2, global_entry_data const& data,
        time_resolution_converter const& timeres) const;
   void update(global_entry_data& data) const;
   virtual void accept(entry_visitor& v, bool preorder = false) = 0;
@@ -171,10 +171,10 @@ class dir : public entry {
   void walk(std::function<void(entry*)> const& f) override;
   void accept(entry_visitor& v, bool preorder) override;
   void sort();
-  void pack(thrift::metadata::metadata& mv2, global_entry_data const& data,
+  void pack(domain::metadata& mv2, global_entry_data const& data,
             time_resolution_converter const& timeres) const;
   void
-  pack_entry(thrift::metadata::metadata& mv2, global_entry_data const& data,
+  pack_entry(domain::metadata& mv2, global_entry_data const& data,
              time_resolution_converter const& timeres) const;
   void scan(os_access const& os, progress& prog) override;
   bool empty() const { return entries_.empty(); }

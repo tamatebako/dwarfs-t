@@ -618,7 +618,7 @@ void check_string_tables(global_metadata::Meta const& meta) {
 void check_chunks(global_metadata::Meta const& meta,
                   feature_set const& features) {
   auto block_size = meta.block_size;
-  bool const has_sparse = features.has(feature::sparsefiles);
+  bool const has_sparse = features.has(metadata::domain::feature::sparsefiles);
   auto const& hole_ix = meta.hole_block_index;
 
   if (hole_ix.has_value() && !has_sparse) {

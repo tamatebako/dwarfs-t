@@ -32,8 +32,7 @@
 
 #include <fmt/format.h>
 
-#include <folly/lang/Assume.h>
-
+#include <dwarfs/internal/compat.h>
 #include <dwarfs/pcm_sample_transformer.h>
 
 namespace dwarfs {
@@ -326,7 +325,7 @@ make_pcm_sample_transformer(pcm_sample_padding pad, int bytes, int bits) {
                                        pcm_sample_padding::Msb>(bytes, bits);
   }
 
-  folly::assume_unreachable();
+  dwarfs::compat::assume_unreachable();
 }
 
 template <typename UnpackedType, pcm_sample_endianness End>
@@ -344,7 +343,7 @@ make_pcm_sample_transformer(pcm_sample_signedness sig, pcm_sample_padding pad,
         pad, bytes, bits);
   }
 
-  folly::assume_unreachable();
+  dwarfs::compat::assume_unreachable();
 }
 
 template <typename UnpackedType>
@@ -365,7 +364,7 @@ make_pcm_sample_transformer(pcm_sample_endianness end,
         sig, pad, bytes, bits);
   }
 
-  folly::assume_unreachable();
+  dwarfs::compat::assume_unreachable();
 }
 
 } // namespace

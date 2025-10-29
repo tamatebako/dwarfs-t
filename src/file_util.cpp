@@ -26,14 +26,14 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <fstream>
+
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
-
-#include <folly/FileUtil.h>
 
 #include <dwarfs/conv.h>
 #include <dwarfs/file_util.h>
@@ -89,12 +89,26 @@ temporary_directory::~temporary_directory() {
 }
 
 std::string read_file(std::filesystem::path const& path, std::error_code& ec) {
-  std::string out;
-  if (folly::readFile(path.string().c_str(), out)) {
-    ec.clear();
-  } else {
+  std::ifstream ifs(path, std::ios::binary);
+  if (!ifs) {
     ec = get_last_error_code();
+    return {};
   }
+
+  std::string out;
+  ifs.seekg(0, std::ios::end);
+  auto size = ifs.tellg();
+  if (size > 0) {
+    out.resize(static_cast<size_t>(size));
+    ifs.seekg(0, std::ios::beg);
+    ifs.read(&out[0], size);
+    if (!ifs) {
+      ec = get_last_error_code();
+      return {};
+    }
+  }
+
+  ec.clear();
   return out;
 }
 
@@ -109,11 +123,19 @@ std::string read_file(std::filesystem::path const& path) {
 
 void write_file(std::filesystem::path const& path, std::string_view content,
                 std::error_code& ec) {
-  if (folly::writeFile(content, path.string().c_str())) {
-    ec.clear();
-  } else {
+  std::ofstream ofs(path, std::ios::binary);
+  if (!ofs) {
     ec = get_last_error_code();
+    return;
   }
+
+  ofs.write(content.data(), content.size());
+  if (!ofs) {
+    ec = get_last_error_code();
+    return;
+  }
+
+  ec.clear();
 }
 
 void write_file(std::filesystem::path const& path, std::string_view content) {

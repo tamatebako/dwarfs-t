@@ -28,8 +28,8 @@
 
 #include <algorithm>
 #include <iterator>
-
-#include <thrift/lib/cpp/util/EnumUtils.h>
+#include <string_view>
+#include <array>
 
 #include <dwarfs/internal/features.h>
 
@@ -37,25 +37,39 @@ namespace dwarfs::internal {
 
 namespace {
 
+using metadata::domain::feature;
+
 constexpr bool is_supported_feature(feature /*f*/) { return true; }
 
+// Map of feature enum to string name
+constexpr std::array<std::pair<feature, std::string_view>, 1> feature_names{{
+    {feature::sparsefiles, "sparsefiles"},
+}};
+
 std::string feature_name(feature f) {
-  return apache::thrift::util::enumNameOrThrow(f);
+  for (auto const& [feat, name] : feature_names) {
+    if (feat == f) {
+      return std::string{name};
+    }
+  }
+  return "unknown";
 }
 
 } // namespace
 
-void feature_set::add(feature f) { features_.insert(feature_name(f)); }
+void feature_set::add(metadata::domain::feature f) {
+  features_.insert(feature_name(f));
+}
 
-bool feature_set::has(feature f) const {
+bool feature_set::has(metadata::domain::feature f) const {
   return features_.contains(feature_name(f));
 }
 
 std::set<std::string> feature_set::get_supported() {
   std::set<std::string> rv;
-  for (auto f : apache::thrift::TEnumTraits<feature>::values) {
+  for (auto const& [f, name] : feature_names) {
     if (is_supported_feature(f)) {
-      rv.insert(feature_name(f));
+      rv.insert(std::string{name});
     }
   }
   return rv;

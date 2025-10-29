@@ -26,7 +26,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <thrift/lib/cpp2/protocol/Serializer.h>
+#include <cereal/archives/binary.hpp>
+#include <sstream>
 
 #include <fmt/format.h>
 
@@ -39,10 +40,9 @@
 #include <dwarfs/decompressor_registry.h>
 #include <dwarfs/error.h>
 #include <dwarfs/malloc_byte_buffer.h>
+#include <dwarfs/metadata/domain/ricepp_block_header.h>
 #include <dwarfs/option_map.h>
 #include <dwarfs/varint.h>
-
-#include <dwarfs/gen-cpp2/compression_types.h>
 
 #include "base.h"
 
@@ -103,24 +103,26 @@ class ricepp_block_compressor final : public block_compressor::impl {
 
     // TODO: see if we can resize just once...
     {
-      using namespace ::apache::thrift;
-
       compressed.resize(varint::max_size);
 
       size_t pos = 0;
       pos += varint::encode(data.size(), compressed.data() + pos);
       compressed.resize(pos);
 
-      thrift::compression::ricepp_block_header hdr;
-      hdr.block_size() = block_size_;
-      hdr.component_count() = component_count;
-      hdr.bytes_per_sample() = bytes_per_sample;
-      hdr.unused_lsb_count() = unused_lsb_count;
-      hdr.big_endian() = byteorder == std::endian::big;
-      hdr.ricepp_version() = RICEPP_VERSION;
+      dwarfs::metadata::domain::ricepp_block_header hdr;
+      hdr.block_size = static_cast<uint32_t>(block_size_);
+      hdr.component_count = static_cast<uint16_t>(component_count);
+      hdr.bytes_per_sample = static_cast<uint8_t>(bytes_per_sample);
+      hdr.unused_lsb_count = static_cast<uint8_t>(unused_lsb_count);
+      hdr.big_endian = byteorder == std::endian::big;
+      hdr.ricepp_version = RICEPP_VERSION;
 
-      std::string hdrbuf;
-      CompactSerializer::serialize(hdr, &hdrbuf);
+      std::ostringstream oss(std::ios::binary);
+      {
+        cereal::BinaryOutputArchive archive(oss);
+        archive(hdr);
+      }
+      std::string hdrbuf = oss.str();
 
       compressed.append(hdrbuf.data(), hdrbuf.size());
     }
@@ -187,15 +189,15 @@ class ricepp_block_decompressor final : public block_decompressor_base {
       , header_{decode_header(data)}
       , data_{data}
       , decoder_{ricepp::create_decoder<uint16_t>(
-            {.block_size = header_.block_size().value(),
-             .component_stream_count = header_.component_count().value(),
-             .byteorder = header_.big_endian().value() ? std::endian::big
-                                                       : std::endian::little,
-             .unused_lsb_count = header_.unused_lsb_count().value()})} {
-    if (header_.bytes_per_sample().value() != 2) {
+            {.block_size = header_.block_size,
+             .component_stream_count = header_.component_count,
+             .byteorder = header_.big_endian ? std::endian::big
+                                             : std::endian::little,
+             .unused_lsb_count = header_.unused_lsb_count})} {
+    if (header_.bytes_per_sample != 2) {
       DWARFS_THROW(runtime_error,
                    fmt::format("[RICEPP] unsupported bytes per sample: {}",
-                               header_.bytes_per_sample().value()));
+                               header_.bytes_per_sample));
     }
   }
 
@@ -203,10 +205,10 @@ class ricepp_block_decompressor final : public block_decompressor_base {
 
   std::optional<std::string> metadata() const override {
     nlohmann::json meta{
-        {"endianness", header_.big_endian().value() ? "big" : "little"},
-        {"bytes_per_sample", header_.bytes_per_sample().value()},
-        {"unused_lsb_count", header_.unused_lsb_count().value()},
-        {"component_count", header_.component_count().value()},
+        {"endianness", header_.big_endian ? "big" : "little"},
+        {"bytes_per_sample", header_.bytes_per_sample},
+        {"unused_lsb_count", header_.unused_lsb_count},
+        {"component_count", header_.component_count},
     };
     return meta.dump();
   }
@@ -233,23 +235,33 @@ class ricepp_block_decompressor final : public block_decompressor_base {
   size_t uncompressed_size() const override { return uncompressed_size_; }
 
  private:
-  static thrift::compression::ricepp_block_header
+  static dwarfs::metadata::domain::ricepp_block_header
   decode_header(std::span<uint8_t const>& span) {
-    using namespace ::apache::thrift;
-    thrift::compression::ricepp_block_header hdr;
-    auto size = CompactSerializer::deserialize(
-        folly::ByteRange{span.data(), span.size()}, hdr);
-    span = span.subspan(size);
-    if (hdr.ricepp_version().value() > RICEPP_VERSION) {
+    dwarfs::metadata::domain::ricepp_block_header hdr;
+
+    std::string str(reinterpret_cast<char const*>(span.data()), span.size());
+    std::istringstream iss(str, std::ios::binary);
+
+    std::streampos start_pos = iss.tellg();
+    {
+      cereal::BinaryInputArchive archive(iss);
+      archive(hdr);
+    }
+    std::streampos end_pos = iss.tellg();
+
+    size_t bytes_read = static_cast<size_t>(end_pos - start_pos);
+    span = span.subspan(bytes_read);
+
+    if (hdr.ricepp_version > RICEPP_VERSION) {
       DWARFS_THROW(runtime_error,
                    fmt::format("[RICEPP] unsupported version: {}",
-                               hdr.ricepp_version().value()));
+                               hdr.ricepp_version));
     }
     return hdr;
   }
 
   uint64_t const uncompressed_size_;
-  thrift::compression::ricepp_block_header const header_;
+  dwarfs::metadata::domain::ricepp_block_header const header_;
   std::span<uint8_t const> data_;
   std::unique_ptr<ricepp::decoder_interface<uint16_t>> decoder_;
 };

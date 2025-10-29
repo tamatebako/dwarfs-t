@@ -32,7 +32,7 @@
 #include <dwarfs/writer/internal/global_entry_data.h>
 #include <dwarfs/writer/internal/time_resolution_converter.h>
 
-#include <dwarfs/gen-cpp2/metadata_types.h>
+#include "dwarfs/metadata/domain/metadata.h"
 
 namespace dwarfs::writer::internal {
 
@@ -92,7 +92,7 @@ uint64_t global_entry_data::get_timestamp_base() const {
 }
 
 void global_entry_data::pack_inode_stat(
-    thrift::metadata::inode_data& inode, file_stat const& stat,
+    domain::inode_data& inode, file_stat const& stat,
     time_resolution_converter const& timeres) const {
   stat.ensure_valid(file_stat::uid_valid | file_stat::gid_valid |
                     file_stat::mode_valid | file_stat::atime_valid |

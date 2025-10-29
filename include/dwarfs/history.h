@@ -45,18 +45,14 @@ namespace dwarfs {
 
 class library_dependencies;
 
-namespace thrift::history {
-
-class history;
-
-} // namespace thrift::history
+struct history_data;
 
 class history {
  public:
   explicit history(history_config const& cfg = {});
   history(history&&) noexcept;
   history& operator=(history&&) noexcept;
-  ~history() noexcept;
+  ~history() noexcept;  // Must be defined in .cpp after history_data is complete
 
   void parse(std::span<uint8_t const> data);
   void parse_append(std::span<uint8_t const> data);
@@ -69,7 +65,7 @@ class history {
   nlohmann::json as_json() const;
 
  private:
-  std::unique_ptr<thrift::history::history> history_;
+  std::unique_ptr<history_data> history_;
   history_config cfg_;
 };
 

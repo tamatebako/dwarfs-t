@@ -40,7 +40,7 @@
 #include <dwarfs/writer/internal/progress.h>
 #include <dwarfs/writer/internal/scanner_progress.h>
 
-#include <dwarfs/gen-cpp2/metadata_types.h>
+#include "dwarfs/metadata/domain/metadata.h"
 
 namespace dwarfs::writer::internal {
 
@@ -165,7 +165,7 @@ void entry::update(global_entry_data& data) const {
   data.add_ctime(stat_.ctime_unchecked());
 }
 
-void entry::pack(thrift::metadata::inode_data& entry_v2,
+void entry::pack(domain::inode_data& entry_v2,
                  global_entry_data const& data,
                  time_resolution_converter const& timeres) const {
   data.pack_inode_stat(entry_v2, stat_, timeres);
@@ -324,7 +324,7 @@ void dir::sort() {
 
 void dir::scan(os_access const&, progress&) {}
 
-void dir::pack_entry(thrift::metadata::metadata& mv2,
+void dir::pack_entry(domain::metadata& mv2,
                      global_entry_data const& data,
                      time_resolution_converter const& timeres) const {
   auto& de = mv2.dir_entries()->emplace_back();
@@ -334,9 +334,9 @@ void dir::pack_entry(thrift::metadata::metadata& mv2,
               timeres);
 }
 
-void dir::pack(thrift::metadata::metadata& mv2, global_entry_data const& data,
+void dir::pack(domain::metadata& mv2, global_entry_data const& data,
                time_resolution_converter const& timeres) const {
-  thrift::metadata::directory d;
+  domain::directory d;
   if (has_parent()) {
     auto pd = std::dynamic_pointer_cast<dir>(parent());
     DWARFS_CHECK(pd, "unexpected parent entry (not a directory)");

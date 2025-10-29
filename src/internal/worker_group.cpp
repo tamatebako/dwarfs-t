@@ -154,17 +154,6 @@ class basic_worker_group final : public worker_group::impl, private Policy {
   }
 
   /**
-   * Add a new move-only job to the worker group
-   *
-   * The new job will be dispatched to the first available worker thread.
-   *
-   * \param job             The job to add to the dispatcher.
-   */
-  bool add_moveonly_job(worker_group::moveonly_job_t&& job) override {
-    return add_job_impl(std::move(job));
-  }
-
-  /**
    * Return the number of worker threads
    *
    * \returns The number of worker threads.
@@ -222,8 +211,7 @@ class basic_worker_group final : public worker_group::impl, private Policy {
   }
 
  private:
-  using any_job_t =
-      std::variant<worker_group::job_t, worker_group::moveonly_job_t>;
+  using any_job_t = worker_group::job_t;
   using jobs_t = std::queue<any_job_t>;
 
   bool add_job_impl(any_job_t&& job) {
@@ -313,13 +301,7 @@ class basic_worker_group final : public worker_group::impl, private Policy {
         }
 #endif
         try {
-          std::visit(
-              [](auto&& j) {
-                static_assert(std::is_rvalue_reference_v<decltype(j)>);
-                auto job = std::forward<decltype(j)>(j);
-                job();
-              },
-              std::move(job));
+          job();
         } catch (...) {
           LOG_FATAL << "exception thrown in worker thread: "
                     << exception_str(std::current_exception());

@@ -65,7 +65,7 @@
 #include <dwarfs/writer/internal/similarity.h>
 #include <dwarfs/writer/internal/similarity_ordering.h>
 
-#include <dwarfs/gen-cpp2/metadata_types.h>
+#include "dwarfs/metadata/domain/metadata.h"
 
 namespace dwarfs::writer::internal {
 
@@ -86,7 +86,7 @@ enum class scan_mode {
 
 class inode_ : public inode {
  public:
-  using chunk_type = thrift::metadata::chunk;
+  using chunk_type = domain::chunk;
 
   inode_() = default;
 

@@ -31,10 +31,7 @@
 #include <exception>
 #include <iterator>
 #include <stdexcept>
-
-#include <folly/Conv.h>
-#include <folly/lang/Assume.h>
-#include <folly/small_vector.h>
+#include <vector>
 
 #include <boost/chrono/thread_clock.hpp>
 
@@ -52,6 +49,8 @@
 #include <fmt/format.h>
 
 #include <dwarfs/error.h>
+#include <dwarfs/internal/compat.h>
+#include <dwarfs/internal/conv.h>
 #include <dwarfs/logger.h>
 #include <dwarfs/string.h>
 #include <dwarfs/terminal_ansi.h>
@@ -90,7 +89,7 @@ char logger::level_char(level_type level) {
   case TRACE:
     return 'T';
   }
-  folly::assume_unreachable();
+  dwarfs::compat::assume_unreachable();
 }
 
 std::ostream& operator<<(std::ostream& os, logger::level_type const& optval) {
@@ -245,14 +244,16 @@ void stream_logger::write(level_type level, std::string_view output,
       context = get_logger_context(loc);
       context_len = context.size();
       if (color_) {
-        context = folly::to<std::string>(
-            suffix, term_->color(termcolor::DIM_MAGENTA), context,
-            term_->color(termcolor::NORMAL), prefix);
+        context = std::string(suffix) +
+                  std::string(term_->color(termcolor::DIM_MAGENTA)) +
+                  context +
+                  std::string(term_->color(termcolor::NORMAL)) +
+                  std::string(prefix);
       }
     }
 
     std::string tmp;
-    folly::small_vector<std::string_view, 2> lines;
+    std::vector<std::string_view> lines;
 
     if (output.find('\r') != std::string::npos) {
       tmp.reserve(output.size());

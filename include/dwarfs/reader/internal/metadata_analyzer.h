@@ -28,29 +28,28 @@
 
 #pragma once
 
+#include <cstdint>
 #include <iosfwd>
 #include <span>
 
-#include <thrift/lib/cpp2/frozen/FrozenUtil.h>
-
-#include <dwarfs/gen-cpp2/metadata_layouts.h>
-#include <dwarfs/gen-cpp2/metadata_types.h>
-
 namespace dwarfs::reader::internal {
 
+/**
+ * \brief Metadata analyzer for frozen format (deprecated)
+ *
+ * NOTE: This class is stubbed out during the Thrift/Folly removal.
+ * The frozen metadata analysis functionality is not critical for
+ * core operations and can be re-implemented later if needed using
+ * domain models instead of frozen structures.
+ */
 class metadata_analyzer {
  public:
-  template <typename T>
-  using MappedFrozen = ::apache::thrift::frozen::MappedFrozen<T>;
-
-  metadata_analyzer(MappedFrozen<thrift::metadata::metadata> const& meta,
-                    std::span<uint8_t const> data);
+  metadata_analyzer(std::span<uint8_t const> data);
 
   void print_layout(std::ostream& os) const;
   void print_frozen(std::ostream& os, bool verbose) const;
 
  private:
-  MappedFrozen<thrift::metadata::metadata> const& meta_;
   std::span<uint8_t const> data_;
 };
 

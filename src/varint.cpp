@@ -26,21 +26,42 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <folly/Varint.h>
+#include <span>
 
 #include <dwarfs/varint.h>
 
 namespace dwarfs {
 
 auto varint::encode(value_type value, uint8_t* buffer) -> size_t {
-  return folly::encodeVarint(value, buffer);
+  size_t pos = 0;
+  while (value >= 0x80) {
+    buffer[pos++] = static_cast<uint8_t>((value & 0x7F) | 0x80);
+    value >>= 7;
+  }
+  buffer[pos++] = static_cast<uint8_t>(value & 0x7F);
+  return pos;
 }
 
 auto varint::decode(std::span<uint8_t const>& buffer) -> value_type {
-  folly::ByteRange range(buffer.data(), buffer.size());
-  auto value = folly::decodeVarint(range);
-  buffer = {range.data(), range.size()};
-  return value;
+  value_type result = 0;
+  unsigned shift = 0;
+  size_t pos = 0;
+
+  while (pos < buffer.size()) {
+    uint8_t byte = buffer[pos++];
+    result |= static_cast<value_type>(byte & 0x7F) << shift;
+
+    if ((byte & 0x80) == 0) {
+      buffer = buffer.subspan(pos);
+      return result;
+    }
+
+    shift += 7;
+  }
+
+  // If we get here, the buffer ended without a terminating byte
+  buffer = buffer.subspan(pos);
+  return result;
 }
 
 } // namespace dwarfs

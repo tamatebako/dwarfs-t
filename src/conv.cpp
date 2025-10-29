@@ -26,14 +26,13 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <folly/Conv.h>
-
 #include <dwarfs/conv.h>
+#include <dwarfs/internal/conv.h>
 
 namespace dwarfs::detail {
 
 std::optional<bool> str_to_bool(std::string_view s) {
-  if (auto r = folly::tryTo<bool>(s)) {
+  if (auto r = dwarfs::compat::tryTo<bool>(s)) {
     return *r;
   }
   return std::nullopt;

@@ -113,24 +113,53 @@ to_string_impl(T value) {
 
 } // namespace detail
 
+// Forward declarations for specializations
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value && !std::is_same<T, bool>::value, T>
+to(std::string_view value);
+
+template <typename T>
+std::enable_if_t<std::is_same<T, bool>::value, bool>
+to(std::string_view value);
+
+template <typename T>
+std::enable_if_t<std::is_same<T, std::string>::value, std::string>
+to(std::string_view value);
+
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value && !std::is_same<T, bool>::value, std::string>
+to(T value);
+
+template <typename T>
+std::enable_if_t<std::is_same<T, bool>::value, std::string>
+to(bool value);
+
 /**
- * \brief Convert string to type T (folly::to replacement)
- *
- * Throws ConversionError on failure.
- *
- * \tparam T Target type
- * \param value String representation
- * \return Converted value
+ * \brief Convert string to arithmetic type (folly::to replacement)
  */
 template <typename T>
-std::enable_if_t<std::is_arithmetic_v<T>, T>
+std::enable_if_t<std::is_arithmetic<T>::value && !std::is_same<T, bool>::value, T>
 to(std::string_view value) {
   return detail::from_string_impl<T>(value);
 }
 
+// Specialization for bool
+template <typename T>
+std::enable_if_t<std::is_same<T, bool>::value, bool>
+to(std::string_view value) {
+  if (value == "1" || value == "true" || value == "True" || value == "TRUE") {
+    return true;
+  }
+  if (value == "0" || value == "false" || value == "False" || value == "FALSE") {
+    return false;
+  }
+  throw makeConversionError("string", "bool", std::string(value));
+}
+
 // Specialization for std::string
-template <>
-inline std::string to<std::string>(std::string_view value) {
+template <typename T>
+std::enable_if_t<std::is_same<T, std::string>::value, std::string>
+to(std::string_view value) {
   return std::string(value);
 }
 
@@ -138,9 +167,16 @@ inline std::string to<std::string>(std::string_view value) {
  * \brief Convert arithmetic type to string
  */
 template <typename T>
-std::enable_if_t<std::is_arithmetic_v<T>, std::string>
+std::enable_if_t<std::is_arithmetic<T>::value && !std::is_same<T, bool>::value, std::string>
 to(T value) {
   return detail::to_string_impl(value);
+}
+
+// Specialization for bool to string
+template <typename T>
+std::enable_if_t<std::is_same<T, bool>::value, std::string>
+to(bool value) {
+  return value ? "true" : "false";
 }
 
 /**
@@ -153,19 +189,12 @@ to(T value) {
  * \return Optional containing converted value, or nullopt on error
  */
 template <typename T>
-std::enable_if_t<std::is_arithmetic_v<T>, std::optional<T>>
-tryTo(std::string_view value) {
+std::optional<T> tryTo(std::string_view value) {
   try {
     return to<T>(value);
   } catch (const ConversionError&) {
     return std::nullopt;
   }
-}
-
-// Specialization for std::string (always succeeds)
-template <>
-inline std::optional<std::string> tryTo<std::string>(std::string_view value) {
-  return std::string(value);
 }
 
 } // namespace dwarfs::compat
