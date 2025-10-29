@@ -221,7 +221,7 @@ public:
    * \return "Cereal Binary"
    */
   std::string_view get_format_name() const noexcept override {
-    return get_format_name(SerializationFormat::CEREAL_BINARY);
+    return serialization::get_format_name(SerializationFormat::CEREAL_BINARY);
   }
 
   /**

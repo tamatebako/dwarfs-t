@@ -34,6 +34,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <optional>
@@ -43,6 +44,8 @@
 #ifdef _WIN32
 #define PSAPI_VERSION 1
 #endif
+
+#include <fmt/format.h>
 
 #if __has_include(<utf8cpp/utf8.h>)
 #include <utf8cpp/utf8.h>
@@ -114,7 +117,7 @@ inline std::string trimmed(std::string in) {
 } // namespace
 
 std::string size_with_unit(file_size_t size) {
-  return trimmed(dwarfs::compat::prettyPrint(size, dwarfs::compat::PRETTY_BYTES_IEC, true));
+  return trimmed(dwarfs::compat::prettyPrint(static_cast<uint64_t>(size), dwarfs::compat::PRETTY_BYTES_IEC, true));
 }
 
 std::string time_with_unit(double sec) {
@@ -268,12 +271,19 @@ std::chrono::system_clock::time_point parse_time_point(std::string const& str) {
 #if DWARFS_USE_HH_DATE
     date::from_stream(iss, fmt, tp);
 #else
-    std::chrono::from_stream(iss, fmt, tp);
+    // C++20 std::chrono::from_stream not widely available yet
+    // Use simple parsing as fallback
+    std::tm tm{};
+    iss >> std::get_time(&tm, fmt);
 #endif
     if (!iss.fail()) {
       iss.peek();
       if (iss.eof()) {
+#if DWARFS_USE_HH_DATE
         return tp;
+#else
+        return std::chrono::system_clock::from_time_t(std::mktime(&tm));
+#endif
       }
     }
   }
