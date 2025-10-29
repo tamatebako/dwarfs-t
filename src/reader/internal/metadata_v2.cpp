@@ -1674,12 +1674,12 @@ void metadata_v2_data::dump(
 
   if (opts.features.has(fsinfo_feature::frozen_analysis) ||
       opts.features.has(fsinfo_feature::frozen_details)) {
-    metadata_analyzer(meta_, data_)
+    metadata_analyzer(data_)
         .print_frozen(os, opts.features.has(fsinfo_feature::frozen_details));
   }
 
   if (opts.features.has(fsinfo_feature::frozen_layout)) {
-    metadata_analyzer(meta_, data_).print_layout(os);
+    metadata_analyzer(data_).print_layout(os);
   }
 
   if (opts.features.has(fsinfo_feature::schema_raw_dump)) {
