@@ -199,7 +199,7 @@ void parse_fs_options(metadata::domain::fs_options const& opt,
 }
 
 std::vector<std::string>
-get_fs_options(metadata::domain::fs_options const& opt) {
+get_fs_options_as_strings(metadata::domain::fs_options const& opt) {
   std::vector<std::string> rv;
   parse_fs_options(opt, push_back_if_enabled(rv));
   return rv;
@@ -454,6 +454,12 @@ class metadata_v2_data {
     return nullptr;
   }
 #endif
+
+  metadata::domain::metadata const& get_metadata() const { return *meta_; }
+
+  metadata::domain::fs_options const* get_fs_options() const {
+    return meta_->options ? &(*meta_->options) : nullptr;
+  }
 
  private:
   template <typename K>
@@ -1702,7 +1708,7 @@ void metadata_v2_data::dump(
          << size_with_unit(ent.block_size) << " blocks, "
          << ent.dwarfs_version.value_or("<unknown library version>") << "\n";
       if (ent.options) {
-        if (auto str_opts = get_fs_options(*ent.options); !str_opts.empty()) {
+        if (auto str_opts = get_fs_options_as_strings(*ent.options); !str_opts.empty()) {
           os << "        options: " << boost::join(str_opts, ", ") << "\n";
         }
       }
@@ -2533,6 +2539,14 @@ metadata_v2_utils::thaw_fs_options() const {
   return data_.thaw_fs_options();
 }
 #endif
+
+metadata::domain::metadata const& metadata_v2_utils::get_metadata() const {
+  return data_.get_metadata();
+}
+
+metadata::domain::fs_options const* metadata_v2_utils::get_fs_options() const {
+  return data_.get_fs_options();
+}
 
 metadata_v2::metadata_v2(
     logger& lgr, std::span<uint8_t const> schema, std::span<uint8_t const> data,

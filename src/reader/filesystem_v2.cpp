@@ -343,6 +343,12 @@ class filesystem_ final {
   bool has_symlinks() const { return meta_.has_symlinks(); }
   bool has_sparse_files() const { return meta_.has_sparse_files(); }
   history get_history() const;
+  metadata::domain::metadata const& get_metadata() const {
+    return metadata_v2_utils(meta_).get_metadata();
+  }
+  metadata::domain::fs_options const* get_fs_options() const {
+    return metadata_v2_utils(meta_).get_fs_options();
+  }
   nlohmann::json get_inode_info(inode_view entry) const {
     return meta_.get_inode_info(std::move(entry),
                                 std::numeric_limits<size_t>::max());
@@ -1511,6 +1517,12 @@ class filesystem_full_
     return fs().header();
   }
   history const& get_history() const override { return history_; }
+  metadata::domain::metadata const& get_metadata() const override {
+    return fs().get_metadata();
+  }
+  metadata::domain::fs_options const* get_fs_options() const override {
+    return fs().get_fs_options();
+  }
 #ifdef DWARFS_LEGACY_THRIFT_SUPPORT
   std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const override {
     return fs().thawed_metadata();
@@ -1643,6 +1655,14 @@ std::optional<file_extents_iterable> filesystem_v2::header() const {
 
 history const& filesystem_v2::get_history() const {
   return full_().get_history();
+}
+
+metadata::domain::metadata const& filesystem_v2::get_metadata() const {
+  return full_().get_metadata();
+}
+
+metadata::domain::fs_options const* filesystem_v2::get_fs_options() const {
+  return full_().get_fs_options();
 }
 
 #ifdef DWARFS_LEGACY_THRIFT_SUPPORT

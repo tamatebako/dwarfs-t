@@ -289,6 +289,10 @@ class metadata_v2_utils {
 
   std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const;
 
+  metadata::domain::metadata const& get_metadata() const;
+
+  metadata::domain::fs_options const* get_fs_options() const;
+
  private:
   metadata_v2_data const& data_;
 };

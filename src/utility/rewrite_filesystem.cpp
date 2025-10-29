@@ -487,10 +487,12 @@ void rewrite_filesystem(
         if (s->type() == section_type::METADATA_V2) {
           using namespace dwarfs::writer::internal;
 
-          auto md = fs.unpacked_metadata();
-          auto fsopts = fs.thawed_fs_options();
+          // Get domain metadata directly from filesystem
+          auto const& md = fs.get_metadata();
+          auto const* fsopts = fs.get_fs_options();
+
           auto builder =
-              metadata_builder(lgr, std::move(*md), fsopts.get(), fs.version(),
+              metadata_builder(lgr, md, fsopts, fs.version(),
                                opts.rebuild_metadata.value());
 
           if (opts.change_block_size) {

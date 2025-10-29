@@ -58,6 +58,11 @@ namespace dwarfs {
 struct vfs_stat;
 
 class history;
+
+namespace metadata::domain {
+struct metadata;
+struct fs_options;
+} // namespace metadata::domain
 class logger;
 class os_access;
 class performance_monitor;
@@ -512,6 +517,9 @@ class filesystem_v2 final : public filesystem_v2_lite {
 
   history const& get_history() const;
 
+  metadata::domain::metadata const& get_metadata() const;
+  metadata::domain::fs_options const* get_fs_options() const;
+
 #ifdef DWARFS_LEGACY_THRIFT_SUPPORT
   std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const;
   std::unique_ptr<thrift::metadata::metadata> unpacked_metadata() const;
@@ -533,6 +541,8 @@ class filesystem_v2 final : public filesystem_v2_lite {
     virtual std::string serialize_metadata_as_json(bool simple) const = 0;
     virtual std::optional<file_extents_iterable> header() const = 0;
     virtual history const& get_history() const = 0;
+    virtual metadata::domain::metadata const& get_metadata() const = 0;
+    virtual metadata::domain::fs_options const* get_fs_options() const = 0;
 #ifdef DWARFS_LEGACY_THRIFT_SUPPORT
     virtual std::unique_ptr<thrift::metadata::metadata>
     thawed_metadata() const = 0;

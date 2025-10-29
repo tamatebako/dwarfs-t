@@ -696,10 +696,10 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
     if (!md_.reg_file_size_cache) {
       md_.reg_file_size_cache = metadata::domain::inode_size_cache{};
     }
-    auto& cache = *md_.reg_file_size_cache;
+    auto& cache = md_.reg_file_size_cache.value();
     cache.min_chunk_count = options_.inode_size_cache_min_chunk_count;
 
-    auto const& shared = *md_.shared_files_table;
+    auto const& shared = md_.shared_files_table.value();
     auto const num_unique_files = (dev_offset - reg_offset) - shared.size();
     inode_size_provider isp(md_);
 
@@ -811,7 +811,7 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
 template <typename LoggerPolicy>
 void metadata_builder_<LoggerPolicy>::update_nlink() {
   if (md_.options &&
-      md_.options->inodes_have_nlink !=
+      md_.options.value().inodes_have_nlink !=
           options_.no_hardlink_table) {
     LOG_DEBUG << "keeping existing nlink fields";
     return;
@@ -840,7 +840,7 @@ void metadata_builder_<LoggerPolicy>::update_nlink() {
     }));
 
     if (dev_offset > reg_offset) {
-      for (auto& de : *md_.dir_entries) {
+      for (auto& de : md_.dir_entries.value()) {
         auto const inode_num = de.inode_num;
         assert(inode_num < md_.inodes.size());
         // only need to update regular files
@@ -922,8 +922,8 @@ metadata::domain::metadata const& metadata_builder_<LoggerPolicy>::build() {
   }
 
   if (options_.pack_shared_files_table) {
-    if (md_.shared_files_table && !md_.shared_files_table->empty()) {
-      auto& sf = *md_.shared_files_table;
+    if (md_.shared_files_table && !md_.shared_files_table.value().empty()) {
+      auto& sf = md_.shared_files_table.value();
       DWARFS_CHECK(std::ranges::is_sorted(sf),
                    "shared files vector not sorted");
       std::vector<uint32_t> compressed;
@@ -1073,19 +1073,19 @@ void metadata_builder_<LoggerPolicy>::upgrade_from_pre_v2_2() {
 
   metadata::domain::metadata newmd;
   newmd.dir_entries = std::vector<metadata::domain::dir_entry>();
-  auto& dir_entries = *newmd.dir_entries;
+  auto& dir_entries = newmd.dir_entries.value();
   dir_entries.reserve(md_.inodes.size());
   newmd.shared_files_table = std::vector<uint32_t>();
-  auto& shared_files = *newmd.shared_files_table;
+  auto& shared_files = newmd.shared_files_table.value();
   shared_files.reserve(num_reg_files - unique_files);
-  newmd.chunks = std::vector<metadata::domain::chunk>();
+  newmd.chunks = md_.chunks;
   auto& chunks = newmd.chunks;
   chunks.reserve(md_.chunks.size());
-  newmd.chunk_table = std::vector<uint32_t>();
+  newmd.chunk_table = md_.chunk_table;
   auto& chunk_table = newmd.chunk_table;
   chunk_table.reserve(md_.chunk_table.size());
   chunk_table.push_back(0);
-  newmd.inodes = std::vector<metadata::domain::inode_data>();
+  newmd.inodes = md_.inodes;
   auto& inodes = newmd.inodes;
   inodes.resize(md_.inodes.size());
 
