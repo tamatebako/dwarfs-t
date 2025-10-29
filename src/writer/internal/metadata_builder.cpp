@@ -25,8 +25,6 @@
 #include <filesystem>
 #include <optional>
 
-#include <thrift/lib/cpp2/protocol/DebugProtocol.h>
-
 #include <dwarfs/file_stat.h>
 #include <dwarfs/fstypes.h>
 #include <dwarfs/logger.h>
@@ -46,9 +44,14 @@
 #include <dwarfs/writer/internal/metadata_builder.h>
 #include <dwarfs/writer/internal/time_resolution_converter.h>
 
-#include <dwarfs/gen-cpp2/metadata_types.h>
-
-#include <thrift/lib/thrift/gen-cpp2/frozen_types_custom_protocol.h>
+#include <dwarfs/metadata/domain/metadata.h>
+#include <dwarfs/metadata/domain/chunk.h>
+#include <dwarfs/metadata/domain/directory.h>
+#include <dwarfs/metadata/domain/inode_data.h>
+#include <dwarfs/metadata/domain/dir_entry.h>
+#include <dwarfs/metadata/domain/string_table.h>
+#include <dwarfs/metadata/domain/fs_options.h>
+#include <dwarfs/metadata/domain/history_entry.h>
 
 namespace dwarfs::writer::internal {
 
@@ -57,15 +60,15 @@ namespace {
 using namespace dwarfs::internal;
 
 time_conversion_factors
-get_conversion_factors(thrift::metadata::fs_options const* fs_options) {
+get_conversion_factors(metadata::domain::fs_options const* fs_options) {
   time_conversion_factors rv;
 
   if (fs_options) {
-    if (auto const sec = fs_options->time_resolution_sec()) {
-      rv.sec = *sec;
+    if (fs_options->time_resolution_sec) {
+      rv.sec = *fs_options->time_resolution_sec;
     }
-    if (auto const nsec = fs_options->subsecond_resolution_nsec_multiplier()) {
-      rv.nsec = *nsec;
+    if (fs_options->subsecond_resolution_nsec_multiplier) {
+      rv.nsec = *fs_options->subsecond_resolution_nsec_multiplier;
     }
   }
 
@@ -80,13 +83,13 @@ class inode_size_provider {
     uint64_t allocated_size;
   };
 
-  inode_size_provider(thrift::metadata::metadata const& md)
-      : chunk_table_{md.chunk_table().value()}
-      , chunks_{md.chunks().value()}
-      , block_size_{md.block_size().value()}
-      , hole_ix_{md.hole_block_index().value_or(UINT32_MAX)} {
-    if (md.large_hole_size()) {
-      large_hole_size_ = &md.large_hole_size().value();
+  inode_size_provider(metadata::domain::metadata const& md)
+      : chunk_table_{md.chunk_table}
+      , chunks_{md.chunks}
+      , block_size_{md.block_size}
+      , hole_ix_{md.hole_block_index.value_or(UINT32_MAX)} {
+    if (md.large_hole_size) {
+      large_hole_size_ = &(*md.large_hole_size);
     }
     assert(std::has_single_bit(block_size_));
   }
@@ -102,9 +105,9 @@ class inode_size_provider {
 
     for (uint32_t ix = begin; ix < end; ++ix) {
       auto const& chunk = chunks_[ix];
-      auto const b = chunk.block().value();
-      auto const o = chunk.offset().value();
-      auto const s = chunk.size().value();
+      auto const b = chunk.block;
+      auto const o = chunk.offset;
+      auto const s = chunk.size;
 
       if (b == hole_ix_) {
         if (o == kChunkOffsetIsLargeHole) {
@@ -125,14 +128,9 @@ class inode_size_provider {
   }
 
  private:
-  using chunks_t = typename decltype(std::declval<thrift::metadata::metadata>()
-                                         .chunks())::value_type;
-  using chunk_table_t =
-      typename decltype(std::declval<thrift::metadata::metadata>()
-                            .chunk_table())::value_type;
-  using large_hole_size_t =
-      typename decltype(std::declval<thrift::metadata::metadata>()
-                            .large_hole_size())::value_type;
+  using chunks_t = std::vector<metadata::domain::chunk>;
+  using chunk_table_t = std::vector<uint32_t>;
+  using large_hole_size_t = std::vector<uint64_t>;
 
   chunk_table_t const& chunk_table_;
   chunks_t const& chunks_;
@@ -153,20 +151,20 @@ class metadata_builder_ final : public metadata_builder::impl {
       , timeres_{options.time_resolution} {}
 
   template <typename T>
-    requires(std::same_as<std::decay_t<T>, thrift::metadata::metadata>)
+    requires(std::same_as<std::decay_t<T>, metadata::domain::metadata>)
   metadata_builder_(logger& lgr, T&& md,
-                    thrift::metadata::fs_options const* orig_fs_options,
+                    metadata::domain::fs_options const* orig_fs_options,
                     filesystem_version const& orig_fs_version,
                     metadata_options const& options)
       : LOG_PROXY_INIT(lgr)
       , md_{std::forward<T>(md)}
       , options_{options}
-      , old_block_size_{md_.block_size().value()}
+      , old_block_size_{md_.block_size}
       , timeres_{options.time_resolution,
                  get_conversion_factors(orig_fs_options)} {
-    if (auto const feat = md_.features()) {
-      features_.set(*feat);
-      bool const non_sparse_image = !features_.has(feature::sparsefiles);
+    if (md_.features) {
+      features_.set(*md_.features);
+      bool const non_sparse_image = !features_.has(metadata::domain::feature::sparsefiles);
       DWARFS_CHECK(
           non_sparse_image || options_.enable_sparse_files,
           "image uses sparse files but sparse files support is disabled");
@@ -177,15 +175,15 @@ class metadata_builder_ final : public metadata_builder::impl {
   }
 
   void set_devices(std::vector<uint64_t> devices) override {
-    md_.devices() = std::move(devices);
+    md_.devices = std::move(devices);
   }
 
   void set_symlink_table_size(size_t size) override {
-    md_.symlink_table()->resize(size);
+    md_.symlink_table.resize(size);
   }
 
   void set_block_size(uint32_t block_size) override {
-    md_.block_size() = block_size;
+    md_.block_size = block_size;
   }
 
 #if 0
@@ -204,29 +202,29 @@ class metadata_builder_ final : public metadata_builder::impl {
 #endif
 
   void set_shared_files_table(std::vector<uint32_t> shared_files) override {
-    md_.shared_files_table() = std::move(shared_files);
+    md_.shared_files_table = std::move(shared_files);
   }
 
   void set_category_names(std::vector<std::string> category_names) override {
-    md_.category_names() = std::move(category_names);
+    md_.category_names = std::move(category_names);
   }
 
   void set_block_categories(std::vector<uint32_t> block_categories) override {
-    md_.block_categories() = std::move(block_categories);
+    md_.block_categories = std::move(block_categories);
   }
 
   void
   set_category_metadata_json(std::vector<std::string> metadata_json) override {
-    md_.category_metadata_json() = std::move(metadata_json);
+    md_.category_metadata_json = std::move(metadata_json);
   }
 
   void set_block_category_metadata(
       std::map<uint32_t, uint32_t> block_metadata) override {
-    md_.block_category_metadata() = std::move(block_metadata);
+    md_.block_category_metadata = std::move(block_metadata);
   }
 
   void add_symlink_table_entry(size_t index, uint32_t entry) override {
-    DWARFS_NOTHROW(md_.symlink_table()->at(index)) = entry;
+    DWARFS_NOTHROW(md_.symlink_table.at(index)) = entry;
   }
 
   void gather_chunks(inode_manager const& im, block_manager const& bm,
@@ -239,37 +237,27 @@ class metadata_builder_ final : public metadata_builder::impl {
   void remap_blocks(std::span<block_mapping const> mapping,
                     size_t new_block_count) override;
 
-  thrift::metadata::metadata const& build() override;
+  metadata::domain::metadata const& build() override;
 
  private:
-  using chunks_t = typename decltype(std::declval<thrift::metadata::metadata>()
-                                         .chunks())::value_type;
-  using chunk_table_t =
-      typename decltype(std::declval<thrift::metadata::metadata>()
-                            .chunk_table())::value_type;
-  using categories_t =
-      typename decltype(std::declval<thrift::metadata::metadata>()
-                            .block_categories())::value_type;
-  using category_metadata_t =
-      typename decltype(std::declval<thrift::metadata::metadata>()
-                            .block_category_metadata())::value_type;
+  using chunks_t = std::vector<metadata::domain::chunk>;
+  using chunk_table_t = std::vector<uint32_t>;
+  using categories_t = std::vector<uint32_t>;
+  using category_metadata_t = std::map<uint32_t, uint32_t>;
 
-  static constexpr auto kTmpHoleIx = std::numeric_limits<
-      typename decltype(std::declval<thrift::metadata::metadata>()
-                            .chunks()[0]
-                            .block())::value_type>::max();
+  static constexpr auto kTmpHoleIx = std::numeric_limits<uint32_t>::max();
 
   void remap_holes(chunks_t& new_chunks, size_t new_hole_index,
                    size_t max_data_chunk_size);
-  void upgrade_metadata(thrift::metadata::fs_options const* orig_fs_options,
+  void upgrade_metadata(metadata::domain::fs_options const* orig_fs_options,
                         filesystem_version const& orig_fs_version);
   void upgrade_from_pre_v2_2();
 
   uint32_t get_time_resolution() const {
     uint32_t resolution = 1;
-    if (md_.options()) {
-      if (auto res = md_.options()->time_resolution_sec()) {
-        resolution = *res;
+    if (md_.options) {
+      if (md_.options->time_resolution_sec) {
+        resolution = *md_.options->time_resolution_sec;
       }
     }
     return resolution;
@@ -277,9 +265,9 @@ class metadata_builder_ final : public metadata_builder::impl {
 
   uint32_t get_subsec_mult() const {
     uint32_t mult = 0;
-    if (md_.options()) {
-      if (auto res = md_.options()->subsecond_resolution_nsec_multiplier()) {
-        mult = *res;
+    if (md_.options) {
+      if (md_.options->subsecond_resolution_nsec_multiplier) {
+        mult = *md_.options->subsecond_resolution_nsec_multiplier;
       }
     }
     return mult;
@@ -299,7 +287,7 @@ class metadata_builder_ final : public metadata_builder::impl {
   void apply_chmod();
 
   LOG_PROXY_DECL(LoggerPolicy);
-  thrift::metadata::metadata md_;
+  metadata::domain::metadata md_;
   feature_set features_;
   metadata_options const& options_;
   std::optional<size_t> old_block_size_;
@@ -310,22 +298,22 @@ template <typename LoggerPolicy>
 void metadata_builder_<LoggerPolicy>::gather_chunks(inode_manager const& im,
                                                     block_manager const& bm,
                                                     size_t chunk_count) {
-  md_.chunk_table()->resize(im.count() + 1);
-  md_.chunks().value().reserve(chunk_count);
+  md_.chunk_table.resize(im.count() + 1);
+  md_.chunks.reserve(chunk_count);
 
   std::optional<inode_hole_mapper> hole_mapper;
 
   if (options_.enable_sparse_files) {
-    auto const block_size = md_.block_size().value();
+    auto const block_size = md_.block_size;
     assert(block_size > 0);
     hole_mapper.emplace(bm.num_blocks(), block_size,
                         im.get_max_data_chunk_size());
   }
 
   im.for_each_inode_in_order([&](std::shared_ptr<inode> const& ino) {
-    auto const total_chunks = md_.chunks()->size();
-    DWARFS_NOTHROW(md_.chunk_table()->at(ino->num())) = total_chunks;
-    if (!ino->append_chunks_to(md_.chunks().value(), hole_mapper)) {
+    auto const total_chunks = md_.chunks.size();
+    DWARFS_NOTHROW(md_.chunk_table.at(ino->num())) = total_chunks;
+    if (!ino->append_chunks_to(md_.chunks, hole_mapper)) {
       std::ostringstream oss;
       for (auto fp : ino->all()) {
         oss << "\n  " << fp->path_as_string();
@@ -335,61 +323,61 @@ void metadata_builder_<LoggerPolicy>::gather_chunks(inode_manager const& im,
     }
   });
 
-  bm.map_logical_blocks(md_.chunks().value(), hole_mapper);
+  bm.map_logical_blocks(md_.chunks, hole_mapper);
 
   // insert sentinel inode to help determine number of chunks per inode
-  DWARFS_NOTHROW(md_.chunk_table()->at(im.count())) = md_.chunks()->size();
+  DWARFS_NOTHROW(md_.chunk_table.at(im.count())) = md_.chunks.size();
 
   if (hole_mapper && hole_mapper->has_holes()) {
-    md_.hole_block_index() = hole_mapper->hole_block_index();
-    md_.large_hole_size() = hole_mapper->large_hole_sizes();
-    features_.add(feature::sparsefiles);
+    md_.hole_block_index = hole_mapper->hole_block_index();
+    md_.large_hole_size = hole_mapper->large_hole_sizes();
+    features_.add(metadata::domain::feature::sparsefiles);
   }
 
   LOG_DEBUG << "total number of unique files: " << im.count();
-  LOG_DEBUG << "total number of chunks: " << md_.chunks()->size();
+  LOG_DEBUG << "total number of chunks: " << md_.chunks.size();
 }
 
 template <typename LoggerPolicy>
 void metadata_builder_<LoggerPolicy>::gather_entries(
     std::span<dir*> dirs, global_entry_data const& ge_data,
     uint32_t num_inodes) {
-  md_.dir_entries() = std::vector<thrift::metadata::dir_entry>();
-  md_.inodes()->resize(num_inodes);
-  md_.directories()->reserve(dirs.size() + 1);
+  md_.dir_entries = std::vector<metadata::domain::dir_entry>();
+  md_.inodes.resize(num_inodes);
+  md_.directories.reserve(dirs.size() + 1);
 
   for (auto p : dirs) {
     if (!p->has_parent()) {
-      p->set_entry_index(md_.dir_entries()->size());
+      p->set_entry_index(md_.dir_entries->size());
       p->pack_entry(md_, ge_data, timeres_);
     }
 
     p->pack(md_, ge_data, timeres_);
   }
 
-  thrift::metadata::directory sentinel;
-  sentinel.parent_entry() = 0;
-  sentinel.first_entry() = md_.dir_entries()->size();
-  sentinel.self_entry() = 0;
-  md_.directories()->push_back(sentinel);
+  metadata::domain::directory sentinel;
+  sentinel.parent_entry = 0;
+  sentinel.first_entry = md_.dir_entries->size();
+  sentinel.self_entry = 0;
+  md_.directories.push_back(sentinel);
 }
 
 template <typename LoggerPolicy>
 void metadata_builder_<LoggerPolicy>::gather_global_entry_data(
     global_entry_data const& ge_data) {
-  md_.names() = ge_data.get_names();
+  md_.names = ge_data.get_names();
 
-  md_.symlinks() = ge_data.get_symlinks();
+  md_.symlinks = ge_data.get_symlinks();
 
-  md_.uids() = options_.uid ? std::vector<file_stat::uid_type>{*options_.uid}
-                            : ge_data.get_uids();
+  md_.uids = options_.uid ? std::vector<file_stat::uid_type>{*options_.uid}
+                          : ge_data.get_uids();
 
-  md_.gids() = options_.gid ? std::vector<file_stat::gid_type>{*options_.gid}
-                            : ge_data.get_gids();
+  md_.gids = options_.gid ? std::vector<file_stat::gid_type>{*options_.gid}
+                          : ge_data.get_gids();
 
-  md_.modes() = ge_data.get_modes();
+  md_.modes = ge_data.get_modes();
 
-  md_.timestamp_base() = timeres_.convert_offset(ge_data.get_timestamp_base());
+  md_.timestamp_base = timeres_.convert_offset(ge_data.get_timestamp_base());
 
   apply_chmod();
 }
@@ -398,25 +386,25 @@ template <typename LoggerPolicy>
 void metadata_builder_<LoggerPolicy>::remap_holes(chunks_t& new_chunks,
                                                   size_t new_hole_index,
                                                   size_t max_data_chunk_size) {
-  LOG_DEBUG << "remapping holes (hole index: " << md_.hole_block_index().value()
+  LOG_DEBUG << "remapping holes (hole index: " << *md_.hole_block_index
             << " -> " << new_hole_index << ")";
 
   auto const old_block_size = old_block_size_.value();
-  auto const new_block_size = md_.block_size().value();
+  auto const new_block_size = md_.block_size;
 
   inode_hole_mapper hole_mapper(new_hole_index, new_block_size,
                                 max_data_chunk_size);
 
   for (auto& c : new_chunks) {
-    if (c.block().value() == kTmpHoleIx) {
-      auto const offset = c.offset().value();
-      auto const size = c.size().value();
+    if (c.block == kTmpHoleIx) {
+      auto const offset = c.offset;
+      auto const size = c.size;
       file_size_t hole_size{0};
 
       if (offset == kChunkOffsetIsLargeHole) {
-        assert(md_.large_hole_size());
-        assert(size < md_.large_hole_size()->size());
-        hole_size = md_.large_hole_size()->at(size);
+        assert(md_.large_hole_size);
+        assert(size < md_.large_hole_size->size());
+        hole_size = md_.large_hole_size->at(size);
       } else {
         hole_size = static_cast<file_size_t>(size) * old_block_size + offset;
       }
@@ -425,8 +413,8 @@ void metadata_builder_<LoggerPolicy>::remap_holes(chunks_t& new_chunks,
     }
   }
 
-  md_.hole_block_index() = hole_mapper.hole_block_index();
-  md_.large_hole_size() = hole_mapper.large_hole_sizes();
+  md_.hole_block_index = hole_mapper.hole_block_index();
+  md_.large_hole_size = hole_mapper.large_hole_sizes();
 }
 
 template <typename LoggerPolicy>
@@ -434,15 +422,14 @@ void metadata_builder_<LoggerPolicy>::remap_blocks(
     std::span<block_mapping const> mapping, size_t new_block_count) {
   auto tv = LOG_TIMED_VERBOSE;
 
-  std::span<typename chunks_t::value_type> old_chunks = md_.chunks().value();
-  std::span<typename chunk_table_t::value_type> old_chunk_table =
-      md_.chunk_table().value();
+  std::span<metadata::domain::chunk> old_chunks = md_.chunks;
+  std::span<uint32_t> old_chunk_table = md_.chunk_table;
 
   DWARFS_CHECK(!old_chunk_table.empty(), "chunk table must not be empty");
 
-  auto const old_hole_ix = md_.hole_block_index();
+  auto const old_hole_ix = md_.hole_block_index;
 
-  DWARFS_CHECK(old_hole_ix.has_value() == features_.has(feature::sparsefiles),
+  DWARFS_CHECK(old_hole_ix.has_value() == features_.has(metadata::domain::feature::sparsefiles),
                "inconsistent sparse files feature flag");
 
   chunks_t new_chunks;
@@ -458,22 +445,22 @@ void metadata_builder_<LoggerPolicy>::remap_blocks(
     std::vector<block_chunk> mapped_chunks;
 
     for (auto const& chunk : chunks) {
-      if (old_hole_ix && chunk.block().value() == *old_hole_ix) {
-        LOG_TRACE << "mapping hole chunk: offset=" << chunk.offset().value()
-                  << ", size=" << chunk.size().value();
+      if (old_hole_ix && chunk.block == *old_hole_ix) {
+        LOG_TRACE << "mapping hole chunk: offset=" << chunk.offset
+                  << ", size=" << chunk.size;
 
         mapped_chunks.push_back(
-            {kTmpHoleIx, chunk.offset().value(), chunk.size().value()});
+            {kTmpHoleIx, chunk.offset, chunk.size});
       } else {
-        LOG_TRACE << "mapping data chunk: block=" << chunk.block().value()
-                  << ", offset=" << chunk.offset().value()
-                  << ", size=" << chunk.size().value();
+        LOG_TRACE << "mapping data chunk: block=" << chunk.block
+                  << ", offset=" << chunk.offset
+                  << ", size=" << chunk.size;
 
-        DWARFS_CHECK(chunk.block().value() < mapping.size(),
+        DWARFS_CHECK(chunk.block < mapping.size(),
                      "chunk block out of range");
 
-        auto mapped = mapping[chunk.block().value()].map_chunk(
-            chunk.offset().value(), chunk.size().value());
+        auto mapped = mapping[chunk.block].map_chunk(
+            chunk.offset, chunk.size);
 
         DWARFS_CHECK(!mapped.empty(), "mapped chunk list is empty");
         LOG_TRACE << "  mapped to " << mapped.size() << " chunks";
@@ -501,9 +488,9 @@ void metadata_builder_<LoggerPolicy>::remap_blocks(
 
     for (auto const& chunk : mapped_chunks) {
       auto& nc = new_chunks.emplace_back();
-      nc.block() = chunk.block;
-      nc.offset() = chunk.offset;
-      nc.size() = chunk.size;
+      nc.block = chunk.block;
+      nc.offset = chunk.offset;
+      nc.size = chunk.size;
 
       if (chunk.block != kTmpHoleIx) {
         max_data_chunk_size = std::max(max_data_chunk_size, chunk.size);
@@ -517,8 +504,8 @@ void metadata_builder_<LoggerPolicy>::remap_blocks(
     remap_holes(new_chunks, new_block_count, max_data_chunk_size);
   }
 
-  auto const& old_categories = md_.block_categories();
-  auto const& old_category_metadata = md_.block_category_metadata();
+  auto const& old_categories = md_.block_categories;
+  auto const& old_category_metadata = md_.block_category_metadata;
 
   if (old_categories.has_value() || old_category_metadata.has_value()) {
     std::unordered_map<uint32_t, uint32_t> block_map;
@@ -532,25 +519,25 @@ void metadata_builder_<LoggerPolicy>::remap_blocks(
       categories_t new_categories;
       new_categories.resize(block_map.size());
       for (auto const& [new_block, old_block] : block_map) {
-        new_categories[new_block] = old_categories.value().at(old_block);
+        new_categories[new_block] = (*old_categories).at(old_block);
       }
-      md_.block_categories() = std::move(new_categories);
+      md_.block_categories = std::move(new_categories);
     }
 
     if (old_category_metadata.has_value()) {
       category_metadata_t new_category_metadata;
       for (auto const& [new_block, old_block] : block_map) {
-        auto it = old_category_metadata.value().find(old_block);
-        if (it != old_category_metadata.value().end()) {
+        auto it = (*old_category_metadata).find(old_block);
+        if (it != (*old_category_metadata).end()) {
           new_category_metadata[new_block] = it->second;
         }
       }
-      md_.block_category_metadata() = std::move(new_category_metadata);
+      md_.block_category_metadata = std::move(new_category_metadata);
     }
   }
 
-  md_.chunks() = std::move(new_chunks);
-  md_.chunk_table() = std::move(new_chunk_table);
+  md_.chunks = std::move(new_chunks);
+  md_.chunk_table = std::move(new_chunk_table);
 
   tv << "remapping blocks...";
 }
@@ -562,7 +549,7 @@ void metadata_builder_<LoggerPolicy>::update_inodes() {
   bool const set_timestamp{options_.timestamp.has_value()};
   bool const remove_atime_ctime{
       !options_.keep_all_times &&
-      !(md_.options().has_value() && md_.options()->mtime_only().value())};
+      !(md_.options && md_.options->mtime_only)};
   bool const update_resolution{timeres_.requires_conversion()};
 
   if (!update_uid && !update_gid && !set_timestamp && !remove_atime_ctime &&
@@ -573,57 +560,57 @@ void metadata_builder_<LoggerPolicy>::update_inodes() {
 
   auto const tb_adjust =
       update_resolution
-          ? timeres_.offset_conversion_remainder(md_.timestamp_base().value())
+          ? timeres_.offset_conversion_remainder(md_.timestamp_base)
           : 0;
 
-  for (auto& inode : md_.inodes().value()) {
+  for (auto& inode : md_.inodes) {
     if (update_uid) {
-      inode.owner_index() = 0;
+      inode.owner_index = 0;
     }
 
     if (update_gid) {
-      inode.group_index() = 0;
+      inode.group_index = 0;
     }
 
     if (set_timestamp) {
-      inode.mtime_offset() = 0;
+      inode.mtime_offset = 0;
     } else if (update_resolution) {
-      inode.mtime_offset() =
-          timeres_.convert_offset(inode.mtime_offset().value() + tb_adjust);
-      inode.mtime_subsec() =
-          timeres_.convert_subsec(inode.mtime_subsec().value());
+      inode.mtime_offset =
+          timeres_.convert_offset(inode.mtime_offset + tb_adjust);
+      inode.mtime_subsec =
+          timeres_.convert_subsec(inode.mtime_subsec);
     }
 
     if (set_timestamp || remove_atime_ctime) {
-      inode.atime_offset() = 0;
-      inode.ctime_offset() = 0;
+      inode.atime_offset = 0;
+      inode.ctime_offset = 0;
     } else if (update_resolution) {
-      inode.atime_offset() =
-          timeres_.convert_offset(inode.atime_offset().value() + tb_adjust);
-      inode.atime_subsec() =
-          timeres_.convert_subsec(inode.atime_subsec().value());
-      inode.ctime_offset() =
-          timeres_.convert_offset(inode.ctime_offset().value() + tb_adjust);
-      inode.ctime_subsec() =
-          timeres_.convert_subsec(inode.ctime_subsec().value());
+      inode.atime_offset =
+          timeres_.convert_offset(inode.atime_offset + tb_adjust);
+      inode.atime_subsec =
+          timeres_.convert_subsec(inode.atime_subsec);
+      inode.ctime_offset =
+          timeres_.convert_offset(inode.ctime_offset + tb_adjust);
+      inode.ctime_subsec =
+          timeres_.convert_subsec(inode.ctime_subsec);
     }
   }
 
   apply_chmod();
 
   if (update_uid) {
-    md_.uids() = std::vector<uid_type>{*options_.uid};
+    md_.uids = std::vector<uid_type>{*options_.uid};
   }
 
   if (update_gid) {
-    md_.gids() = std::vector<gid_type>{*options_.gid};
+    md_.gids = std::vector<gid_type>{*options_.gid};
   }
 
   if (set_timestamp) {
-    md_.timestamp_base() = timeres_.convert_offset(*options_.timestamp);
+    md_.timestamp_base = timeres_.convert_offset(*options_.timestamp);
   } else if (update_resolution) {
-    md_.timestamp_base() =
-        timeres_.convert_offset(md_.timestamp_base().value());
+    md_.timestamp_base =
+        timeres_.convert_offset(md_.timestamp_base);
   }
 }
 
@@ -638,10 +625,10 @@ void metadata_builder_<LoggerPolicy>::apply_chmod() {
   auto xfm =
       chmod_transformer::build_chain(options_.chmod_specifiers, options_.umask);
 
-  for (auto& inode : md_.inodes().value()) {
+  for (auto& inode : md_.inodes) {
     static constexpr uint32_t kPermissionsMask = 07777;
-    auto const mode_index = inode.mode_index().value();
-    auto const mode = md_.modes()->at(mode_index);
+    auto const mode_index = inode.mode_index;
+    auto const mode = md_.modes[mode_index];
     auto permissions = mode & kPermissionsMask;
     auto const file_type = posix_file_type::from_mode(mode);
 
@@ -658,10 +645,10 @@ void metadata_builder_<LoggerPolicy>::apply_chmod() {
     if (inserted) {
       new_modes.push_back(new_mode);
     }
-    inode.mode_index() = it->second;
+    inode.mode_index = it->second;
   }
 
-  md_.modes() = std::move(new_modes);
+  md_.modes = std::move(new_modes);
 }
 
 template <typename LoggerPolicy>
@@ -675,12 +662,12 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
   auto const dev_offset = find_inode_rank_offset(md_, inode_rank::INO_DEV);
   auto const reg_offset = find_inode_rank_offset(md_, inode_rank::INO_REG);
 
-  auto const& symlink_table = md_.symlink_table().value();
+  auto const& symlink_table = md_.symlink_table;
   assert(symlink_table.size() ==
          reg_offset - find_inode_rank_offset(md_, inode_rank::INO_LNK));
 
   if (!symlink_table.empty()) {
-    auto const& symlinks = md_.symlinks().value();
+    auto const& symlinks = md_.symlinks;
 
     for (auto const ix : symlink_table) {
       assert(ix < symlinks.size());
@@ -696,9 +683,9 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
     if (options_.no_hardlink_table) {
       nlink_table.resize(dev_offset - reg_offset);
 
-      for (auto& de : md_.dir_entries().value()) {
-        auto const inode_num = de.inode_num().value();
-        assert(inode_num < md_.inodes()->size());
+      for (auto& de : *md_.dir_entries) {
+        auto const inode_num = de.inode_num;
+        assert(inode_num < md_.inodes.size());
 
         if (reg_offset <= inode_num && inode_num < dev_offset) {
           ++nlink_table[inode_num - reg_offset];
@@ -706,11 +693,13 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
       }
     }
 
-    md_.reg_file_size_cache().ensure();
-    auto& cache = md_.reg_file_size_cache().value();
-    cache.min_chunk_count() = options_.inode_size_cache_min_chunk_count;
+    if (!md_.reg_file_size_cache) {
+      md_.reg_file_size_cache = metadata::domain::inode_size_cache{};
+    }
+    auto& cache = *md_.reg_file_size_cache;
+    cache.min_chunk_count = options_.inode_size_cache_min_chunk_count;
 
-    auto const& shared = md_.shared_files_table().value();
+    auto const& shared = *md_.shared_files_table;
     auto const num_unique_files = (dev_offset - reg_offset) - shared.size();
     inode_size_provider isp(md_);
 
@@ -719,7 +708,7 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
       auto const nlink =
           options_.no_hardlink_table
               ? nlink_table[reg_inode_num]
-              : md_.inodes()->at(inode_num).nlink_minus_one().value() + 1;
+              : md_.inodes[inode_num].nlink_minus_one + 1;
       std::optional<uint32_t> const shared_index =
           reg_inode_num >= num_unique_files
               ? std::optional<uint32_t>{shared.at(reg_inode_num -
@@ -735,15 +724,15 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
                   << chunk_table_index << " with " << info.num_chunks
                   << " chunks";
 
-        cache.size_lookup()->emplace(chunk_table_index, info.size);
+        cache.size_lookup.emplace(chunk_table_index, info.size);
 
         if (info.allocated_size != info.size) {
           LOG_DEBUG << "caching allocated size " << info.allocated_size
                     << " for chunk table index " << chunk_table_index
                     << " with " << info.num_chunks << " chunks";
 
-          cache.allocated_size_lookup()->emplace(chunk_table_index,
-                                                 info.allocated_size);
+          cache.allocated_size_lookup.emplace(chunk_table_index,
+                                              info.allocated_size);
         }
       }
 
@@ -765,34 +754,34 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
     }
   }
 
-  if (auto const orig = md_.total_fs_size().value();
+  if (auto const orig = md_.total_fs_size;
       orig > 0 && orig != total_fs_size) {
     LOG_WARN << "correcting total file system size: was " << orig << ", now "
              << total_fs_size;
   }
 
-  md_.total_fs_size() = total_fs_size;
+  md_.total_fs_size = total_fs_size;
 
   if (options_.enable_sparse_files) {
-    if (md_.total_allocated_fs_size().has_value() &&
-        md_.total_allocated_fs_size().value() != total_allocated_fs_size) {
+    if (md_.total_allocated_fs_size.has_value() &&
+        *md_.total_allocated_fs_size != total_allocated_fs_size) {
       if (total_allocated_fs_size == total_fs_size) {
         LOG_WARN
             << "clearing total allocated file system size for non-sparse image";
-        md_.total_allocated_fs_size().reset();
+        md_.total_allocated_fs_size.reset();
       } else {
         LOG_WARN << "correcting total allocated file system size: was "
-                 << md_.total_allocated_fs_size().value() << ", now "
+                 << *md_.total_allocated_fs_size << ", now "
                  << total_allocated_fs_size;
-        md_.total_allocated_fs_size() = total_allocated_fs_size;
+        md_.total_allocated_fs_size = total_allocated_fs_size;
       }
     } else if (total_allocated_fs_size != total_fs_size) {
       LOG_DEBUG << "setting total allocated file system size to "
                 << total_allocated_fs_size;
-      md_.total_allocated_fs_size() = total_allocated_fs_size;
+      md_.total_allocated_fs_size = total_allocated_fs_size;
     }
   } else {
-    assert(!md_.total_allocated_fs_size().has_value());
+    assert(!md_.total_allocated_fs_size.has_value());
     if (total_allocated_fs_size != total_fs_size) {
       LOG_WARN << "non-sparse image has allocated size different from total "
                   "size: allocated="
@@ -800,20 +789,20 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
     }
   }
 
-  if (md_.total_hardlink_size().has_value() &&
-      md_.total_hardlink_size().value() != total_hardlink_size) {
+  if (md_.total_hardlink_size.has_value() &&
+      *md_.total_hardlink_size != total_hardlink_size) {
     if (total_hardlink_size == 0) {
       LOG_WARN << "clearing total hardlink size";
-      md_.total_hardlink_size().reset();
+      md_.total_hardlink_size.reset();
     } else {
       LOG_WARN << "correcting total hardlink size: was "
-               << md_.total_hardlink_size().value() << ", now "
+               << *md_.total_hardlink_size << ", now "
                << total_hardlink_size;
-      md_.total_hardlink_size() = total_hardlink_size;
+      md_.total_hardlink_size = total_hardlink_size;
     }
   } else if (total_hardlink_size != 0) {
     LOG_DEBUG << "setting total hardlink size to " << total_hardlink_size;
-    md_.total_hardlink_size() = total_hardlink_size;
+    md_.total_hardlink_size = total_hardlink_size;
   }
 
   tv << "updating total sizes and inode size cache...";
@@ -821,14 +810,14 @@ void metadata_builder_<LoggerPolicy>::update_totals_and_size_cache() {
 
 template <typename LoggerPolicy>
 void metadata_builder_<LoggerPolicy>::update_nlink() {
-  if (md_.options().has_value() &&
-      md_.options().value().inodes_have_nlink().value() !=
+  if (md_.options &&
+      md_.options->inodes_have_nlink !=
           options_.no_hardlink_table) {
     LOG_DEBUG << "keeping existing nlink fields";
     return;
   }
 
-  if (md_.inodes().value().empty()) {
+  if (md_.inodes.empty()) {
     LOG_DEBUG << "no inodes, skipping nlink update";
     return;
   }
@@ -839,32 +828,32 @@ void metadata_builder_<LoggerPolicy>::update_nlink() {
     LOG_DEBUG << "hardlink table disabled, clearing nlink fields";
 
     // simply set nlink_minus_one to 0 for all inodes
-    for (auto& inode : md_.inodes().value()) {
-      inode.nlink_minus_one() = 0;
+    for (auto& inode : md_.inodes) {
+      inode.nlink_minus_one = 0;
     }
   } else {
     auto const dev_offset = find_inode_rank_offset(md_, inode_rank::INO_DEV);
     auto const reg_offset = find_inode_rank_offset(md_, inode_rank::INO_REG);
 
-    assert(std::ranges::all_of(md_.inodes().value(), [](auto const& inode) {
-      return inode.nlink_minus_one().value() == 0;
+    assert(std::ranges::all_of(md_.inodes, [](auto const& inode) {
+      return inode.nlink_minus_one == 0;
     }));
 
     if (dev_offset > reg_offset) {
-      for (auto& de : md_.dir_entries().value()) {
-        auto const inode_num = de.inode_num().value();
-        assert(inode_num < md_.inodes()->size());
+      for (auto& de : *md_.dir_entries) {
+        auto const inode_num = de.inode_num;
+        assert(inode_num < md_.inodes.size());
         // only need to update regular files
         if (reg_offset <= inode_num && inode_num < dev_offset) {
-          auto& inode = md_.inodes()->at(inode_num);
-          ++inode.nlink_minus_one().value();
+          auto& inode = md_.inodes[inode_num];
+          ++(inode.nlink_minus_one);
         }
       }
 
       for (auto inode_num = reg_offset; inode_num < dev_offset; ++inode_num) {
-        auto& inode = md_.inodes()->at(inode_num);
-        assert(inode.nlink_minus_one() >= 1);
-        --inode.nlink_minus_one().value();
+        auto& inode = md_.inodes[inode_num];
+        assert(inode.nlink_minus_one >= 1);
+        --(inode.nlink_minus_one);
       }
     }
   }
@@ -873,28 +862,28 @@ void metadata_builder_<LoggerPolicy>::update_nlink() {
 }
 
 template <typename LoggerPolicy>
-thrift::metadata::metadata const& metadata_builder_<LoggerPolicy>::build() {
+metadata::domain::metadata const& metadata_builder_<LoggerPolicy>::build() {
   LOG_VERBOSE << "building metadata";
 
-  thrift::metadata::fs_options fsopts;
-  fsopts.mtime_only() = !options_.keep_all_times;
+  metadata::domain::fs_options fsopts;
+  fsopts.mtime_only = !options_.keep_all_times;
 
   {
     auto const new_conv = timeres_.new_conversion_factors();
 
     if (auto const sec = new_conv.sec) {
-      fsopts.time_resolution_sec() = *sec;
+      fsopts.time_resolution_sec = *sec;
     }
 
     if (auto const nsec = new_conv.nsec) {
-      fsopts.subsecond_resolution_nsec_multiplier() = *nsec;
+      fsopts.subsecond_resolution_nsec_multiplier = *nsec;
     }
   }
 
-  fsopts.packed_chunk_table() = options_.pack_chunk_table;
-  fsopts.packed_directories() = options_.pack_directories;
-  fsopts.packed_shared_files_table() = options_.pack_shared_files_table;
-  fsopts.inodes_have_nlink() = !options_.no_hardlink_table;
+  fsopts.packed_chunk_table = options_.pack_chunk_table;
+  fsopts.packed_directories = options_.pack_directories;
+  fsopts.packed_shared_files_table = options_.pack_shared_files_table;
+  fsopts.inodes_have_nlink = !options_.no_hardlink_table;
 
   update_nlink();
   update_totals_and_size_cache();
@@ -903,12 +892,12 @@ thrift::metadata::metadata const& metadata_builder_<LoggerPolicy>::build() {
     // pack directories
     uint32_t last_first_entry = 0;
 
-    for (auto& d : md_.directories().value()) {
-      d.parent_entry() = 0; // this will be recovered
-      d.self_entry() = 0;   // this will be recovered
-      auto delta = d.first_entry().value() - last_first_entry;
-      last_first_entry = d.first_entry().value();
-      d.first_entry() = delta;
+    for (auto& d : md_.directories) {
+      d.parent_entry = 0; // this will be recovered
+      d.self_entry = 0;   // this will be recovered
+      auto delta = d.first_entry - last_first_entry;
+      last_first_entry = d.first_entry;
+      d.first_entry = delta;
     }
   } else {
     // Check sentinel directory and fix if necessary.
@@ -917,24 +906,24 @@ thrift::metadata::metadata const& metadata_builder_<LoggerPolicy>::build() {
     // an off-by-one bug in `unpack_directories()`, the `self_entry` field
     // could get populated with a non-zero value. We simply clear it here.
 
-    auto& sentinel = md_.directories()->back();
+    auto& sentinel = md_.directories.back();
 
-    if (sentinel.self_entry().value() != 0) {
+    if (sentinel.self_entry != 0) {
       LOG_INFO << "fixing inconsistent sentinel directory";
-      sentinel.self_entry() = 0;
+      sentinel.self_entry = 0;
     }
   }
 
   if (options_.pack_chunk_table) {
     // delta-compress chunk table
-    std::adjacent_difference(md_.chunk_table()->begin(),
-                             md_.chunk_table()->end(),
-                             md_.chunk_table()->begin());
+    std::adjacent_difference(md_.chunk_table.begin(),
+                             md_.chunk_table.end(),
+                             md_.chunk_table.begin());
   }
 
   if (options_.pack_shared_files_table) {
-    if (!md_.shared_files_table()->empty()) {
-      auto& sf = md_.shared_files_table().value();
+    if (md_.shared_files_table && !md_.shared_files_table->empty()) {
+      auto& sf = *md_.shared_files_table;
       DWARFS_CHECK(std::ranges::is_sorted(sf),
                    "shared files vector not sorted");
       std::vector<uint32_t> compressed;
@@ -965,47 +954,45 @@ thrift::metadata::metadata const& metadata_builder_<LoggerPolicy>::build() {
 
   if (!options_.plain_names_table) {
     auto ti = LOG_TIMED_INFO;
-    md_.compact_names() = string_table::pack(
-        md_.names().value(), string_table::pack_options(
-                                 options_.pack_names, options_.pack_names_index,
-                                 options_.force_pack_string_tables));
-    thrift::metadata::metadata tmp;
-    md_.names().copy_from(tmp.names());
+    md_.compact_names = string_table::pack(
+        md_.names, string_table::pack_options(
+                        options_.pack_names, options_.pack_names_index,
+                        options_.force_pack_string_tables));
+    md_.names.clear();
     ti << "saving names table...";
   }
 
   if (!options_.plain_symlinks_table) {
     auto ti = LOG_TIMED_INFO;
-    md_.compact_symlinks() = string_table::pack(
-        md_.symlinks().value(),
+    md_.compact_symlinks = string_table::pack(
+        md_.symlinks,
         string_table::pack_options(options_.pack_symlinks,
                                    options_.pack_symlinks_index,
                                    options_.force_pack_string_tables));
-    thrift::metadata::metadata tmp;
-    md_.symlinks().copy_from(tmp.symlinks());
+    md_.symlinks.clear();
     ti << "saving symlinks table...";
   }
 
   if (options_.no_category_names) {
-    md_.category_names().reset();
-    md_.block_categories().reset();
+    md_.category_names.reset();
+    md_.block_categories.reset();
   }
 
   if (options_.no_category_names || options_.no_category_metadata) {
-    md_.category_metadata_json().reset();
-    md_.block_category_metadata().reset();
+    md_.category_metadata_json.reset();
+    md_.block_category_metadata.reset();
   }
 
-  md_.options() = fsopts;
-  md_.features() = features_.get();
+  md_.options = fsopts;
+  md_.features = features_.get();
 
-  md_.dwarfs_version() = std::string("libdwarfs ") + DWARFS_GIT_ID;
+  md_.dwarfs_version = std::string("libdwarfs ") + DWARFS_GIT_ID;
   if (options_.no_create_timestamp) {
-    md_.create_timestamp().reset();
+    md_.create_timestamp.reset();
   } else {
-    md_.create_timestamp() = std::time(nullptr);
+    md_.create_timestamp = std::time(nullptr);
   }
-  md_.preferred_path_separator() =
+  md_.preferred_path_separator =
       static_cast<uint32_t>(std::filesystem::path::preferred_separator);
 
   return md_;
@@ -1059,10 +1046,10 @@ void metadata_builder_<LoggerPolicy>::upgrade_from_pre_v2_2() {
   LOG_TRACE << "reg_offset: " << reg_offset;
   LOG_TRACE << "dev_offset: " << dev_offset;
 
-  std::vector<uint32_t> reg_inode_refs(md_.chunk_table()->size() - 1, 0);
+  std::vector<uint32_t> reg_inode_refs(md_.chunk_table.size() - 1, 0);
 
-  for (auto const& inode : md_.inodes().value()) {
-    auto const inode_v2_2 = inode.inode_v2_2().value();
+  for (auto const& inode : md_.inodes) {
+    auto const inode_v2_2 = inode.inode_v2_2;
     if (reg_offset <= inode_v2_2 && inode_v2_2 < dev_offset) {
       auto const index = inode_v2_2 - reg_offset;
       if (index < reg_inode_refs.size()) {
@@ -1082,61 +1069,66 @@ void metadata_builder_<LoggerPolicy>::upgrade_from_pre_v2_2() {
   LOG_TRACE << "unique_files: " << unique_files;
   LOG_TRACE << "num_reg_files: " << num_reg_files;
 
-  auto const& entry_table = md_.entry_table_v2_2().value();
+  auto const& entry_table = md_.entry_table_v2_2;
 
-  thrift::metadata::metadata newmd;
-  auto& dir_entries = newmd.dir_entries().emplace();
-  dir_entries.reserve(md_.inodes()->size());
-  auto& shared_files = newmd.shared_files_table().emplace();
+  metadata::domain::metadata newmd;
+  newmd.dir_entries = std::vector<metadata::domain::dir_entry>();
+  auto& dir_entries = *newmd.dir_entries;
+  dir_entries.reserve(md_.inodes.size());
+  newmd.shared_files_table = std::vector<uint32_t>();
+  auto& shared_files = *newmd.shared_files_table;
   shared_files.reserve(num_reg_files - unique_files);
-  auto& chunks = newmd.chunks().ensure();
-  chunks.reserve(md_.chunks()->size());
-  auto& chunk_table = newmd.chunk_table().ensure();
-  chunk_table.reserve(md_.chunk_table()->size());
+  newmd.chunks = std::vector<metadata::domain::chunk>();
+  auto& chunks = newmd.chunks;
+  chunks.reserve(md_.chunks.size());
+  newmd.chunk_table = std::vector<uint32_t>();
+  auto& chunk_table = newmd.chunk_table;
+  chunk_table.reserve(md_.chunk_table.size());
   chunk_table.push_back(0);
-  auto& inodes = newmd.inodes().ensure();
-  inodes.resize(md_.inodes()->size());
+  newmd.inodes = std::vector<metadata::domain::inode_data>();
+  auto& inodes = newmd.inodes;
+  inodes.resize(md_.inodes.size());
 
-  newmd.directories().copy_from(md_.directories());
-  for (auto& d : newmd.directories().value()) {
-    d.parent_entry() = entry_table[d.parent_entry().value()];
+  newmd.directories = md_.directories;
+  for (auto& d : newmd.directories) {
+    d.parent_entry = entry_table[d.parent_entry];
   }
-  auto& dirs = newmd.directories().value();
+  auto& dirs = newmd.directories;
 
   uint32_t const shared_offset = reg_offset + unique_files;
   uint32_t unique_inode = reg_offset;
   uint32_t shared_inode = shared_offset;
   uint32_t shared_chunk_index = 0;
   std::unordered_map<uint32_t, uint32_t> shared_inode_map;
-  std::vector<thrift::metadata::chunk> shared_chunks;
+  std::vector<metadata::domain::chunk> shared_chunks;
   std::vector<uint32_t> shared_chunk_table;
   shared_chunk_table.push_back(0);
 
-  for (auto const& inode : md_.inodes().value()) {
+  for (auto const& inode : md_.inodes) {
     auto const self_index = dir_entries.size();
     auto& de = dir_entries.emplace_back();
-    de.name_index() = inode.name_index_v2_2().value();
-    auto inode_v2_2 = inode.inode_v2_2().value();
+    de.name_index = inode.name_index_v2_2;
+    auto inode_v2_2 = inode.inode_v2_2;
 
     if (inode_v2_2 < reg_offset) {
-      de.inode_num() = inode_v2_2;
+      de.inode_num = inode_v2_2;
 
       // must reconstruct self_entry for directories
       if (inode_v2_2 < lnk_offset) {
-        dirs.at(inode_v2_2).self_entry() = self_index;
+        dirs[inode_v2_2].self_entry = self_index;
       }
     } else if (inode_v2_2 < dev_offset) {
       auto const index = inode_v2_2 - reg_offset;
       auto const refs = reg_inode_refs[index];
-      auto const chunk_begin = md_.chunk_table()->at(index);
-      auto const chunk_end = md_.chunk_table()->at(index + 1);
+      auto const chunk_begin = md_.chunk_table[index];
+      auto const chunk_end = md_.chunk_table[index + 1];
 
       if (refs == 1) {
         chunk_table.push_back(chunk_table.back() + chunk_end - chunk_begin);
         for (uint32_t i = chunk_begin; i < chunk_end; ++i) {
-          chunks.push_back(md_.chunks()->at(i));
+          chunks.push_back(md_.chunks[i]);
         }
-        de.inode_num() = unique_inode++;
+        de.inode_num = unique_inode++;
       } else {
         auto [it, inserted] =
             shared_inode_map.emplace(inode_v2_2, shared_inode);
@@ -1149,24 +1141,23 @@ void metadata_builder_<LoggerPolicy>::upgrade_from_pre_v2_2() {
           shared_chunk_table.push_back(shared_chunk_table.back() + chunk_end -
                                        chunk_begin);
           for (uint32_t i = chunk_begin; i < chunk_end; ++i) {
-            shared_chunks.push_back(md_.chunks()->at(i));
+            shared_chunks.push_back(md_.chunks[i]);
           }
         }
-        de.inode_num() = it->second++;
+        de.inode_num = it->second++;
       }
     } else {
-      de.inode_num() = (inode_v2_2 - dev_offset) + reg_offset + num_reg_files;
-      LOG_TRACE << "dev/oth inode: " << inode_v2_2 << " -> "
-                << de.inode_num().value();
+      de.inode_num = (inode_v2_2 - dev_offset) + reg_offset + num_reg_files;
+      LOG_TRACE << "dev/oth inode: " << inode_v2_2 << " -> " << de.inode_num;
     }
 
-    auto& ni = inodes.at(de.inode_num().value());
-    ni.mode_index() = inode.mode_index().value();
-    ni.owner_index() = inode.owner_index().value();
-    ni.group_index() = inode.group_index().value();
-    ni.atime_offset() = inode.atime_offset().value();
-    ni.mtime_offset() = inode.mtime_offset().value();
-    ni.ctime_offset() = inode.ctime_offset().value();
+    auto& ni = inodes[de.inode_num];
+    ni.mode_index = inode.mode_index;
+    ni.owner_index = inode.owner_index;
+    ni.group_index = inode.group_index;
+    ni.atime_offset = inode.atime_offset;
+    ni.mtime_offset = inode.mtime_offset;
+    ni.ctime_offset = inode.ctime_offset;
   }
 
   std::transform(shared_chunk_table.begin(), shared_chunk_table.end(),
@@ -1180,42 +1171,38 @@ void metadata_builder_<LoggerPolicy>::upgrade_from_pre_v2_2() {
   chunk_table.insert(chunk_table.end(), shared_chunk_table.begin() + 1,
                      shared_chunk_table.end());
 
-  newmd.symlink_table().copy_from(md_.symlink_table());
-  newmd.uids().copy_from(md_.uids());
-  newmd.gids().copy_from(md_.gids());
-  newmd.modes().copy_from(md_.modes());
-  newmd.names().copy_from(md_.names());
-  newmd.symlinks().copy_from(md_.symlinks());
-  newmd.timestamp_base().copy_from(md_.timestamp_base());
-  newmd.block_size().copy_from(md_.block_size());
-  newmd.total_fs_size().copy_from(md_.total_fs_size());
-  newmd.devices().copy_from(md_.devices());
-  newmd.options().copy_from(md_.options());
+  newmd.symlink_table = md_.symlink_table;
+  newmd.uids = md_.uids;
+  newmd.gids = md_.gids;
+  newmd.modes = md_.modes;
+  newmd.names = md_.names;
+  newmd.symlinks = md_.symlinks;
+  newmd.timestamp_base = md_.timestamp_base;
+  newmd.block_size = md_.block_size;
+  newmd.total_fs_size = md_.total_fs_size;
+  newmd.devices = md_.devices;
+  newmd.options = md_.options;
 
   md_ = std::move(newmd);
 }
 
 template <typename LoggerPolicy>
 void metadata_builder_<LoggerPolicy>::upgrade_metadata(
-    thrift::metadata::fs_options const* orig_fs_options,
+    metadata::domain::fs_options const* orig_fs_options,
     filesystem_version const& orig_fs_version) {
   auto tv = LOG_TIMED_VERBOSE;
 
-  // std::cout << apache::thrift::debugString(md_);
-
-  thrift::metadata::history_entry histent;
-  histent.major() = orig_fs_version.major;
-  histent.minor() = orig_fs_version.minor;
-  histent.dwarfs_version().copy_from(md_.dwarfs_version());
-  histent.block_size() = md_.block_size().value();
+  metadata::domain::history_entry histent;
+  histent.major = orig_fs_version.major;
+  histent.minor = orig_fs_version.minor;
+  histent.dwarfs_version = md_.dwarfs_version;
+  histent.block_size = md_.block_size;
   if (orig_fs_options) {
-    histent.options().ensure();
-    histent.options() = *orig_fs_options;
+    histent.options = *orig_fs_options;
   }
 
-  if (apache::thrift::is_non_optional_field_set_manually_or_by_serializer(
-          md_.entry_table_v2_2())) {
-    DWARFS_CHECK(!md_.dir_entries().has_value(),
+  if (!md_.entry_table_v2_2.empty()) {
+    DWARFS_CHECK(!md_.dir_entries.has_value(),
                  "unexpected dir_entries in metadata");
 
     upgrade_from_pre_v2_2();
@@ -1224,10 +1211,12 @@ void metadata_builder_<LoggerPolicy>::upgrade_metadata(
   tv << "upgrading metadata...";
 
   if (options_.no_metadata_version_history) {
-    md_.metadata_version_history().reset();
+    md_.metadata_version_history.reset();
   } else {
-    md_.metadata_version_history().ensure();
-    md_.metadata_version_history()->push_back(std::move(histent));
+    if (!md_.metadata_version_history) {
+      md_.metadata_version_history = std::vector<metadata::domain::history_entry>();
+    }
+    md_.metadata_version_history->push_back(std::move(histent));
   }
 }
 
@@ -1266,16 +1255,16 @@ metadata_builder::metadata_builder(logger& lgr, metadata_options const& options)
               lgr, options)} {}
 
 metadata_builder::metadata_builder(
-    logger& lgr, thrift::metadata::metadata const& md,
-    thrift::metadata::fs_options const* orig_fs_options,
+    logger& lgr, metadata::domain::metadata const& md,
+    metadata::domain::fs_options const* orig_fs_options,
     filesystem_version const& orig_fs_version, metadata_options const& options)
     : impl_{
           make_unique_logging_object<impl, metadata_builder_, logger_policies>(
               lgr, md, orig_fs_options, orig_fs_version, options)} {}
 
 metadata_builder::metadata_builder(
-    logger& lgr, thrift::metadata::metadata&& md,
-    thrift::metadata::fs_options const* orig_fs_options,
+    logger& lgr, metadata::domain::metadata&& md,
+    metadata::domain::fs_options const* orig_fs_options,
     filesystem_version const& orig_fs_version, metadata_options const& options)
     : impl_{
           make_unique_logging_object<impl, metadata_builder_, logger_policies>(
