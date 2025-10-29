@@ -32,8 +32,12 @@
 
 #include <dwarfs/file_stat.h>
 
-namespace dwarfs::domain {
+namespace dwarfs::metadata::domain {
 class inode_data;
+}
+
+namespace dwarfs {
+namespace domain = metadata::domain;
 }
 
 namespace dwarfs::writer {

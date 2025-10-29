@@ -23,13 +23,31 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <utility>
-
-#include <folly/Hash.h>
 
 #include <dwarfs/writer/internal/similarity.h>
 
 namespace dwarfs::writer::internal {
+
+namespace {
+
+// Jenkins hash mix function - public domain algorithm by Bob Jenkins
+// This is equivalent to folly::hash::jenkins_rev_mix32
+inline uint32_t jenkins_rev_mix32(uint32_t key) {
+  key += (key << 12);  // key *= (1 + (1 << 12))
+  key ^= (key >> 22);
+  key += (key << 4);   // key *= (1 + (1 << 4))
+  key ^= (key >> 9);
+  key += (key << 10);  // key *= (1 + (1 << 10))
+  key ^= (key >> 2);
+  // key *= (1 + (1 << 7)) * (1 + (1 << 12))
+  key += (key << 7);
+  key += (key << 12);
+  return key;
+}
+
+} // anonymous namespace
 
 /**
  * Simple locality sensitive hashing function
@@ -62,7 +80,7 @@ class similarity::impl {
     for (size_t off = 0; off < size; ++off) {
       val_ = (val_ << 8) | data[off];
       if (size_ + off >= 3) {
-        auto hv = folly::hash::jenkins_rev_mix32(val_);
+        auto hv = jenkins_rev_mix32(val_);
         ++vec_[hv & mask].first;
       }
     }

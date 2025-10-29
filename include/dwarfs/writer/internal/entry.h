@@ -42,12 +42,14 @@
 
 namespace dwarfs {
 
-namespace domain {
+namespace metadata::domain {
 
 class inode_data;
 class metadata;
 
-} // namespace domain
+} // namespace metadata::domain
+
+namespace domain = metadata::domain;
 
 class os_access;
 

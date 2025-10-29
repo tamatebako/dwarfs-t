@@ -26,20 +26,16 @@
 
 #include <dwarfs/writer/internal/metadata_freezer.h>
 
-#include <dwarfs/gen-cpp2/metadata_types.h>
+#include <dwarfs/metadata/domain/metadata.h>
 #include <dwarfs/metadata/serialization/cereal_binary_serializer.h>
-#include <dwarfs/metadata/serialization/thrift_converter.h>
 
 namespace dwarfs::writer::internal {
 
 namespace {
 
 std::pair<shared_byte_buffer, shared_byte_buffer>
-freeze_to_buffer(thrift::metadata::metadata const& thrift_meta) {
+freeze_to_buffer(metadata::domain::metadata const& domain_meta) {
   using namespace ::dwarfs::metadata::serialization;
-
-  // Convert Thrift metadata to domain metadata
-  auto domain_meta = ThriftConverter::to_domain(thrift_meta);
 
   // Serialize using Cereal
   CerealBinarySerializer serializer;
@@ -62,7 +58,7 @@ class metadata_freezer_ : public metadata_freezer::impl {
       : LOG_PROXY_INIT(lgr) {}
 
   std::pair<shared_byte_buffer, shared_byte_buffer>
-  freeze(thrift::metadata::metadata const& data) const override {
+  freeze(metadata::domain::metadata const& data) const override {
     auto ti = LOG_TIMED_VERBOSE;
     auto rv = freeze_to_buffer(data);
 

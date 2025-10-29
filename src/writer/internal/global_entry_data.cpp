@@ -98,10 +98,10 @@ void global_entry_data::pack_inode_stat(
                     file_stat::mode_valid | file_stat::atime_valid |
                     file_stat::mtime_valid | file_stat::ctime_valid);
 
-  inode.mode_index() = DWARFS_NOTHROW(modes_.at(stat.mode_unchecked()));
-  inode.owner_index() =
+  inode.mode_index = DWARFS_NOTHROW(modes_.at(stat.mode_unchecked()));
+  inode.owner_index =
       options_.uid ? 0 : DWARFS_NOTHROW(uids_.at(stat.uid_unchecked()));
-  inode.group_index() =
+  inode.group_index =
       options_.gid ? 0 : DWARFS_NOTHROW(gids_.at(stat.gid_unchecked()));
 
   if (!options_.timestamp) {
@@ -109,21 +109,21 @@ void global_entry_data::pack_inode_stat(
 
     {
       auto const mts = stat.mtimespec_unchecked();
-      inode.mtime_offset() = timeres.convert_offset(mts.sec - base);
-      inode.mtime_subsec() = timeres.convert_subsec(mts.nsec);
+      inode.mtime_offset = timeres.convert_offset(mts.sec - base);
+      inode.mtime_subsec = timeres.convert_subsec(mts.nsec);
     }
 
     if (options_.keep_all_times) {
       {
         auto const ats = stat.atimespec_unchecked();
-        inode.atime_offset() = timeres.convert_offset(ats.sec - base);
-        inode.atime_subsec() = timeres.convert_subsec(ats.nsec);
+        inode.atime_offset = timeres.convert_offset(ats.sec - base);
+        inode.atime_subsec = timeres.convert_subsec(ats.nsec);
       }
 
       {
         auto const cts = stat.ctimespec_unchecked();
-        inode.ctime_offset() = timeres.convert_offset(cts.sec - base);
-        inode.ctime_subsec() = timeres.convert_subsec(cts.nsec);
+        inode.ctime_offset = timeres.convert_offset(cts.sec - base);
+        inode.ctime_subsec = timeres.convert_subsec(cts.nsec);
       }
     }
   }

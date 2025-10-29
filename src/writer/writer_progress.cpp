@@ -25,6 +25,8 @@
 #include <windows.h>
 #endif
 
+#include <fmt/format.h>
+
 #include "dwarfs/internal/thread_name.h"
 
 #include <dwarfs/error.h>

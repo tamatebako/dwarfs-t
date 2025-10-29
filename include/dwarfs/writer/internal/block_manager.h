@@ -34,6 +34,8 @@
 
 namespace dwarfs::writer::internal {
 
+namespace domain = metadata::domain;
+
 class block_manager {
  public:
   using chunk_type = domain::chunk;

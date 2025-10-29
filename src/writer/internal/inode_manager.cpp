@@ -41,9 +41,6 @@
 
 #include <fmt/format.h>
 
-#include <folly/Demangle.h>
-#include <folly/sorted_vector_types.h>
-
 #include <dwarfs/compiler.h>
 #include <dwarfs/error.h>
 #include <dwarfs/file_view.h>
@@ -222,7 +219,7 @@ class inode_ : public inode {
 
   bool append_chunks_to(
       std::vector<chunk_type>& vec,
-      std::optional<inode_hole_mapper>& hole_mapper) const override {
+      std::optional<inode_hole_mapper> const& hole_mapper) const override {
     for (auto const& frag : fragments_) {
       if (!frag.chunks_are_consistent()) {
         return false;
@@ -237,9 +234,9 @@ class inode_ : public inode {
           auto& hm = hole_mapper.value();
           hm.map_hole(chk, src.size());
         } else {
-          chk.block() = src.block();
-          chk.offset() = src.offset();
-          chk.size() = src.size();
+          chk.block = src.block();
+          chk.offset = src.offset();
+          chk.size = src.size();
         }
       }
     }
@@ -378,14 +375,14 @@ class inode_ : public inode {
   template <typename T>
   T const* find_similarity(fragment_category cat) const {
     DWARFS_CHECK(!fragments_.empty(), fmt::format("inode has no fragments ({})",
-                                                  folly::demangle(typeid(T))));
+                                                  typeid(T).name()));
     if (std::holds_alternative<std::monostate>(similarity_)) {
       return nullptr;
     }
     if (fragments_.size() == 1) {
       DWARFS_CHECK(
           fragments_.get_single_category() == cat,
-          fmt::format("category mismatch ({})", folly::demangle(typeid(T))));
+          fmt::format("category mismatch ({})", typeid(T).name()));
       return &std::get<T>(similarity_);
     }
     auto& m = std::get<similarity_map_type>(similarity_);
@@ -536,8 +533,8 @@ class inode_ : public inode {
   }
 
   using similarity_map_type =
-      folly::sorted_vector_map<fragment_category,
-                               std::variant<nilsimsa::hash_type, uint32_t>>;
+      std::map<fragment_category,
+               std::variant<nilsimsa::hash_type, uint32_t>>;
 
   static constexpr uint32_t const kNumIsValid{UINT32_C(1) << 0};
 

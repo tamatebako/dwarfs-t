@@ -23,13 +23,14 @@
 
 #include <algorithm>
 #include <bit>
+#include <cstdint>
 #include <limits>
 #include <mutex>
 #include <numeric>
 #include <unordered_map>
 #include <variant>
 
-#include <folly/lang/BitsClass.h>
+#include <fmt/format.h>
 
 #include <range/v3/view/enumerate.hpp>
 
@@ -45,6 +46,29 @@ namespace dwarfs::writer::internal {
 using namespace dwarfs::internal;
 
 namespace {
+
+// Replacement for folly::Bits - simple bit manipulation utilities
+template <typename T>
+class Bits {
+ public:
+  static bool test(T const* data, size_t bit) {
+    size_t const index = bit / (8 * sizeof(T));
+    size_t const offset = bit % (8 * sizeof(T));
+    return (data[index] & (T(1) << offset)) != 0;
+  }
+
+  static void set(T* data, size_t bit) {
+    size_t const index = bit / (8 * sizeof(T));
+    size_t const offset = bit % (8 * sizeof(T));
+    data[index] |= (T(1) << offset);
+  }
+
+  static void clear(T* data, size_t bit) {
+    size_t const index = bit / (8 * sizeof(T));
+    size_t const offset = bit % (8 * sizeof(T));
+    data[index] &= ~(T(1) << offset);
+  }
+};
 
 // TODO: move out of here
 class job_tracker {
@@ -192,7 +216,7 @@ class basic_centroid {
   static_assert(Bits % (8 * sizeof(BitsType)) == 0);
   static constexpr size_t const array_size = Bits / (8 * sizeof(BitsType));
   using value_type = std::array<BitsType, array_size>;
-  using bits_type = folly::Bits<BitsType>;
+  using bits_type = ::dwarfs::writer::internal::Bits<BitsType>;
 
   basic_centroid() {
     std::fill(centroid_.begin(), centroid_.end(), 0);
@@ -658,9 +682,12 @@ void similarity_ordering_<LoggerPolicy>::order_impl(
   auto duplicates = find_duplicates(ev, index);
   auto root = std::make_shared<nilsimsa_cluster_tree_node>(std::move(index));
 
+  // Wrap move-only receiver in shared_ptr to make the lambda copyable
+  auto rec_ptr = std::make_shared<receiver<index_type>>(std::move(rec));
+  auto dup_ptr = std::make_shared<duplicates_map>(std::move(duplicates));
+
   auto jt = std::make_shared<job_tracker>(
-      [this, size_hint, &ev, rec = std::move(rec), root,
-       dup = std::move(duplicates)]() mutable {
+      [this, size_hint, &ev, rec_ptr, root, dup_ptr]() {
         {
           auto tv = LOG_TIMED_VERBOSE;
           order_tree_rec(*root, ev);
@@ -668,10 +695,10 @@ void similarity_ordering_<LoggerPolicy>::order_impl(
         }
         index_type rv;
         rv.reserve(size_hint);
-        collect_rec(*root, ev, dup, rv, "");
+        collect_rec(*root, ev, *dup_ptr, rv, "");
         LOG_DEBUG << opts_.context << "total distance after ordering: "
                   << total_distance(ev, rv);
-        rec.set_value(std::move(rv));
+        rec_ptr->set_value(std::move(rv));
       });
 
   cluster(*root, ev, jt);
@@ -681,10 +708,12 @@ template <typename LoggerPolicy>
 void similarity_ordering_<LoggerPolicy>::order_nilsimsa(
     nilsimsa_element_view const& ev, receiver<index_type> rec,
     index_type index) const {
-  wg_.add_job(
-      [this, rec = std::move(rec), idx = std::move(index), &ev]() mutable {
-        order_impl(std::move(rec), std::move(idx), ev);
-      });
+  // Wrap move-only receiver in shared_ptr to make the lambda copyable
+  auto rec_ptr = std::make_shared<receiver<index_type>>(std::move(rec));
+  auto idx_ptr = std::make_shared<index_type>(std::move(index));
+  wg_.add_job([this, rec_ptr, idx_ptr, &ev]() {
+    order_impl(std::move(*rec_ptr), std::move(*idx_ptr), ev);
+  });
 }
 
 similarity_ordering::similarity_ordering(

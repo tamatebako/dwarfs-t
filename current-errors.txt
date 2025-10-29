@@ -1,0 +1,20 @@
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:552:59: error: member reference base type 'bool' is not a structure or union
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:563:50: error: indirection requires pointer operand ('uint64_t' (aka 'unsigned long long') invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:613:33: error: indirection requires pointer operand ('uint64_t' (aka 'unsigned long long') invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:631:32: error: member reference type 'std::vector<uint32_t>' (aka 'vector<unsigned int>') is not a pointer; did you mean to use '.'?
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:697:70: error: expected ';' after expression
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:697:51: error: no member named 'reg_file_size_cache' in namespace 'dwarfs::metadata::domain'
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:763:25: error: indirection requires pointer operand ('uint64_t' (aka 'unsigned long long') invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:820:37: error: member reference base type 'bool' is not a structure or union
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:970:15: error: no member named 'reset' in 'std::vector<std::string>'
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:981:18: error: no member named 'reset' in 'std::vector<std::string>'
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:1091:18: error: indirection requires pointer operand ('std::vector<chunk>' invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:1094:23: error: indirection requires pointer operand ('std::vector<uint32_t>' (aka 'vector<unsigned int>') invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:1098:18: error: indirection requires pointer operand ('std::vector<inode_data>' invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:1102:18: error: indirection requires pointer operand ('std::vector<directory>' invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:1105:16: error: indirection requires pointer operand ('std::vector<directory>' invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:1161:20: error: indirection requires pointer operand ('uint32_t' (aka 'unsigned int') invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:1164:26: error: indirection requires pointer operand ('uint32_t' (aka 'unsigned int') invalid)
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:1214:28: error: no member named 'has_value' in 'std::vector<unsigned int>'
+/Users/mulgogi/src/external/dwarfs/src/writer/internal/metadata_builder.cpp:628:22: error: indirection requires pointer operand ('std::vector<inode_data>' invalid)
+fatal error: too many errors emitted, stopping now [-ferror-limit=]

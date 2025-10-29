@@ -42,11 +42,11 @@
 
 namespace dwarfs {
 
-namespace thrift::metadata {
+namespace metadata::domain {
 
 class chunk;
 
-}
+} // namespace metadata::domain
 
 class os_access;
 
@@ -78,8 +78,8 @@ class inode : public object {
   virtual file const* any() const = 0;
   virtual files_vector const& all() const = 0;
   virtual bool
-  append_chunks_to(std::vector<thrift::metadata::chunk>& vec,
-                   std::optional<inode_hole_mapper>& hole_mapper) const = 0;
+  append_chunks_to(std::vector<metadata::domain::chunk>& vec,
+                   std::optional<inode_hole_mapper> const& hole_mapper) const = 0;
   virtual inode_fragments& fragments() = 0;
   virtual void dump(std::ostream& os, inode_options const& options) const = 0;
   virtual void set_scan_error(file const* fp, std::exception_ptr ep) = 0;

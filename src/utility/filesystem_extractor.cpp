@@ -52,8 +52,8 @@
 #include <unistd.h>
 #endif
 
-#include <folly/ExceptionString.h>
 #include "dwarfs/internal/thread_name.h"
+#include <dwarfs/util.h>
 
 #include <dwarfs/config.h>
 #include <dwarfs/counting_semaphore.h>
@@ -487,7 +487,7 @@ bool filesystem_extractor_<LoggerPolicy>::extract(
 
               assert(extents.empty());
             } catch (archive_error const& e) {
-              LOG_ERROR << exception_str(e);
+              LOG_ERROR << error_cp_to_utf8(e.what());
               ++hard_error;
             } catch (...) {
               if (opts.continue_on_error) {

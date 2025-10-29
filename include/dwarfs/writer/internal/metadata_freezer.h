@@ -33,8 +33,8 @@ namespace dwarfs {
 
 class logger;
 
-namespace thrift::metadata {
-class metadata;
+namespace metadata::domain {
+struct metadata;
 }
 
 namespace writer::internal {
@@ -45,7 +45,7 @@ class metadata_freezer {
   ~metadata_freezer();
 
   std::pair<shared_byte_buffer, shared_byte_buffer>
-  freeze(thrift::metadata::metadata const& data) const {
+  freeze(metadata::domain::metadata const& data) const {
     return impl_->freeze(data);
   }
 
@@ -54,7 +54,7 @@ class metadata_freezer {
     virtual ~impl() = default;
 
     virtual std::pair<shared_byte_buffer, shared_byte_buffer>
-    freeze(thrift::metadata::metadata const& data) const = 0;
+    freeze(metadata::domain::metadata const& data) const = 0;
   };
 
  private:

@@ -44,6 +44,7 @@
 
 namespace dwarfs::writer::internal {
 
+namespace domain = metadata::domain;
 namespace fs = std::filesystem;
 
 namespace {
@@ -327,10 +328,10 @@ void dir::scan(os_access const&, progress&) {}
 void dir::pack_entry(domain::metadata& mv2,
                      global_entry_data const& data,
                      time_resolution_converter const& timeres) const {
-  auto& de = mv2.dir_entries()->emplace_back();
-  de.name_index() = has_parent() ? data.get_name_index(name()) : 0;
-  de.inode_num() = DWARFS_NOTHROW(inode_num().value());
-  entry::pack(DWARFS_NOTHROW(mv2.inodes()->at(de.inode_num().value())), data,
+  auto& de = mv2.dir_entries.value().emplace_back();
+  de.name_index = has_parent() ? data.get_name_index(name()) : 0;
+  de.inode_num = DWARFS_NOTHROW(inode_num().value());
+  entry::pack(DWARFS_NOTHROW(mv2.inodes.at(de.inode_num)), data,
               timeres);
 }
 
@@ -342,21 +343,21 @@ void dir::pack(domain::metadata& mv2, global_entry_data const& data,
     DWARFS_CHECK(pd, "unexpected parent entry (not a directory)");
     auto pe = pd->entry_index();
     DWARFS_CHECK(pe, "parent entry index not set");
-    d.parent_entry() = *pe;
+    d.parent_entry = *pe;
   } else {
-    d.parent_entry() = 0;
+    d.parent_entry = 0;
   }
-  d.first_entry() = mv2.dir_entries()->size();
+  d.first_entry = mv2.dir_entries.value().size();
   auto se = entry_index();
   DWARFS_CHECK(se, "self entry index not set");
-  d.self_entry() = *se;
-  mv2.directories()->push_back(d);
+  d.self_entry = *se;
+  mv2.directories.push_back(d);
   for (entry_ptr const& e : entries_) {
-    e->set_entry_index(mv2.dir_entries()->size());
-    auto& de = mv2.dir_entries()->emplace_back();
-    de.name_index() = data.get_name_index(e->name());
-    de.inode_num() = DWARFS_NOTHROW(e->inode_num().value());
-    e->pack(DWARFS_NOTHROW(mv2.inodes()->at(de.inode_num().value())), data,
+    e->set_entry_index(mv2.dir_entries.value().size());
+    auto& de = mv2.dir_entries.value().emplace_back();
+    de.name_index = data.get_name_index(e->name());
+    de.inode_num = DWARFS_NOTHROW(e->inode_num().value());
+    e->pack(DWARFS_NOTHROW(mv2.inodes.at(de.inode_num)), data,
             timeres);
   }
 }

@@ -214,11 +214,11 @@ class raw_fsblock : public fsblock::impl {
   }
 
   void compress(worker_group& wg, std::optional<std::string> meta) override {
-    std::promise<void> prom;
-    future_ = prom.get_future();
+    auto prom = std::make_shared<std::promise<void>>();
+    future_ = prom->get_future();
 
     wg.add_job(
-        [this, prom = std::move(prom), meta = std::move(meta)]() mutable {
+        [this, prom, meta = std::move(meta)]() mutable {
           try {
             shared_byte_buffer tmp;
 
@@ -239,7 +239,7 @@ class raw_fsblock : public fsblock::impl {
             comp_type_ = compression_type::NONE;
           }
 
-          prom.set_value();
+          prom->set_value();
         });
   }
 
@@ -324,16 +324,16 @@ class compressed_fsblock : public fsblock::impl {
 
   void
   compress(worker_group& wg, std::optional<std::string> /* meta */) override {
-    std::promise<void> prom;
-    future_ = prom.get_future();
+    auto prom = std::make_shared<std::promise<void>>();
+    future_ = prom->get_future();
 
-    wg.add_job([this, prom = std::move(prom)]() mutable {
+    wg.add_job([this, prom]() {
       fsblock::build_section_header(header_, *this, sec_);
       if (pctx_) {
         pctx_->bytes_in += size();
         pctx_->bytes_out += size();
       }
-      prom.set_value();
+      prom->set_value();
     });
   }
 
@@ -387,11 +387,11 @@ class rewritten_fsblock : public fsblock::impl {
     DWARFS_CHECK(!meta,
                  "metadata not supported for rewritten_fsblock::compress");
 
-    std::promise<void> prom;
-    future_ = prom.get_future();
+    auto prom = std::make_shared<std::promise<void>>();
+    future_ = prom->get_future();
 
-    wg.add_job([this, prom = std::move(prom)]() mutable {
-      compress_job(std::move(prom));
+    wg.add_job([this, prom]() {
+      compress_job(prom);
     });
   }
 
@@ -444,7 +444,7 @@ class rewritten_fsblock : public fsblock::impl {
   }
 
  private:
-  void compress_job(std::promise<void> prom) {
+  void compress_job(std::shared_ptr<std::promise<void>> prom) {
     try {
       auto [block, meta] = data_();
 
@@ -467,9 +467,9 @@ class rewritten_fsblock : public fsblock::impl {
         block_data_.emplace(std::move(block));
       }
 
-      prom.set_value();
+      prom->set_value();
     } catch (...) {
-      prom.set_exception(std::current_exception());
+      prom->set_exception(std::current_exception());
     }
   }
 
@@ -964,21 +964,21 @@ void filesystem_writer_<LoggerPolicy>::rewrite_section(
   auto const type = sec.type();
   auto const compression = sec.compression();
   auto const data = sec.data(segment);
-  auto bd = block_decompressor(compression, data);
-  auto const uncompressed_size = bd.uncompressed_size();
+  auto bd = std::make_shared<block_decompressor>(compression, data);
+  auto const uncompressed_size = bd->uncompressed_size();
 
   if (!cat_metadata) {
-    cat_metadata = bd.metadata();
+    cat_metadata = bd->metadata();
   }
 
   // We *must* keep the segment alive since it owns the underlying data,
   // so we move-capture it in the lambda.
   rewrite_section_delayed_data(
       type,
-      [bd = std::move(bd), meta = std::move(cat_metadata),
+      [bd, meta = std::move(cat_metadata),
        segment = std::move(segment)]() mutable {
-        auto block = bd.start_decompression(malloc_byte_buffer::create());
-        bd.decompress_frame(bd.uncompressed_size());
+        auto block = bd->start_decompression(malloc_byte_buffer::create());
+        bd->decompress_frame(bd->uncompressed_size());
         return std::pair{std::move(block), meta};
       },
       uncompressed_size, cat);

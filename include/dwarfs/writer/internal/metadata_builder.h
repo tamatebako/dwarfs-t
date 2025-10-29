@@ -37,10 +37,10 @@ namespace writer {
 struct metadata_options;
 }
 
-namespace thrift::metadata {
-class fs_options;
-class metadata;
-} // namespace thrift::metadata
+namespace metadata::domain {
+struct fs_options;
+struct metadata;
+} // namespace metadata::domain
 
 namespace writer::internal {
 
@@ -68,12 +68,12 @@ class metadata_builder {
   metadata_builder(logger& lgr, metadata_options const& options);
 
   // Start with existing metadata, upgrade if necessary
-  metadata_builder(logger& lgr, thrift::metadata::metadata const& md,
-                   thrift::metadata::fs_options const* orig_fs_options,
+  metadata_builder(logger& lgr, metadata::domain::metadata const& md,
+                   metadata::domain::fs_options const* orig_fs_options,
                    filesystem_version const& orig_fs_version,
                    metadata_options const& options);
-  metadata_builder(logger& lgr, thrift::metadata::metadata&& md,
-                   thrift::metadata::fs_options const* orig_fs_options,
+  metadata_builder(logger& lgr, metadata::domain::metadata&& md,
+                   metadata::domain::fs_options const* orig_fs_options,
                    filesystem_version const& orig_fs_version,
                    metadata_options const& options);
 
@@ -146,7 +146,7 @@ class metadata_builder {
     impl_->remap_blocks(mapping, new_block_count);
   }
 
-  thrift::metadata::metadata const& build() { return impl_->build(); }
+  metadata::domain::metadata const& build() { return impl_->build(); }
 
   class impl {
    public:
@@ -179,7 +179,7 @@ class metadata_builder {
     virtual void remap_blocks(std::span<block_mapping const> mapping,
                               size_t new_block_count) = 0;
 
-    virtual thrift::metadata::metadata const& build() = 0;
+    virtual metadata::domain::metadata const& build() = 0;
   };
 
  private:

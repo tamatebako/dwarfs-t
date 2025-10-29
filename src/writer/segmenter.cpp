@@ -38,9 +38,7 @@
 
 #include <parallel_hashmap/phmap.h>
 
-#include <folly/hash/Hash.h>
-#include <folly/small_vector.h>
-#include <folly/sorted_vector_types.h>
+#include <dwarfs/small_vector.h>
 #include "dwarfs/internal/histogram.h"
 
 #include <dwarfs/compiler.h>
@@ -106,7 +104,7 @@ struct segmenter_stats {
 template <typename KeyT, typename ValT, size_t MaxCollInline = 2>
 class fast_multimap {
  private:
-  using collision_vector = folly::small_vector<ValT, MaxCollInline>;
+  using collision_vector = dwarfs::small_vector<ValT, MaxCollInline>;
   using blockhash_t = phmap::flat_hash_map<KeyT, ValT>;
   using collision_t = phmap::flat_hash_map<KeyT, collision_vector>;
 
@@ -177,9 +175,7 @@ class fast_multimap {
 };
 
 template <typename T, size_t MaxInline = 1>
-using small_sorted_vector_set =
-    folly::sorted_vector_set<T, std::less<T>, std::allocator<T>, void,
-                             folly::small_vector<T, MaxInline>>;
+using small_sorted_vector_set = std::set<T>;
 
 using repeating_sequence_map_type =
     phmap::flat_hash_map<uint32_t, small_sorted_vector_set<uint8_t, 8>>;
@@ -926,7 +922,7 @@ class granular_extent_adapter<GranularityPolicy, true>
  private:
   DWARFS_FORCE_INLINE auto
   collect_spans(file_off_t offset_in_bytes, file_size_t size_in_bytes) const {
-    folly::small_vector<std::span<value_type const>, 8> spans;
+    dwarfs::small_vector<std::span<value_type const>, 8> spans;
 
     for (auto const& span : get_span_range(offset_in_bytes, size_in_bytes)) {
       spans.emplace_back(reinterpret_cast<value_type const*>(span.data()),
@@ -1738,7 +1734,7 @@ segmenter_<LoggerPolicy, SegmentingPolicy>::segment_and_add_data(
 
   offset_in_frames = hashwin.seek(hasher, data, 0);
 
-  folly::small_vector<segment_match<LoggerPolicy, GranularityPolicyT>, 1>
+  dwarfs::small_vector<segment_match<LoggerPolicy, GranularityPolicyT>, 1>
       matches;
 
   // // TODO: we have multiple segmenter threads, so this doesn't fly anymore

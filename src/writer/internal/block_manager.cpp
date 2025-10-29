@@ -23,6 +23,7 @@
 
 #include <cassert>
 
+#include "dwarfs/metadata/domain/chunk.h"
 #include <dwarfs/writer/internal/block_manager.h>
 
 namespace dwarfs::writer::internal {
@@ -55,9 +56,9 @@ void block_manager::map_logical_blocks(
     if (hole_mapper && hole_mapper->is_hole(c)) {
       continue;
     }
-    size_t block = c.block().value();
+    size_t block = c.block;
     assert(block < num_blocks_);
-    c.block() = block_map_.at(block).value().first;
+    c.block = block_map_.at(block).value().first;
   }
 }
 

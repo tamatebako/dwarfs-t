@@ -35,10 +35,9 @@
 
 #include <fmt/format.h>
 
-#include <folly/Synchronized.h>
-
 #include <dwarfs/internal/bits.h>
 #include <dwarfs/internal/endian.h>
+#include <dwarfs/internal/synchronized.h>
 
 #include <range/v3/algorithm/fold_left.hpp>
 #include <range/v3/view/chunk.hpp>
@@ -422,7 +421,7 @@ class fits_categorizer_ final : public fits_categorizer_base {
   bool check_metadata(fits_metadata const& meta, fs::path const& path) const;
 
   LOG_PROXY_DECL(LoggerPolicy);
-  folly::Synchronized<fits_metadata_store, std::shared_mutex> mutable meta_;
+  dwarfs::compat::Synchronized<fits_metadata_store, std::shared_mutex> mutable meta_;
   compression_metadata_requirements<fits_metadata> image_req_;
 };
 

@@ -30,11 +30,11 @@
 
 #include <dwarfs/types.h>
 
-namespace dwarfs::domain {
+namespace dwarfs::metadata::domain {
 
 class chunk;
 
-} // namespace dwarfs::domain
+} // namespace dwarfs::metadata::domain
 
 namespace dwarfs::writer::internal {
 
@@ -43,8 +43,8 @@ class inode_hole_mapper {
   inode_hole_mapper(size_t hole_block_index, size_t block_size,
                     size_t max_data_chunk_size);
 
-  void map_hole(dwarfs::domain::chunk& out, file_size_t size);
-  bool is_hole(dwarfs::domain::chunk const& chk) const;
+  void map_hole(dwarfs::metadata::domain::chunk& out, file_size_t size) const;
+  bool is_hole(dwarfs::metadata::domain::chunk const& chk) const;
   bool has_holes() const { return hole_count_ > 0; }
   size_t hole_block_index() const { return hole_block_index_; }
   std::vector<uint64_t> const& large_hole_sizes() const {
@@ -52,12 +52,12 @@ class inode_hole_mapper {
   }
 
  private:
-  size_t hole_count_{0};
+  mutable size_t hole_count_{0};
   size_t hole_block_index_{0};
   int block_size_bits_{0};
   uint64_t inline_hole_size_limit_{0};
-  std::vector<uint64_t> large_hole_sizes_;
-  std::unordered_map<uint64_t, size_t> large_hole_size_map_;
+  mutable std::vector<uint64_t> large_hole_sizes_;
+  mutable std::unordered_map<uint64_t, size_t> large_hole_size_map_;
 };
 
 } // namespace dwarfs::writer::internal

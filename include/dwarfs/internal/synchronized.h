@@ -49,10 +49,10 @@ namespace dwarfs::compat {
  *
  * \tparam T Type of data to protect
  */
-template <typename T>
+template <typename T, typename Mutex = std::shared_mutex>
 class Synchronized {
  private:
-  mutable std::shared_mutex mutex_;
+  mutable Mutex mutex_;
   T data_;
 
  public:
@@ -61,11 +61,11 @@ class Synchronized {
    */
   class WriteLock {
    private:
-    std::unique_lock<std::shared_mutex> lock_;
+    std::unique_lock<Mutex> lock_;
     T* data_;
 
    public:
-    WriteLock(std::shared_mutex& mutex, T& data)
+    WriteLock(Mutex& mutex, T& data)
         : lock_(mutex), data_(&data) {}
 
     T& operator*() { return *data_; }
@@ -79,11 +79,11 @@ class Synchronized {
    */
   class ReadLock {
    private:
-    std::shared_lock<std::shared_mutex> lock_;
+    std::shared_lock<Mutex> lock_;
     const T* data_;
 
    public:
-    ReadLock(std::shared_mutex& mutex, const T& data)
+    ReadLock(Mutex& mutex, const T& data)
         : lock_(mutex), data_(&data) {}
 
     const T& operator*() const { return *data_; }

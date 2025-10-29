@@ -41,9 +41,6 @@
 #include <unistd.h>
 #endif
 
-#include <folly/CPortability.h>
-// hardware_concurrency() is now in dwarfs/util.h
-
 #include <fmt/format.h>
 
 #include <range/v3/view/enumerate.hpp>
@@ -307,9 +304,6 @@ scanner_<LoggerPolicy>::scanner_(logger& lgr, worker_group& wg,
     , entry_factory_{ef}
     , os_{os} {}
 
-FOLLY_PUSH_WARNING
-FOLLY_GCC_DISABLE_WARNING("-Wnrvo")
-
 template <typename LoggerPolicy>
 entry_factory::node
 scanner_<LoggerPolicy>::add_entry(std::filesystem::path const& name,
@@ -433,8 +427,6 @@ scanner_<LoggerPolicy>::add_entry(std::filesystem::path const& name,
 
   return nullptr;
 }
-
-FOLLY_POP_WARNING
 
 template <typename LoggerPolicy>
 void scanner_<LoggerPolicy>::dump_state(

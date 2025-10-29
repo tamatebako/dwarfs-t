@@ -25,8 +25,7 @@
 #include <ostream>
 #include <sstream>
 
-#include <folly/Conv.h>
-
+#include <dwarfs/error.h>
 #include <dwarfs/writer/inode_fragments.h>
 
 namespace dwarfs::writer {
@@ -43,9 +42,18 @@ void single_inode_fragment::add_chunk(size_t block, size_t offset,
     }
   }
 
-  chunks_.emplace_back(folly::to<chunk::block_type>(block),
-                       folly::to<chunk::offset_type>(offset),
-                       folly::to<chunk::size_type>(size));
+  // Safe narrowing conversions with range checking
+  auto check_range = [](auto value, auto max, const char* name) {
+    if (value > max) {
+      DWARFS_THROW(runtime_error, std::string(name) + " value out of range");
+    }
+    return static_cast<decltype(max)>(value);
+  };
+
+  chunks_.emplace_back(
+      check_range(block, std::numeric_limits<chunk::block_type>::max(), "block"),
+      check_range(offset, std::numeric_limits<chunk::offset_type>::max(), "offset"),
+      check_range(size, std::numeric_limits<chunk::size_type>::max(), "size"));
 }
 
 void single_inode_fragment::add_hole(file_size_t size) {
