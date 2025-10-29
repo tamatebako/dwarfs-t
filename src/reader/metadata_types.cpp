@@ -154,8 +154,8 @@ uint32_t directory_view::parent_inode() const {
 
   auto ent = parent_entry(inode_);
 
-  if (auto e = g_->meta().dir_entries()) {
-    ent = (*e)[ent].inode_num();
+  if (auto e = g_->meta().dir_entries) {
+    ent = (*e)[ent].inode_num;
   }
 
   return ent;
