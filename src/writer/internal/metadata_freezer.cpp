@@ -21,42 +21,36 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <thrift/lib/cpp2/frozen/FrozenUtil.h>
-#include <thrift/lib/cpp2/protocol/Serializer.h>
-
 #include <dwarfs/logger.h>
 #include <dwarfs/malloc_byte_buffer.h>
 
 #include <dwarfs/writer/internal/metadata_freezer.h>
 
-#include <dwarfs/gen-cpp2/metadata_layouts.h>
 #include <dwarfs/gen-cpp2/metadata_types.h>
-
-#include <thrift/lib/thrift/gen-cpp2/frozen_types_custom_protocol.h>
+#include <dwarfs/metadata/serialization/cereal_binary_serializer.h>
+#include <dwarfs/metadata/serialization/thrift_converter.h>
 
 namespace dwarfs::writer::internal {
 
 namespace {
 
-template <class T>
-std::pair<shared_byte_buffer, shared_byte_buffer> freeze_to_buffer(T const& x) {
-  using namespace ::apache::thrift::frozen;
+std::pair<shared_byte_buffer, shared_byte_buffer>
+freeze_to_buffer(thrift::metadata::metadata const& thrift_meta) {
+  using namespace ::dwarfs::metadata::serialization;
 
-  Layout<T> layout;
-  size_t content_size = LayoutRoot::layout(x, layout);
+  // Convert Thrift metadata to domain metadata
+  auto domain_meta = ThriftConverter::to_domain(thrift_meta);
 
-  std::string schema;
-  serializeRootLayout(layout, schema);
+  // Serialize using Cereal
+  CerealBinarySerializer serializer;
+  auto serialized_data = serializer.serialize(domain_meta);
 
-  auto schema_buffer = malloc_byte_buffer::create(schema);
+  // Create buffer from serialized data
+  auto data_buffer = malloc_byte_buffer::create(
+      std::string(serialized_data.begin(), serialized_data.end()));
 
-  auto data_buffer = malloc_byte_buffer::create_zeroed(content_size);
-
-  folly::MutableByteRange content_range(data_buffer.data(), data_buffer.size());
-  ByteRangeFreezer::freeze(layout, x, content_range);
-
-  data_buffer.resize(data_buffer.size() - content_range.size());
-  data_buffer.shrink_to_fit();
+  // Return empty schema buffer (not used with Cereal) and data buffer
+  auto schema_buffer = malloc_byte_buffer::create(std::string{});
 
   return {schema_buffer.share(), data_buffer.share()};
 }
