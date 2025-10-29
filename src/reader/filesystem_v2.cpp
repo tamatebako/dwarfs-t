@@ -396,6 +396,7 @@ class filesystem_ final {
     ir_.cache_blocks(block_numbers);
   }
 
+#ifdef DWARFS_LEGACY_THRIFT_SUPPORT
   std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const {
     return metadata_v2_utils(meta_).thaw();
   }
@@ -407,6 +408,7 @@ class filesystem_ final {
   std::unique_ptr<thrift::metadata::fs_options> thawed_fs_options() const {
     return metadata_v2_utils(meta_).thaw_fs_options();
   }
+#endif
 
   std::future<block_range>
   read_raw_block_data(size_t block_no, size_t offset, size_t size) const {
@@ -1509,6 +1511,7 @@ class filesystem_full_
     return fs().header();
   }
   history const& get_history() const override { return history_; }
+#ifdef DWARFS_LEGACY_THRIFT_SUPPORT
   std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const override {
     return fs().thawed_metadata();
   }
@@ -1520,6 +1523,7 @@ class filesystem_full_
   thawed_fs_options() const override {
     return fs().thawed_fs_options();
   }
+#endif
   std::future<block_range> read_raw_block_data(size_t block_no, size_t offset,
                                                size_t size) const override {
     return fs().read_raw_block_data(block_no, offset, size);
@@ -1641,6 +1645,7 @@ history const& filesystem_v2::get_history() const {
   return full_().get_history();
 }
 
+#ifdef DWARFS_LEGACY_THRIFT_SUPPORT
 std::unique_ptr<thrift::metadata::metadata>
 filesystem_v2::thawed_metadata() const {
   return full_().thawed_metadata();
@@ -1655,6 +1660,7 @@ std::unique_ptr<thrift::metadata::fs_options>
 filesystem_v2::thawed_fs_options() const {
   return full_().thawed_fs_options();
 }
+#endif
 
 std::future<block_range>
 filesystem_v2::read_raw_block_data(size_t block_no, size_t offset,

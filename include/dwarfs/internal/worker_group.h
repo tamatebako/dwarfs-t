@@ -57,7 +57,6 @@ namespace internal {
 class worker_group {
  public:
   using job_t = std::function<void()>;
-  using moveonly_job_t = std::function<void()>;
 
   /**
    * Create a worker group
@@ -83,13 +82,10 @@ class worker_group {
   bool running() const { return impl_->running(); }
 
   bool add_job(job_t&& job) { return impl_->add_job(std::move(job)); }
-  bool add_job(moveonly_job_t&& job) {
-    return impl_->add_moveonly_job(std::move(job));
-  }
 
   template <std::invocable T>
   bool add_job(T&& job) {
-    return add_job(moveonly_job_t{std::forward<T>(job)});
+    return add_job(job_t{std::forward<T>(job)});
   }
 
   size_t size() const { return impl_->size(); }
@@ -109,7 +105,8 @@ class worker_group {
 
   template <typename T>
   bool add_job(std::packaged_task<T()>&& task) {
-    return add_job([task = std::move(task)]() mutable { task(); });
+    auto shared_task = std::make_shared<std::packaged_task<T()>>(std::move(task));
+    return add_job([shared_task]() mutable { (*shared_task)(); });
   }
 
   class impl {
@@ -120,7 +117,6 @@ class worker_group {
     virtual void wait() = 0;
     virtual bool running() const = 0;
     virtual bool add_job(job_t&& job) = 0;
-    virtual bool add_moveonly_job(moveonly_job_t&& job) = 0;
     virtual size_t size() const = 0;
     virtual size_t queue_size() const = 0;
     virtual std::chrono::nanoseconds

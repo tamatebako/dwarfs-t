@@ -62,10 +62,12 @@ class logger;
 class os_access;
 class performance_monitor;
 
+#ifdef DWARFS_LEGACY_THRIFT_SUPPORT
 namespace thrift::metadata {
 class fs_options;
 class metadata;
 } // namespace thrift::metadata
+#endif
 
 namespace reader {
 
@@ -510,10 +512,12 @@ class filesystem_v2 final : public filesystem_v2_lite {
 
   history const& get_history() const;
 
+#ifdef DWARFS_LEGACY_THRIFT_SUPPORT
   std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const;
   std::unique_ptr<thrift::metadata::metadata> unpacked_metadata() const;
 
   std::unique_ptr<thrift::metadata::fs_options> thawed_fs_options() const;
+#endif
 
   std::future<block_range>
   read_raw_block_data(size_t block_no, size_t offset, size_t size) const;
@@ -529,12 +533,14 @@ class filesystem_v2 final : public filesystem_v2_lite {
     virtual std::string serialize_metadata_as_json(bool simple) const = 0;
     virtual std::optional<file_extents_iterable> header() const = 0;
     virtual history const& get_history() const = 0;
+#ifdef DWARFS_LEGACY_THRIFT_SUPPORT
     virtual std::unique_ptr<thrift::metadata::metadata>
     thawed_metadata() const = 0;
     virtual std::unique_ptr<thrift::metadata::metadata>
     unpacked_metadata() const = 0;
     virtual std::unique_ptr<thrift::metadata::fs_options>
     thawed_fs_options() const = 0;
+#endif
     virtual std::future<block_range>
     read_raw_block_data(size_t block, size_t offset, size_t size) const = 0;
   };
