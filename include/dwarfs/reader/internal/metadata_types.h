@@ -37,17 +37,14 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
-#include <thrift/lib/cpp2/frozen/FrozenUtil.h>
-
 #include <dwarfs/file_stat.h>
+#include <dwarfs/metadata/domain/metadata.h>
 #include <dwarfs/file_type.h>
 #include <dwarfs/metadata_defs.h>
 #include <dwarfs/types.h>
 
 #include <dwarfs/internal/packed_ptr.h>
 #include <dwarfs/internal/string_table.h>
-
-#include <dwarfs/gen-cpp2/metadata_layouts.h>
 
 namespace dwarfs {
 
@@ -59,13 +56,8 @@ class metadata_v2_data;
 
 class global_metadata {
  public:
-  using Meta =
-      ::apache::thrift::frozen::MappedFrozen<thrift::metadata::metadata>;
-
-  using directories_view = ::apache::thrift::frozen::Layout<
-      std::vector<thrift::metadata::directory>>::View;
-  using bundled_directories_view =
-      ::apache::thrift::frozen::Bundled<directories_view>;
+  using Meta = metadata::domain::metadata;
+  using directories_view = std::vector<metadata::domain::directory>;
 
   global_metadata(logger& lgr, Meta const& meta);
 
@@ -84,27 +76,28 @@ class global_metadata {
 
  private:
   Meta const& meta_;
-  std::optional<bundled_directories_view> const bundled_directories_;
+  std::optional<directories_view> const bundled_directories_;
   directories_view const directories_;
   dwarfs::internal::string_table const names_;
 };
 
-class inode_view_impl
-    : public ::apache::thrift::frozen::View<thrift::metadata::inode_data> {
-  using InodeView =
-      ::apache::thrift::frozen::View<thrift::metadata::inode_data>;
-  using Meta =
-      ::apache::thrift::frozen::MappedFrozen<thrift::metadata::metadata>;
+class inode_view_impl {
+  using InodeView = metadata::domain::inode_data;
+  using Meta = metadata::domain::metadata;
 
  public:
   using uid_type = file_stat::uid_type;
   using gid_type = file_stat::gid_type;
   using mode_type = file_stat::mode_type;
 
-  inode_view_impl(InodeView iv, uint32_t inode_num_, Meta const& meta)
-      : InodeView{iv}
+  inode_view_impl(InodeView const& iv, uint32_t inode_num_, Meta const& meta)
+      : inode_{iv}
       , inode_num_{inode_num_}
       , meta_{&meta} {}
+
+  uint32_t mode_index() const { return inode_.mode_index; }
+  uint32_t owner_index() const { return inode_.owner_index; }
+  uint32_t group_index() const { return inode_.group_index; }
 
   mode_type mode() const;
   std::string mode_string() const;
@@ -118,16 +111,15 @@ class inode_view_impl
   bool is_directory() const { return type() == posix_file_type::directory; }
 
  private:
+  InodeView inode_;
   uint32_t inode_num_;
   Meta const* meta_;
 };
 
 class dir_entry_view_impl {
  public:
-  using InodeView =
-      ::apache::thrift::frozen::View<thrift::metadata::inode_data>;
-  using DirEntryView =
-      ::apache::thrift::frozen::View<thrift::metadata::dir_entry>;
+  using InodeView = metadata::domain::inode_data;
+  using DirEntryView = metadata::domain::dir_entry;
 
   enum class entry_name_type : uint8_t {
     other,
@@ -202,27 +194,25 @@ class dir_entry_view_impl {
 };
 
 class chunk_view {
-  using Meta =
-      ::apache::thrift::frozen::MappedFrozen<thrift::metadata::metadata>;
+  using Meta = metadata::domain::metadata;
 
  public:
   chunk_view() = default;
-  chunk_view(Meta const* meta,
-             ::apache::thrift::frozen::View<thrift::metadata::chunk> v) {
-    auto const b = v.block();
-    auto const o = v.offset();
-    auto const s = v.size();
-    auto const hole_ix = meta->hole_block_index();
+  chunk_view(Meta const* meta, metadata::domain::chunk const& v) {
+    auto const b = v.block;
+    auto const o = v.offset;
+    auto const s = v.size;
+    auto const hole_ix = meta->hole_block_index;
 
     if (hole_ix.has_value() && b == *hole_ix) { // this is a hole
       block_ = 0;
       offset_ = 0;
       if (o == kChunkOffsetIsLargeHole) {
-        assert(meta->large_hole_size().has_value());
-        assert(s < meta->large_hole_size()->size());
-        bits_ = (*meta->large_hole_size())[s];
+        assert(meta->large_hole_size.has_value());
+        assert(s < meta->large_hole_size->size());
+        bits_ = (*meta->large_hole_size)[s];
       } else {
-        auto const block_size = meta->block_size();
+        auto const block_size = meta->block_size;
         assert(std::has_single_bit(block_size));
         assert(o < block_size);
         bits_ = (static_cast<uint64_t>(s) * block_size) + o;
@@ -260,8 +250,7 @@ class chunk_view {
 };
 
 class chunk_range {
-  using Meta =
-      ::apache::thrift::frozen::MappedFrozen<thrift::metadata::metadata>;
+  using Meta = metadata::domain::metadata;
 
   friend class internal::metadata_v2_data;
 
@@ -301,7 +290,7 @@ class chunk_range {
 
     // TODO: this is nasty; can we do this without boost::iterator_facade?
     chunk_view const& dereference() const {
-      view_ = chunk_view(meta_, meta_->chunks()[it_]);
+      view_ = chunk_view(meta_, meta_->chunks[it_]);
       return view_;
     }
 
