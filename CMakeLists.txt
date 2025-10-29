@@ -313,9 +313,9 @@ if(WITH_TOOLS)
     endif()
   endforeach()
 
-  target_link_libraries(mkdwarfs_main PRIVATE dwarfs_reader dwarfs_writer dwarfs_rewrite)
-  target_link_libraries(dwarfsck_main PRIVATE dwarfs_reader)
-  target_link_libraries(dwarfsextract_main PRIVATE dwarfs_extractor)
+  target_link_libraries(mkdwarfs_main PRIVATE dwarfs_reader dwarfs_writer dwarfs_rewrite Boost::program_options Boost::chrono)
+  target_link_libraries(dwarfsck_main PRIVATE dwarfs_reader Boost::program_options Boost::chrono)
+  target_link_libraries(dwarfsextract_main PRIVATE dwarfs_extractor Boost::program_options Boost::chrono)
 
   if(WITH_UNIVERSAL_BINARY)
     add_executable(dwarfsuniversal tools/src/universal.cpp)
