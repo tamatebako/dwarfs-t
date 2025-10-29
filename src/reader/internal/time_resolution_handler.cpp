@@ -32,21 +32,21 @@
 #include <nlohmann/json.hpp>
 
 #include <dwarfs/file_stat.h>
+#include <dwarfs/metadata/domain/metadata.h>
+#include <dwarfs/metadata/domain/history_entry.h>
 
 #include <dwarfs/reader/internal/metadata_types.h>
 #include <dwarfs/reader/internal/time_resolution_handler.h>
 
 namespace dwarfs::reader::internal {
 
-using ::apache::thrift::frozen::View;
-
 namespace {
 
 uint32_t get_resolution(auto const& meta) {
-  if (meta.options()) {
-    if (auto const val = meta.options()->time_resolution_sec()) {
-      assert(*val > 0);
-      return *val;
+  if (meta.options) {
+    if (meta.options->time_resolution_sec) {
+      assert(*meta.options->time_resolution_sec > 0);
+      return *meta.options->time_resolution_sec;
     }
   }
 
@@ -55,12 +55,12 @@ uint32_t get_resolution(auto const& meta) {
 
 uint32_t
 get_nsec_multiplier(auto const& meta, uint32_t resolution [[maybe_unused]]) {
-  if (meta.options()) {
-    if (auto const val =
-            meta.options()->subsecond_resolution_nsec_multiplier()) {
+  if (meta.options) {
+    if (meta.options->subsecond_resolution_nsec_multiplier) {
       assert(resolution == 1);
-      assert(*val > 0 && *val < 1'000'000'000);
-      return *val;
+      assert(*meta.options->subsecond_resolution_nsec_multiplier > 0 &&
+             *meta.options->subsecond_resolution_nsec_multiplier < 1'000'000'000);
+      return *meta.options->subsecond_resolution_nsec_multiplier;
     }
   }
 
@@ -75,14 +75,15 @@ time_resolution_handler::time_resolution_handler(T const& obj,
     : timebase_{timebase}
     , resolution_{get_resolution(obj)}
     , nsec_multiplier_{get_nsec_multiplier(obj, resolution_)}
-    , mtime_only_{obj.options() && obj.options()->mtime_only()} {}
+    , mtime_only_{obj.options && obj.options->mtime_only &&
+                  *obj.options->mtime_only} {}
 
 time_resolution_handler::time_resolution_handler(
-    ::apache::thrift::frozen::View<thrift::metadata::metadata> meta)
-    : time_resolution_handler(meta, meta.timestamp_base()) {}
+    metadata::domain::metadata const& meta)
+    : time_resolution_handler(meta, meta.timestamp_base) {}
 
 time_resolution_handler::time_resolution_handler(
-    ::apache::thrift::frozen::View<thrift::metadata::history_entry> hist)
+    metadata::domain::history_entry const& hist)
     : time_resolution_handler(hist, 0) {}
 
 void time_resolution_handler::fill_stat_timevals(

@@ -33,9 +33,12 @@
 
 #include <nlohmann/json.hpp>
 
-#include <dwarfs/gen-cpp2/metadata_layouts.h>
-
 namespace dwarfs {
+
+namespace metadata::domain {
+struct metadata;
+struct history_entry;
+} // namespace metadata::domain
 
 class file_stat;
 
@@ -45,10 +48,9 @@ class inode_view_impl;
 
 class time_resolution_handler {
  public:
+  explicit time_resolution_handler(metadata::domain::metadata const& meta);
   explicit time_resolution_handler(
-      ::apache::thrift::frozen::View<thrift::metadata::metadata> meta);
-  explicit time_resolution_handler(
-      ::apache::thrift::frozen::View<thrift::metadata::history_entry> hist);
+      metadata::domain::history_entry const& hist);
 
   void fill_stat_timevals(file_stat& st, inode_view_impl const& ivr) const;
   void add_time_resolution_to(nlohmann::json& j) const;
