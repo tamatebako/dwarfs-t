@@ -35,7 +35,7 @@
 #include <string_view>
 #include <vector>
 
-#include <dwarfs/gen-cpp2/metadata_layouts.h>
+#include "dwarfs/metadata/domain/string_table.h"
 
 namespace dwarfs {
 
@@ -45,11 +45,6 @@ namespace internal {
 
 class string_table {
  public:
-  using LegacyTableView =
-      ::apache::thrift::frozen::View<std::vector<std::string>>;
-  using PackedTableView =
-      ::apache::thrift::frozen::View<thrift::metadata::string_table>;
-
   struct pack_options {
     pack_options(bool pack_data = true, bool pack_index = true,
                  bool force_pack_data = false)
@@ -62,8 +57,9 @@ class string_table {
     bool force_pack_data;
   };
 
-  string_table(logger& lgr, std::string_view name, PackedTableView v);
-  string_table(LegacyTableView v);
+  string_table(logger& lgr, std::string_view name,
+               metadata::domain::string_table const& st);
+  string_table(std::vector<std::string> const& legacy);
 
   std::string operator[](size_t index) const { return impl_->lookup(index); }
 
@@ -73,22 +69,22 @@ class string_table {
 
   size_t unpacked_size() const { return impl_->unpacked_size(); }
 
-  static thrift::metadata::string_table
+  static metadata::domain::string_table
   pack(std::span<std::string const> input,
        pack_options const& options = pack_options());
 
-  static thrift::metadata::string_table
+  static metadata::domain::string_table
   pack(std::span<std::string_view const> input,
        pack_options const& options = pack_options());
 
-  static thrift::metadata::string_table
+  static metadata::domain::string_table
   pack(std::vector<std::string> const& input,
        pack_options const& options = pack_options()) {
     return pack(std::span(input.data(), input.size()), options);
   }
 
   template <size_t N>
-  static thrift::metadata::string_table
+  static metadata::domain::string_table
   pack(std::array<std::string_view, N> const& input,
        pack_options const& options = pack_options()) {
     return pack(std::span(input.data(), input.size()), options);
@@ -106,7 +102,7 @@ class string_table {
 
  private:
   template <typename T>
-  static thrift::metadata::string_table
+  static metadata::domain::string_table
   pack_generic(std::span<T const> input, pack_options const& options);
 
   std::unique_ptr<impl const> impl_;

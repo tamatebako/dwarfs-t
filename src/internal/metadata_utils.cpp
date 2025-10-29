@@ -30,8 +30,6 @@
 
 #include <dwarfs/internal/metadata_utils.h>
 
-#include <dwarfs/gen-cpp2/metadata_types.h>
-
 namespace dwarfs::internal {
 
 namespace {
@@ -70,40 +68,21 @@ inode_rank get_inode_rank(uint32_t mode) {
   }
 }
 
-size_t find_inode_rank_offset(
-    ::apache::thrift::frozen::Layout<thrift::metadata::metadata>::View meta,
-    inode_rank rank) {
-  auto get_mode = [&](auto index) {
-    return meta.modes()[meta.inodes()[index].mode_index()];
-  };
-
-  if (meta.dir_entries()) {
-    return find_inode_rank_offset_impl(
-        rank, meta.inodes().size(),
-        [&](auto inode) { return get_mode(inode); });
-  }
-
-  return find_inode_rank_offset_impl(
-      rank, meta.entry_table_v2_2().size(),
-      [&](auto inode) { return get_mode(meta.entry_table_v2_2()[inode]); });
-}
-
-size_t find_inode_rank_offset(thrift::metadata::metadata const& meta,
+size_t find_inode_rank_offset(metadata::domain::metadata const& meta,
                               inode_rank rank) {
   auto get_mode = [&](auto index) {
-    return meta.modes().value().at(
-        meta.inodes().value().at(index).mode_index().value());
+    return meta.modes.at(meta.inodes.at(index).mode_index);
   };
 
-  if (meta.dir_entries().has_value()) {
+  if (meta.dir_entries.has_value()) {
     return find_inode_rank_offset_impl(
-        rank, meta.inodes()->size(),
+        rank, meta.inodes.size(),
         [&](auto inode) { return get_mode(inode); });
   }
 
   return find_inode_rank_offset_impl(
-      rank, meta.entry_table_v2_2()->size(), [&](auto inode) {
-        return get_mode(meta.entry_table_v2_2().value().at(inode));
+      rank, meta.entry_table_v2_2.size(), [&](auto inode) {
+        return get_mode(meta.entry_table_v2_2.at(inode));
       });
 }
 

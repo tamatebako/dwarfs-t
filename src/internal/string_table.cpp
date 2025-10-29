@@ -41,11 +41,11 @@ namespace dwarfs::internal {
 
 class legacy_string_table : public string_table::impl {
  public:
-  explicit legacy_string_table(string_table::LegacyTableView v)
+  explicit legacy_string_table(std::vector<std::string> const& v)
       : v_{v} {}
 
   std::string lookup(size_t index) const override {
-    return std::string(v_[index]);
+    return v_[index];
   }
 
   std::vector<std::string> unpack() const override {
@@ -55,30 +55,29 @@ class legacy_string_table : public string_table::impl {
   bool is_packed() const override { return false; }
 
   size_t unpacked_size() const override {
-    return std::accumulate(v_.begin(), v_.end(), 0,
-                           [](auto n, auto s) { return n + s.size(); });
+    return std::accumulate(v_.begin(), v_.end(), size_t{0},
+                           [](auto n, auto const& s) { return n + s.size(); });
   }
 
  private:
-  string_table::LegacyTableView v_;
+  std::vector<std::string> const& v_;
 };
 
 template <bool PackedData, bool PackedIndex>
 class packed_string_table : public string_table::impl {
  public:
   packed_string_table(logger& lgr, [[maybe_unused]] std::string_view name,
-                      string_table::PackedTableView v)
-      : v_{v}
-      , buffer_{v_.buffer().data()} {
+                      metadata::domain::string_table const& st)
+      : st_{st}
+      , buffer_{st_.buffer.data()} {
     LOG_PROXY(debug_logger_policy, lgr);
 
     if constexpr (PackedData) {
       auto ti = LOG_TIMED_DEBUG;
 
-      auto st = v_.symtab();
-      DWARFS_CHECK(st, "symtab unexpectedly unset");
+      DWARFS_CHECK(st_.symtab.has_value(), "symtab unexpectedly unset");
 
-      dec_.emplace(st.value());
+      dec_.emplace(st_.symtab.value());
 
       ti << "imported dictionary for " << name << " string table";
     }
@@ -86,9 +85,9 @@ class packed_string_table : public string_table::impl {
     if constexpr (PackedIndex) {
       auto ti = LOG_TIMED_DEBUG;
 
-      DWARFS_CHECK(v_.packed_index(), "index unexpectedly not packed");
-      index_.resize(v_.index().size() + 1);
-      std::partial_sum(v_.index().begin(), v_.index().end(),
+      DWARFS_CHECK(st_.packed_index, "index unexpectedly not packed");
+      index_.resize(st_.index.size() + 1);
+      std::partial_sum(st_.index.begin(), st_.index.end(),
                        index_.begin() + 1);
 
       ti << "unpacked index for " << name << " string table ("
@@ -104,8 +103,8 @@ class packed_string_table : public string_table::impl {
       beg += index_[index];
       end += index_[index + 1];
     } else {
-      beg += v_.index()[index];
-      end += v_.index()[index + 1];
+      beg += st_.index[index];
+      end += st_.index[index + 1];
     }
 
     if constexpr (PackedData) {
@@ -117,7 +116,7 @@ class packed_string_table : public string_table::impl {
 
   std::vector<std::string> unpack() const override {
     std::vector<std::string> v;
-    auto size = PackedIndex ? index_.size() : v_.index().size();
+    auto size = PackedIndex ? index_.size() : st_.index.size();
     if (size > 0) {
       v.reserve(size - 1);
       for (size_t i = 0; i < size - 1; ++i) {
@@ -131,7 +130,7 @@ class packed_string_table : public string_table::impl {
 
   size_t unpacked_size() const override {
     size_t unpacked = 0;
-    auto size = PackedIndex ? index_.size() : v_.index().size();
+    auto size = PackedIndex ? index_.size() : st_.index.size();
     for (size_t i = 0; i < size - 1; ++i) {
       unpacked += lookup(i).size();
     }
@@ -139,40 +138,40 @@ class packed_string_table : public string_table::impl {
   }
 
  private:
-  string_table::PackedTableView v_;
+  metadata::domain::string_table const& st_;
   char const* const buffer_;
   std::vector<uint32_t> index_;
   std::optional<fsst_decoder> dec_;
 };
 
-string_table::string_table(LegacyTableView v)
-    : impl_{std::make_unique<legacy_string_table>(v)} {}
+string_table::string_table(std::vector<std::string> const& legacy)
+    : impl_{std::make_unique<legacy_string_table>(legacy)} {}
 
 namespace {
 
 std::unique_ptr<string_table::impl>
 build_string_table(logger& lgr, std::string_view name,
-                   string_table::PackedTableView v) {
-  if (v.symtab()) {
-    if (v.packed_index()) {
-      return std::make_unique<packed_string_table<true, true>>(lgr, name, v);
+                   metadata::domain::string_table const& st) {
+  if (st.symtab.has_value()) {
+    if (st.packed_index) {
+      return std::make_unique<packed_string_table<true, true>>(lgr, name, st);
     }
-    return std::make_unique<packed_string_table<true, false>>(lgr, name, v);
+    return std::make_unique<packed_string_table<true, false>>(lgr, name, st);
   }
-  if (v.packed_index()) {
-    return std::make_unique<packed_string_table<false, true>>(lgr, name, v);
+  if (st.packed_index) {
+    return std::make_unique<packed_string_table<false, true>>(lgr, name, st);
   }
-  return std::make_unique<packed_string_table<false, false>>(lgr, name, v);
+  return std::make_unique<packed_string_table<false, false>>(lgr, name, st);
 }
 
 } // namespace
 
 string_table::string_table(logger& lgr, std::string_view name,
-                           PackedTableView v)
-    : impl_{build_string_table(lgr, name, v)} {}
+                           metadata::domain::string_table const& st)
+    : impl_{build_string_table(lgr, name, st)} {}
 
 template <typename T>
-thrift::metadata::string_table
+metadata::domain::string_table
 string_table::pack_generic(std::span<T const> input,
                            pack_options const& options) {
   auto const size = input.size();
@@ -182,47 +181,47 @@ string_table::pack_generic(std::span<T const> input,
     res = fsst_encoder::compress(input, options.force_pack_data);
   }
 
-  thrift::metadata::string_table output;
+  metadata::domain::string_table output;
 
   if (res.has_value()) {
     // store compressed
-    output.buffer() = std::move(res->buffer);
-    output.symtab() = std::move(res->dictionary);
-    output.index()->resize(size);
+    output.buffer = std::move(res->buffer);
+    output.symtab = std::move(res->dictionary);
+    output.index.resize(size);
     for (size_t i = 0; i < size; ++i) {
-      output.index()[i] = res->compressed_data[i].size();
+      output.index[i] = res->compressed_data[i].size();
     }
   } else {
     // store uncompressed
     auto const total_input_size =
         std::accumulate(input.begin(), input.end(), size_t{0},
                         [](size_t n, auto const& s) { return n + s.size(); });
-    output.buffer()->reserve(total_input_size);
-    output.index()->reserve(size);
+    output.buffer.reserve(total_input_size);
+    output.index.reserve(size);
     for (auto const& s : input) {
-      output.buffer().value() += s;
-      output.index()->emplace_back(s.size());
+      output.buffer += s;
+      output.index.emplace_back(s.size());
     }
   }
 
-  output.packed_index() = options.pack_index;
+  output.packed_index = options.pack_index;
 
   if (!options.pack_index) {
-    output.index()->insert(output.index()->begin(), 0);
-    std::partial_sum(output.index()->begin(), output.index()->end(),
-                     output.index()->begin());
+    output.index.insert(output.index.begin(), 0);
+    std::partial_sum(output.index.begin(), output.index.end(),
+                     output.index.begin());
   }
 
   return output;
 }
 
-thrift::metadata::string_table
+metadata::domain::string_table
 string_table::pack(std::span<std::string const> input,
                    pack_options const& options) {
   return pack_generic(input, options);
 }
 
-thrift::metadata::string_table
+metadata::domain::string_table
 string_table::pack(std::span<std::string_view const> input,
                    pack_options const& options) {
   return pack_generic(input, options);
