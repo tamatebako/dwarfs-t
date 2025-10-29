@@ -75,8 +75,7 @@ time_resolution_handler::time_resolution_handler(T const& obj,
     : timebase_{timebase}
     , resolution_{get_resolution(obj)}
     , nsec_multiplier_{get_nsec_multiplier(obj, resolution_)}
-    , mtime_only_{obj.options && obj.options->mtime_only &&
-                  *obj.options->mtime_only} {}
+    , mtime_only_{obj.options && obj.options->mtime_only} {}
 
 time_resolution_handler::time_resolution_handler(
     metadata::domain::metadata const& meta)

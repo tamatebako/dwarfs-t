@@ -98,6 +98,13 @@ class inode_view_impl {
   uint32_t mode_index() const { return inode_.mode_index; }
   uint32_t owner_index() const { return inode_.owner_index; }
   uint32_t group_index() const { return inode_.group_index; }
+  uint32_t nlink_minus_one() const { return inode_.nlink_minus_one; }
+  uint32_t mtime_offset() const { return inode_.mtime_offset; }
+  uint32_t atime_offset() const { return inode_.atime_offset; }
+  uint32_t ctime_offset() const { return inode_.ctime_offset; }
+  uint32_t mtime_subsec() const { return inode_.mtime_subsec; }
+  uint32_t atime_subsec() const { return inode_.atime_subsec; }
+  uint32_t ctime_subsec() const { return inode_.ctime_subsec; }
 
   mode_type mode() const;
   std::string mode_string() const;
