@@ -16,10 +16,20 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.28.0)
+# Conditional minimum version for tebako compatibility
+if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
+  cmake_minimum_required(VERSION 3.24.0)
+else()
+  cmake_minimum_required(VERSION 3.28.0)
+endif()
 
 # Enable CMAKE_MSVC_RUNTIME_LIBRARY
 cmake_policy(SET CMP0091 NEW)
+
+# Use Boost's CMake package instead of FindBoost when in tebako mode
+if((DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD) AND POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
 
 project(dwarfs LANGUAGES CXX C)
 
@@ -141,6 +151,12 @@ endif()
 
 include(${CMAKE_SOURCE_DIR}/cmake/compile.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/version.cmake)
+
+# Tebako integration point
+if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
+  set(TEBAKO_BUILD ON CACHE BOOL "Enable tebako build mode")
+  include(${CMAKE_SOURCE_DIR}/cmake/tebako.cmake)
+endif()
 
 if(NOT PRJ_VERSION_FULL)
   message(FATAL_ERROR "PRJ_VERSION_FULL is not set")

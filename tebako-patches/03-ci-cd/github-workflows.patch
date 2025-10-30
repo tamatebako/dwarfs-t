@@ -1,0 +1,794 @@
+diff --git a/.github/actions/build-and-test/action.yml b/.github/actions/build-and-test/action.yml
+new file mode 100644
+index 00000000..439cc284
+--- /dev/null
++++ b/.github/actions/build-and-test/action.yml
+@@ -0,0 +1,69 @@
++# Copyright (c) 2023 [Ribose Inc](https://www.ribose.com).
++# All rights reserved.
++# This file is a part of tamatebako
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions
++# are met:
++# 1. Redistributions of source code must retain the above copyright
++#    notice, this list of conditions and the following disclaimer.
++# 2. Redistributions in binary form must reproduce the above copyright
++#    notice, this list of conditions and the following disclaimer in the
++#    documentation and/or other materials provided with the distribution.
++#
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
++# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++# POSSIBILITY OF SUCH DAMAGE.
++
++name: 'build-and-test'
++description: 'Build and test dwarfs'
++runs:
++  using: "composite"
++  steps:
++      - name: Configure cache
++        if: env.CCACHE_FLD != ''
++        shell: bash
++        run: |
++          echo "CCACHE_DIR=$PWD/${{ env.CCACHE_FLD }}"  >> $GITHUB_ENV
++          mkdir -p ${{ env.CCACHE_FLD }}
++
++      - name: Configure
++        shell: bash
++        run: |
++          cmake -B build                                                 \
++                -DFOLLY_NO_EXCEPTION_TRACER=ON                           \
++                -DWITH_MAN_PAGES=OFF                                     \
++                -DNIXPKGS_DWARFS_VERSION_OVERRIDE=tebako                 \
++                -DWITH_TESTS=${{ matrix.setup.tests }}                   \
++                -DTEBAKO_BUILD_SCOPE=${{ matrix.setup.scope }}           \
++                -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }}       \
++                ${{ matrix.config.extra_opts }} ${{ env.EXTRA_OPTS }} .
++
++# cmake -B build  -DFOLLY_NO_EXCEPTION_TRACER=ON -DWITH_MAN_PAGES=OFF -DNIXPKGS_DWARFS_VERSION_OVERRIDE=tebako -DWITH_TESTS=ON  -DTEBAKO_BUILD_SCOPE=ALL
++
++      - name: Load Cache
++        if: env.CCACHE_FLD != ''
++        uses: actions/cache@v4
++        with:
++          path: ${{ env.CCACHE_FLD }}
++          key: ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.architecture.platform }}-${{ matrix.config.xcode }}${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ matrix.config.extra_opts }}-${{ env.EXTRA_OPTS }}-${{ github.ref }}-${{ github.sha }}
++          restore-keys: |
++            ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.architecture.platform }}-${{ matrix.config.xcode }}${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ matrix.config.extra_opts }}-${{ env.EXTRA_OPTS }}-${{ github.ref }}-
++            ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.architecture.platform }}-${{ matrix.config.xcode }}${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ matrix.config.extra_opts }}-${{ env.EXTRA_OPTS }}-
++
++      - name: Build
++        shell: bash
++        run: cmake --build build --parallel "$CORES"
++
++      - name: Test
++        shell: bash
++        if: ${{ matrix.setup.tests == 'ON' }}
++        run: ctest --test-dir build --output-on-failure --parallel "$CORES"
+diff --git a/.github/workflows/alpine.yml b/.github/workflows/alpine.yml
+new file mode 100644
+index 00000000..775a979f
+--- /dev/null
++++ b/.github/workflows/alpine.yml
+@@ -0,0 +1,117 @@
++# Copyright (c) 2022-2023, [Ribose Inc](https://www.ribose.com).
++# All rights reserved.
++# This file is a part of tamatebako
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions
++# are met:
++# 1. Redistributions of source code must retain the above copyright
++#    notice, this list of conditions and the following disclaimer.
++# 2. Redistributions in binary form must reproduce the above copyright
++#    notice, this list of conditions and the following disclaimer in the
++#    documentation and/or other materials provided with the distribution.
++#
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
++# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++# POSSIBILITY OF SUCH DAMAGE.
++#
++
++name: Alpine
++
++on:
++  schedule:
++    - cron: "0 9 * * 6"
++  push:
++    branches: [ main ]
++    paths-ignore:
++      - 'docs/**'
++      - '**.adoc'
++      - '**.md'
++      - '.github/workflows/*.yml'
++      - '!.github/workflows/alpine.yml'
++  pull_request:
++    paths-ignore:
++      - 'docs/**'
++      - '**.adoc'
++      - '**.md'
++      - '.github/workflows/*.yml'
++      - '!.github/workflows/alpine.yml'
++  workflow_dispatch:
++
++concurrency:
++  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
++  cancel-in-progress: true
++
++jobs:
++  build:
++    name: ${{ matrix.architecture.platform }}/${{ matrix.config.os }} [ ${{ matrix.config.env.CC }}, scope ${{ matrix.setup.scope }}, ${{ matrix.config.build_type }} ${{ matrix.config.extra_opts }}, OpenSSL ${{ matrix.openssl }} ]
++    runs-on: ubuntu-latest
++    strategy:
++      fail-fast: false
++      matrix:
++        architecture:
++          - { host: 'ubuntu-22.04', platform: linux/amd64, CCACHE_FLD: ccache }
++#          - { host: 'ubuntu-22.04-arm', platform: linux/arm64 }
++        config:
++          - { os: 'alpine-3.17', env: { CC: gcc,   CXX: g++     }, build_type: Release, extra_opts: '' }
++          - { os: 'alpine-3.17', env: { CC: clang, CXX: clang++ }, build_type: Release, extra_opts: '' }
++#  We are running two configurations:
++#   - ALL in order to run regression tests
++#   - MKD just to be sure that it build ok
++        setup:
++          - { scope: 'ALL',  tests: 'ON' }
++          - { scope: 'MKD',  tests: 'OFF' }
++        openssl:
++          - '3'
++        include:
++          - architecture: { host: 'ubuntu-22.04-arm', platform: linux/arm64 }
++            config: { os: 'alpine-3.17', env: { CC: clang, CXX: clang++ }, build_type: Release, extra_opts: '' }
++            setup: { scope: 'ALL',  tests: 'ON' }
++            openssl: '3'
++
++    env: ${{ matrix.config.env }}
++    container:
++      image: 'ghcr.io/${{ github.repository_owner }}/tebako-${{ matrix.config.os }}-dev'
++      options: --privileged     # for fuse to work for full mode
++
++    steps:
++      - name: Checkout linux/amd64
++        if: matrix.architecture.platform == 'linux/amd64'
++        uses: actions/checkout@v4
++        with:
++          submodules: true
++
++      - name: Checkout linux/amd64
++        if: matrix.architecture.platform == 'linux/arm64'
++        uses: actions/checkout@v1
++        with:
++          submodules: true
++
++      - name: Setup environment
++        run: |
++          git config --global --add safe.directory "$(pwd)"
++          if [ ${{ matrix.architecture.platform }} == 'linux/amd64' ]; then
++            echo "CCACHE_FLD=ccache"  >> $GITHUB_ENV
++          else
++            echo "CCACHE_FLD="  >> $GITHUB_ENV
++          fi
++          echo "CORES=$(nproc --all)" >> $GITHUB_ENV
++          apk --no-cache --upgrade add fuse3 fuse3-dev
++
++      - name: Setup OpenSSL 1.1
++        if: ${{ matrix.openssl == '1.1' }}
++        run: |
++         cmake -B build/setup-openssl -S tools/dwarfs-test-helper -DROOT=$PWD -DDEPS=$(cd .. && pwd)/openssl-1.1.1
++         cmake --build build/setup-openssl --parallel "$CORES"
++         echo "EXTRA_OPTS=-DOPENSSL_ROOT_DIR=$(cd .. && pwd)/openssl-1.1.1" >> $GITHUB_ENV
++
++      - name: Build and test
++        uses: ./.github/actions/build-and-test
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index 93ac7a72..c67139ca 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -2,12 +2,12 @@ name: 'DwarFS CI Build'
+ 
+ on:
+   workflow_dispatch:
+-  push:
+-    branches:
+-      - main
+-      - 'mhx/**'
+-    tags:
+-      - v*
++#  push:
++#    branches:
++#      - main
++#      - 'mhx/**'
++#    tags:
++#      - v*
+ 
+ permissions:
+   contents: read
+diff --git a/.github/workflows/macos.yml b/.github/workflows/macos.yml
+new file mode 100644
+index 00000000..c29a5718
+--- /dev/null
++++ b/.github/workflows/macos.yml
+@@ -0,0 +1,108 @@
++# Copyright (c) 2021-2023, [Ribose Inc](https://www.ribose.com).
++# All rights reserved.
++# This file is a part of tamatebako
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions
++# are met:
++# 1. Redistributions of source code must retain the above copyright
++#    notice, this list of conditions and the following disclaimer.
++# 2. Redistributions in binary form must reproduce the above copyright
++#    notice, this list of conditions and the following disclaimer in the
++#    documentation and/or other materials provided with the distribution.
++#
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
++# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++# POSSIBILITY OF SUCH DAMAGE.
++#
++# The purpose of this workflow is to check that build procedures work correctly
++# in specific environment. Due to this reason there is no caching. It is done by
++# intention. All caching is in upstream projects.
++#
++# Also this file contains comments that will be useful is dwarfs has to be build
++# in different environment, not GHA.
++name: MacOS
++
++on:
++  schedule:
++    - cron: "0 7 * * 6"
++  push:
++    branches: [ main ]
++    paths-ignore:
++      - 'docs/**'
++      - '**.adoc'
++      - '**.md'
++      - '.github/workflows/*.yml'
++      - '!.github/workflows/macos.yml'
++  pull_request:
++    paths-ignore:
++      - 'docs/**'
++      - '**.adoc'
++      - '**.md'
++      - '.github/workflows/*.yml'
++      - '!.github/workflows/macos.yml'
++  workflow_dispatch:
++
++concurrency:
++  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
++  cancel-in-progress: true
++
++env:
++  CCACHE_FLD: ccache
++  CC: clang
++  CXX: clang++
++  CXXFLAGS: -DTARGET_OS_SIMULATOR=0 -DTARGET_OS_IPHONE=0
++
++jobs:
++  build:
++    name: ${{ matrix.config.os }} [ XCode ${{ matrix.config.xcode }}, scope ${{ matrix.setup.scope }}, ${{ matrix.config.build_type }} ${{ matrix.config.extra_opts }} ]
++    runs-on: ${{ matrix.config.os }}
++    strategy:
++      fail-fast: false
++      matrix:
++        config:
++# macos-13 -- amd64 runner which now fails
++# macos-14 -- arm64 (M1) runner
++# Need XCode 14.3 for std::boyer_moore_horspool_searcher
++#          - { os: macos-13, xcode: '14.3.1' , build_type: Release, extra_opts: '' }
++          - { os: macos-14, xcode: '15.0.1' , build_type: Release, extra_opts: '' }
++          - { os: macos-14, xcode: '15.4'   , build_type: Release, extra_opts: '' }
++
++#  We are running two configurations:
++#   - ALL in order to run regression tests
++#   - MKD just to be sure that it build ok
++        setup:
++          - { scope: 'ALL',  tests: 'ON'  }
++          - { scope: 'MKD',  tests: 'OFF' }
++
++    steps:
++      - name: Select XCode version
++        uses: maxim-lobanov/setup-xcode@v1
++        with:
++          xcode-version: ${{ matrix.config.xcode }}
++
++# Do brew update and install folly to see if it causes issues
++      - name: Install packages
++        run: |
++          brew install  \
++          bison flex gnu-sed bash boost double-conversion jemalloc fmt glog ccache folly
++          brew reinstall --formula cmake
++
++      - name: Checkout
++        uses: actions/checkout@v4
++        with:
++          submodules: true
++
++      - name: Get number of CPU cores
++        run:  echo "CORES=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
++
++      - name: Build and test
++        uses: ./.github/actions/build-and-test
+diff --git a/.github/workflows/ubuntu.yml b/.github/workflows/ubuntu.yml
+new file mode 100644
+index 00000000..35165f42
+--- /dev/null
++++ b/.github/workflows/ubuntu.yml
+@@ -0,0 +1,136 @@
++# Copyright (c) 2021-2023, [Ribose Inc](https://www.ribose.com).
++# All rights reserved.
++# This file is a part of tamatebako
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions
++# are met:
++# 1. Redistributions of source code must retain the above copyright
++#    notice, this list of conditions and the following disclaimer.
++# 2. Redistributions in binary form must reproduce the above copyright
++#    notice, this list of conditions and the following disclaimer in the
++#    documentation and/or other materials provided with the distribution.
++#
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
++# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++# POSSIBILITY OF SUCH DAMAGE.
++#
++
++name: Ubuntu
++
++on:
++  schedule:
++    - cron: "0 6 * * 6"
++  push:
++    branches: [ main ]
++    paths-ignore:
++      - 'docs/**'
++      - '**.adoc'
++      - '**.md'
++      - '.github/workflows/*.yml'
++      - '!.github/workflows/ubuntu.yml'
++  pull_request:
++    paths-ignore:
++      - 'docs/**'
++      - '**.adoc'
++      - '**.md'
++      - '.github/workflows/*.yml'
++      - '!.github/workflows/ubuntu.yml'
++  workflow_dispatch:
++
++concurrency:
++  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
++  cancel-in-progress: true
++
++env:
++  CCACHE_FLD: ccache
++  RUBY_VER: 3.4
++
++jobs:
++  build:
++    name: ${{ matrix.architecture.platform }}/${{ matrix.config.os }} [ ${{ matrix.config.env.CC }}, scope ${{ matrix.setup.scope }}, ${{ matrix.config.build_type }} ${{ matrix.config.extra_opts }} ]
++    runs-on: ${{ matrix.architecture.host }}
++    container:
++      image: 'ghcr.io/${{ github.repository_owner }}/tebako-${{ matrix.config.os }}-dev'
++      options: --privileged     # for fuse to work for full mode
++    strategy:
++      fail-fast: false
++      matrix:
++        architecture:
++          - { host: 'ubuntu-22.04', platform: linux/amd64 }
++          - { host: 'ubuntu-22.04-arm', platform: linux/arm64 }
++        config:
++          - { os: ubuntu-20.04, env: { CC: gcc-10,   CXX: g++-10     }, build_type: Release, extra_opts: '' }
++          - { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: Release, extra_opts: '' }
++# .......................................
++# Tebako is staying with Ubuntu 20.04 for now
++#          - { os: ubuntu-22.04, env: { CC: gcc-12,   CXX: g++-12     }, build_type: Release, extra_opts: '' }
++# https://github.com/llvm/llvm-project/issues/56357
++# On Ubuntu 22  affects clang versions prior to 15 (file entry.cpp)
++#          - { os: ubuntu-22.04, env: { CC: clang-15, CXX: clang++-15 }, build_type: Release, extra_opts: '' }
++# .......................................
++
++#  We are running two configurations:
++#   - ALL in order to run regression tests
++#   - MKD just to be sure that it build ok
++        setup:
++          - { scope: 'ALL',  tests: 'ON'  }
++          - { scope: 'MKD',  tests: 'OFF' }
++
++        include:
++          - config:       { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: RelWithDebInfo, extra_opts: '-DENABLE_ASAN=1' }
++            setup:        { scope: 'ALL', tests: 'ON'  }
++            architecture: { host: 'ubuntu-22.04', platform: linux/amd64 }
++          - config:       { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: RelWithDebInfo, extra_opts: '-DENABLE_TSAN=1' }
++            setup:        { scope: 'ALL', tests: 'ON'  }
++            architecture: { host: 'ubuntu-22.04', platform: linux/amd64 }
++          - config:       { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: RelWithDebInfo, extra_opts: '-DENABLE_UBSAN=1' }
++            setup:        { scope: 'ALL', tests: 'ON'  }
++            architecture: { host: 'ubuntu-22.04', platform: linux/amd64 }
++
++    env: ${{ matrix.config.env }}
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++        with:
++          submodules: true
++
++      - name: Install packages
++        run: |
++          sudo apt-get -y install ccache
++
++      - name: Install libfuse 3 (Full mode)
++        if: ${{ matrix.setup.scope == 'ALL' }}
++        run: |
++          sudo apt-get -y install libfuse3-dev fuse3
++
++      - name: Remove libfuse 3 (tebako-optimized mode)
++        if: ${{ matrix.setup.scope != 'ALL' }}
++        run: |
++          sudo apt-get -y remove fuse3 libfuse3-dev fuse libfuse-dev
++
++# **** Not building man pages ever ****
++# sudo apt install ronn does not install a version good enough - it cannot process one of the files
++#      - name: Install Ruby
++#        if: ${{ matrix.setup.scope == 'ALL' }}
++#        uses: ruby/setup-ruby@v1
++#        with:
++#          ruby-version: ${{ env.RUBY_VER }}
++#      - name: Install ronn
++#        if: ${{ matrix.setup.scope == 'ALL' }}
++#        run: sudo gem install ronn
++
++
++      - name: Get number of CPU cores
++        run:  echo "CORES=$(nproc --all)" >> $GITHUB_ENV
++
++      - name: Build and test
++        uses: ./.github/actions/build-and-test
+diff --git a/.github/workflows/windows-msys.yml b/.github/workflows/windows-msys.yml
+new file mode 100644
+index 00000000..9daed4f8
+--- /dev/null
++++ b/.github/workflows/windows-msys.yml
+@@ -0,0 +1,151 @@
++# Copyright (c) 2022, 2024 [Ribose Inc](https://www.ribose.com).
++# All rights reserved.
++# This file is a part of tamatebako
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions
++# are met:
++# 1. Redistributions of source code must retain the above copyright
++#    notice, this list of conditions and the following disclaimer.
++# 2. Redistributions in binary form must reproduce the above copyright
++#    notice, this list of conditions and the following disclaimer in the
++#    documentation and/or other materials provided with the distribution.
++#
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
++# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++# POSSIBILITY OF SUCH DAMAGE.
++#
++# The purpose of this workflow is to check that build procedures work correctly
++# in specific environment. Due to this reason there is no caching. It is done by
++# intention. All caching is in upstream projects.
++#
++# Also this file contains comments that will be useful is dwarfs has to be build
++# in different environment, not GHA.
++name: Windows-MSys
++
++on:
++  schedule:
++    - cron: "0 6 20 * 6"
++  push:
++    branches: [ main ]
++    paths-ignore:
++      - 'docs/**'
++      - '**.adoc'
++      - '**.md'
++      - '.github/workflows/*.yml'
++      - '!.github/workflows/windows-msys.yml'
++  pull_request:
++    paths-ignore:
++      - 'docs/**'
++      - '**.adoc'
++      - '**.md'
++      - '.github/workflows/*.yml'
++      - '!.github/workflows/windows-msys.yml'
++  workflow_dispatch:
++
++concurrency:
++  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
++  cancel-in-progress: true
++
++env:
++  BUILD_TYPE: Release
++  CCACHE_FLD: ccache
++
++jobs:
++  build:
++    name: windows-msys [${{ matrix.env.CC }}, scope ${{ matrix.setup.scope }}, Release]
++    runs-on: windows-latest
++    strategy:
++      fail-fast: false
++      matrix:
++#  We are running two configurations:
++#   - ALL in order to run regression tests
++#   - MKD just to be sure that configuration needed for teabako builds without issues
++        setup:
++          - scope: 'ALL'
++            tests: 'ON'
++          - scope: 'MKD'
++            tests: 'OFF'
++        env:
++          - sys: ucrt64
++            CC: gcc
++            CXX: g++
++    env: ${{ matrix.env }}
++
++    defaults:
++      run:
++        shell: msys2 {0}
++
++    steps:
++      - name: Setup MSys
++        uses: msys2/setup-msys2@v2
++        with:
++          msystem: ${{matrix.env.sys}}
++          path-type: minimal
++          update: true
++          install: >-
++            git
++            tar
++            bison
++            flex
++          pacboy: >-
++            toolchain:p
++            openssl:p
++            cmake:p
++            boost:p
++            make:p
++            diffutils:p
++            libevent:p
++            double-conversion:p
++            fmt:p
++            glog:p
++            dlfcn:p
++            ninja:p
++            ccache:p
++
++      - name: Checkout
++        uses: actions/checkout@v4
++        with:
++          submodules: true
++
++      - name: Get number of CPU cores
++        run:  echo "CORES=$(nproc --all)" >> $GITHUB_ENV
++
++      - name: Configure
++        run: |
++          echo "CCACHE_DIR=$PWD/${{ env.CCACHE_FLD }}"  >> $GITHUB_ENV
++          mkdir -p ${{ env.CCACHE_FLD }}
++          cmake -B build                                                 \
++                -DFOLLY_NO_EXCEPTION_TRACER=ON                           \
++                -DUSE_JEMALLOC=OFF                                       \
++                -DWITH_MAN_PAGES=OFF                                     \
++                -DNIXPKGS_DWARFS_VERSION_OVERRIDE=tebako                 \
++                -DWITH_TESTS=${{ matrix.setup.tests }}                   \
++                -DTEBAKO_BUILD_SCOPE=${{ matrix.setup.scope }}           \
++                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}                 \
++                -GNinja .
++
++      - name: Load Cache
++        uses: actions/cache@v4
++        with:
++          path: ${{ env.CCACHE_FLD }}
++          key: |
++            ccache-${{ env.BUILD_TYPE }}-${{ matrix.env.sys }}-${{ matrix.env.CC }}-${{ matrix.setup.scope }}-${{ github.ref }}-${{ github.sha }}
++          restore-keys: |
++            ccache-${{ env.BUILD_TYPE }}-${{ matrix.env.sys }}-${{ matrix.env.CC }}-${{ matrix.setup.scope }}-${{ github.ref }}-
++            ccache-${{ env.BUILD_TYPE }}-${{ matrix.env.sys }}-${{ matrix.env.CC }}-${{ matrix.setup.scope }}-
++
++      - name: Build
++        run: cmake --build build --parallel "$CORES"
++
++      - name: Test
++        if: ${{ matrix.setup.tests == 'ON' }}
++        run: ctest --test-dir build --output-on-failure --parallel "$CORES"
+diff --git a/.github/workflows/windows.yml b/.github/workflows/windows.yml
+new file mode 100644
+index 00000000..389bd16c
+--- /dev/null
++++ b/.github/workflows/windows.yml
+@@ -0,0 +1,154 @@
++# Copyright (c) 2023, [Ribose Inc](https://www.ribose.com).
++# All rights reserved.
++# This file is a part of tamatebako
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions
++# are met:
++# 1. Redistributions of source code must retain the above copyright
++#    notice, this list of conditions and the following disclaimer.
++# 2. Redistributions in binary form must reproduce the above copyright
++#    notice, this list of conditions and the following disclaimer in the
++#    documentation and/or other materials provided with the distribution.
++#
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
++# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++# POSSIBILITY OF SUCH DAMAGE.
++#
++
++name: Windows
++
++on:
++#  schedule:
++#    - cron: "0 8 * * 6"
++#  push:
++#    branches: [ main ]
++#    paths-ignore:
++#      - 'docs/**'
++#      - '**.adoc'
++#      - '**.md'
++#      - '.github/workflows/*.yml'
++#      - '!.github/workflows/windows.yml'
++#  pull_request:
++#    paths-ignore:
++#      - 'docs/**'
++#      - '**.adoc'
++#      - '**.md'
++#      - '.github/workflows/*.yml'
++#      - '!.github/workflows/windows.yml'
++  workflow_dispatch:
++
++concurrency:
++  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
++  cancel-in-progress: true
++
++env:
++  VCPKG_DIR: C:/vcpkg
++  VCPKG_DEFAULT_BINARY_CACHE: ${{github.workspace}}\cache
++  CCACHE_DIR: ${{github.workspace}}\ccache
++
++jobs:
++  build:
++    name: ${{ matrix.config.os }} [ ${{ matrix.config.env.CC }}, scope ${{ matrix.setup.scope }}, ${{ matrix.config.build_type }} ${{ matrix.config.extra_opts }} ]
++    runs-on: ${{ matrix.config.os }}
++    strategy:
++      fail-fast: false
++      matrix:
++        config:
++#          - { os: windows-2019, env: { CC: cl,   CXX: cl     }, build_type: Release, extra_opts: '' }
++          - { os: windows-2022, env: { CC: cl,   CXX: cl     }, build_type: Release, extra_opts: '' }
++
++#  We are running two configurations:
++#   - ALL in order to run regression tests
++#   - MKD just to be sure that it build ok
++        setup:
++          - { scope: 'ALL',  tests: 'ON'  }
++          - { scope: 'MKD',  tests: 'OFF' }
++
++    env: ${{ matrix.config.env }}
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++        with:
++          submodules: true
++
++      - name: Set MSVC Dev Environment
++        uses: ilammy/msvc-dev-cmd@v1
++
++      - name: Install UPX
++        if: ${{ matrix.setup.scope == 'ALL' }}
++        uses: crazy-max/ghaction-upx@v3
++        with:
++          install-only: true
++
++# Similar to fuse -- cannot mount in GHA container
++#      - name: Install WinFSP
++#        if: ${{ matrix.setup.scope == 'ALL' }}
++#        run: choco install winfsp
++#             copy "C:\Program Files (x86)\WinFsp\bin\winfsp-x64.dll" ${{ runner.temp }}\build
++
++      - name: Install ccache
++        run: choco install ccache
++
++      - name: Configure build environment
++        shell: cmd
++        run:  |
++          vcpkg version >> vcpkg.version
++          mkdir ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
++          mkdir ${{ env.CCACHE_DIR }}
++
++
++      - name: Set number of CPU cores
++        shell: bash
++        run:  |
++          echo "CORES=$(nproc --all)" >> $GITHUB_ENV
++
++      - name: vcpkg cache
++        uses: actions/cache@v4
++        with:
++          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
++          key: vcpkg-${{ matrix.config.os }}-${{ hashFiles('vcpkg.version') }}
++
++      - name: ccache cache
++        uses: actions/cache@v4
++        with:
++          path: ${{ env.CCACHE_DIR }}
++          key: ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.config.xcode }}${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ matrix.config.extra_opts }}-${{ github.ref }}-${{ github.sha }}
++          restore-keys: |
++            ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.config.xcode }}${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ matrix.config.extra_opts }}-${{ github.ref }}-
++            ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.config.xcode }}${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ matrix.config.extra_opts }}-
++
++      - name: Configure Build
++        shell: cmd
++        # Due to folly issue VCPKG_INSTALLED_DIR has to be outside of the project tree
++        run: |
++          cmake -B build -G Ninja                                                                 ^
++                -DVCPKG_INSTALLED_DIR="${{ runner.workspace }}/vcpkg-install-dwarfs"              ^
++                -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }}                                ^
++                -DTEBAKO_BUILD_SCOPE=${{ matrix.setup.scope }}                                    ^
++                -DWITH_TESTS=${{ matrix.setup.tests }}                                            ^
++                -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}/scripts/buildsystems/vcpkg.cmake      ^
++                -DVCPKG_TARGET_TRIPLET=x64-windows-static                                         ^
++                -DFOLLY_NO_EXCEPTION_TRACER=ON                                                    ^
++                -DWITH_MAN_PAGES=OFF                                                              ^
++                -DNIXPKGS_DWARFS_VERSION_OVERRIDE=tebako                                          ^
++                ${{ matrix.config.extra_opts }} .
++
++      - name: Run Build
++        shell: cmd
++        run: |
++          cmake --build build --parallel ${{ env.CORES }}
++
++      - name: Test
++        shell: cmd
++        if: ${{ matrix.setup.tests == 'ON' }}
++        run: |
++          ctest --test-dir build --output-on-failure --parallel ${{ env.CORES }}

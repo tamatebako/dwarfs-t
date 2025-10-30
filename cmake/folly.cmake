@@ -16,7 +16,12 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.28.0)
+# Conditional minimum version for tebako compatibility
+if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
+  cmake_minimum_required(VERSION 3.24.0)
+else()
+  cmake_minimum_required(VERSION 3.28.0)
+endif()
 
 set(FOLLY_NO_EXCEPTION_TRACER ON CACHE BOOL "disable exception tracer")
 set(ZSTD_INCLUDE_DIR "" CACHE PATH "don't build folly with zstd" FORCE)

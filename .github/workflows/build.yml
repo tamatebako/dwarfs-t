@@ -2,12 +2,13 @@ name: 'DwarFS CI Build'
 
 on:
   workflow_dispatch:
+#  push:
+#    branches:
+#      - main
+#      - 'mhx/**'
+#    tags:
+#      - v*
   push:
-    branches:
-      - main
-      - 'mhx/**'
-    tags:
-      - v*
     paths-ignore:
       - '.benchmark/**'
       - '.clang-format'

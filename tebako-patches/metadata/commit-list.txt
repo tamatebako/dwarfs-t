@@ -1,0 +1,117 @@
+94a99046 chore: drop macos-13 support (2)
+047eee9b chore: drop macos-13 support
+eea6481c chore: propagate USE_JEMALLOC definition
+95642be5 chore: add FOLLY_ASSUME_NO_TCMALLOC compile definition
+80033689 chore: fix CMake and Boost compatibility issues (#58)
+b1ab911f fix: CMake/Boost policy CMP0167
+a8240687 chore: reinstall cmake on macos runners to test against compatibility issues
+c6a27351 fix: alter folly/fbthrift/zstd patching to ensure CMake 4.x compatibility (https://github.com/tamatebako/tebako/issues/311)
+46a18b98 chore: prioritize DEPS include and lib folders
+dff9686c chore: define GLOG_USE_GLOG_EXPORT
+1b7e43c6 chore:bump tools to v0.6.6 (patch cmake_minimum_required for folly and fbthrift; bump libarchive version to 3.7.9)
+5410de5c chore: bump tools to v0.6.5 (change libarchive download url to https)
+c890eb1e Syncronize with test version (#51)
+299718e0 chore: remove redundant references to .cirrus.yml
+fbe45808 chore: bump tools version to v0.6.4
+50af9e00 feat: test on Alpine 3.17 tebako development container (amd64, arm64 single test)
+1df6d19f feat: test on Ubuntu 20.04 tebako development container (amd64, arm64)
+224dd609 chore: retire Cirrus CI tests
+4bab4165 chore: bump tools version to 0.6.0
+cae05731 fix: proritize bundled thrift path
+9f0f6341 fix: update folly patching for MSys
+8584ea94 chore: bump tools version to v0.5.10
+bef73d06 chore: optimize macos workflow
+22f76f12 fix: fix: proper openssl 1.1 handling for (alpine) linux
+d7d78b71 fix: proper openssl 1.1 handling for macos
+b7aa0a41 chore: bump tools version to v0.5.6
+6f70b507 fix(checksum): disable extended output algorithms (e.g. shake(128|256)) -- cherry-pick afbd85e4b1aad52b651fd42dc182e8109d0fa8b1 chore: update tools to v0.5.5
+f4af43c4 fix: shallow git submodules
+45f4a520 chore: update macos workflow
+d2cc1d36 fix: revert tebako-tools back to v0.5.1
+1c86a0f8 fix: PREFER_SYSTEM_LIBFMT option for Windows
+2f79c761 chore: tebako-tools bumped to v0.5.5
+f41ff7fa chore: tebako-tools bumped to v0.5.4
+4a96d722 chore: tebako-tools version bump to v0.5.3
+01f0f578 fix: ensure bundled fmt includes have priority over system/homebrew
+169bef43 fix: OVERRIDE_FIND_PACKAGE for fmt and gtest
+74398b7e fix: ensure 'local' folly includes have preference over 'system'
+3ee4e3e6 fix: tebako-tools v0.5.0 - musl and MinGW patches compatible with folly/fbthrift 07.2024
+44ae8cd9 fix: fbthrift version bump to 07.2024
+b40552dc fix: folly version bump to 07.2024
+63fb4a1d chore: add MacOS test against xcode 15.4 (https://github.com/tamatebako/tebako/issues/161)
+aca97056 chore: removed installation of redundant brew package
+49fe83ed chore: tebako-tools version bump to 0.4.3
+32e013ba Cleaned README
+b167ca8c Cleaned .cirrus.yml
+433f5752 Added macos-14 (arm64 M1) run on GHA, removed macos arm64 run from Cirrus CI (#39)
+003e33f4 Removed brotli libraries lookup from msys configuration (#37)
+bf7021de Update README.md
+855c9e34 Fixed issues with glog 0.7.0  (#36)
+e4406856 Applied -DGLOG_USE_GLOG_EXPORT to all platforms
+6b123b04 Tools update to v0.4.2
+5734bc54 Added Windows-MSys status badge
+2f46d6fa Fixed command-line parameters handling for MinGW port
+bb712653 Pinned glog/gflags linking order for MinGW port (#35)
+0d5099b6 Created new mingw/ucrt64 workflow (#32)
+e81faee5 Tools update to v0.3.1
+275b5a91 Update macos runner version to 12.1
+b7d82b4c Update GHA actions' versions
+887040d4 Fixed SIMPLE progress output
+4c257423 Removed duplicate setting
+1311ee65 Created status badge for Windows workflow
+5cca42cb Added libbtrotli installation
+e22093d7 Changed archive version requirements to meet versions available for Ubiubtu 20 LTS
+17d08922 Fixed MSVC issues with /MT(d) flag propagation
+51d4ec2f Created tebako GHA Windows workflow
+b203fe3a Fixed MSVC issues with /MT(d) flag propagation
+a691df68 Fixed MSVC issues with /MT(d) flag proper propagation and v142 toolset support
+978a9fb7 Fixed tebako build inconsistencies
+9ccc36d4 Revert ccache for Cirrus-CI MacOS workflow
+5c6d9edd Updated brotli linkage to meet Alpine downstream requirements
+e893acaf Decreased resource allocation for Cirrus-CI MacOS build
+bf5bc8ce Update status badges for tebako fork
+15b97db4 Upgrade tebako tools to v0.2.0
+55b1da6a Fake update to retarget merge
+d40db730 Updated .gitignore
+6622e5ef Updated tebako-tools
+c749aa17 Fixed FOLLY_NO_EXCEPTION_TRACER flag
+bc6c11ee Added status badges for tebako builds
+315c002e Fixed formatting
+e34ec2af Cirrus CI setup
+419b99ba Created reusable build and test action to be shared accross all GHA workflows
+83ef0c2f MacOS setup
+eba2976c Alpine setup (#2)
+7c51b1a7 Disabled upstream build
+977f2bd2 Ubuntu setup (#1)
+af149d34 Update README.md
+17ab453d version bump to tebako-v0.3.5
+3014e7be libfmt v10 support [https://github.com/tamatebako/dwarfs/commit/d8b9391e9cf3137e83877ed9468384d9e4af8b4c]
+1bc0b6c0 Disable automatic MSys builds
+dda0ae01 Update ZSTD deprecated API [https://github.com/tamatebako/dwarfs/commit/521baed23bf9b5de12201ece273b70adc5532a70]
+99401e17 Updated cirrus-ci badges (#19)
+73fcdb54 Support of newer compiler versions, MacOS arm64 & Ubuntu aarch64 builds
+97bb298a Fixed MacOS workflow
+f4ee1b40 Added cron jobs for all workflows
+8875ba90 Fixing tebako link issues
+3e5b1d7b Fixing glog
+4d17ec78 Fixing glog
+4e1440f0 Fixing libglog linkage issue
+94c1c10a Removed cron job
+b8affc38 Fixing libarchive 3.6.2 packaging issue
+22a10b13 Fixing libarchive 3.6.2 packaging issue
+201e5b70 Ensure regular inactive logging code has no side effects
+c2690959 Use string refs for python logging object
+b2b5d7f0 Add a comment to prevent head scratching in the future
+9295d44c Added cron job for MSys workflow
+b249e8b6 Ruby compatibility for MSys versions of gmtime_r, localtime_r
+8f1aed35 Workflow optimizatiion
+7ebd1103 Fixed patch for folly/gettimeofday
+bc0ffb45 Removed MacOS 10.15 build/test run
+7f621120 Created GHA badges
+7736ea71 Ensure MSys port compatibility with Ruby (#15)
+7340ceef Build script optimization
+4a5d8a48 MSys (mingw64) port
+8130975d Fetched upstream and consolidated code lines (#5)
+78fd324b Remove orphan reference to libxml2
+78401c33 Undo static jemalloc
+1ab62afa Static jemalloc

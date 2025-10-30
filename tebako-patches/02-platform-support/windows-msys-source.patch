@@ -1,0 +1,36 @@
+diff --git a/src/dwarfs/file_stat.cpp b/src/dwarfs/file_stat.cpp
+index d9d35f26..d8d9320a 100644
+--- a/src/dwarfs/file_stat.cpp
++++ b/src/dwarfs/file_stat.cpp
+@@ -165,9 +165,15 @@ file_stat make_file_stat(fs::path const& path) {
+   rv.size = st.st_size;
+   rv.blksize = st.st_blksize;
+   rv.blocks = st.st_blocks;
+-  rv.atime = st.st_atim.tv_sec;
+-  rv.mtime = st.st_mtim.tv_sec;
+-  rv.ctime = st.st_ctim.tv_sec;
++
++  rv.atime = st.st_atime;
++  rv.mtime = st.st_mtime;
++  rv.ctime = st.st_ctime;
++
++//  Tebako -- using legacy syntax above to comply with MacOS definitions (~ FreeBSD)
++//  rv.atime = st.st_atim.tv_sec;
++//  rv.mtime = st.st_mtim.tv_sec;
++//  rv.ctime = st.st_ctim.tv_sec;
+ 
+   return rv;
+ }
+diff --git a/src/dwarfs/file_type.cpp b/src/dwarfs/file_type.cpp
+index e77e2d73..50e7abcc 100644
+--- a/src/dwarfs/file_type.cpp
++++ b/src/dwarfs/file_type.cpp
+@@ -77,7 +77,7 @@ uint16_t file_status_to_mode(std::filesystem::file_status status) {
+     ft = posix_file_type::block;
+     break;
+   case fs::file_type::directory:
+-#ifdef _WIN32
++#ifdef _MSC_VER
+   case fs::file_type::junction:
+ #endif
+     ft = posix_file_type::directory;

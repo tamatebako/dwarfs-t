@@ -1,0 +1,221 @@
+name: Tebako Build Test
+
+on:
+  push:
+    branches:
+      - main
+      - tebako-*
+    paths:
+      - 'cmake/tebako/**'
+      - 'cmake/tebako.cmake'
+      - 'CMakeLists.txt'
+      - '.github/workflows/tebako-build-test.yml'
+  pull_request:
+    paths:
+      - 'cmake/tebako/**'
+      - 'cmake/tebako.cmake'
+      - 'CMakeLists.txt'
+      - '.github/workflows/tebako-build-test.yml'
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    name: Test ${{ matrix.os }} / ${{ matrix.scope }} / CMake ${{ matrix.cmake }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, macos-13, macos-14]
+        scope: [ALL, MKD, LIB]
+        cmake: ['3.24', '3.28', '3.30']
+        exclude:
+          # Reduce matrix size by excluding some combinations
+          - os: ubuntu-24.04
+            cmake: '3.24'
+          - os: macos-14
+            cmake: '3.24'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install CMake ${{ matrix.cmake }}
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: ${{ matrix.cmake }}
+
+      - name: Install system dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libtool \
+            autoconf \
+            automake \
+            bison \
+            flex \
+            libssl-dev \
+            libboost-dev \
+            libfmt-dev \
+            libjemalloc-dev \
+            libutfcpp-dev \
+            libdouble-conversion-dev \
+            libevent-dev \
+            libgoogle-glog-dev \
+            libgflags-dev \
+            libiberty-dev \
+            liblz4-dev \
+            liblzma-dev \
+            libxxhash-dev \
+            libzstd-dev \
+            libarchive-dev \
+            libacl1-dev \
+            fuse3 \
+            libfuse3-dev
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install \
+            pkg-config \
+            libtool \
+            autoconf \
+            automake \
+            bison \
+            flex \
+            openssl \
+            boost \
+            fmt \
+            jemalloc \
+            utf8cpp \
+            double-conversion \
+            libevent \
+            glog \
+            gflags \
+            lz4 \
+            xz \
+            xxhash \
+            zstd \
+            libarchive \
+            macfuse
+
+      - name: Cache tebako DEPS
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/deps-*
+            ~/.tebako
+          key: tebako-deps-${{ runner.os }}-${{ matrix.scope }}-${{ hashFiles('cmake/tebako/**') }}
+          restore-keys: |
+            tebako-deps-${{ runner.os }}-${{ matrix.scope }}-
+            tebako-deps-${{ runner.os }}-
+
+      - name: Create build directory
+        run: mkdir -p build
+
+      - name: Configure CMake with tebako scope ${{ matrix.scope }}
+        working-directory: build
+        run: |
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUSE_TEBAKO=ON \
+            -DTEBAKO_BUILD_SCOPE=${{ matrix.scope }} \
+            -DTEBAKO_DEPS_DIR=${{ github.workspace }}/deps-${{ matrix.scope }} \
+            -DWITH_TESTS=OFF
+
+      - name: Build
+        working-directory: build
+        run: cmake --build . --parallel $(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+      - name: Validate build artifacts
+        working-directory: build
+        run: |
+          echo "=== Build artifacts ==="
+          ls -lh
+
+          # Check for expected binaries based on scope
+          if [ "${{ matrix.scope }}" = "ALL" ] || [ "${{ matrix.scope }}" = "MKD" ]; then
+            if [ -f "mkdwarfs" ]; then
+              echo "✓ mkdwarfs found"
+              ./mkdwarfs --version || true
+            else
+              echo "✗ mkdwarfs not found"
+              exit 1
+            fi
+          fi
+
+          if [ "${{ matrix.scope }}" = "ALL" ] || [ "${{ matrix.scope }}" = "LIB" ]; then
+            echo "Checking for library artifacts..."
+            find . -name "*.a" -o -name "*.so" -o -name "*.dylib" | head -5
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: dwarfs-tebako-${{ matrix.os }}-${{ matrix.scope }}-cmake${{ matrix.cmake }}
+          path: |
+            build/mkdwarfs
+            build/dwarfs
+            build/dwarfsck
+            build/dwarfsextract
+            build/*.a
+          retention-days: 7
+
+      - name: Display tebako diagnostics
+        if: always()
+        run: |
+          echo "=== CMake version ==="
+          cmake --version
+
+          echo "=== Build scope ==="
+          echo "${{ matrix.scope }}"
+
+          echo "=== DEPS directory ==="
+          ls -la ${{ github.workspace }}/deps-${{ matrix.scope }} 2>/dev/null || echo "DEPS directory not found"
+
+          if [ -f "build/CMakeCache.txt" ]; then
+            echo "=== Tebako-related CMake variables ==="
+            grep -i tebako build/CMakeCache.txt || true
+          fi
+
+  verify-workflows:
+    name: Verify workflow files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate workflow YAML syntax
+        run: |
+          python3 -c "
+          import yaml
+          import sys
+
+          with open('.github/workflows/tebako-build-test.yml') as f:
+              try:
+                  yaml.safe_load(f)
+                  print('✓ tebako-build-test.yml is valid YAML')
+              except yaml.YAMLError as e:
+                  print(f'✗ tebako-build-test.yml has YAML errors: {e}')
+                  sys.exit(1)
+          "
+
+      - name: Check for required workflow elements
+        run: |
+          if grep -q "TEBAKO_BUILD_SCOPE" .github/workflows/tebako-build-test.yml; then
+            echo "✓ TEBAKO_BUILD_SCOPE variable found"
+          else
+            echo "✗ TEBAKO_BUILD_SCOPE variable not found"
+            exit 1
+          fi

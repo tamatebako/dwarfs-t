@@ -1,0 +1,14 @@
+diff --git a/fbthrift b/fbthrift
+index 0d87d206..7e7f3e67 160000
+--- a/fbthrift
++++ b/fbthrift
+@@ -1 +1 @@
+-Subproject commit 0d87d2068b9df8ae5b7ab21048ffeb58ba91a9ca
++Subproject commit 7e7f3e67c13675623168894a167fe99cf13d21e9
+diff --git a/folly b/folly
+index 3a0cd44f..661331d6 160000
+--- a/folly
++++ b/folly
+@@ -1 +1 @@
+-Subproject commit 3a0cd44fc76e1453cc2565cbd4d2a41caf355eb4
++Subproject commit 661331d60533c2ef8e82d9650cb9f78306e12e0e

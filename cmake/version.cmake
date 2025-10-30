@@ -16,7 +16,12 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.28.0)
+# Conditional minimum version for tebako compatibility
+if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
+  cmake_minimum_required(VERSION 3.24.0)
+else()
+  cmake_minimum_required(VERSION 3.28.0)
+endif()
 
 set(VERSION_SRC_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp)
 set(VERSION_HDR_FILE ${CMAKE_CURRENT_SOURCE_DIR}/include/dwarfs/version.h)
