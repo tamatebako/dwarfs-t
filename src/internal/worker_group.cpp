@@ -43,8 +43,7 @@
 
 #include <fmt/format.h>
 
-#include <folly/portability/Windows.h>
-#include <folly/system/ThreadName.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <dwarfs/error.h>
 #include <dwarfs/logger.h>
@@ -81,7 +80,7 @@ class basic_worker_group final : public worker_group::impl, private Policy {
 
     for (size_t i = 0; i < num_workers; ++i) {
       workers_.emplace_back([this, niceness, group_name, i] {
-        folly::setThreadName(fmt::format("{}{}", group_name, i + 1));
+        compat::system::setThreadName(fmt::format("{}{}", group_name, i + 1));
         set_thread_niceness(niceness);
         do_work(niceness > 10);
       });
@@ -219,8 +218,14 @@ class basic_worker_group final : public worker_group::impl, private Policy {
   }
 
  private:
+#ifdef DWARFS_HAVE_FOLLY
+  // With Folly: job_t and moveonly_job_t are different types
   using any_job_t =
       std::variant<worker_group::job_t, worker_group::moveonly_job_t>;
+#else
+  // Without Folly: both are std::function<void()>, so no variant needed
+  using any_job_t = worker_group::job_t;
+#endif
   using jobs_t = std::queue<any_job_t>;
 
   bool add_job_impl(any_job_t&& job) {
@@ -310,6 +315,8 @@ class basic_worker_group final : public worker_group::impl, private Policy {
         }
 #endif
         try {
+#ifdef DWARFS_HAVE_FOLLY
+          // With Folly: use std::visit for variant
           std::visit(
               [](auto&& j) {
                 static_assert(std::is_rvalue_reference_v<decltype(j)>);
@@ -317,6 +324,10 @@ class basic_worker_group final : public worker_group::impl, private Policy {
                 job();
               },
               std::move(job));
+#else
+          // Without Folly: job is already std::function, just call it
+          job();
+#endif
         } catch (...) {
           LOG_FATAL << "exception thrown in worker thread: "
                     << exception_str(std::current_exception());

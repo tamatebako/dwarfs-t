@@ -32,7 +32,8 @@
 
 #include <fmt/format.h>
 
-#include <folly/Synchronized.h>
+//#include <folly/Synchronized.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <magic.h>
 
@@ -122,7 +123,7 @@ class magic_wrapper {
     magic_wrapper const& w_;
   };
 
-  mutable folly::Synchronized<std::stack<magic_cookie_t>, std::shared_mutex>
+  mutable compat::Synchronized<std::stack<magic_cookie_t>, std::shared_mutex>
       cookies_;
 };
 
@@ -157,7 +158,7 @@ class libmagic_categorizer_ final : public libmagic_categorizer_base {
  private:
   LOG_PROXY_DECL(LoggerPolicy);
   magic_wrapper m_;
-  mutable folly::Synchronized<std::map<std::string, size_t>, std::shared_mutex>
+  mutable compat::Synchronized<std::map<std::string, size_t>, std::shared_mutex>
       mimetypes_;
 };
 

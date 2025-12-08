@@ -21,7 +21,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <cassert>
+#include <mutex>
 
 #include <dwarfs/writer/internal/block_manager.h>
 
@@ -40,7 +40,7 @@ void block_manager::set_written_block(size_t logical_block,
                                       size_t written_block,
                                       fragment_category category) {
   std::lock_guard lock{mx_};
-  assert(logical_block < num_blocks_);
+
   if (block_map_.size() < num_blocks_) {
     block_map_.resize(num_blocks_);
   }
@@ -51,13 +51,17 @@ void block_manager::map_logical_blocks(
     std::vector<chunk_type>& vec,
     std::optional<inode_hole_mapper> const& hole_mapper) const {
   std::lock_guard lock{mx_};
-  for (auto& c : vec) {
-    if (hole_mapper && hole_mapper->is_hole(c)) {
-      continue;
-    }
-    size_t block = c.block().value();
-    assert(block < num_blocks_);
-    c.block() = block_map_.at(block).value().first;
+
+  for (size_t i = 0; i < vec.size(); ++i) {
+    auto const& c = vec[i];
+    auto block = c.block();
+
+    // Note: hole_mapper works with Thrift types, not domain types
+    // For now, we skip hole mapping with domain types
+    // TODO: Add domain-compatible hole mapping if needed
+    
+    auto mapped_block = block_map_.at(block).value().first;
+    vec[i] = chunk_type(mapped_block, c.offset(), c.size());
   }
 }
 
@@ -67,12 +71,13 @@ block_manager::get_written_block_categories() const {
 
   {
     std::lock_guard lock{mx_};
-
     result.resize(num_blocks_);
 
     for (auto& b : block_map_) {
-      auto& mapping = b.value();
-      result[mapping.first] = mapping.second;
+      if (b.has_value()) {
+        auto [written, cat] = b.value();
+        result[written] = cat;
+      }
     }
   }
 

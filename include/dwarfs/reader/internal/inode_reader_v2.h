@@ -39,7 +39,8 @@
 #include <dwarfs/reader/block_range.h>
 #include <dwarfs/types.h>
 
-#include <dwarfs/reader/internal/metadata_types.h>
+// Use metadata_types_fwd.h for type aliases (not legacy metadata_types.h)
+#include <dwarfs/reader/internal/metadata_types_fwd.h>
 
 namespace dwarfs {
 
@@ -68,29 +69,29 @@ class inode_reader_v2 {
   inode_reader_v2& operator=(inode_reader_v2&&) = default;
 
   std::string read_string(uint32_t inode, size_t size, file_off_t offset,
-                          chunk_range chunks, std::error_code& ec) const {
+                          chunk_range const& chunks, std::error_code& ec) const {
     return impl_->read_string(inode, size, offset, chunks, ec);
   }
 
   size_t read(char* buf, uint32_t inode, size_t size, file_off_t offset,
-              chunk_range chunks, std::error_code& ec) const {
+              chunk_range const& chunks, std::error_code& ec) const {
     return impl_->read(buf, inode, size, offset, chunks, ec);
   }
 
   size_t
   readv(iovec_read_buf& buf, uint32_t inode, size_t size, file_off_t offset,
-        size_t maxiov, chunk_range chunks, std::error_code& ec) const {
+        size_t maxiov, chunk_range const& chunks, std::error_code& ec) const {
     return impl_->readv(buf, inode, size, offset, maxiov, chunks, ec);
   }
 
   std::vector<std::future<block_range>>
   readv(uint32_t inode, size_t size, file_off_t offset, size_t maxiov,
-        chunk_range chunks, std::error_code& ec) const {
+        chunk_range const& chunks, std::error_code& ec) const {
     return impl_->readv(inode, size, offset, maxiov, chunks, ec);
   }
 
   void
-  dump(std::ostream& os, std::string const& indent, chunk_range chunks) const {
+  dump(std::ostream& os, std::string const& indent, chunk_range const& chunks) const {
     impl_->dump(os, indent, chunks);
   }
 
@@ -117,18 +118,18 @@ class inode_reader_v2 {
 
     virtual std::string
     read_string(uint32_t inode, size_t size, file_off_t offset,
-                chunk_range chunks, std::error_code& ec) const = 0;
+                chunk_range const& chunks, std::error_code& ec) const = 0;
     virtual size_t
     read(char* buf, uint32_t inode, size_t size, file_off_t offset,
-         chunk_range chunks, std::error_code& ec) const = 0;
+         chunk_range const& chunks, std::error_code& ec) const = 0;
     virtual size_t
     readv(iovec_read_buf& buf, uint32_t inode, size_t size, file_off_t offset,
-          size_t maxiov, chunk_range chunks, std::error_code& ec) const = 0;
+          size_t maxiov, chunk_range const& chunks, std::error_code& ec) const = 0;
     virtual std::vector<std::future<block_range>>
     readv(uint32_t inode, size_t size, file_off_t offset, size_t maxiov,
-          chunk_range chunks, std::error_code& ec) const = 0;
+          chunk_range const& chunks, std::error_code& ec) const = 0;
     virtual void dump(std::ostream& os, std::string const& indent,
-                      chunk_range chunks) const = 0;
+                      chunk_range const& chunks) const = 0;
     virtual void set_num_workers(size_t num) = 0;
     virtual void set_cache_tidy_config(cache_tidy_config const& cfg) = 0;
     virtual size_t num_blocks() const = 0;

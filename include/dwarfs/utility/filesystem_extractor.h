@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -51,6 +52,20 @@ class filesystem_v2_lite;
 }
 
 namespace utility {
+
+struct extraction_metrics {
+  std::chrono::microseconds metadata_load_time{0};
+  std::chrono::microseconds extraction_time{0};
+  size_t bytes_extracted{0};
+  size_t files_extracted{0};
+  size_t directories_extracted{0};
+  size_t symlinks_extracted{0};
+  size_t blocks_decompressed{0};
+  size_t cache_hits{0};
+  size_t cache_misses{0};
+  size_t hard_errors{0};
+  size_t soft_errors{0};
+};
 
 struct filesystem_extractor_options {
   size_t max_queued_bytes{static_cast<size_t>(512) << 20};
@@ -102,6 +117,14 @@ class filesystem_extractor {
     return impl_->extract(fs, matcher, opts);
   }
 
+  void enable_metrics(bool enable = true) { impl_->enable_metrics(enable); }
+
+  extraction_metrics const& get_metrics() const {
+    return impl_->get_metrics();
+  }
+
+  void reset_metrics() { impl_->reset_metrics(); }
+
   class impl {
    public:
     virtual ~impl() = default;
@@ -117,6 +140,9 @@ class filesystem_extractor {
     virtual bool
     extract(reader::filesystem_v2_lite const& fs, glob_matcher const* matcher,
             filesystem_extractor_options const& opts) = 0;
+    virtual void enable_metrics(bool enable) = 0;
+    virtual extraction_metrics const& get_metrics() const = 0;
+    virtual void reset_metrics() = 0;
   };
 
  private:

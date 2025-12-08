@@ -29,10 +29,11 @@
 #include <unordered_map>
 #include <variant>
 
-#include <folly/Function.h>
-#include <folly/lang/BitsClass.h>
-
 #include <range/v3/view/enumerate.hpp>
+
+#include <fmt/format.h>
+
+#include <dwarfs/internal/folly_compat.h>
 
 #include <dwarfs/compiler.h>
 #include <dwarfs/logger.h>
@@ -50,7 +51,7 @@ namespace {
 // TODO: move out of here
 class job_tracker {
  public:
-  explicit job_tracker(folly::Function<void()>&& on_jobs_done)
+  explicit job_tracker(compat::Function<void()>&& on_jobs_done)
       : on_jobs_done_{std::move(on_jobs_done)} {}
 
   void start_job() {
@@ -74,7 +75,7 @@ class job_tracker {
  private:
   std::mutex mx_;
   size_t active_{0};
-  folly::Function<void()> on_jobs_done_;
+  compat::Function<void()> on_jobs_done_;
 };
 
 template <typename T, size_t N>
@@ -193,7 +194,7 @@ class basic_centroid {
   static_assert(Bits % (8 * sizeof(BitsType)) == 0);
   static constexpr size_t const array_size = Bits / (8 * sizeof(BitsType));
   using value_type = std::array<BitsType, array_size>;
-  using bits_type = folly::Bits<BitsType>;
+  using bits_type = compat::lang::Bits<BitsType>;
 
   basic_centroid() {
     std::fill(centroid_.begin(), centroid_.end(), 0);
@@ -659,9 +660,11 @@ void similarity_ordering_<LoggerPolicy>::order_impl(
   auto duplicates = find_duplicates(ev, index);
   auto root = std::make_shared<nilsimsa_cluster_tree_node>(std::move(index));
 
+  auto rec_ptr = std::make_shared<receiver<index_type>>(std::move(rec));
+  auto dup_ptr = std::make_shared<duplicates_map>(std::move(duplicates));
+
   auto jt = std::make_shared<job_tracker>(
-      [this, size_hint, &ev, rec = std::move(rec), root,
-       dup = std::move(duplicates)]() mutable {
+      [this, size_hint, &ev, rec_ptr, root, dup_ptr]() mutable {
         {
           auto tv = LOG_TIMED_VERBOSE;
           order_tree_rec(*root, ev);
@@ -669,10 +672,10 @@ void similarity_ordering_<LoggerPolicy>::order_impl(
         }
         index_type rv;
         rv.reserve(size_hint);
-        collect_rec(*root, ev, dup, rv, "");
+        collect_rec(*root, ev, *dup_ptr, rv, "");
         LOG_DEBUG << opts_.context << "total distance after ordering: "
                   << total_distance(ev, rv);
-        rec.set_value(std::move(rv));
+        rec_ptr->set_value(std::move(rv));
       });
 
   cluster(*root, ev, jt);
@@ -682,10 +685,12 @@ template <typename LoggerPolicy>
 void similarity_ordering_<LoggerPolicy>::order_nilsimsa(
     nilsimsa_element_view const& ev, receiver<index_type> rec,
     index_type index) const {
-  wg_.add_job(
-      [this, rec = std::move(rec), idx = std::move(index), &ev]() mutable {
-        order_impl(std::move(rec), std::move(idx), ev);
-      });
+  // Instead of capturing move-only types in lambda, call order_impl directly
+  // via worker group with a lambda that captures only this and references
+  wg_.add_job([this, &ev, rec = std::make_shared<receiver<index_type>>(std::move(rec)),
+               idx = std::make_shared<index_type>(std::move(index))]() mutable {
+    order_impl(std::move(*rec), std::move(*idx), ev);
+  });
 }
 
 similarity_ordering::similarity_ordering(

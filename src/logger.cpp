@@ -26,15 +26,23 @@
  * SPDX-License-Identifier: MIT
  */
 
+#ifdef _MSC_VER
+#pragma warning(disable : 4250)
+#pragma warning(disable : 4503)
+#pragma warning(disable : 4619)
+#pragma warning(disable : 4800)
+#pragma warning(disable : 4826)
+#pragma warning(disable : 5045)
+#pragma warning(disable : 26812)
+#endif
+
 #include <chrono>
 #include <cstring>
 #include <exception>
 #include <iterator>
 #include <stdexcept>
 
-#include <folly/Conv.h>
-#include <folly/lang/Assume.h>
-#include <folly/small_vector.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <boost/chrono/thread_clock.hpp>
 
@@ -90,7 +98,8 @@ char logger::level_char(level_type level) {
   case TRACE:
     return 'T';
   }
-  folly::assume_unreachable();
+  compat::lang::assume(false);
+  return '?'; // Unreachable but satisfy compiler
 }
 
 std::ostream& operator<<(std::ostream& os, logger::level_type const& optval) {
@@ -245,14 +254,16 @@ void stream_logger::write(level_type level, std::string_view output,
       context = get_logger_context(loc);
       context_len = context.size();
       if (color_) {
-        context = folly::to<std::string>(
-            suffix, term_->color(termcolor::DIM_MAGENTA), context,
-            term_->color(termcolor::NORMAL), prefix);
+        context = std::string(suffix) +
+                  std::string(term_->color(termcolor::DIM_MAGENTA)) +
+                  context +
+                  std::string(term_->color(termcolor::NORMAL)) +
+                  std::string(prefix);
       }
     }
 
     std::string tmp;
-    folly::small_vector<std::string_view, 2> lines;
+    compat::small_vector<std::string_view, 2> lines;
 
     if (output.find('\r') != std::string::npos) {
       tmp.reserve(output.size());

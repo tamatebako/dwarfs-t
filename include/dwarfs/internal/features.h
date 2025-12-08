@@ -31,7 +31,21 @@
 #include <set>
 #include <string>
 
+#ifdef DWARFS_HAVE_THRIFT
 #include <dwarfs/gen-cpp2/features_types.h>
+#else
+// Plain C++ feature enum (matches thrift/features.thrift)
+// IMPORTANT: Never change enum names (used in serialization)
+// It's OK to change values, add new, or remove old enums
+// Never reuse enum names
+namespace dwarfs {
+
+enum class feature : uint32_t {
+  sparsefiles = 0,  // support for sparse files (v0.14.0)
+};
+
+} // namespace dwarfs
+#endif
 
 namespace dwarfs::internal {
 

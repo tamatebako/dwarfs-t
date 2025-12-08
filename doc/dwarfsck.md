@@ -21,7 +21,9 @@ with a non-zero exit code.
   Level of filesystem information detail. This can be a numeric level
   between 0 and 7, or a comma-separated list of feature names. The
   default corresponds to a level of 2. The feature names are shown
-  in the command help.
+  in the command help. When displaying filesystem information, the
+  metadata serialization format (Thrift, Cereal, or Bitsery) will
+  be automatically detected and displayed.
 
 - `-q`, `--quiet`:
   Don't produce any output unless there is an error.
@@ -89,6 +91,13 @@ pcmaudio/metadata
 pcmaudio/waveform
 ```
 
+The JSON output includes the metadata serialization format:
+
+```
+$ dwarfsck image.dwarfs --no-check -j | jq -r '.metadata_format'
+thrift
+```
+
 - `--export-metadata=`*file*:
   Export all filesystem metadata in JSON format.
 
@@ -107,6 +116,18 @@ pcmaudio/waveform
   option will show the manual page. If supported by the terminal and a
   suitable pager (e.g. `less`) is found, the manual page is displayed
   in the pager.
+
+## METADATA FORMAT DISPLAY
+
+When displaying filesystem information, `dwarfsck` will automatically
+detect and show the metadata serialization format used by the image.
+This is shown in the output as `metadata format:` followed by either
+`flatbuffers` or `thrift`. The `flatbuffers` format is the modern default
+and offers excellent portability with memory-mappable zero-copy access.
+The `thrift` format is the legacy format that offers slightly better
+compression (~5-10%) but has complex dependencies.
+
+For performance comparisons between formats, see [benchmark-metadata(7)](benchmark-metadata.md).
 
 ## ENVIRONMENT VARIABLES
 

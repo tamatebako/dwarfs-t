@@ -57,14 +57,12 @@
 #define DWARFS_USE_HH_DATE 0
 #endif
 
-#include <folly/ExceptionString.h>
-#include <folly/String.h>
-#include <folly/portability/Fcntl.h>
-#include <folly/portability/SysStat.h>
-#include <folly/portability/Windows.h>
-#include <folly/system/HardwareConcurrency.h>
 
 #include <dwarfs/config.h>
+
+#include <dwarfs/internal/folly_compat.h>
+
+#include <fmt/format.h>
 
 #ifdef _WIN32
 #include <psapi.h>
@@ -104,11 +102,11 @@ inline std::string trimmed(std::string in) {
 } // namespace
 
 std::string size_with_unit(file_size_t size) {
-  return trimmed(folly::prettyPrint(size, folly::PRETTY_BYTES_IEC, true));
+  return trimmed(compat::prettyPrint(size, compat::PRETTY_BYTES_IEC, true));
 }
 
 std::string time_with_unit(double sec) {
-  return trimmed(folly::prettyPrint(sec, folly::PRETTY_TIME_HMS, false));
+  return trimmed(compat::prettyPrint(sec, compat::PRETTY_TIME_HMS, false));
 }
 
 std::string time_with_unit(std::chrono::nanoseconds ns) {
@@ -488,7 +486,7 @@ void ensure_binary_mode(std::ostream& os [[maybe_unused]]) {
 }
 
 std::string exception_str(std::exception const& e) {
-  return folly::exceptionStr(e).toStdString();
+  return compat::exceptionStr(e);
 }
 
 std::string exception_str(std::exception_ptr const& e) {
@@ -498,18 +496,18 @@ std::string exception_str(std::exception_ptr const& e) {
       std::rethrow_exception(e);
     }
   } catch (std::exception const& ex) {
-    return folly::exceptionStr(ex).toStdString();
+    return compat::exceptionStr(ex);
   } catch (...) {
     return "unknown exception";
   }
   return "no exception";
 #else
-  return folly::exceptionStr(e).toStdString();
+  return compat::exceptionStr(e);
 #endif
 }
 
 std::string hexdump(void const* data, size_t size) {
-  return folly::hexDump(data, size);
+  return compat::hexDump(data, size);
 }
 
 unsigned int hardware_concurrency() noexcept {
@@ -520,7 +518,7 @@ unsigned int hardware_concurrency() noexcept {
     }
     return concurrency;
   }();
-  return env.value_or(folly::hardware_concurrency());
+  return env.value_or(compat::system::hardware_concurrency());
 }
 
 int get_current_umask() {

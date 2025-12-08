@@ -1,0 +1,551 @@
+= Build Configurations Reference
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+
+== Overview
+
+DwarFS v0.16.0 supports three build configurations based on metadata format selection:
+
+1. **FlatBuffers-only** - Modern default (recommended)
+2. **Thrift-only** - Legacy compatibility only
+3. **Both formats** - Maximum compatibility (migration)
+
+This reference provides concrete CMake commands and platform-specific instructions.
+
+== CMake Options
+
+=== Core Format Options
+
+[cols="1,2,1,2"]
+|===
+|Option |Description |Default |Valid Values
+
+|`DWARFS_WITH_FLATBUFFERS`
+|Enable FlatBuffers metadata support
+|`ON`
+|`ON`, `OFF`
+
+|`DWARFS_WITH_THRIFT`
+|Enable Thrift Frozen2 metadata support
+|`ON` (auto-OFF in Tebako)
+|`ON`, `OFF`
+|===
+
+**Important**: At least ONE format must be enabled. Both `OFF` is invalid and will fail at build time.
+
+=== Build Targets
+
+[cols="1,2,1"]
+|===
+|Option |Description |Default
+
+|`WITH_LIBDWARFS`
+|Build core libraries
+|`ON`
+
+|`WITH_TOOLS`
+|Build mkdwarfs, dwarfsck, dwarfsextract
+|`ON`
+
+|`WITH_FUSE_DRIVER`
+|Build dwarfs FUSE driver
+|`ON`
+
+|`WITH_TESTS`
+|Build test suite
+|`OFF`
+
+|`WITH_BENCHMARKS`
+|Build benchmark suite
+|`OFF`
+|===
+
+=== Compression Algorithms
+
+[cols="1,2,1"]
+|===
+|Option |Description |Default
+
+|`TRY_ENABLE_FLAC`
+|FLAC audio compression
+|`ON`
+
+|`ENABLE_RICEPP`
+|Rice++ FITS compression
+|`ON`
+
+|`TRY_ENABLE_BROTLI`
+|Brotli compression
+|`ON`
+
+|`TRY_ENABLE_LZ4`
+|LZ4 compression
+|`ON`
+
+|`TRY_ENABLE_LZMA`
+|LZMA compression
+|`ON`
+|===
+
+== Configuration Examples
+
+=== FlatBuffers-Only (Recommended)
+
+==== Ubuntu/Debian
+
+[source,bash]
+----
+# Install dependencies
+sudo apt-get update
+sudo apt-get install -y \
+  cmake ninja-build \
+  libboost-all-dev \
+  libssl-dev \
+  libzstd-dev \
+  libxxhash-dev \
+  libarchive-dev \
+  liblz4-dev \
+  liblzma-dev \
+  libbrotli-dev
+
+# Configure
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=OFF \
+  -DWITH_TESTS=ON
+
+# Build
+ninja -C build
+
+# Test
+ctest --test-dir build --output-on-failure
+
+# Install
+sudo ninja -C build install
+----
+
+**Expected Results**:
+- 1,600/1,613 tests pass (13 Thrift-specific skip)
+- Build time: ~10-15 minutes
+- Binaries: `mkdwarfs`, `dwarfs`, `dwarfsck`, `dwarfsextract`
+
+==== macOS (Homebrew)
+
+[source,bash]
+----
+# Install dependencies
+brew install cmake ninja boost openssl zstd xxhash \
+  libarchive lz4 xz brotli
+
+# Configure (Apple Silicon)
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=OFF \
+  -DOPENSSL_ROOT_DIR=$(brew --prefix openssl) \
+  -DWITH_TESTS=ON
+
+# Build
+ninja -C build
+
+# FUSE driver (requires FUSE-T or macFUSE)
+brew install --cask fuse-t  # or macfuse
+----
+
+**Note**: Full Disk Access required for FUSE-T applications.
+
+==== Windows (vcpkg)
+
+[source,powershell]
+----
+# Install WinFsp first
+choco install winfsp -y
+
+# Install dependencies via vcpkg
+vcpkg install --triplet=x64-windows-static `
+  boost-system boost-filesystem boost-program-options `
+  boost-iostreams boost-context boost-chrono `
+  zlib lz4 zstd xxhash liblzma brotli `
+  libarchive openssl libevent double-conversion `
+  gtest
+
+# Configure
+cmake -B build `
+  -G "Visual Studio 17 2022" -A x64 `
+  -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+  -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DDWARFS_WITH_FLATBUFFERS=ON `
+  -DDWARFS_WITH_THRIFT=OFF `
+  -DWITH_TESTS=ON
+
+# Build
+cmake --build build --config Release --parallel
+
+# Test
+ctest --test-dir build -C Release --output-on-failure
+----
+
+=== Both Formats (Migration)
+
+==== Ubuntu/Debian
+
+[source,bash]
+----
+# Install FlatBuffers dependencies (as above)
+sudo apt-get install -y cmake ninja-build libboost-all-dev \
+  libssl-dev libzstd-dev libxxhash-dev libarchive-dev
+
+# Install Thrift dependencies
+sudo apt-get install -y \
+  libfolly-dev \
+  libfmt-dev \
+  libdouble-conversion-dev \
+  libgflags-dev \
+  libgoogle-glog-dev \
+  libevent-dev \
+  libsodium-dev
+
+# Configure
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=ON \
+  -DWITH_TESTS=ON
+
+# Build (takes longer due to Thrift)
+ninja -C build
+
+# Test
+ctest --test-dir build --output-on-failure
+----
+
+**Expected Results**:
+- 1,613/1,613 tests pass (all tests)
+- Build time: ~20-30 minutes (Thrift adds 10-15 min)
+- Can read/write both FlatBuffers and Thrift images
+
+==== Troubleshooting Folly/Thrift
+
+If Folly/Thrift not available via package manager:
+
+[source,bash]
+----
+# Build from source (time-intensive)
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs
+cd dwarfs
+
+# Use bundled Folly/Thrift submodules
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=ON \
+  -DWITH_TESTS=ON
+
+ninja -C build
+----
+
+=== Thrift-Only (Not Recommended)
+
+**Warning**: FlatBuffers is the modern default. Thrift-only builds cannot read FlatBuffers images.
+
+[source,bash]
+----
+# Same Thrift dependencies as both-formats build
+
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DDWARFS_WITH_FLATBUFFERS=OFF \
+  -DDWARFS_WITH_THRIFT=ON \
+  -DWITH_TESTS=ON
+
+ninja -C build
+----
+
+**Expected Results**:
+- 1,596/1,613 tests pass (17 FlatBuffers-specific skip)
+- Cannot read FlatBuffers images
+- Use only for legacy compatibility
+
+== Modular Builds
+
+You can build libraries, tools, and FUSE driver separately:
+
+=== Libraries Only
+
+[source,bash]
+----
+cmake -B build -GNinja \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DWITH_LIBDWARFS=ON \
+  -DWITH_TOOLS=OFF \
+  -DWITH_FUSE_DRIVER=OFF \
+  -DWITH_TESTS=ON
+
+ninja -C build
+sudo ninja -C build install
+----
+
+**Output**:
+- `libdwarfs_common.a` / `.so`
+- `libdwarfs_reader.a` / `.so`
+- `libdwarfs_writer.a` / `.so`
+- `libdwarfs_extractor.a` / `.so`
+- `libdwarfs_rewrite.a` / `.so`
+
+=== Tools Only (after libraries installed)
+
+[source,bash]
+----
+cmake -B build -GNinja \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DWITH_LIBDWARFS=OFF \
+  -DWITH_TOOLS=ON \
+  -DWITH_FUSE_DRIVER=OFF
+
+ninja -C build
+sudo ninja -C build install
+----
+
+=== FUSE Driver Only (after libraries installed)
+
+[source,bash]
+----
+cmake -B build -GNinja \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DWITH_LIBDWARFS=OFF \
+  -DWITH_TOOLS=OFF \
+  -DWITH_FUSE_DRIVER=ON
+
+ninja -C build
+sudo ninja -C build install
+----
+
+== Static Builds
+
+=== Alpine Linux (musl libc)
+
+[source,bash]
+----
+# Inside Alpine container
+apk add --no-cache cmake ninja g++ \
+  boost-dev boost-static openssl-dev openssl-libs-static \
+  zstd-dev zstd-static xxhash-dev lz4-dev lz4-static \
+  xz-dev brotli-dev brotli-static libarchive-dev
+
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=OFF \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DWITH_TESTS=ON
+
+ninja -C build
+----
+
+**Result**: Fully static binaries that work on any Linux distribution.
+
+=== Tebako Packaging
+
+[source,bash]
+----
+# Tebako forces FlatBuffers-only (Thrift incompatible with static linking)
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DTEBAKO_BUILD=ON \
+  -DTEBAKO_BUILD_SCOPE=ALL \
+  -DWITH_TESTS=ON
+
+# DWARFS_WITH_THRIFT automatically set to OFF
+# DWARFS_WITH_FLATBUFFERS automatically set to ON
+
+ninja -C build
+----
+
+**Scope Options**:
+- `MKD`: mkdwarfs only (minimal)
+- `ALL`: All tools (mkdwarfs, dwarfsck, dwarfsextract, dwarfs if FUSE available)
+
+== Development Builds
+
+=== Debug Build
+
+[source,bash]
+----
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DWITH_TESTS=ON
+
+ninja -C build
+----
+
+=== Sanitizer Builds
+
+[source,bash]
+----
+# AddressSanitizer (memory errors)
+cmake -B build-asan -GNinja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DENABLE_ASAN=ON \
+  -DWITH_TESTS=ON
+
+# ThreadSanitizer (race conditions)
+cmake -B build-tsan -GNinja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DENABLE_TSAN=ON \
+  -DWITH_TESTS=ON
+
+# UndefinedBehaviorSanitizer
+cmake -B build-ubsan -GNinja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DENABLE_UBSAN=ON \
+  -DWITH_TESTS=ON
+----
+
+=== Coverage Build
+
+[source,bash]
+----
+cmake -B build-cov -GNinja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DENABLE_COVERAGE=ON \
+  -DWITH_TESTS=ON
+
+ninja -C build-cov
+ctest --test-dir build-cov
+ninja -C build-cov coverage
+
+# Report in build-cov/coverage/html/
+----
+
+== Environment Variables
+
+=== Build-Time
+
+[cols="1,2"]
+|===
+|Variable |Purpose
+
+|`DWARFS_LOCAL_REPO_PATH`
+|Use local git repos instead of FetchContent
+
+|`TEBAKO_BUILD`
+|Enable Tebako build mode
+
+|`TEBAKO_BUILD_SCOPE`
+|Set Tebako scope (MKD/ALL)
+|===
+
+=== Runtime
+
+[cols="1,2"]
+|===
+|Variable |Purpose
+
+|`DWARFS_IOLAYER_OPTS`
+|I/O layer configuration (mmap, segments, read)
+
+|`DWARFS_WORKER_GROUP_AFFINITY`
+|CPU affinity for worker threads
+|===
+
+See link:../../doc/dwarfs-env.html[Environment Variables Reference] for details.
+
+== Verification
+
+=== Test All Build Configurations
+
+[source,bash]
+----
+# Test FlatBuffers-only
+cmake -B build-fb -GNinja -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=OFF -DWITH_TESTS=ON
+ninja -C build-fb && ctest --test-dir build-fb
+
+# Test Thrift-only
+cmake -B build-th -GNinja -DDWARFS_WITH_FLATBUFFERS=OFF \
+  -DDWARFS_WITH_THRIFT=ON -DWITH_TESTS=ON
+ninja -C build-th && ctest --test-dir build-th
+
+# Test both formats
+cmake -B build-both -GNinja -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=ON -DWITH_TESTS=ON
+ninja -C build-both && ctest --test-dir build-both
+----
+
+=== Quick Functionality Test
+
+[source,bash]
+----
+# Create test filesystem
+./build/mkdwarfs -i /usr/share/doc -o test.dwarfs
+
+# Verify integrity
+./build/dwarfsck -i test.dwarfs --checksum
+
+# Extract and compare
+./build/dwarfsextract -i test.dwarfs -o /tmp/extracted
+diff -r /usr/share/doc /tmp/extracted
+
+# Mount and browse (if FUSE available)
+mkdir -p /tmp/mnt
+./build/dwarfs test.dwarfs /tmp/mnt
+ls -la /tmp/mnt
+fusermount -u /tmp/mnt  # or umount on macOS
+----
+
+== Common Issues
+
+=== Issue: CMake Cannot Find FlatBuffers
+
+**Solution**: FlatBuffers is auto-fetched via FetchContent. Ensure:
+- CMake ≥3.28.0
+- Internet connection during configure
+- Or set `DWARFS_LOCAL_REPO_PATH`
+
+=== Issue: Folly/Thrift Not Found
+
+**Solution**: Either:
+1. Install via package manager (Ubuntu: `libfolly-dev`)
+2. Use bundled submodules (auto-cloned from git)
+3. Disable Thrift: `-DDWARFS_WITH_THRIFT=OFF`
+
+=== Issue: FUSE Not Available
+
+**Solution**:
+- Linux: Install `libfuse3-dev` or `libfuse-dev`
+- macOS: Install FUSE-T (`brew install fuse-t`) or macFUSE
+- Windows: Install WinFsp (`choco install winfsp`)
+- Or disable: `-DWITH_FUSE_DRIVER=OFF`
+
+=== Issue: Tests Failing
+
+**Expected**:
+- FlatBuffers-only: 13 skips (Thrift tests)
+- Thrift-only: 17 skips (FlatBuffers tests)
+- Both formats: 0 skips
+
+If other tests fail, check:
+- Dependencies installed
+- Format enabled matches test requirements
+- Platform compatibility
+
+== See Also
+
+* link:../guides/format-selection.html[Format Selection Guide]
+* link:test-expectations.html[Test Expectations]
+* link:../guides/building-dwarfs.html[Detailed Build Guide]
+
+---
+
+**Last Updated**: 2025-12-08 +
+**Version**: v0.16.0

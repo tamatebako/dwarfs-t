@@ -52,6 +52,13 @@ file_size_t parse_size_with_unit(std::string const& str);
 std::chrono::nanoseconds parse_time_with_unit(std::string const& str);
 std::chrono::system_clock::time_point parse_time_point(std::string const& str);
 
+// C++20 compatible to_underlying (C++23 has std::to_underlying)
+template <typename E>
+  requires std::is_enum_v<E>
+constexpr std::underlying_type_t<E> to_underlying(E e) noexcept {
+  return static_cast<std::underlying_type_t<E>>(e);
+}
+
 std::unordered_map<std::string_view, std::string_view>
 parse_option_string(std::string_view str);
 

@@ -29,8 +29,15 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-#include <folly/FileUtil.h>
-#include <folly/portability/Windows.h>
+#include <fstream>
+#include <sstream>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 #include <dwarfs/conv.h>
 #include <dwarfs/file_util.h>
@@ -86,13 +93,22 @@ temporary_directory::~temporary_directory() {
 }
 
 std::string read_file(std::filesystem::path const& path, std::error_code& ec) {
-  std::string out;
-  if (folly::readFile(path.string().c_str(), out)) {
-    ec.clear();
-  } else {
+  std::ifstream file(path, std::ios::binary);
+  if (!file) {
     ec = get_last_error_code();
+    return {};
   }
-  return out;
+
+  std::ostringstream ss;
+  ss << file.rdbuf();
+
+  if (!file) {
+    ec = get_last_error_code();
+    return {};
+  }
+
+  ec.clear();
+  return ss.str();
 }
 
 std::string read_file(std::filesystem::path const& path) {
@@ -106,11 +122,20 @@ std::string read_file(std::filesystem::path const& path) {
 
 void write_file(std::filesystem::path const& path, std::string_view content,
                 std::error_code& ec) {
-  if (folly::writeFile(content, path.string().c_str())) {
-    ec.clear();
-  } else {
+  std::ofstream file(path, std::ios::binary);
+  if (!file) {
     ec = get_last_error_code();
+    return;
   }
+
+  file.write(content.data(), content.size());
+
+  if (!file) {
+    ec = get_last_error_code();
+    return;
+  }
+
+  ec.clear();
 }
 
 void write_file(std::filesystem::path const& path, std::string_view content) {

@@ -28,6 +28,7 @@
 #include <ctime>
 #include <deque>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <numeric>
 #include <stdexcept>
@@ -37,9 +38,7 @@
 #include <utility>
 #include <vector>
 
-#include <folly/CPortability.h>
-#include <folly/portability/Unistd.h>
-#include <folly/system/HardwareConcurrency.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <fmt/format.h>
 
@@ -185,7 +184,11 @@ class save_directories_visitor : public visitor_base {
     directories_.resize(num_directories);
   }
 
-  void visit(dir* p) override { directories_.at(p->inode_num().value()) = p; }
+  void visit(dir* p) override {
+    if (auto ino = p->inode_num(); ino.has_value()) {
+      directories_.at(ino.value()) = p;
+    }
+  }
 
   std::span<dir*> get_directories() { return directories_; }
 
@@ -205,10 +208,13 @@ class save_shared_files_visitor : public visitor_base {
   }
 
   void visit(file* p) override {
-    if (auto ino = p->inode_num().value(); ino >= begin_shared_) {
-      auto ufi = p->unique_file_id();
-      DWARFS_CHECK(ufi >= num_unique_, "inconsistent file id");
-      DWARFS_NOTHROW(shared_files_.at(ino - begin_shared_)) = ufi - num_unique_;
+    if (auto ino_opt = p->inode_num(); ino_opt.has_value()) {
+      auto ino = ino_opt.value();
+      if (ino >= begin_shared_) {
+        auto ufi = p->unique_file_id();
+        DWARFS_CHECK(ufi >= num_unique_, "inconsistent file id");
+        DWARFS_NOTHROW(shared_files_.at(ino - begin_shared_)) = ufi - num_unique_;
+      }
     }
   }
 
@@ -304,8 +310,6 @@ scanner_<LoggerPolicy>::scanner_(logger& lgr, worker_group& wg,
     , entry_factory_{ef}
     , os_{os} {}
 
-FOLLY_PUSH_WARNING
-FOLLY_GCC_DISABLE_WARNING("-Wnrvo")
 
 template <typename LoggerPolicy>
 entry_factory::node
@@ -431,7 +435,6 @@ scanner_<LoggerPolicy>::add_entry(std::filesystem::path const& name,
   return nullptr;
 }
 
-FOLLY_POP_WARNING
 
 template <typename LoggerPolicy>
 void scanner_<LoggerPolicy>::dump_state(
@@ -767,9 +770,11 @@ void scanner_<LoggerPolicy>::scan(
     root->walk([&](entry* ep) {
       ep->update(ge_data);
       if (auto* lp = dynamic_cast<link*>(ep)) {
-        mdb.add_symlink_table_entry(
-            ep->inode_num().value() - first_link_inode,
-            ge_data.get_symlink_table_entry(lp->linkname()));
+        if (auto ino = ep->inode_num(); ino.has_value()) {
+          mdb.add_symlink_table_entry(
+              ino.value() - first_link_inode,
+              ge_data.get_symlink_table_entry(lp->linkname()));
+        }
       }
     });
   });
@@ -794,7 +799,11 @@ void scanner_<LoggerPolicy>::scan(
     fsw.configure(frag_info.categories, num_threads);
 
     for (auto category : frag_info.categories) {
-      auto cat_size = frag_info.category_size.at(category);
+      auto cat_size_it = frag_info.category_size.find(category);
+      if (cat_size_it == frag_info.category_size.end()) {
+        continue;  // Skip categories with no size (0 fragments)
+      }
+      auto cat_size = cat_size_it->second;
       auto catmgr = options_.inode.categorizer_mgr.get();
       std::string meta;
 
@@ -890,7 +899,7 @@ void scanner_<LoggerPolicy>::scan(
 
     LOG_INFO << "total segmenting CPU time: "
              << time_with_unit(wg_blockify.try_get_cpu_time().value_or(0ns));
-  }
+  }  // <- wg_ordering and wg_blockify destructors called here
 
   // seg.finish();
   wg_.wait();
@@ -972,7 +981,11 @@ void scanner_<LoggerPolicy>::scan(
 
   mdb.gather_global_entry_data(ge_data);
 
-  auto [schema, data] = metadata_freezer(LOG_GET_LOGGER).freeze(mdb.build());
+  auto built_metadata = mdb.build();
+  
+  auto freezer = metadata_freezer(LOG_GET_LOGGER, options_.metadata_format);
+  
+  auto [schema, data] = freezer.freeze(built_metadata);
 
   LOG_VERBOSE << "uncompressed metadata size: " << size_with_unit(data.size());
 

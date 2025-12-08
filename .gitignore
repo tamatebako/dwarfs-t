@@ -24,3 +24,6 @@ CMakeSettings.json
 deps
 include/dwarfs/version.h
 src/dwarfs/version.cpp
+/benchmarks/results
+/benchmark-files
+*.pyc

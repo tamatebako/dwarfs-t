@@ -21,23 +21,35 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <thrift/lib/cpp2/frozen/FrozenUtil.h>
-#include <thrift/lib/cpp2/protocol/Serializer.h>
-
 #include <dwarfs/logger.h>
 #include <dwarfs/malloc_byte_buffer.h>
+#include <dwarfs/metadata/serialization/serializer_registry.h>
+#include <dwarfs/metadata/serialization/init_serializers.h>
+#include <dwarfs/metadata/serialization/serialization_facade.h>
+#include <dwarfs/metadata/serialization/facade_factory.h>
 
 #include <dwarfs/writer/internal/metadata_freezer.h>
 
-#include <dwarfs/gen-cpp2/metadata_layouts.h>
-#include <dwarfs/gen-cpp2/metadata_types.h>
+// NEW: Include domain model and converter
+#include <dwarfs/metadata/domain/metadata.h>
 
+#ifdef DWARFS_HAVE_THRIFT
+#include <dwarfs/gen-cpp2/metadata_types.h>
+#include <dwarfs/metadata/converters/domain_thrift_converter.h>
+#endif
+
+#ifdef DWARFS_HAVE_THRIFT
+#include <thrift/lib/cpp2/frozen/FrozenUtil.h>
+#include <thrift/lib/cpp2/protocol/Serializer.h>
+#include <dwarfs/gen-cpp2/metadata_layouts.h>
 #include <thrift/lib/thrift/gen-cpp2/frozen_types_custom_protocol.h>
+#endif
 
 namespace dwarfs::writer::internal {
 
 namespace {
 
+#ifdef DWARFS_HAVE_THRIFT
 template <class T>
 std::pair<shared_byte_buffer, shared_byte_buffer> freeze_to_buffer(T const& x) {
   using namespace ::apache::thrift::frozen;
@@ -60,33 +72,82 @@ std::pair<shared_byte_buffer, shared_byte_buffer> freeze_to_buffer(T const& x) {
 
   return {schema_buffer.share(), data_buffer.share()};
 }
+#endif
 
 template <typename LoggerPolicy>
 class metadata_freezer_ : public metadata_freezer::impl {
  public:
-  explicit metadata_freezer_(logger& lgr)
-      : LOG_PROXY_INIT(lgr) {}
+  explicit metadata_freezer_(logger& lgr,
+                            metadata::serialization::SerializationFormat format)
+      : LOG_PROXY_INIT(lgr)
+      , format_(format) {
+    // Initialize serializers if not already done
+    metadata::serialization::init_serializers();
+  }
 
+  // CHANGED: Accept domain model instead of Thrift
   std::pair<shared_byte_buffer, shared_byte_buffer>
-  freeze(thrift::metadata::metadata const& data) const override {
+  freeze(metadata::domain::metadata const& data) const override {
     auto ti = LOG_TIMED_VERBOSE;
-    auto rv = freeze_to_buffer(data);
 
-    ti << "freezing metadata to " << rv.second.size() << " bytes...";
+    using namespace metadata::serialization;
 
-    return rv;
+    // For Thrift format: Convert domain → Thrift, then freeze
+    if (format_ == SerializationFormat::THRIFT_COMPACT) {
+#ifdef DWARFS_HAVE_THRIFT
+      // Convert domain model to Thrift
+      auto thrift_data = metadata::converters::to_thrift(data);
+
+      // Freeze Thrift data
+      auto rv = freeze_to_buffer(thrift_data);
+      ti << "freezing metadata (Thrift Frozen) to " << rv.second.size() << " bytes...";
+      return rv;
+#else
+      throw std::runtime_error(
+          "Thrift format not available (build without Thrift support)");
+#endif
+    }
+
+    // For FlatBuffers format: Use facade directly with domain model
+    try {
+      // Create facade for selected format
+      auto facade = FacadeFactory::create(format_);
+
+      // Serialize domain model directly
+      auto serialized_data = facade->serialize(data);
+
+      // Modern formats don't use a separate schema
+      // Create empty schema buffer (4 zero bytes)
+      std::vector<uint8_t> empty_schema = {0, 0, 0, 0};
+      auto schema_buffer = malloc_byte_buffer::create(empty_schema);
+
+      // Data contains the full serialized metadata (with magic bytes)
+      auto data_buffer = malloc_byte_buffer::create(serialized_data);
+
+      ti << "freezing metadata (" << facade->get_format_name() << ") to "
+         << data_buffer.size() << " bytes...";
+
+      return {schema_buffer.share(), data_buffer.share()};
+
+    } catch (const std::exception& e) {
+      LOG_ERROR << "Failed to serialize metadata with format "
+                << get_format_name(format_) << ": " << e.what();
+      throw;
+    }
   }
 
  private:
   LOG_PROXY_DECL(LoggerPolicy);
+  metadata::serialization::SerializationFormat format_;
 };
 
 } // namespace
 
-metadata_freezer::metadata_freezer(logger& lgr)
+metadata_freezer::metadata_freezer(
+    logger& lgr, metadata::serialization::SerializationFormat format)
     : impl_{
           make_unique_logging_object<impl, metadata_freezer_, logger_policies>(
-              lgr)} {}
+              lgr, format)} {}
 
 metadata_freezer::~metadata_freezer() = default;
 

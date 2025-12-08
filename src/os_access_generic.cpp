@@ -29,9 +29,23 @@
 #include <cerrno>
 #include <cstdlib>
 #include <iostream>
+#include <span>
+#include <string>
+#include <string_view>
+#include <optional>
+#include <filesystem>
+#include <chrono>
+#include <memory>
+#include <cerrno>
+#include <cassert>
+#include <thread>
 
-#include <folly/portability/PThread.h>
-#include <folly/portability/Unistd.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#include <unistd.h>
+#endif
 
 #if __has_include(<boost/process/v2/environment.hpp>) && defined(DWARFS_HAVE_CLOSE_RANGE)
 #define BOOST_PROCESS_VERSION 2

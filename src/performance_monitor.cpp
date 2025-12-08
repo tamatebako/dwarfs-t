@@ -36,18 +36,16 @@
 #include <vector>
 
 #ifdef _WIN32
-#include <folly/portability/Windows.h>
 #else
 #include <sys/time.h>
 #endif
 
-#include <folly/lang/Bits.h>
-#include <folly/portability/Unistd.h>
-#include <folly/stats/Histogram.h>
 
 #include <fmt/format.h>
 #if FMT_VERSION >= 110000
 #include <fmt/ranges.h>
+
+#include <dwarfs/internal/folly_compat.h>
 #endif
 
 #include <range/v3/view/enumerate.hpp>
@@ -79,7 +77,7 @@ class single_timer {
     total_time_.fetch_add(elapsed);
 
     if ((samples_.fetch_add(1) % histogram_interval) == 0) {
-      auto log_time = folly::findLastSet(elapsed);
+      auto log_time = compat::lang::findLastSet(elapsed);
       std::lock_guard lock(log_hist_mutex_);
       log_hist_.addValue(log_time);
     }
@@ -126,7 +124,7 @@ class single_timer {
  private:
   std::atomic<uint64_t> samples_{};
   std::atomic<uint64_t> total_time_{};
-  folly::Histogram<size_t> log_hist_;
+  compat::stats::Histogram<size_t> log_hist_;
   std::mutex mutable log_hist_mutex_;
   std::string const namespace_;
   std::string const name_;

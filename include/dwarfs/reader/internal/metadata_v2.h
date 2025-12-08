@@ -43,7 +43,24 @@
 
 #include <dwarfs/reader/metadata_types.h>
 
-#include <dwarfs/reader/internal/metadata_types.h>
+// DO NOT include legacy internal/metadata_types.h - it conflicts with type aliases
+// Each backend includes its own types:
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#include <dwarfs/reader/internal/metadata_types_flatbuffers.h>
+// Import types into internal namespace for FlatBuffers-only builds
+namespace dwarfs::reader::internal {
+using chunk_range = flatbuffers_backend::chunk_range;
+}
+#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+#include <dwarfs/reader/internal/metadata_types_thrift.h>
+// Import types into internal namespace for Thrift-only builds
+namespace dwarfs::reader::internal {
+using chunk_range = thrift_backend::chunk_range;
+}
+#else
+// Dual-format:  chunk_range is forward-declared in metadata_types.h
+// Each backend will have its own chunk_range type
+#endif
 
 namespace dwarfs {
 
@@ -146,9 +163,7 @@ class metadata_v2 {
 
   void statvfs(vfs_stat* stbuf) const { impl_->statvfs(stbuf); }
 
-  chunk_range get_chunks(int inode, std::error_code& ec) const {
-    return impl_->get_chunks(inode, ec);
-  }
+  chunk_range get_chunks(int inode, std::error_code& ec) const;
 
   size_t block_size() const { return impl_->block_size(); }
 
@@ -263,6 +278,19 @@ class metadata_v2 {
 
     virtual metadata_v2_data const& internal_data() const = 0;
   };
+
+  // Friend declarations for factory functions (dual-format builds)
+  friend metadata_v2 make_metadata_v2_thrift(
+      logger& lgr, std::span<uint8_t const> schema,
+      std::span<uint8_t const> data, metadata_options const& options,
+      int inode_offset, bool force_consistency_check,
+      std::shared_ptr<performance_monitor const> const& perfmon);
+
+  friend metadata_v2 make_metadata_v2_flatbuffers(
+      logger& lgr, std::span<uint8_t const> schema,
+      std::span<uint8_t const> data, metadata_options const& options,
+      int inode_offset, bool force_consistency_check,
+      std::shared_ptr<performance_monitor const> const& perfmon);
 
  private:
   std::unique_ptr<impl> impl_;

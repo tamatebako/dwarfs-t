@@ -24,13 +24,16 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <dwarfs/reader/internal/metadata_types.h>
+#ifdef DWARFS_HAVE_THRIFT
+
+#include <dwarfs/reader/internal/metadata_types_thrift.h>
 
 #include <dwarfs/gen-cpp2/metadata_layouts.h>
 
 #include "test_logger.h"
 
 using namespace dwarfs::reader::internal;
+using namespace thrift_backend;
 using namespace dwarfs::thrift::metadata;
 using namespace apache::thrift::frozen;
 using namespace dwarfs::test;
@@ -405,3 +408,12 @@ TEST_F(global_metadata_test, check_metadata) {
 
   EXPECT_NO_THROW(check(raw));
 }
+
+#else
+
+// Thrift not available - skip all tests
+TEST(global_metadata_test, thrift_unavailable) {
+  GTEST_SKIP() << "Thrift serialization not enabled - skipping Thrift-specific metadata tests";
+}
+
+#endif // DWARFS_HAVE_THRIFT

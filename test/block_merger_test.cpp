@@ -23,6 +23,9 @@
 
 #include <gtest/gtest.h>
 
+#ifdef DWARFS_HAVE_THRIFT
+// This test uses Folly synchronization primitives (comes with Thrift)
+
 #include <atomic>
 #include <chrono>
 #include <mutex>
@@ -521,3 +524,12 @@ TEST(block_merger, random_sized_partial) {
   EXPECT_EQ(max_runs * num_repetitions, passes);
   EXPECT_TRUE(fails.empty()) << folly::join(", ", fails);
 }
+
+#else
+
+// Folly/Thrift not available - skip tests
+TEST(block_merger, folly_unavailable) {
+  GTEST_SKIP() << "Folly synchronization primitives not available (requires DWARFS_HAVE_THRIFT) - skipping block merger tests";
+}
+
+#endif // DWARFS_HAVE_THRIFT

@@ -1,0 +1,34 @@
+name: Setup DwarFS Dependencies
+description: Install build dependencies for DwarFS
+
+inputs:
+  os:
+    description: 'Operating system (ubuntu, windows, macos)'
+    required: true
+  arch:
+    description: 'Architecture (x86_64, aarch64)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Ubuntu Dependencies
+      if: inputs.os == 'ubuntu'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build \
+          libboost-all-dev libfmt-dev liblz4-dev libzstd-dev \
+          libbrotli-dev liblzma-dev libxxhash-dev
+
+    - name: macOS Dependencies
+      if: inputs.os == 'macos'
+      shell: bash
+      run: |
+        brew install cmake ninja boost fmt lz4 zstd brotli xz xxhash
+
+    - name: Windows Dependencies
+      if: inputs.os == 'windows'
+      shell: pwsh
+      run: |
+        vcpkg install boost fmt lz4 zstd brotli lzma xxhash

@@ -39,16 +39,44 @@
 #include <dwarfs/file_stat.h>
 #include <dwarfs/file_type.h>
 #include <dwarfs/reader/seek_whence.h>
+#include <dwarfs/reader/internal/metadata_view_interface.h>
+
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+// Include FlatBuffers backend types OUTSIDE any namespace to avoid nesting issues
+#include <dwarfs/reader/internal/metadata_types_flatbuffers.h>
+#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+// Include Thrift backend types OUTSIDE any namespace to avoid nesting issues
+#include <dwarfs/reader/internal/metadata_types_thrift.h>
+#else
+// Dual-format: need wrapper for value-semantic chunk_range
+#include <dwarfs/reader/internal/chunk_range_wrapper.h>
+#endif
 
 namespace dwarfs::reader {
 
 namespace internal {
 
 class metadata_v2_data;
-
-class inode_view_impl;
-class dir_entry_view_impl;
-class global_metadata;
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+// Import FlatBuffers backend types into internal namespace for FlatBuffers-only builds
+using inode_view_impl = flatbuffers_backend::inode_view_impl;
+using dir_entry_view_impl = flatbuffers_backend::dir_entry_view_impl;
+using global_metadata = flatbuffers_backend::global_metadata;
+using chunk_range = flatbuffers_backend::chunk_range;
+#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+// Import Thrift backend types into internal namespace for Thrift-only builds
+using inode_view_impl = thrift_backend::inode_view_impl;
+using dir_entry_view_impl = thrift_backend::dir_entry_view_impl;
+using global_metadata = thrift_backend::global_metadata;
+using chunk_range = thrift_backend::chunk_range;
+#else
+// Multi-format: use interface types for polymorphism
+using inode_view_impl = inode_view_interface;
+using dir_entry_view_impl = dir_entry_view_interface;
+using global_metadata = global_metadata_interface;
+// chunk_range needs value semantics, use wrapper
+using chunk_range = chunk_range_wrapper;
+#endif
 
 } // namespace internal
 

@@ -32,6 +32,96 @@ to disk:
 
     dwarfsextract -i image.dwarfs -f cpio | cpio -id
 
+## BENCHMARKING
+
+**dwarfsextract** includes a benchmark mode for measuring extraction performance
+and comparing different metadata formats (FlatBuffers vs Thrift).
+
+### Benchmark Mode
+
+Enable detailed metrics collection:
+
+```bash
+dwarfsextract --benchmark-mode -i image.dwarfs -o output/
+```
+
+### Output JSON
+
+Export metrics to JSON file for automated analysis:
+
+```bash
+dwarfsextract --benchmark-mode --output-json=metrics.json \
+    -i image.dwarfs -o output/
+```
+
+### Repeated Runs
+
+Average results over multiple runs:
+
+```bash
+dwarfsextract --benchmark-mode --repeat=10 \
+    --output-json=avg-metrics.json \
+    -i image.dwarfs -o output/
+```
+
+### Metrics Collected
+
+When benchmark mode is enabled, the following metrics are collected:
+
+- **metadata_load_time**: Time to load and parse filesystem metadata (microseconds)
+- **extraction_time**: Total extraction time (microseconds)
+- **bytes_extracted**: Total bytes written to disk
+- **files_extracted**: Number of regular files extracted
+- **directories_extracted**: Number of directories created
+- **symlinks_extracted**: Number of symbolic links created
+- **hard_errors**: Number of fatal extraction errors
+- **soft_errors**: Number of recoverable errors
+
+### JSON Output Format
+
+```json
+{
+  "image": "path/to/image.dwarfs",
+  "repeat_count": 3,
+  "runs": [
+    {
+      "metadata_load_us": 8234,
+      "extraction_time_us": 180543,
+      "bytes_extracted": 1024000,
+      "files_extracted": 42,
+      "directories_extracted": 5,
+      "symlinks_extracted": 2,
+      "hard_errors": 0,
+      "soft_errors": 0
+    }
+  ]
+}
+```
+
+### Format Comparison
+
+To compare FlatBuffers and Thrift metadata formats:
+
+```bash
+# Extract from FlatBuffers image
+dwarfsextract --benchmark-mode --repeat=5 \
+    --output-json=fb-metrics.json \
+    -i image-flatbuffers.dwarfs -o /tmp/extract-fb/
+
+# Extract from Thrift image
+dwarfsextract --benchmark-mode --repeat=5 \
+    --output-json=th-metrics.json \
+    -i image-thrift.dwarfs -o /tmp/extract-th/
+
+# Compare results
+python benchmarks/run_format_comparison.py \
+    --flatbuffers-json=fb-metrics.json \
+    --thrift-json=th-metrics.json \
+    --output=comparison.md
+```
+
+See `benchmarks/run_format_comparison.py` for automated comparison tools.
+
 ## OPTIONS
 
 - `-i`, `--input=`*file*:

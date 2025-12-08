@@ -26,17 +26,17 @@
 #include <mutex>
 #include <optional>
 #include <vector>
+#include <memory>
 
-#include <dwarfs/gen-cpp2/metadata_types.h>
+#include <dwarfs/metadata/domain/chunk.h>
 #include <dwarfs/writer/fragment_category.h>
-
 #include <dwarfs/writer/internal/inode_hole_mapper.h>
 
 namespace dwarfs::writer::internal {
 
 class block_manager {
  public:
-  using chunk_type = thrift::metadata::chunk;
+  using chunk_type = metadata::domain::chunk;
 
   size_t get_logical_block() const;
   void set_written_block(size_t logical_block, size_t written_block,

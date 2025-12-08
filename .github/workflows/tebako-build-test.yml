@@ -1,5 +1,8 @@
 name: Tebako Build Test
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:

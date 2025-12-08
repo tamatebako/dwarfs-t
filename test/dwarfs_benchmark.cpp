@@ -21,6 +21,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#ifdef DWARFS_HAVE_THRIFT
+// This benchmark uses Thrift Frozen utilities
+
 #include <fstream>
 #include <sstream>
 
@@ -782,3 +785,20 @@ BENCHMARK_REGISTER_F(filesystem_walk, walk_data_order)
     ->Unit(benchmark::kMillisecond);
 
 BENCHMARK_MAIN();
+
+#else
+
+#include <benchmark/benchmark.h>
+
+// Thrift not available - provide empty benchmark
+static void BM_thrift_unavailable(benchmark::State& state) {
+  for (auto _ : state) {
+    // Skip - Thrift benchmarks require DWARFS_HAVE_THRIFT
+  }
+}
+
+BENCHMARK(BM_thrift_unavailable);
+
+BENCHMARK_MAIN();
+
+#endif // DWARFS_HAVE_THRIFT

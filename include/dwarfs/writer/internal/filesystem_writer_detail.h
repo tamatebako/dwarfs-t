@@ -32,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-#include <folly/Function.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <dwarfs/block_compressor.h>
 #include <dwarfs/byte_buffer.h>
@@ -57,7 +57,7 @@ struct block_compression_info {
   std::optional<compression_constraints> constraints;
 };
 
-using delayed_data_fn_type = folly::Function<
+using delayed_data_fn_type = compat::Function<
     std::pair<shared_byte_buffer, std::optional<std::string>>()>;
 
 class filesystem_writer_detail {

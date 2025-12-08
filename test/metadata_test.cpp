@@ -20,10 +20,16 @@
  */
 
 #include <array>
+#include <chrono>
 #include <string_view>
+#include <sstream>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <dwarfs/writer/metadata_options.h>
+
+#ifdef DWARFS_HAVE_THRIFT
 
 #include <thrift/lib/cpp2/debug_thrift_data_difference/debug.h>
 #include <thrift/lib/cpp2/debug_thrift_data_difference/diff.h>
@@ -52,8 +58,8 @@
 #include <dwarfs/writer/internal/metadata_builder.h>
 #include <dwarfs/writer/internal/metadata_freezer.h>
 
-// #include <dwarfs/gen-cpp2/metadata_types.h>
 #include <dwarfs/gen-cpp2/metadata_types_custom_protocol.h>
+#include <dwarfs/metadata/converters/domain_thrift_converter.h>
 
 #include "loremipsum.h"
 #include "mmap_mock.h"
@@ -83,8 +89,21 @@ auto rebuild_metadata(logger& lgr, thrift::metadata::metadata const& md,
                       filesystem_version const& fs_version,
                       writer::metadata_options const& options) {
   using namespace writer::internal;
+  using namespace metadata::converters;
+
+  // Convert Thrift to domain model
+  auto domain_md = from_thrift(md);
+
+  // Convert fs_options if provided
+  metadata::domain::fs_options const* domain_fs_opts = nullptr;
+  std::optional<metadata::domain::fs_options> converted_opts;
+  if (fs_options) {
+    converted_opts = from_thrift(*fs_options);
+    domain_fs_opts = &converted_opts.value();
+  }
+
   return metadata_freezer(lgr).freeze(
-      metadata_builder(lgr, md, fs_options, fs_version, options).build());
+      metadata_builder(lgr, std::move(domain_md), domain_fs_opts, fs_version, options).build());
 }
 
 template <typename T>
@@ -194,6 +213,15 @@ TEST_F(metadata_test, basic) {
   }
 }
 
+#else
+
+TEST(metadata_test, thrift_unavailable) {
+  GTEST_SKIP() << "Thrift not enabled - skipping Thrift metadata rebuild tests";
+}
+
+#endif // DWARFS_HAVE_THRIFT
+
+// This test is format-agnostic - keep it outside the guard
 TEST(metadata_options, output_stream) {
   using namespace dwarfs::writer;
 

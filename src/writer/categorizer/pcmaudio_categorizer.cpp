@@ -37,8 +37,10 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include <folly/Synchronized.h>
-#include <folly/lang/Bits.h>
+#include <dwarfs/internal/folly_compat.h>
+
+
+
 
 #include <dwarfs/error.h>
 #include <dwarfs/logger.h>
@@ -218,7 +220,7 @@ template <>
 struct endian<endianness::BIG> {
   template <typename T>
   static T convert(T x) {
-    return folly::Endian::big(x);
+    return compat::endian::big(x);
   }
 };
 
@@ -226,7 +228,7 @@ template <>
 struct endian<endianness::LITTLE> {
   template <typename T>
   static T convert(T x) {
-    return folly::Endian::little(x);
+    return compat::endian::little(x);
   }
 };
 
@@ -344,7 +346,7 @@ class iff_parser final {
     if (actual_size != expected_size) {
       if (ChunkPolicy::alignment == 1 || align(actual_size) != expected_size) {
         LOG_VERBOSE << "[" << ChunkPolicy::format_name << "] " << path_
-                    << ": unexpected " << which << " size: " << actual_size
+                    <<": unexpected " << which << " size: " << actual_size
                     << " (expected " << expected_size << ")";
         return false;
       }
@@ -541,7 +543,7 @@ class pcmaudio_categorizer_ final : public pcmaudio_categorizer_base {
     if (category_name == WAVEFORM_CATEGORY) {
       DWARFS_CHECK(c.has_subcategory(),
                    "expected PCMAUDIO to have subcategory");
-      return meta_.rlock()->lookup(c.subcategory());
+      return meta_.withRLock([&](auto const& store) { return store.lookup(c.subcategory()); });
     }
     return {};
   }
@@ -581,7 +583,7 @@ class pcmaudio_categorizer_ final : public pcmaudio_categorizer_base {
                      file_off_t pcm_start, file_size_t pcm_length) const;
 
   LOG_PROXY_DECL(LoggerPolicy);
-  folly::Synchronized<pcmaudio_metadata_store, std::shared_mutex> mutable meta_;
+  compat::Synchronized<pcmaudio_metadata_store> mutable meta_;
   compression_metadata_requirements<pcmaudio_metadata> waveform_req_;
 };
 
@@ -647,7 +649,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_aiff(
     return false;
   }
 
-  file_header.size = folly::Endian::big(file_header.size);
+  file_header.size = compat::endian::big(file_header.size);
 
   parser.check_size("file", file_header.size,
                     mm.size() - offsetof(file_hdr_t, form));
@@ -675,10 +677,10 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_aiff(
       meta.sample_endianness = endianness::BIG;
       meta.sample_signedness = signedness::SIGNED;
       meta.sample_padding = padding::LSB;
-      meta.bits_per_sample = folly::Endian::big(comm.sample_size);
+      meta.bits_per_sample = compat::endian::big(comm.sample_size);
       meta.bytes_per_sample = (meta.bits_per_sample + 7) / 8;
-      meta.number_of_channels = folly::Endian::big(comm.num_chan);
-      num_sample_frames = folly::Endian::big(comm.num_sample_frames);
+      meta.number_of_channels = compat::endian::big(comm.num_chan);
+      num_sample_frames = compat::endian::big(comm.num_sample_frames);
 
       meta_valid = check_metadata(meta, "AIFF", path);
 
@@ -697,8 +699,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_aiff(
         return false;
       }
 
-      ssnd.offset = folly::Endian::big(ssnd.offset);
-      ssnd.block_size = folly::Endian::big(ssnd.block_size);
+      ssnd.offset = compat::endian::big(ssnd.offset);
+      ssnd.block_size = compat::endian::big(ssnd.block_size);
 
       file_off_t pcm_start =
           chunk->pos + sizeof(chunk_hdr_t) + sizeof(ssnd) + ssnd.offset;
@@ -788,8 +790,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
     return false;
   }
 
-  caff_hdr.version = folly::Endian::big(caff_hdr.version);
-  caff_hdr.flags = folly::Endian::big(caff_hdr.flags);
+  caff_hdr.version = compat::endian::big(caff_hdr.version);
+  caff_hdr.flags = compat::endian::big(caff_hdr.flags);
 
   if (caff_hdr.version != 1 || caff_hdr.flags != 0) {
     LOG_WARN << "[CAF] " << path
@@ -824,7 +826,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
         return false;
       }
 
-      fmt.format_flags = folly::Endian::big(fmt.format_flags);
+      fmt.format_flags = compat::endian::big(fmt.format_flags);
 
       if (fmt.format_flags & kCAFLinearPCMFormatFlagIsFloat) {
         LOG_VERBOSE << "[CAF] " << path
@@ -832,7 +834,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
         return false;
       }
 
-      fmt.frames_per_packet = folly::Endian::big(fmt.frames_per_packet);
+      fmt.frames_per_packet = compat::endian::big(fmt.frames_per_packet);
 
       if (fmt.frames_per_packet != 1) {
         LOG_WARN << "[CAF] " << path << ": unsupported frames per packet: "
@@ -840,7 +842,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
         return false;
       }
 
-      fmt.bytes_per_packet = folly::Endian::big(fmt.bytes_per_packet);
+      fmt.bytes_per_packet = compat::endian::big(fmt.bytes_per_packet);
 
       meta.sample_endianness =
           (fmt.format_flags & kCAFLinearPCMFormatFlagIsLittleEndian)
@@ -848,8 +850,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
               : endianness::BIG;
       meta.sample_signedness = signedness::SIGNED;
       meta.sample_padding = padding::LSB;
-      meta.bits_per_sample = folly::Endian::big(fmt.bits_per_channel);
-      meta.number_of_channels = folly::Endian::big(fmt.channels_per_frame);
+      meta.bits_per_sample = compat::endian::big(fmt.bits_per_channel);
+      meta.number_of_channels = compat::endian::big(fmt.channels_per_frame);
 
       if (fmt.bytes_per_packet == 0) {
         LOG_WARN << "[CAF] " << path << ": bytes per packet must not be zero";
@@ -973,7 +975,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_wav_like(
     return false;
   }
 
-  file_header.size = folly::Endian::little(file_header.size);
+  file_header.size = compat::endian::little(file_header.size);
 
   if (file_header.form_sv() != FormatPolicy::wave_id) {
     return false;
@@ -1016,12 +1018,12 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_wav_like(
         return false;
       }
 
-      fmt.format_code = folly::Endian::little(fmt.format_code);
-      fmt.num_channels = folly::Endian::little(fmt.num_channels);
-      fmt.samples_per_sec = folly::Endian::little(fmt.samples_per_sec);
-      fmt.avg_bytes_per_sec = folly::Endian::little(fmt.avg_bytes_per_sec);
-      fmt.block_align = folly::Endian::little(fmt.block_align);
-      fmt.bits_per_sample = folly::Endian::little(fmt.bits_per_sample);
+      fmt.format_code = compat::endian::little(fmt.format_code);
+      fmt.num_channels = compat::endian::little(fmt.num_channels);
+      fmt.samples_per_sec = compat::endian::little(fmt.samples_per_sec);
+      fmt.avg_bytes_per_sec = compat::endian::little(fmt.avg_bytes_per_sec);
+      fmt.block_align = compat::endian::little(fmt.block_align);
+      fmt.bits_per_sample = compat::endian::little(fmt.bits_per_sample);
 
       bool const is_extensible =
           chunk->size() == 40 &&
@@ -1029,8 +1031,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_wav_like(
 
       if (is_extensible) {
         fmt.valid_bits_per_sample =
-            folly::Endian::little(fmt.valid_bits_per_sample);
-        fmt.sub_format_code = folly::Endian::little(fmt.sub_format_code);
+            compat::endian::little(fmt.valid_bits_per_sample);
+        fmt.sub_format_code = compat::endian::little(fmt.sub_format_code);
       } else {
         fmt.sub_format_code = 0;
       }
@@ -1138,7 +1140,8 @@ void pcmaudio_categorizer_<LoggerPolicy>::add_fragments(
     inode_fragments& frag, category_mapper const& mapper,
     pcmaudio_metadata const& meta, file_size_t total_size, file_off_t pcm_start,
     file_size_t pcm_length) const {
-  fragment_category::value_type subcategory = meta_.wlock()->add(meta);
+  fragment_category::value_type subcategory =
+      meta_.withWLock([&](auto& store) { return store.add(meta); });
 
   frag.emplace_back(fragment_category(mapper(METADATA_CATEGORY)), pcm_start);
   frag.emplace_back(fragment_category(mapper(WAVEFORM_CATEGORY), subcategory),
@@ -1193,7 +1196,9 @@ void pcmaudio_categorizer_<LoggerPolicy>::set_metadata_requirements(
 template <typename LoggerPolicy>
 bool pcmaudio_categorizer_<LoggerPolicy>::subcategory_less(
     fragment_category a, fragment_category b) const {
-  return meta_.rlock()->less(a.subcategory(), b.subcategory());
+  return meta_.withRLock([&](auto const& store) {
+    return store.less(a.subcategory(), b.subcategory());
+  });
 }
 
 class pcmaudio_categorizer_factory : public categorizer_factory {
@@ -1208,8 +1213,9 @@ class pcmaudio_categorizer_factory : public categorizer_factory {
   std::unique_ptr<categorizer>
   create(logger& lgr, po::variables_map const& /*vm*/,
          std::shared_ptr<file_access const> const& /*fa*/) const override {
-    return make_unique_logging_object<categorizer, pcmaudio_categorizer_,
-                                      logger_policies>(lgr);
+    auto result = make_unique_logging_object<categorizer, pcmaudio_categorizer_,
+                                             logger_policies>(lgr);
+    return std::move(result);
   }
 
  private:

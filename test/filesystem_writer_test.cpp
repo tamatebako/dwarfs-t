@@ -86,7 +86,7 @@ TEST(filesystem_writer, compression_metadata_requirements) {
           "'bits_per_sample'")));
 #endif
 
-#ifdef DWARFS_HAVE_RICEPP
+#if defined(DWARFS_HAVE_RICEPP) && defined(DWARFS_HAVE_THRIFT)
   block_compressor bcrice("ricepp");
 
   EXPECT_THAT(

@@ -65,14 +65,19 @@ set(CMAKE_DISABLE_FIND_PACKAGE_Libsodium ON)
 set(CMAKE_DISABLE_FIND_PACKAGE_LibDwarf ON)
 
 if(NOT PREFER_SYSTEM_FAST_FLOAT)
-  set(FASTFLOAT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/fast_float)
+  # Set FASTFLOAT_INCLUDE_DIR in cache before folly's find_package runs
+  # find_path will use cached value if it exists and is valid
+  set(FASTFLOAT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/fast_float" CACHE PATH "fast_float include directory")
 endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/folly EXCLUDE_FROM_ALL SYSTEM)
 
 if(NOT PREFER_SYSTEM_FAST_FLOAT)
+  # fast_float was added to folly_deps, but CMake doesn't allow source paths in INTERFACE properties
+  # Solution: Remove absolute path, add as BUILD_INTERFACE generator expression instead
   get_target_property(_tmpdirs folly_deps INTERFACE_INCLUDE_DIRECTORIES)
   list(REMOVE_ITEM _tmpdirs "${CMAKE_CURRENT_SOURCE_DIR}/fast_float")
+  list(APPEND _tmpdirs "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fast_float>")
   set_target_properties(folly_deps PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${_tmpdirs}")
 endif()
 

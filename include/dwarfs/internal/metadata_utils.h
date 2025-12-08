@@ -23,10 +23,16 @@
 
 #include <cstdint>
 
+#ifdef DWARFS_HAVE_THRIFT
 #include <thrift/lib/cpp2/frozen/FrozenUtil.h>
 
 #include <dwarfs/gen-cpp2/metadata_layouts.h>
 #include <dwarfs/gen-cpp2/metadata_types.h>
+#endif
+
+#ifdef DWARFS_HAVE_FLATBUFFERS
+#include <dwarfs/gen-flatbuffers/metadata.h>
+#endif
 
 namespace dwarfs::internal {
 
@@ -42,11 +48,32 @@ enum class inode_rank {
 
 inode_rank get_inode_rank(uint32_t mode);
 
+#ifdef DWARFS_HAVE_THRIFT
 size_t find_inode_rank_offset(
     ::apache::thrift::frozen::Layout<thrift::metadata::metadata>::View meta,
     inode_rank rank);
 
 size_t
 find_inode_rank_offset(thrift::metadata::metadata const& meta, inode_rank rank);
+#endif
 
+} // namespace dwarfs::internal
+
+#ifdef DWARFS_HAVE_FLATBUFFERS
+// FlatBuffers support - declare outside the internal namespace
+// The generated header must be included before using this function
+namespace dwarfs::internal {
+size_t find_inode_rank_offset(::dwarfs::flatbuffers::Metadata const& meta,
+                               inode_rank rank);
+} // namespace dwarfs::internal
+#endif
+
+// Domain model support (always available)
+namespace dwarfs::metadata::domain {
+class metadata;
+}
+
+namespace dwarfs::internal {
+size_t find_inode_rank_offset(metadata::domain::metadata const& meta,
+                               inode_rank rank);
 } // namespace dwarfs::internal

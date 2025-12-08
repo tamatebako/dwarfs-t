@@ -20,6 +20,7 @@
  */
 
 #include <algorithm>
+#include <map>
 
 #include <boost/range/irange.hpp>
 
@@ -29,13 +30,21 @@
 #include <dwarfs/file_type.h>
 
 #include <dwarfs/internal/metadata_utils.h>
+#include <dwarfs/metadata/domain/metadata.h>
 
+#ifdef DWARFS_HAVE_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
+#endif
+
+#ifdef DWARFS_HAVE_FLATBUFFERS
+#include <dwarfs/gen-flatbuffers/metadata.h>
+#endif
 
 namespace dwarfs::internal {
 
 namespace {
 
+#if defined(DWARFS_HAVE_THRIFT) || defined(DWARFS_HAVE_FLATBUFFERS)
 size_t find_inode_rank_offset_impl(inode_rank rank, size_t size,
                                    auto&& get_inode_mode) {
   auto range = boost::irange<size_t>(0, size);
@@ -47,6 +56,7 @@ size_t find_inode_rank_offset_impl(inode_rank rank, size_t size,
 
   return *it;
 }
+#endif
 
 } // namespace
 
@@ -70,6 +80,7 @@ inode_rank get_inode_rank(uint32_t mode) {
   }
 }
 
+#ifdef DWARFS_HAVE_THRIFT
 size_t find_inode_rank_offset(
     ::apache::thrift::frozen::Layout<thrift::metadata::metadata>::View meta,
     inode_rank rank) {
@@ -105,6 +116,89 @@ size_t find_inode_rank_offset(thrift::metadata::metadata const& meta,
       rank, meta.entry_table_v2_2()->size(), [&](auto inode) {
         return get_mode(meta.entry_table_v2_2().value().at(inode));
       });
+}
+#endif
+
+#ifdef DWARFS_HAVE_FLATBUFFERS
+size_t find_inode_rank_offset(::dwarfs::flatbuffers::Metadata const& meta,
+                               inode_rank rank) {
+  auto modes = meta.modes();
+  auto inodes = meta.inodes();
+
+  if (!modes || !inodes) {
+    return 0;
+  }
+
+  auto get_mode = [&](auto index) -> uint32_t {
+    if (index < inodes->size()) {
+      auto inode = inodes->Get(index);
+      if (inode && inode->mode_index() < modes->size()) {
+        return modes->Get(inode->mode_index());
+      }
+    }
+    return 0;
+  };
+
+  if (meta.dir_entries()) {
+    return find_inode_rank_offset_impl(
+        rank, inodes->size(),
+        [&](auto inode) { return get_mode(inode); });
+  }
+
+  auto entry_table = meta.entry_table_v2_2();
+  if (entry_table) {
+    return find_inode_rank_offset_impl(
+        rank, entry_table->size(),
+        [&](auto inode) {
+          if (inode < entry_table->size()) {
+            return get_mode(entry_table->Get(inode));
+          }
+          return uint32_t{0};
+        });
+  }
+
+  return 0;
+}
+#endif
+
+// Domain model support (always available)
+size_t find_inode_rank_offset(metadata::domain::metadata const& meta,
+                               inode_rank rank) {
+  auto const& modes = meta.modes;
+  auto const& inodes = meta.inodes;
+
+  if (modes.empty() || inodes.empty()) {
+    return 0;
+  }
+
+  auto get_mode = [&](auto index) -> uint32_t {
+    if (index < inodes.size()) {
+      auto const& inode = inodes[index];
+      if (inode.mode_index < modes.size()) {
+        return modes[inode.mode_index];
+      }
+    }
+    return 0;
+  };
+
+  if (meta.dir_entries.has_value()) {
+    return find_inode_rank_offset_impl(
+        rank, inodes.size(),
+        [&](auto inode) { return get_mode(inode); });
+  }
+
+  if (!meta.entry_table_v2_2.empty()) {
+    return find_inode_rank_offset_impl(
+        rank, meta.entry_table_v2_2.size(),
+        [&](auto inode) {
+          if (inode < meta.entry_table_v2_2.size()) {
+            return get_mode(meta.entry_table_v2_2[inode]);
+          }
+          return uint32_t{0};
+        });
+  }
+
+  return 0;
 }
 
 } // namespace dwarfs::internal

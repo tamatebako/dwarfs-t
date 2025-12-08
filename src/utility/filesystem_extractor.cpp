@@ -36,7 +36,6 @@
 // This is required to avoid Windows.h being pulled in by libarchive
 // and polluting our environment with all sorts of shit.
 #ifdef _WIN32
-#include <folly/portability/Windows.h>
 #endif
 
 #include <archive.h>
@@ -47,10 +46,7 @@
 #include <fmt/ranges.h>
 #endif
 
-#include <folly/ExceptionString.h>
-#include <folly/portability/Fcntl.h>
-#include <folly/portability/Unistd.h>
-#include <folly/system/ThreadName.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <dwarfs/config.h>
 #include <dwarfs/counting_semaphore.h>
@@ -126,7 +122,9 @@ class filesystem_extractor_ final : public filesystem_extractor::impl {
                                  std::shared_ptr<file_access const> fa)
       : LOG_PROXY_INIT(lgr)
       , os_{os}
-      , fa_{std::move(fa)} {}
+      , fa_{std::move(fa)} {
+    reset_metrics();
+  }
 
   ~filesystem_extractor_() override {
     try {
@@ -209,7 +207,13 @@ class filesystem_extractor_ final : public filesystem_extractor::impl {
   void close() override {
     if (a_) {
       LOG_DEBUG << "closing archive";
-      check_result(::archive_write_close(a_));
+      try {
+        check_result(::archive_write_close(a_));
+      } catch (archive_error const& e) {
+        LOG_ERROR << "archive_write_close() failed: " << e.what();
+        LOG_ERROR << "  Error location: " << __FILE__ << ":" << __LINE__;
+        throw;
+      }
       LOG_TRACE << "freeing archive";
       ::archive_write_free(a_);
       a_ = nullptr;
@@ -231,6 +235,15 @@ class filesystem_extractor_ final : public filesystem_extractor::impl {
   bool
   extract(reader::filesystem_v2_lite const& fs, glob_matcher const* matcher,
           filesystem_extractor_options const& opts) override;
+
+  void enable_metrics(bool enable) override { metrics_enabled_ = enable; }
+
+  extraction_metrics const& get_metrics() const override { return metrics_; }
+
+  void reset_metrics() override {
+    metrics_ = extraction_metrics{};
+    metrics_start_time_ = std::chrono::steady_clock::now();
+  }
 
  private:
   static la_ssize_t on_stream_write(struct archive* /*a*/, void* client_data,
@@ -294,7 +307,7 @@ class filesystem_extractor_ final : public filesystem_extractor::impl {
   }
 
   void pump(std::ostream& os, int fd) {
-    folly::setThreadName("pump");
+    compat::system::setThreadName("pump");
 
     std::array<char, 1024> buf;
 
@@ -341,6 +354,9 @@ class filesystem_extractor_ final : public filesystem_extractor::impl {
   std::array<int, 2> pipefd_{-1, -1};
   std::unique_ptr<std::thread> iot_;
   sparse_file_mode sparse_mode_{sparse_file_mode::auto_detect};
+  bool metrics_enabled_{false};
+  extraction_metrics metrics_;
+  std::chrono::steady_clock::time_point metrics_start_time_;
 };
 
 template <typename LoggerPolicy>
@@ -348,6 +364,15 @@ bool filesystem_extractor_<LoggerPolicy>::extract(
     reader::filesystem_v2_lite const& fs, glob_matcher const* matcher,
     filesystem_extractor_options const& opts) {
   DWARFS_CHECK(a_, "filesystem not opened");
+
+  auto const extraction_start = std::chrono::steady_clock::now();
+
+  if (metrics_enabled_) {
+    auto const metadata_load_time = extraction_start - metrics_start_time_;
+    metrics_.metadata_load_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            metadata_load_time);
+  }
 
   auto sparse_mode = sparse_mode_;
 
@@ -379,6 +404,9 @@ bool filesystem_extractor_<LoggerPolicy>::extract(
   std::atomic<size_t> hard_error{0};
   std::atomic<size_t> soft_error{0};
   std::atomic<uint64_t> bytes_written{0};
+  std::atomic<size_t> files_extracted{0};
+  std::atomic<size_t> directories_extracted{0};
+  std::atomic<size_t> symlinks_extracted{0};
   uint64_t const bytes_total{vfs.blocks};
 
   auto do_archive =
@@ -388,8 +416,10 @@ bool filesystem_extractor_<LoggerPolicy>::extract(
 
         if (auto const size = ::archive_entry_size(ae.get());
             entry.is_regular_file() && size > 0) {
+          std::error_code fr_ec;
           reader::detail::file_reader fr(fs, entry);
 
+          LOG_TRACE << "Getting extents for " << ::archive_entry_pathname(ae.get());
           auto extents = fr.extents();
           std::vector<file_range> data_ranges;
 
@@ -400,12 +430,16 @@ bool filesystem_extractor_<LoggerPolicy>::extract(
             }
           }
 
+          LOG_TRACE << "Reading " << data_ranges.size() << " data ranges for "
+                   << ::archive_entry_pathname(ae.get());
+
           archiver.add_job([this, &hard_error, &soft_error, &opts,
                             extents = std::move(extents),
                             ranges = fr.read_sequential(data_ranges, sem,
                                                         opts.max_queued_bytes),
                             ae = std::move(ae), size, &sparse_mode,
-                            &bytes_written, bytes_total]() mutable {
+                            &bytes_written, &files_extracted,
+                            bytes_total]() mutable {
             try {
               assert(ae);
 
@@ -483,6 +517,10 @@ bool filesystem_extractor_<LoggerPolicy>::extract(
               }
 
               assert(extents.empty());
+
+              if (metrics_enabled_) {
+                ++files_extracted;
+              }
             } catch (archive_error const& e) {
               LOG_ERROR << exception_str(e);
               ++hard_error;
@@ -563,9 +601,29 @@ bool filesystem_extractor_<LoggerPolicy>::extract(
     auto stat = fs.getattr(inode);
 
 #ifdef _WIN32
-    ::archive_entry_copy_pathname_w(ae, entry.wpath().c_str());
+    auto wpath_str = entry.wpath();
+    if (wpath_str.empty()) {
+      LOG_DEBUG << "Skipping entry with empty path (inode " << inode.inode_num()
+                << ", name='" << (entry.is_root() ? "<root>" : "?") << "'"
+                << ", is_root=" << entry.is_root() << ")";
+      ::archive_entry_free(ae);
+      return;
+    }
+    ::archive_entry_copy_pathname_w(ae, wpath_str.c_str());
 #else
-    ::archive_entry_copy_pathname(ae, entry.path().c_str());
+    // Use unix_path() instead of path() to get forward-slash paths
+    auto path_str = entry.unix_path();
+    if (path_str.empty()) {
+      // Empty path is expected only for root directory
+      if (!entry.is_root()) {
+        LOG_ERROR << "Non-root entry has empty path! inode=" << inode.inode_num()
+                  << ", is_directory=" << inode.is_directory();
+      }
+      LOG_DEBUG << "Skipping entry with empty path (inode " << inode.inode_num() << ")";
+      ::archive_entry_free(ae);
+      return;
+    }
+    ::archive_entry_copy_pathname(ae, path_str.c_str());
 #endif
 
     stat.ensure_valid(file_stat::all_valid);
@@ -611,6 +669,14 @@ bool filesystem_extractor_<LoggerPolicy>::extract(
 
     if (ae) {
       do_archive(shared_entry_ptr(ae), inode);
+
+      if (metrics_enabled_) {
+        if (inode.is_directory()) {
+          ++directories_extracted;
+        } else if (inode.is_symlink()) {
+          ++symlinks_extracted;
+        }
+      }
     }
 
     if (sparse) {
@@ -624,6 +690,23 @@ bool filesystem_extractor_<LoggerPolicy>::extract(
   });
 
   archiver.wait();
+
+  if (metrics_enabled_) {
+    auto const extraction_end = std::chrono::steady_clock::now();
+    auto const total_time = extraction_end - extraction_start;
+    metrics_.extraction_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(total_time);
+    metrics_.bytes_extracted = bytes_written;
+    metrics_.files_extracted = files_extracted;
+    metrics_.directories_extracted = directories_extracted;
+    metrics_.symlinks_extracted = symlinks_extracted;
+    metrics_.hard_errors = hard_error;
+    metrics_.soft_errors = soft_error;
+    // TODO: Get block cache stats from filesystem
+    metrics_.blocks_decompressed = 0;
+    metrics_.cache_hits = 0;
+    metrics_.cache_misses = 0;
+  }
 
   if (hard_error) {
     DWARFS_THROW(runtime_error, "extraction aborted");

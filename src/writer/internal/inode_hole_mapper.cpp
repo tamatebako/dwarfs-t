@@ -25,10 +25,9 @@
 
 #include <dwarfs/bits.h>
 #include <dwarfs/metadata_defs.h>
+#include <dwarfs/metadata/domain/chunk.h>
 
 #include <dwarfs/writer/internal/inode_hole_mapper.h>
-
-#include <dwarfs/gen-cpp2/metadata_types.h>
 
 namespace dwarfs::writer::internal {
 
@@ -53,32 +52,32 @@ inode_hole_mapper::inode_hole_mapper(size_t hole_block_index, size_t block_size,
   assert(std::has_single_bit(block_size));
 }
 
-void inode_hole_mapper::map_hole(dwarfs::thrift::metadata::chunk& out,
+void inode_hole_mapper::map_hole(dwarfs::metadata::domain::chunk& out,
                                  file_size_t const size) {
   auto const size64 = static_cast<uint64_t>(size);
   uint64_t offset = size64 & ((UINT64_C(1) << block_size_bits_) - 1);
 
   ++hole_count_;
 
-  out.block() = hole_block_index_;
+  out.set_block(hole_block_index_);
 
   if (size64 <= inline_hole_size_limit_ && offset != kChunkOffsetIsLargeHole) {
-    out.offset() = offset;
-    out.size() = size64 >> block_size_bits_;
+    out.set_offset(offset);
+    out.set_size(size64 >> block_size_bits_);
   } else {
-    out.offset() = kChunkOffsetIsLargeHole;
+    out.set_offset(kChunkOffsetIsLargeHole);
     auto [it, inserted] =
         large_hole_size_map_.emplace(size64, large_hole_sizes_.size());
     if (inserted) {
       large_hole_sizes_.push_back(size64);
     }
-    out.size() = it->second;
+    out.set_size(it->second);
   }
 }
 
 bool inode_hole_mapper::is_hole(
-    dwarfs::thrift::metadata::chunk const& chk) const {
-  return chk.block().value() == hole_block_index_;
+    dwarfs::metadata::domain::chunk const& chk) const {
+  return chk.block() == hole_block_index_;
 }
 
 } // namespace dwarfs::writer::internal

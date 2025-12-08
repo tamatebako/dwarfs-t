@@ -510,10 +510,14 @@ class filesystem_v2 final : public filesystem_v2_lite {
 
   history const& get_history() const;
 
+#ifdef DWARFS_HAVE_THRIFT
+  // Thrift export methods - only available when Thrift support compiled
+  // When enabled: binary can read BOTH Thrift and FlatBuffers images
+  // Metadata layer handles format detection and conversion transparently
   std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const;
   std::unique_ptr<thrift::metadata::metadata> unpacked_metadata() const;
-
   std::unique_ptr<thrift::metadata::fs_options> thawed_fs_options() const;
+#endif
 
   std::future<block_range>
   read_raw_block_data(size_t block_no, size_t offset, size_t size) const;
@@ -529,12 +533,16 @@ class filesystem_v2 final : public filesystem_v2_lite {
     virtual std::string serialize_metadata_as_json(bool simple) const = 0;
     virtual std::optional<file_extents_iterable> header() const = 0;
     virtual history const& get_history() const = 0;
-    virtual std::unique_ptr<thrift::metadata::metadata>
-    thawed_metadata() const = 0;
-    virtual std::unique_ptr<thrift::metadata::metadata>
-    unpacked_metadata() const = 0;
-    virtual std::unique_ptr<thrift::metadata::fs_options>
-    thawed_fs_options() const = 0;
+    
+#ifdef DWARFS_HAVE_THRIFT
+    // Thrift export capabilities - only available when Thrift support compiled
+    // Follows Interface Segregation Principle: export is separate concern from core operations
+    // When DWARFS_HAVE_THRIFT defined: binary supports BOTH Thrift and FlatBuffers images
+    virtual std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const = 0;
+    virtual std::unique_ptr<thrift::metadata::metadata> unpacked_metadata() const = 0;
+    virtual std::unique_ptr<thrift::metadata::fs_options> thawed_fs_options() const = 0;
+#endif
+    
     virtual std::future<block_range>
     read_raw_block_data(size_t block, size_t offset, size_t size) const = 0;
   };

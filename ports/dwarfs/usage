@@ -1,0 +1,7 @@
+The package dwarfs provides command-line tools:
+  - mkdwarfs      - Create DwarFS filesystem images
+  - dwarfsck      - Check and inspect DwarFS images  
+  - dwarfsextract - Extract files from DwarFS images
+  - dwarfs        - Mount DwarFS images (with 'fuse' feature)
+
+Tools are installed to ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/dwarfs/

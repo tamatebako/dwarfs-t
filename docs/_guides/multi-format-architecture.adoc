@@ -1,0 +1,504 @@
+= Multi-Format Metadata Serialization Architecture
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+
+== Overview
+
+DwarFS v0.16.0 introduces a flexible multi-format metadata serialization architecture that supports two serialization formats for filesystem metadata:
+
+* **FlatBuffers** - Modern default format (header-only, memory-mappable)
+* **Thrift Frozen2** - Legacy format (compact, memory-mappable, requires Folly + fbthrift)
+
+This architecture uses the **Strategy Pattern** to provide clean separation between the format-agnostic domain model and format-specific serialization implementations.
+
+== Why Multiple Formats?
+
+=== The Problem
+
+The original DwarFS was tightly coupled with Apache Thrift (Facebook Thrift) and the Folly library. This created significant challenges:
+
+* **Build complexity**: Thrift and Folly are difficult to build on many platforms
+* **Platform limitations**: Not available on Windows, older macOS versions, various architectures
+* **Static linking issues**: Incompatible with Tebako and other static linking scenarios
+* **Compilation time**: Full Folly + fbthrift adds 10-15 minutes to build time
+
+=== The Solution
+
+v0.16.0 makes Thrift **optional** by:
+
+1. Extracting a **format-agnostic domain model** (`metadata::domain::metadata`)
+2. Implementing **multiple serialization strategies** (FlatBuffers, Thrift)
+3. Using **runtime format detection** for backward compatibility
+4. Providing **build-time format selection** via CMake options
+
+== Architecture Diagram
+
+=== High-Level Overview
+
+[source]
+----
+┌─────────────────────────────────────────────────────────┐
+│              Application Layer (Tools)                  │
+│    mkdwarfs │ dwarfs │ dwarfsck │ dwarfsextract         │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+         ┌─────────┴─────────┐
+         ▼                   ▼
+┌──────────────────┐  ┌──────────────────┐
+│  Writer Layer    │  │  Reader Layer    │
+│                  │  │                  │
+│ metadata_freezer │  │ metadata_factory │
+│ metadata_builder │  │ metadata_provider│
+└─────────┬────────┘  └────────┬─────────┘
+          │                    │
+          ▼                    ▼
+┌─────────────────────────────────────────┐
+│     Domain Model (Format-Agnostic)      │
+│     metadata::domain::metadata          │
+│                                         │
+│  • inodes      • directories  • chunks  │
+│  • dir_entries • symlinks     • devices │
+│  • uid/gid maps • mode map    • features│
+└───────────────┬─────────────────────────┘
+                │
+      ┌─────────┴─────────┐
+      ▼                   ▼
+┌────────────┐      ┌────────────┐
+│ FlatBuffers│      │   Thrift   │
+│  Strategy  │      │  Frozen2   │
+│            │      │  Strategy  │
+│ Read-Write │      │ Read-Write │
+│  Default   │      │   Legacy   │
+│ Required   │      │  Optional  │
+└────────────┘      └────────────┘
+----
+
+=== Strategy Pattern Implementation
+
+[source]
+----
+┌────────────────────────────────────────────┐
+│      Strategy Interface (Abstract)         │
+│                                            │
+│  metadata_provider (reader)                │
+│  - get_chunk() → chunk_view                │
+│  - get_directory() → dir_entry_view        │
+│  - get_inode() → inode_view                │
+│                                            │
+│  metadata_builder (writer)                 │
+│  - gather_chunks()                         │
+│  - gather_entries()                        │
+│  - build() → domain::metadata              │
+└─────────────┬──────────────────────────────┘
+              │
+    ┌─────────┴─────────┐
+    │   implements      │   implements
+    ▼                   ▼
+┌────────────────┐  ┌────────────────┐
+│ FlatBuffers    │  │    Thrift      │
+│ Implementation │  │ Implementation │
+│                │  │                │
+│ - ALWAYS       │  │ - OPTIONAL     │
+│   available    │  │   (legacy)     │
+│ - Header-only  │  │ - Folly/Thrift │
+│ - Zero-copy    │  │ - Frozen2      │
+│ - Memory-map   │  │ - Smallest     │
+└────────────────┘  └────────────────┘
+----
+
+== Domain Model
+
+=== Core Structure
+
+The domain model is **completely format-agnostic** and represents the logical structure of DwarFS metadata:
+
+[source,cpp]
+----
+namespace dwarfs::metadata::domain {
+
+struct metadata {
+  // Inodes (files and directories)
+  std::vector<inode> inodes;
+  
+  // Directory entries (name → inode mapping)
+  std::vector<dir_entry> dir_entries;
+  
+  // Chunks (compressed data blocks)
+  std::vector<chunk> chunks;
+  
+  // Directories (structure)
+  std::vector<directory> directories;
+  
+  // Symbolic links
+  std::vector<symlink> symlinks;
+  
+  // Special devices
+  std::vector<device> devices;
+  
+  // String tables (compressed)
+  string_table names;
+  string_table paths;
+  
+  // Mapping tables
+  std::vector<uint32_t> uid_map;
+  std::vector<uint32_t> gid_map;
+  std::vector<uint16_t> mode_map;
+  
+  // Feature flags
+  feature_set features;
+};
+
+}
+----
+
+=== Relationships
+
+[source]
+----
+Directory
+    │
+    ├─► Contains many dir_entry
+    │        │
+    │        └─► Points to inode
+    │
+    └─► Parent/child relationships
+
+Inode
+    │
+    ├─► File: Contains chunk references
+    │          │
+    │          └─► Each chunk → block + offset
+    │
+    ├─► Directory: Contains entry ranges
+    │
+    ├─► Symlink: Points to symlink table
+    │
+    └─► Device: Points to device table
+
+Chunk
+    │
+    └─► References compressed block
+             │
+             └─► Block index + offset + size
+----
+
+== Serialization Strategies
+
+=== FlatBuffers Strategy (Modern Default)
+
+==== Wire Format
+
+[source]
+----
+┌────────────────────────────────────────┐
+│         FlatBuffers Metadata           │
+├────────────────────────────────────────┤
+│ [4-byte size prefix]                   │
+│ [4-byte file identifier: "DFBF"]       │
+│ [FlatBuffers binary data]              │
+│   ├─ vtables (field offsets)           │
+│   ├─ tables (inline data)              │
+│   ├─ vectors (arrays)                  │
+│   └─ strings (UTF-8)                   │
+└────────────────────────────────────────┘
+----
+
+==== Characteristics
+
+* **Size**: ~102-108% of Thrift (slightly larger)
+* **Memory**: Zero-copy, memory-mappable via `GetSizePrefixedRoot()`
+* **Verification**: `VerifySizePrefixedBuffer()` with limits:
+  - `max_depth`: 256 (handles complex nesting)
+  - `max_tables`: 10,000,000 (large filesystems)
+* **Dependencies**: Header-only FlatBuffers library (auto-fetched via CMake)
+* **Portability**: Excellent - works everywhere
+
+==== Code Example
+
+[source,cpp]
+----
+// Writing metadata (FlatBuffers)
+#include <dwarfs/metadata/serialization/flatbuffers_serializer.h>
+
+metadata::domain::metadata meta = /* ... */;
+flatbuffers_serializer serializer;
+std::vector<uint8_t> buffer = serializer.serialize(meta);
+
+// Size-prefixed format: [size][DFBF][data]
+// buffer ready to write to file
+----
+
+[source,cpp]
+----
+// Reading metadata (FlatBuffers)
+#include <dwarfs/reader/flatbuffers_metadata_provider.h>
+
+std::vector<uint8_t> buffer = /* read from file */;
+
+// Verify before use
+flatbuffers::Verifier verifier(
+    buffer.data(), buffer.size(),
+    /*max_depth=*/256,
+    /*max_tables=*/10000000
+);
+if (!VerifySizePrefixedMetadataBuffer(verifier)) {
+    throw std::runtime_error("Invalid FlatBuffers data");
+}
+
+// Zero-copy access
+auto meta = GetSizePrefixedMetadata(buffer.data());
+auto provider = make_flatbuffers_provider(meta);
+----
+
+=== Thrift Frozen2 Strategy (Legacy)
+
+==== Wire Format
+
+[source]
+----
+┌────────────────────────────────────────┐
+│        Thrift Compact Metadata         │
+├────────────────────────────────────────┤
+│ Section 1: Schema (Thrift IDL)         │
+│   ├─ Frozen2 layout definition         │
+│   └─ Field offsets, sizes              │
+├────────────────────────────────────────┤
+│ Section 2: Frozen Data                 │
+│   ├─ Bit-packed structures             │
+│   ├─ Inline primitive fields           │
+│   ├─ Offset-based references           │
+│   └─ Variable-length arrays            │
+└────────────────────────────────────────┘
+----
+
+==== Characteristics
+
+* **Size**: 100% (baseline - smallest format)
+* **Memory**: Zero-copy, memory-mappable via Frozen2
+* **Verification**: Schema-based type checking
+* **Dependencies**: Folly + fbthrift (complex, platform-limited)
+* **Portability**: Limited - not available on Windows, older macOS
+
+==== Code Example
+
+[source,cpp]
+----
+// Writing metadata (Thrift) - ONLY if DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_THRIFT
+#include <dwarfs/metadata/serialization/thrift_compact_serializer.h>
+
+metadata::domain::metadata meta = /* ... */;
+thrift_compact_serializer serializer;
+std::vector<uint8_t> buffer = serializer.serialize(meta);
+
+// Two-section format: [schema][frozen_data]
+#endif
+----
+
+[source,cpp]
+----
+// Reading metadata (Thrift) - ONLY if DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_THRIFT
+#include <dwarfs/reader/thrift_metadata_provider.h>
+
+std::vector<uint8_t> buffer = /* read from file */;
+auto provider = make_thrift_provider(buffer);
+
+// Zero-copy access via Frozen2
+auto chunk = provider->get_chunk(chunk_id);
+#endif
+----
+
+== Format Detection
+
+=== Runtime Detection Logic
+
+[source,cpp]
+----
+// From: src/metadata/serialization/serializer_registry.cpp
+
+std::optional<SerializationFormat> detect_format(
+    std::vector<uint8_t> const& data
+) {
+    // Check for FlatBuffers magic bytes (preferred)
+    if (data.size() >= 8) {
+        uint32_t identifier = *reinterpret_cast<const uint32_t*>(
+            data.data() + 4
+        );
+        if (identifier == 0x46424644) {  // "DFBF" in little-endian
+            return SerializationFormat::FLATBUFFERS;
+        }
+    }
+    
+    // Fall back to Thrift if no FlatBuffers magic
+    return SerializationFormat::THRIFT;
+}
+----
+
+**Priority**: FlatBuffers takes precedence over Thrift for new images.
+
+== Build Configuration
+
+=== CMake Options
+
+[source,bash]
+----
+# FlatBuffers-only (recommended)
+cmake -B build \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=OFF
+
+# Thrift-only (legacy compatibility)
+cmake -B build \
+  -DDWARFS_WITH_FLATBUFFERS=OFF \
+  -DDWARFS_WITH_THRIFT=ON
+
+# Both formats (maximum compatibility)
+cmake -B build \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=ON
+----
+
+=== Build Matrix
+
+[source]
+----
+Configuration Matrix
+┌────────────────────────────────────────────┐
+│                                            │
+│  FB-only      Both Formats    Thrift-only  │
+│  ┌────────┐   ┌───────────┐   ┌─────────┐ │
+│  │ Modern │   │ Maximum   │   │ Legacy  │ │
+│  │ Default│   │ Compat    │   │ Only    │ │
+│  │        │   │           │   │         │ │
+│  │ Works  │   │ Can read/ │   │ Cannot  │ │
+│  │ every- │   │ write both│   │ read FB │ │
+│  │ where  │   │ formats   │   │ images  │ │
+│  └────────┘   └───────────┘   └─────────┘ │
+│                                            │
+└────────────────────────────────────────────┘
+----
+
+== Design Decisions
+
+=== Why Strategy Pattern?
+
+1. **Separation of Concerns**: Domain model isolated from serialization
+2. **Extensibility**: Easy to add new formats (e.g., Protocol Buffers, Cap'n Proto)
+3. **Testability**: Can mock interfaces for testing
+4. **Clarity**: No mixing of format-specific code
+5. **Maintainability**: Each format in its own files
+
+=== Why FlatBuffers as Default?
+
+1. **Portability**: Header-only, works on all platforms
+2. **Simplicity**: No complex dependency chain
+3. **Performance**: Zero-copy, memory-mappable
+4. **Forward/Backward Compatibility**: Built-in schema evolution
+5. **Build Time**: Minimal impact (header-only)
+
+=== Why Keep Thrift?
+
+1. **Backward Compatibility**: Read existing Thrift images
+2. **Size Efficiency**: Still the smallest format (~5-10% smaller)
+3. **Legacy Support**: Users with existing workflows
+4. **Transition Period**: Gradual migration to FlatBuffers
+
+== Files and Structure
+
+=== Domain Model Files
+
+* `include/dwarfs/metadata/domain/metadata.h` - Core domain model
+* `src/metadata/domain/metadata.cpp` - Domain model implementation
+
+=== FlatBuffers Files
+
+* `flatbuffers/metadata.fbs` - FlatBuffers schema
+* `include/dwarfs/metadata/serialization/flatbuffers_serializer.h` - Serializer
+* `src/metadata/serialization/flatbuffers_serializer.cpp` - Implementation
+* `src/reader/flatbuffers_metadata_provider.cpp` - Reader provider
+* `src/metadata/converters/flatbuffers_metadata_converter.cpp` - Converter
+
+=== Thrift Files (Optional)
+
+* `thrift/metadata.thrift` - Thrift IDL schema
+* `include/dwarfs/metadata/serialization/thrift_compact_serializer.h` - Serializer
+* `src/metadata/serialization/thrift_compact_serializer.cpp` - Implementation
+* `src/reader/thrift_metadata_provider.cpp` - Reader provider
+* `src/metadata/converters/cpp_thrift_converter.cpp` - Type converter
+
+=== Registry & Factory
+
+* `include/dwarfs/metadata/serialization/serializer_registry.h` - Format registry
+* `src/metadata/serialization/serializer_registry.cpp` - Format detection
+* `src/metadata/serialization/facade_factory.cpp` - Facade creation
+
+== Migration Path
+
+=== From Thrift-Only to FlatBuffers
+
+[source,bash]
+----
+# Step 1: Read Thrift image with both-formats build
+cmake -B build -DDWARFS_WITH_FLATBUFFERS=ON -DDWARFS_WITH_THRIFT=ON
+ninja -C build
+
+# Step 2: Extract and recreate with FlatBuffers
+./build/dwarfsextract -i old.dwarfs -o /tmp/extracted
+./build/mkdwarfs -i /tmp/extracted -o new.dwarfs
+
+# Step 3: Verify new image
+./build/dwarfsck -i new.dwarfs --checksum
+
+# Step 4: Switch to FlatBuffers-only builds
+cmake -B build -DDWARFS_WITH_FLATBUFFERS=ON -DDWARFS_WITH_THRIFT=OFF
+----
+
+== Performance Characteristics
+
+=== Serialization Speed
+
+[cols="1,1,1,1"]
+|===
+|Format |Serialize |Deserialize |Verify
+
+|FlatBuffers
+|Fast
+|Instant (zero-copy)
+|Fast
+
+|Thrift Frozen2
+|Medium
+|Instant (zero-copy)
+|Fast
+|===
+
+=== Memory Usage
+
+[cols="1,1,1"]
+|===
+|Format |Serialized Size |Memory Overhead
+
+|FlatBuffers
+|102-108% baseline
+|Minimal (zero-copy)
+
+|Thrift Frozen2
+|100% (baseline)
+|Minimal (zero-copy)
+|===
+
+== See Also
+
+* link:format-selection.html[Format Selection Guide]
+* link:metadata-layer.html[Metadata Layer Architecture]
+* link:../references/serialization-formats.html[Format Specifications]
+* link:../references/build-configurations.html[Build Configurations]
+
+---
+
+**Last Updated**: 2025-12-08 +
+**Version**: v0.16.0

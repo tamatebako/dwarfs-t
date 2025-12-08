@@ -31,6 +31,7 @@
 
 #include <dwarfs/file_stat.h>
 #include <dwarfs/history_config.h>
+#include <dwarfs/metadata/serialization/serialization_format.h>
 #include <dwarfs/writer/inode_options.h>
 
 namespace dwarfs::writer {
@@ -62,6 +63,17 @@ struct metadata_options {
   bool enable_sparse_files{false};
   bool no_hardlink_table{false};
   size_t inode_size_cache_min_chunk_count{128};
+
+  // Metadata serialization format - defaults to available format
+#if defined(DWARFS_HAVE_FLATBUFFERS)
+  metadata::serialization::SerializationFormat metadata_format{
+      metadata::serialization::SerializationFormat::FLATBUFFERS};
+#elif defined(DWARFS_HAVE_THRIFT)
+  metadata::serialization::SerializationFormat metadata_format{
+      metadata::serialization::SerializationFormat::THRIFT_COMPACT};
+#else
+  #error "At least one serialization format must be enabled"
+#endif
 
   static void validate(metadata_options const& opts);
 };

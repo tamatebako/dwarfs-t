@@ -25,7 +25,7 @@
 #include <array>
 #include <utility>
 
-#include <folly/Hash.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <dwarfs/writer/internal/similarity.h>
 
@@ -62,8 +62,9 @@ class similarity::impl {
     for (size_t off = 0; off < size; ++off) {
       val_ = (val_ << 8) | data[off];
       if (size_ + off >= 3) {
-        auto hv = folly::hash::jenkins_rev_mix32(val_);
-        ++vec_[hv & mask].first;
+        // Use simple hash instead of Jenkins - sufficient for LSH
+        auto hv = compat::hash_one(val_);
+        ++vec_[static_cast<uint32_t>(hv) & mask].first;
       }
     }
     size_ += size;

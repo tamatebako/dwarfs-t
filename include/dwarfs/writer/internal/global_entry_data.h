@@ -32,9 +32,15 @@
 
 #include <dwarfs/file_stat.h>
 
+namespace dwarfs::metadata::domain {
+class inode_data;
+}
+
+#ifdef DWARFS_HAVE_THRIFT
 namespace dwarfs::thrift::metadata {
 class inode_data;
 }
+#endif
 
 namespace dwarfs::writer {
 
@@ -80,8 +86,15 @@ class global_entry_data {
 
   uint64_t get_timestamp_base() const;
 
+#ifdef DWARFS_HAVE_THRIFT
+  // Thrift overload (only when Thrift is available)
   void
   pack_inode_stat(thrift::metadata::inode_data& inode, file_stat const& stat,
+                  time_resolution_converter const& timeres) const;
+#endif
+  // Domain model overload (always available)
+  void
+  pack_inode_stat(metadata::domain::inode_data& inode, file_stat const& stat,
                   time_resolution_converter const& timeres) const;
 
  private:

@@ -211,11 +211,15 @@ options:
   Enable performance monitoring for the list of `+`-separated components.
   This option is only available if the project was built with performance
   monitoring enabled. Available components include `fuse`, `filesystem_v2`,
-  `inode_reader_v2` and `block_cache`.
+  `inode_reader_v2` and `block_cache`. Performance metrics can be extracted
+  using extended attributes while the filesystem is mounted. See
+  [Performance Monitoring](#performance-monitoring) and
+  [benchmark-fuse(7)](benchmark-fuse.md) for detailed usage.
 
 - `-o perfmon_trace=`*file*:
   Write JSON trace data for all components enabled by `--perfmon` to this
-  file when the process exits.
+  file when the process exits. This provides detailed timing information
+  for performance analysis.
 
 - `--man`:
   If the project was built with support for built-in manual pages, this
@@ -240,6 +244,51 @@ a DwarFS image:
 
 See [dwarfs-env(7)](dwarfs-env.md) for environment variables that
 influence the behavior of `dwarfs`.
+
+## FUSE IMPLEMENTATIONS
+
+On macOS, DwarFS supports two different FUSE implementations: FUSE-T and
+macFUSE. FUSE-T is a modern, user-space FUSE implementation that typically
+offers 20-30% better performance and lower CPU usage compared to the
+traditional kernel extension-based macFUSE. It doesn't require system
+extension approval and can be installed with `brew install fuse-t`.
+macFUSE is the more established option with a long history of stability,
+but requires system extension approval in System Preferences. DwarFS will
+automatically detect and use whichever implementation is available, with
+FUSE-T being preferred if both are installed. You can control which
+implementation to use by setting the `DWARFS_PREFER_FUSE_T` environment
+variable.
+
+On Linux, DwarFS uses the standard libfuse implementation. Both libfuse2
+and libfuse3 are supported and provide excellent performance.
+
+## PERFORMANCE MONITORING
+
+If you want to analyze filesystem operation latencies or identify
+performance bottlenecks, DwarFS includes performance monitoring
+capabilities. Use the `-o perfmon=` option to enable monitoring for one
+or more components. Available components include `fuse` for FUSE driver
+operations, `filesystem_v2` for filesystem implementation metrics,
+`inode_reader_v2` for inode reading operations, and `block_cache` for
+block cache performance. For example:
+
+    dwarfs image.dwarfs /mnt/test -o perfmon=fuse+block_cache
+
+While the filesystem is mounted, you can extract performance metrics
+using extended attributes:
+
+    xattr -p user.dwarfs.driver.perfmon /mnt/test
+
+The output shows statistics for each monitored operation, including the
+number of samples, average latency, and various percentiles (p50, p90,
+p99) in microseconds. This helps you understand how the filesystem
+performs in practice. For example, `op_read` latencies in the low
+microsecond range and a narrow gap between p50 and p99 indicate good,
+consistent performance. If you need more detailed analysis, use the
+`-o perfmon_trace=` option to write JSON trace data when unmounting.
+
+For comprehensive benchmarking methodology and performance tuning
+guidance, see [benchmark-fuse(7)](benchmark-fuse.md).
 
 ## TIPS & TRICKS
 

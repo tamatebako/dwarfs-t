@@ -21,8 +21,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <folly/portability/Windows.h>
-#include <folly/system/ThreadName.h>
+#include <dwarfs/internal/folly_compat.h>
+
+#include <fmt/format.h>
 
 #include <dwarfs/error.h>
 #include <dwarfs/util.h>
@@ -40,7 +41,7 @@ writer_progress::writer_progress(update_function_type func,
     : prog_{std::make_unique<internal::progress>()}
     , running_(true)
     , thread_([this, interval, func = std::move(func)]() mutable {
-      folly::setThreadName("progress");
+      compat::system::setThreadName("progress");
 #ifdef _WIN32
       ::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 #endif

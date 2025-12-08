@@ -34,7 +34,7 @@
 #include <thread>
 #include <unordered_map>
 
-#include <folly/system/ThreadName.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <dwarfs/block_decompressor.h>
 #include <dwarfs/checksum.h>
@@ -124,7 +124,7 @@ class fsblock {
  public:
   fsblock(section_type type, block_compressor const& bc,
           shared_byte_buffer data, std::shared_ptr<compression_progress> pctx,
-          folly::Function<void(size_t)> set_block_cb = nullptr);
+          compat::Function<void(size_t)> set_block_cb = nullptr);
 
   fsblock(section_type type, compression_type compression,
           std::span<uint8_t const> data);
@@ -202,7 +202,7 @@ class raw_fsblock : public fsblock::impl {
   raw_fsblock(section_type type, block_compressor const& bc,
               shared_byte_buffer data,
               std::shared_ptr<compression_progress> pctx,
-              folly::Function<void(size_t)> set_block_cb)
+              compat::Function<void(size_t)> set_block_cb)
       : type_{type}
       , bc_{bc}
       , uncompressed_size_{data.size()}
@@ -214,11 +214,12 @@ class raw_fsblock : public fsblock::impl {
   }
 
   void compress(worker_group& wg, std::optional<std::string> meta) override {
-    std::promise<void> prom;
-    future_ = prom.get_future();
+    // Workaround AppleClang 17 bug: wrap move-only types in shared_ptr
+    auto prom_ptr = std::make_shared<std::promise<void>>();
+    future_ = prom_ptr->get_future();
 
     wg.add_job(
-        [this, prom = std::move(prom), meta = std::move(meta)]() mutable {
+        [this, prom_ptr, meta = std::move(meta)]() mutable {
           try {
             shared_byte_buffer tmp;
 
@@ -239,7 +240,7 @@ class raw_fsblock : public fsblock::impl {
             comp_type_ = compression_type::NONE;
           }
 
-          prom.set_value();
+          prom_ptr->set_value();
         });
   }
 
@@ -302,7 +303,7 @@ class raw_fsblock : public fsblock::impl {
   std::optional<section_header_v2> mutable header_;
   compression_type comp_type_;
   std::shared_ptr<compression_progress> pctx_;
-  folly::Function<void(size_t)> set_block_cb_;
+  compat::Function<void(size_t)> set_block_cb_;
 };
 
 class compressed_fsblock : public fsblock::impl {
@@ -324,16 +325,17 @@ class compressed_fsblock : public fsblock::impl {
 
   void
   compress(worker_group& wg, std::optional<std::string> /* meta */) override {
-    std::promise<void> prom;
-    future_ = prom.get_future();
+    // Workaround AppleClang 17 bug: wrap move-only types in shared_ptr
+    auto prom_ptr = std::make_shared<std::promise<void>>();
+    future_ = prom_ptr->get_future();
 
-    wg.add_job([this, prom = std::move(prom)]() mutable {
+    wg.add_job([this, prom_ptr]() mutable {
       fsblock::build_section_header(header_, *this, sec_);
       if (pctx_) {
         pctx_->bytes_in += size();
         pctx_->bytes_out += size();
       }
-      prom.set_value();
+      prom_ptr->set_value();
     });
   }
 
@@ -387,11 +389,12 @@ class rewritten_fsblock : public fsblock::impl {
     DWARFS_CHECK(!meta,
                  "metadata not supported for rewritten_fsblock::compress");
 
-    std::promise<void> prom;
-    future_ = prom.get_future();
+    // Workaround AppleClang 17 bug: wrap move-only types in shared_ptr
+    auto prom_ptr = std::make_shared<std::promise<void>>();
+    future_ = prom_ptr->get_future();
 
-    wg.add_job([this, prom = std::move(prom)]() mutable {
-      compress_job(std::move(prom));
+    wg.add_job([this, prom_ptr]() mutable {
+      compress_job(std::move(*prom_ptr));
     });
   }
 
@@ -489,7 +492,7 @@ class rewritten_fsblock : public fsblock::impl {
 fsblock::fsblock(section_type type, block_compressor const& bc,
                  shared_byte_buffer data,
                  std::shared_ptr<compression_progress> pctx,
-                 folly::Function<void(size_t)> set_block_cb)
+                 compat::Function<void(size_t)> set_block_cb)
     : impl_(std::make_unique<raw_fsblock>(type, bc, std::move(data),
                                           std::move(pctx),
                                           std::move(set_block_cb))) {}
@@ -621,6 +624,11 @@ class filesystem_writer_ final : public filesystem_writer_detail {
   void rewrite_section_delayed_data(
       section_type type, delayed_data_fn_type data, size_t uncompressed_size,
       std::optional<fragment_category::value_type> cat);
+  // Helper method to avoid lambda capture of move-only types
+  static std::pair<shared_byte_buffer, std::optional<std::string>>
+  decompress_block_for_rewrite(block_decompressor bd,
+                                std::optional<std::string> meta,
+                                file_segment segment);
   void on_block_merged(block_holder_type holder);
   void write_section_impl(section_type type, shared_byte_buffer data);
   void write(fsblock const& fsb);
@@ -696,7 +704,7 @@ filesystem_writer_<LoggerPolicy>::~filesystem_writer_() noexcept {
 
 template <typename LoggerPolicy>
 void filesystem_writer_<LoggerPolicy>::writer_thread() {
-  folly::setThreadName("writer");
+  compat::system::setThreadName("writer");
 
   for (;;) {
     block_holder_type holder;
@@ -973,12 +981,14 @@ void filesystem_writer_<LoggerPolicy>::rewrite_section(
 
   // We *must* keep the segment alive since it owns the underlying data,
   // so we move-capture it in the lambda.
+  // Workaround AppleClang 17 bug: wrap move-only types in shared_ptr
+  auto bd_ptr = std::make_shared<block_decompressor>(std::move(bd));
   rewrite_section_delayed_data(
       type,
-      [bd = std::move(bd), meta = std::move(cat_metadata),
+      [bd_ptr, meta = std::move(cat_metadata),
        segment = std::move(segment)]() mutable {
-        auto block = bd.start_decompression(malloc_byte_buffer::create());
-        bd.decompress_frame(bd.uncompressed_size());
+        auto block = bd_ptr->start_decompression(malloc_byte_buffer::create());
+        bd_ptr->decompress_frame(bd_ptr->uncompressed_size());
         return std::pair{std::move(block), meta};
       },
       uncompressed_size, cat);

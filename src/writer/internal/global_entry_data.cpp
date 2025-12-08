@@ -27,12 +27,15 @@
 #include <range/v3/view/map.hpp>
 
 #include <dwarfs/error.h>
+#include <dwarfs/metadata/domain/inode_data.h>
 #include <dwarfs/writer/scanner_options.h>
+
+#ifdef DWARFS_HAVE_THRIFT
+#include <dwarfs/gen-cpp2/metadata_types.h>
+#endif
 
 #include <dwarfs/writer/internal/global_entry_data.h>
 #include <dwarfs/writer/internal/time_resolution_converter.h>
-
-#include <dwarfs/gen-cpp2/metadata_types.h>
 
 namespace dwarfs::writer::internal {
 
@@ -91,6 +94,8 @@ uint64_t global_entry_data::get_timestamp_base() const {
   return options_.timestamp ? *options_.timestamp : timestamp_base_;
 }
 
+#ifdef DWARFS_HAVE_THRIFT
+// Thrift overload (only when Thrift is available)
 void global_entry_data::pack_inode_stat(
     thrift::metadata::inode_data& inode, file_stat const& stat,
     time_resolution_converter const& timeres) const {
@@ -110,20 +115,57 @@ void global_entry_data::pack_inode_stat(
     {
       auto const mts = stat.mtimespec_unchecked();
       inode.mtime_offset() = timeres.convert_offset(mts.sec - base);
-      inode.mtime_subsec() = timeres.convert_subsec(mts.nsec);
     }
 
     if (options_.keep_all_times) {
       {
         auto const ats = stat.atimespec_unchecked();
         inode.atime_offset() = timeres.convert_offset(ats.sec - base);
-        inode.atime_subsec() = timeres.convert_subsec(ats.nsec);
       }
 
       {
         auto const cts = stat.ctimespec_unchecked();
         inode.ctime_offset() = timeres.convert_offset(cts.sec - base);
-        inode.ctime_subsec() = timeres.convert_subsec(cts.nsec);
+      }
+    }
+  }
+}
+#endif // DWARFS_HAVE_THRIFT
+
+// Domain model overload (always available)
+void global_entry_data::pack_inode_stat(
+    metadata::domain::inode_data& inode, file_stat const& stat,
+    time_resolution_converter const& timeres) const {
+  stat.ensure_valid(file_stat::uid_valid | file_stat::gid_valid |
+                    file_stat::mode_valid | file_stat::atime_valid |
+                    file_stat::mtime_valid | file_stat::ctime_valid);
+
+  inode.mode_index = DWARFS_NOTHROW(modes_.at(stat.mode_unchecked()));
+  inode.owner_index =
+      options_.uid ? 0 : DWARFS_NOTHROW(uids_.at(stat.uid_unchecked()));
+  inode.group_index =
+      options_.gid ? 0 : DWARFS_NOTHROW(gids_.at(stat.gid_unchecked()));
+
+  if (!options_.timestamp) {
+    auto const base = timeres.align_offset(timestamp_base_);
+
+    {
+      auto const mts = stat.mtimespec_unchecked();
+      inode.mtime_offset = timeres.convert_offset(mts.sec - base);
+      inode.mtime_subsec = timeres.convert_subsec(mts.nsec);
+    }
+
+    if (options_.keep_all_times) {
+      {
+        auto const ats = stat.atimespec_unchecked();
+        inode.atime_offset = timeres.convert_offset(ats.sec - base);
+        inode.atime_subsec = timeres.convert_subsec(ats.nsec);
+      }
+
+      {
+        auto const cts = stat.ctimespec_unchecked();
+        inode.ctime_offset = timeres.convert_offset(cts.sec - base);
+        inode.ctime_subsec = timeres.convert_subsec(cts.nsec);
       }
     }
   }

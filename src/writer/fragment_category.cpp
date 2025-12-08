@@ -21,14 +21,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <folly/hash/Hash.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <dwarfs/writer/fragment_category.h>
 
 namespace dwarfs::writer {
 
 size_t fragment_category::hash() const {
-  return folly::hash::hash_combine(value_, subcategory_);
+  return compat::hash::hash_combine(0, value_, subcategory_);
 }
 
 } // namespace dwarfs::writer
