@@ -30,7 +30,7 @@
 #include <dwarfs/metadata/domain/inode_data.h>
 #include <dwarfs/writer/scanner_options.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
 
@@ -56,7 +56,12 @@ void index_map(MapT& map) {
 } // namespace
 
 global_entry_data::global_entry_data(metadata_options const& options)
-    : options_{options} {}
+    : options_{options} {
+  // CRITICAL: Pre-populate names with empty string for root directory
+  // When index() is called, empty string will sort first and get index 0
+  // This ensures all file/directory names get indices starting from 1
+  names_.emplace("", 0);
+}
 
 template <typename T, typename U>
 std::vector<T> global_entry_data::get_vector(map_type<T, U> const& map) const {
@@ -94,7 +99,7 @@ uint64_t global_entry_data::get_timestamp_base() const {
   return options_.timestamp ? *options_.timestamp : timestamp_base_;
 }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 // Thrift overload (only when Thrift is available)
 void global_entry_data::pack_inode_stat(
     thrift::metadata::inode_data& inode, file_stat const& stat,
@@ -130,7 +135,7 @@ void global_entry_data::pack_inode_stat(
     }
   }
 }
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // Domain model overload (always available)
 void global_entry_data::pack_inode_stat(
@@ -140,7 +145,9 @@ void global_entry_data::pack_inode_stat(
                     file_stat::mode_valid | file_stat::atime_valid |
                     file_stat::mtime_valid | file_stat::ctime_valid);
 
-  inode.mode_index = DWARFS_NOTHROW(modes_.at(stat.mode_unchecked()));
+  auto mode = stat.mode_unchecked();
+  auto mode_index = DWARFS_NOTHROW(modes_.at(mode));
+  inode.mode_index = mode_index;
   inode.owner_index =
       options_.uid ? 0 : DWARFS_NOTHROW(uids_.at(stat.uid_unchecked()));
   inode.group_index =
@@ -167,6 +174,9 @@ void global_entry_data::pack_inode_stat(
         inode.ctime_offset = timeres.convert_offset(cts.sec - base);
         inode.ctime_subsec = timeres.convert_subsec(cts.nsec);
       }
+    } else {
+      inode.atime_offset = 0;
+      inode.ctime_offset = 0;
     }
   }
 }

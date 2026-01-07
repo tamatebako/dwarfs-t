@@ -33,7 +33,7 @@
 #include <ricepp/create_decoder.h>
 #include <ricepp/create_encoder.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 #include <dwarfs/gen-cpp2/compression_types.h>
 #endif
@@ -98,7 +98,7 @@ struct ricepp_block_header {
     return hdr;
   }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Convert to/from Thrift format for backward compatibility
   static ricepp_block_header from_thrift(
       thrift::compression::ricepp_block_header const& thrift_hdr) {

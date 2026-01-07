@@ -29,7 +29,7 @@
 
 #include <dwarfs/writer/metadata_options.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <thrift/lib/cpp2/debug_thrift_data_difference/debug.h>
 #include <thrift/lib/cpp2/debug_thrift_data_difference/diff.h>
@@ -55,11 +55,15 @@
 #include <dwarfs/writer/writer_progress.h>
 
 #include <dwarfs/reader/internal/metadata_v2.h>
+#include <dwarfs/reader/internal/metadata_v2_thrift_export.h>
 #include <dwarfs/writer/internal/metadata_builder.h>
 #include <dwarfs/writer/internal/metadata_freezer.h>
 
+// Thrift-specific types - only available when Modern Thrift is compiled in
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types_custom_protocol.h>
 #include <dwarfs/metadata/converters/domain_thrift_converter.h>
+#endif
 
 #include "loremipsum.h"
 #include "mmap_mock.h"
@@ -179,10 +183,16 @@ TEST_F(metadata_test, basic) {
         lgr, unpacked1, fsopts.get(), fs.version(),
         {.plain_names_table = true, .no_create_timestamp = true});
     reader::internal::metadata_v2 mv2(lgr, schema.span(), data.span(), {});
-    using utils = reader::internal::metadata_v2_utils;
 
-    auto thawed2 = *utils(mv2).thaw();
-    auto unpacked2 = *utils(mv2).unpack();
+    // OOP: Use runtime availability check instead of compile-time guards
+    if (!reader::internal::metadata_v2_thrift_export::is_available()) {
+      GTEST_SKIP() << "Modern Thrift not available";
+      return;
+    }
+
+    reader::internal::metadata_v2_thrift_export exporter(mv2);
+    auto thawed2 = *exporter.thaw();
+    auto unpacked2 = *exporter.unpack();
 
     // std::cout << ::apache::thrift::debugString(unpacked2) << std::endl;
 
@@ -219,7 +229,7 @@ TEST(metadata_test, thrift_unavailable) {
   GTEST_SKIP() << "Thrift not enabled - skipping Thrift metadata rebuild tests";
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // This test is format-agnostic - keep it outside the guard
 TEST(metadata_options, output_stream) {

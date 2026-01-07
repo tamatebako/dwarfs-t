@@ -1,0 +1,68 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "osx-arm64-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS ARM64 base configuration",
+      "binaryDir": "${sourceDir}/build-osx-arm64-${config}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "TRY_ENABLE_FLAC": "ON",
+        "TRY_ENABLE_BROTLI": "ON",
+        "TRY_ENABLE_LZ4": "ON",
+        "TRY_ENABLE_LZMA": "ON",
+        "ENABLE_RICEPP": "ON",
+        "USE_HOMEBREW_LIBARCHIVE": "ON",
+        "USE_JEMALLOC": "ON"
+      }
+    },
+    {
+      "name": "osx-arm64-production",
+      "inherits": ["osx-arm64-base", "production-overlays"],
+      "description": "macOS ARM64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "osx-arm64-experimental",
+      "inherits": ["osx-arm64-base", "experimental-overlays"],
+      "description": "macOS ARM64 Experimental (+ Modern Thrift)"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "osx-arm64-production",
+      "configurePreset": "osx-arm64-production",
+      "description": "Build macOS ARM64 Production"
+    },
+    {
+      "name": "osx-arm64-experimental",
+      "configurePreset": "osx-arm64-experimental",
+      "description": "Build macOS ARM64 Experimental"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "osx-arm64-production",
+      "configurePreset": "osx-arm64-production",
+      "description": "Test macOS ARM64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "osx-arm64-experimental",
+      "configurePreset": "osx-arm64-experimental",
+      "description": "Test macOS ARM64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    }
+  ]
+}

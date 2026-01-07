@@ -29,7 +29,7 @@ namespace serialization {
  * Strategy interface for metadata serialization
  *
  * This interface defines the contract for serializing and deserializing
- * DwarFS metadata in different formats (Thrift, Cereal, Bitsery).
+ * DwarFS metadata in different formats (Thrift, FlatBuffers).
  *
  * Implementations should:
  * - Handle their specific format's magic bytes

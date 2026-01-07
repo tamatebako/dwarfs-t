@@ -11,7 +11,7 @@
 #include "dwarfs/metadata/serialization/init_serializers.h"
 #include "dwarfs/metadata/domain/metadata.h"
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include "dwarfs/metadata/serialization/thrift_compact_serializer.h"
 #endif
 
@@ -138,8 +138,8 @@ TEST(SerializationTest, FormatAvailability) {
   // Should have at least one format
   EXPECT_FALSE(formats.empty());
 
-#ifdef DWARFS_HAVE_THRIFT
-  EXPECT_TRUE(registry.is_format_available(SerializationFormat::THRIFT_COMPACT));
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  EXPECT_TRUE(registry.is_format_available(SerializationFormat::MODERN_THRIFT));
 #endif
 
 #ifdef DWARFS_HAVE_FLATBUFFERS
@@ -147,13 +147,13 @@ TEST(SerializationTest, FormatAvailability) {
 #endif
 }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 TEST(SerializationTest, ThriftCapabilities) {
   ThriftCompactSerializer serializer;
 
   EXPECT_TRUE(serializer.can_read());
   EXPECT_FALSE(serializer.can_write());  // Read-only
-  EXPECT_EQ(serializer.get_format(), SerializationFormat::THRIFT_COMPACT);
+  EXPECT_EQ(serializer.get_format(), SerializationFormat::MODERN_THRIFT);
   EXPECT_EQ(serializer.get_format_name(), "Thrift Compact");
 }
 
@@ -164,7 +164,7 @@ TEST(SerializationTest, ThriftWriteThrows) {
   // Should throw because Thrift is read-only
   EXPECT_THROW(serializer.serialize(&meta), std::runtime_error);
 }
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #ifdef DWARFS_HAVE_FLATBUFFERS
 // FlatBuffers tests (modern default format)

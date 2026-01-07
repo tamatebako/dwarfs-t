@@ -6,7 +6,7 @@
  * This file is part of dwarfs.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the “Software”), to deal
+ * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
@@ -15,7 +15,7 @@
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -25,6 +25,13 @@
  *
  * SPDX-License-Identifier: MIT
  */
+
+// Windows.h defines macros that conflict with our enum values
+// MUST undefine BEFORE any includes that might bring in Windows.h
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(disable : 4250)
@@ -36,6 +43,7 @@
 #pragma warning(disable : 26812)
 #endif
 
+#include <array>
 #include <chrono>
 #include <cstring>
 #include <exception>
@@ -67,53 +75,64 @@
 
 namespace dwarfs {
 
+// Windows.h defines macros that conflict with our enum values
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
+
 namespace {
 
-constexpr std::array<std::pair<std::string_view, logger::level_type>, 6>
-    log_level_map = {{
-        {"error", logger::ERROR},
-        {"warn", logger::WARN},
-        {"info", logger::INFO},
-        {"verbose", logger::VERBOSE},
-        {"debug", logger::DEBUG},
-        {"trace", logger::TRACE},
-    }};
+// Ensure macros are undefined right before using the enum
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
+
+constexpr std::array<std::pair<std::string_view, logger_level_type>, 6>
+get_log_level_map() {
+  return {{{"error", LOGGER_LEVEL_ERROR}, {"warn", LOGGER_LEVEL_WARN},
+           {"info", LOGGER_LEVEL_INFO}, {"verbose", LOGGER_LEVEL_VERBOSE},
+           {"debug", LOGGER_LEVEL_DEBUG}, {"trace", LOGGER_LEVEL_TRACE}}};
+}
+
+constexpr auto log_level_map = get_log_level_map();
 
 }
 
 char logger::level_char(level_type level) {
   switch (level) {
-  case FATAL:
+  case LOGGER_LEVEL_FATAL:
     return 'F';
-  case ERROR:
+  case LOGGER_LEVEL_ERROR:
     return 'E';
-  case WARN:
+  case LOGGER_LEVEL_WARN:
     return 'W';
-  case INFO:
+  case LOGGER_LEVEL_INFO:
     return 'I';
-  case VERBOSE:
+  case LOGGER_LEVEL_VERBOSE:
     return 'V';
-  case DEBUG:
+  case LOGGER_LEVEL_DEBUG:
     return 'D';
-  case TRACE:
+  case LOGGER_LEVEL_TRACE:
     return 'T';
   }
   compat::lang::assume(false);
   return '?'; // Unreachable but satisfy compiler
 }
 
-std::ostream& operator<<(std::ostream& os, logger::level_type const& optval) {
+std::ostream& operator<<(std::ostream& os, logger_level_type const& optval) {
   return os << logger::level_name(optval);
 }
 
-std::istream& operator>>(std::istream& is, logger::level_type& optval) {
+std::istream& operator>>(std::istream& is, logger_level_type& optval) {
   std::string s;
   is >> s;
   optval = logger::parse_level(s);
   return is;
 }
 
-logger::level_type logger::parse_level(std::string_view level) {
+logger_level_type logger::parse_level(std::string_view level) {
   // don't parse FATAL here, it's a special case
   for (auto const& [name, lvl] : log_level_map) {
     if (level == name) {
@@ -158,7 +177,7 @@ stream_logger::stream_logger(std::shared_ptr<terminal const> term,
     , color_(term->is_tty(os) && term->is_fancy())
     , enable_stack_trace_{getenv_is_enabled("DWARFS_LOGGER_STACK_TRACE")}
     , with_context_(options.with_context ? options.with_context.value()
-                                         : options.threshold >= logger::VERBOSE)
+                                         : options.threshold >= LOGGER_LEVEL_VERBOSE)
     , term_{std::move(term)} {
   set_threshold(options.threshold);
 }
@@ -180,13 +199,13 @@ void stream_logger::write_nolock(std::string_view output) {
   }
 }
 
-logger::level_type stream_logger::threshold() const {
+logger_level_type stream_logger::threshold() const {
   return threshold_.load();
 }
 
 void stream_logger::write(level_type level, std::string_view output,
                           source_location loc) {
-  if (level <= threshold_ || level == FATAL) {
+  if (level <= threshold_ || level == LOGGER_LEVEL_FATAL) {
     auto t = get_current_time_string();
     std::string_view prefix;
     std::string_view suffix;
@@ -194,28 +213,28 @@ void stream_logger::write(level_type level, std::string_view output,
 
     if (color_) {
       switch (level) {
-      case FATAL:
-      case ERROR:
+      case LOGGER_LEVEL_FATAL:
+      case LOGGER_LEVEL_ERROR:
         prefix = term_->color(termcolor::BOLD_RED);
         suffix = term_->color(termcolor::NORMAL);
         break;
 
-      case WARN:
+      case LOGGER_LEVEL_WARN:
         prefix = term_->color(termcolor::BOLD_YELLOW);
         suffix = term_->color(termcolor::NORMAL);
         break;
 
-      case VERBOSE:
+      case LOGGER_LEVEL_VERBOSE:
         prefix = term_->color(termcolor::DIM_CYAN);
         suffix = term_->color(termcolor::NORMAL);
         break;
 
-      case DEBUG:
+      case LOGGER_LEVEL_DEBUG:
         prefix = term_->color(termcolor::DIM_YELLOW);
         suffix = term_->color(termcolor::NORMAL);
         break;
 
-      case TRACE:
+      case LOGGER_LEVEL_TRACE:
         prefix = term_->color(termcolor::GRAY);
         suffix = term_->color(termcolor::NORMAL);
         break;
@@ -229,7 +248,7 @@ void stream_logger::write(level_type level, std::string_view output,
     std::vector<std::string_view> st_lines;
     std::string stacktrace;
 
-    if (enable_stack_trace_ || level == FATAL) {
+    if (enable_stack_trace_ || level == LOGGER_LEVEL_FATAL) {
 #ifdef DWARFS_CPPTRACE_HAS_FORMATTING
       auto formatter = cpptrace::formatter{}
                            .header({})
@@ -313,7 +332,7 @@ void stream_logger::write(level_type level, std::string_view output,
     write_nolock(oss2.str());
   }
 
-  if (level == FATAL) {
+  if (level == LOGGER_LEVEL_FATAL) {
     std::abort();
   }
 }
@@ -321,7 +340,7 @@ void stream_logger::write(level_type level, std::string_view output,
 void stream_logger::set_threshold(level_type threshold) {
   threshold_ = threshold;
 
-  if (threshold >= level_type::DEBUG) {
+  if (threshold >= LOGGER_LEVEL_DEBUG) {
     set_policy<debug_logger_policy>();
   } else {
     set_policy<prod_logger_policy>();
@@ -332,7 +351,7 @@ class timed_level_log_entry::state {
  public:
   using thread_clock = boost::chrono::thread_clock;
 
-  state(logger& lgr, logger::level_type level, source_location loc,
+  state(logger& lgr, logger_level_type level, source_location loc,
         bool with_cpu)
       : lgr_{lgr}
       , level_{level}
@@ -362,14 +381,14 @@ class timed_level_log_entry::state {
   }
 
   logger& lgr_;
-  logger::level_type const level_;
+  logger_level_type const level_;
   std::chrono::time_point<std::chrono::high_resolution_clock> const start_time_;
   std::optional<thread_clock::time_point> const cpu_start_time_;
   source_location const loc_;
 };
 
 timed_level_log_entry::timed_level_log_entry(logger& lgr,
-                                             logger::level_type level,
+                                             logger_level_type level,
                                              source_location loc,
                                              bool with_cpu) {
   if (level <= lgr.threshold()) {

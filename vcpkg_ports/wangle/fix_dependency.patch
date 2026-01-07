@@ -1,0 +1,48 @@
+diff --git a/wangle/CMakeLists.txt b/wangle/CMakeLists.txt
+index 85ae066..766d3d3 100644
+--- a/wangle/CMakeLists.txt
++++ b/wangle/CMakeLists.txt
+@@ -64,18 +64,23 @@ set(CMAKE_INSTALL_DIR lib/cmake/wangle CACHE STRING
+ find_package(folly CONFIG REQUIRED)
+
+ find_package(fizz CONFIG REQUIRED)
+-find_package(fmt CONFIG REQUIRED)
+ find_package(OpenSSL REQUIRED)
+-find_package(Glog REQUIRED)
+-find_package(gflags CONFIG QUIET)
++find_package(glog CONFIG REQUIRED)
++find_package(gflags CONFIG REQUIRED)
++find_package(Boost REQUIRED
++  COMPONENTS
++	filesystem
++	thread
++)
++
+ if (gflags_FOUND)
+   message(STATUS "Found gflags from package config")
+   message(STATUS "gflags_CONFIG=${gflags_CONFIG}")
+ else()
+   find_package(Gflags REQUIRED)
+ endif()
+-find_package(LibEvent MODULE REQUIRED)
+-find_package(DoubleConversion REQUIRED)
++find_package(Libevent CONFIG REQUIRED)
++find_package(double-conversion CONFIG REQUIRED)
+ find_package(Threads REQUIRED)
+ if (UNIX AND NOT APPLE)
+   find_package(Librt)
+@@ -166,6 +171,14 @@ target_include_directories(
+     ${LIBEVENT_INCLUDE_DIR}
+     ${DOUBLE_CONVERSION_INCLUDE_DIR}
+ )
++set(Boost_LIBRARIES             Boost::boost Boost::filesystem  Boost::thread )
++set(FOLLY_LIBRARIES             Folly::folly)
++set(FIZZ_LIBRARIES              fizz::fizz)
++set(GLOG_LIBRARIES              glog::glog)
++set(GFLAGS_LIBRARIES            gflags::gflags)
++set(LIBEVENT_LIB                libevent::core libevent::extra)
++set(DOUBLE_CONVERSION_LIBRARIES double-conversion::double-conversion)
++
+ target_link_libraries(wangle PUBLIC
+   ${FOLLY_LIBRARIES}
+   ${FIZZ_LIBRARIES}

@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <sstream>
 #include <unordered_map>
 
@@ -66,15 +67,17 @@ void flatbuffers_chunk_processor::gather_chunks(
                         im.get_max_data_chunk_size());
   }
 
+  size_t inode_count = 0;
   im.for_each_inode_in_order([&](std::shared_ptr<inode> const& ino) {
     auto const total_chunks = md_.chunks.size();
     DWARFS_NOTHROW(md_.chunk_table.at(ino->num())) = total_chunks;
+    ++inode_count;
     if (!ino->append_chunks_to(md_.chunks, hole_mapper)) {
       std::ostringstream oss;
       for (auto fp : ino->all()) {
         oss << "\n  " << fp->path_as_string();
       }
-      level_log_entry(lgr_, logger::ERROR, DWARFS_CURRENT_SOURCE_LOCATION)
+      level_log_entry(lgr_, LOGGER_LEVEL_ERROR, DWARFS_CURRENT_SOURCE_LOCATION)
           << "inconsistent fragments in inode " << ino->num()
           << ", the following files will be empty:" << oss.str();
     }
@@ -91,15 +94,15 @@ void flatbuffers_chunk_processor::gather_chunks(
     features_.add(feature::sparsefiles);
   }
 
-  level_log_entry(lgr_, logger::DEBUG, DWARFS_CURRENT_SOURCE_LOCATION)
+  level_log_entry(lgr_, LOGGER_LEVEL_DEBUG, DWARFS_CURRENT_SOURCE_LOCATION)
       << "total number of unique files: " << im.count();
-  level_log_entry(lgr_, logger::DEBUG, DWARFS_CURRENT_SOURCE_LOCATION)
+  level_log_entry(lgr_, LOGGER_LEVEL_DEBUG, DWARFS_CURRENT_SOURCE_LOCATION)
       << "total number of chunks: " << md_.chunks.size();
 }
 
 void flatbuffers_chunk_processor::remap_blocks(
     std::span<block_mapping const> mapping, size_t new_block_count) {
-  timed_level_log_entry tv(lgr_, logger::VERBOSE, DWARFS_CURRENT_SOURCE_LOCATION);
+  timed_level_log_entry tv(lgr_, LOGGER_LEVEL_VERBOSE, DWARFS_CURRENT_SOURCE_LOCATION);
 
   std::span<metadata::domain::chunk> old_chunks = md_.chunks;
   std::span<uint32_t> old_chunk_table = md_.chunk_table;
@@ -125,13 +128,13 @@ void flatbuffers_chunk_processor::remap_blocks(
 
     for (auto const& chunk : chunks) {
       if (old_hole_ix && chunk.block() == *old_hole_ix) {
-        level_log_entry(lgr_, logger::TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
+        level_log_entry(lgr_, LOGGER_LEVEL_TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
             << "mapping hole chunk: offset=" << chunk.offset()
             << ", size=" << chunk.size();
 
         mapped_chunks.push_back({kTmpHoleIx, chunk.offset(), chunk.size()});
       } else {
-        level_log_entry(lgr_, logger::TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
+        level_log_entry(lgr_, LOGGER_LEVEL_TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
             << "mapping data chunk: block=" << chunk.block()
             << ", offset=" << chunk.offset() << ", size=" << chunk.size();
 
@@ -142,11 +145,11 @@ void flatbuffers_chunk_processor::remap_blocks(
             mapping[chunk.block()].map_chunk(chunk.offset(), chunk.size());
 
         DWARFS_CHECK(!mapped.empty(), "mapped chunk list is empty");
-        level_log_entry(lgr_, logger::TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
+        level_log_entry(lgr_, LOGGER_LEVEL_TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
             << "  mapped to " << mapped.size() << " chunks";
 
         for (auto const& mc : mapped) {
-          level_log_entry(lgr_, logger::TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
+          level_log_entry(lgr_, LOGGER_LEVEL_TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
               << "    block=" << mc.block << ", offset=" << mc.offset
               << ", size=" << mc.size;
         }
@@ -158,7 +161,7 @@ void flatbuffers_chunk_processor::remap_blocks(
             mapped_chunks.back().block == mapped.front().block &&
             mapped_chunks.back().offset + mapped_chunks.back().size ==
                 mapped.front().offset) {
-          level_log_entry(lgr_, logger::TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
+          level_log_entry(lgr_, LOGGER_LEVEL_TRACE, DWARFS_CURRENT_SOURCE_LOCATION)
               << "  merging with previous chunk";
           mapped_chunks.back().size += mapped.front().size;
           ++first;
@@ -228,7 +231,7 @@ void flatbuffers_chunk_processor::remap_blocks(
 void flatbuffers_chunk_processor::remap_holes(chunks_t& new_chunks,
                                                size_t new_hole_index,
                                                size_t max_data_chunk_size) {
-  level_log_entry(lgr_, logger::DEBUG, DWARFS_CURRENT_SOURCE_LOCATION)
+  level_log_entry(lgr_, LOGGER_LEVEL_DEBUG, DWARFS_CURRENT_SOURCE_LOCATION)
       << "remapping holes (hole index: " << md_.hole_block_index.value()
       << " -> " << new_hole_index << ")";
 

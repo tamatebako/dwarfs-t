@@ -21,6 +21,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+// vcpkg gtest doesn't provide PrintU8StringTo even with C++20
+// Define GTEST_NO_U8STRING to avoid linking errors
+#ifndef GTEST_NO_U8STRING
+#define GTEST_NO_U8STRING
+#endif
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -41,23 +47,17 @@
 using namespace dwarfs;
 using namespace dwarfs::binary_literals;
 
-#ifdef GTEST_NO_U8STRING
-#define EXPECT_EQ_U8STR(a, b) EXPECT_TRUE((a) == (b))
-#else
-#define EXPECT_EQ_U8STR(a, b) EXPECT_EQ(a, b)
-#endif
-
 TEST(utils, utf8_display_width) {
-  EXPECT_EQ_U8STR(0, utf8_display_width(""));
-  EXPECT_EQ_U8STR(1, utf8_display_width(u8string_to_string(u8"a")));
-  EXPECT_EQ_U8STR(5, utf8_display_width(u8string_to_string(u8"abcde")));
-  EXPECT_EQ_U8STR(2, utf8_display_width(u8string_to_string(u8"你")));
-  EXPECT_EQ_U8STR(4, utf8_display_width(u8string_to_string(u8"我你")));
-  EXPECT_EQ_U8STR(6, utf8_display_width(u8string_to_string(u8"我爱你")));
-  EXPECT_EQ_U8STR(5, utf8_display_width(u8string_to_string(u8"☀️ Sun")));
-  EXPECT_EQ_U8STR(2, utf8_display_width(u8string_to_string(u8"⚽️")));
-  EXPECT_EQ_U8STR(5, utf8_display_width(u8string_to_string(u8"مرحبًا")));
-  EXPECT_EQ_U8STR(50,
+  EXPECT_TRUE(0 == utf8_display_width(""));
+  EXPECT_TRUE(1 == utf8_display_width(u8string_to_string(u8"a")));
+  EXPECT_TRUE(5 == utf8_display_width(u8string_to_string(u8"abcde")));
+  EXPECT_TRUE(2 == utf8_display_width(u8string_to_string(u8"你")));
+  EXPECT_TRUE(4 == utf8_display_width(u8string_to_string(u8"我你")));
+  EXPECT_TRUE(6 == utf8_display_width(u8string_to_string(u8"我爱你")));
+  EXPECT_TRUE(5 == utf8_display_width(u8string_to_string(u8"☀️ Sun")));
+  EXPECT_TRUE(2 == utf8_display_width(u8string_to_string(u8"⚽️")));
+  EXPECT_TRUE(5 == utf8_display_width(u8string_to_string(u8"مرحبًا")));
+  EXPECT_TRUE(50 ==
                   utf8_display_width(u8string_to_string(
                       u8"unicode/我爱你/☀️ Sun/Γειά σας/مرحبًا/⚽️/Карибського")));
 }
@@ -72,22 +72,22 @@ TEST(utils, uft8_truncate) {
   // -----------------123456789012345--
   auto const str = u8"我爱你/مرحبًا/⚽️";
 
-  EXPECT_EQ_U8STR(str, u8trunc(str, 15));
+  EXPECT_TRUE(str == u8trunc(str, 15));
   // ----------123456789012345--
-  EXPECT_EQ_U8STR(u8"我爱你/مرحبًا/", u8trunc(str, 14));
-  EXPECT_EQ_U8STR(u8"我爱你/مرحبًا/", u8trunc(str, 13));
-  EXPECT_EQ_U8STR(u8"我爱你/مرحبًا", u8trunc(str, 12));
-  EXPECT_EQ_U8STR(u8"我爱你/مرحبً", u8trunc(str, 11));
-  EXPECT_EQ_U8STR(u8"我爱你/مرح", u8trunc(str, 10));
-  EXPECT_EQ_U8STR(u8"我爱你/مر", u8trunc(str, 9));
-  EXPECT_EQ_U8STR(u8"我爱你/م", u8trunc(str, 8));
-  EXPECT_EQ_U8STR(u8"我爱你/", u8trunc(str, 7));
-  EXPECT_EQ_U8STR(u8"我爱你", u8trunc(str, 6));
-  EXPECT_EQ_U8STR(u8"我爱", u8trunc(str, 5));
-  EXPECT_EQ_U8STR(u8"我爱", u8trunc(str, 4));
-  EXPECT_EQ_U8STR(u8"我", u8trunc(str, 3));
-  EXPECT_EQ_U8STR(u8"我", u8trunc(str, 2));
-  EXPECT_EQ_U8STR(u8"", u8trunc(str, 1));
+  EXPECT_TRUE(u8"我爱你/مرحبًا/" == u8trunc(str, 14));
+  EXPECT_TRUE(u8"我爱你/مرحبًا/" == u8trunc(str, 13));
+  EXPECT_TRUE(u8"我爱你/مرحبًا" == u8trunc(str, 12));
+  EXPECT_TRUE(u8"我爱你/مرحبً" == u8trunc(str, 11));
+  EXPECT_TRUE(u8"我爱你/مرح" == u8trunc(str, 10));
+  EXPECT_TRUE(u8"我爱你/مر" == u8trunc(str, 9));
+  EXPECT_TRUE(u8"我爱你/م" == u8trunc(str, 8));
+  EXPECT_TRUE(u8"我爱你/" == u8trunc(str, 7));
+  EXPECT_TRUE(u8"我爱你" == u8trunc(str, 6));
+  EXPECT_TRUE(u8"我爱" == u8trunc(str, 5));
+  EXPECT_TRUE(u8"我爱" == u8trunc(str, 4));
+  EXPECT_TRUE(u8"我" == u8trunc(str, 3));
+  EXPECT_TRUE(u8"我" == u8trunc(str, 2));
+  EXPECT_TRUE(u8"" == u8trunc(str, 1));
 }
 
 TEST(utils, shorten_path_ascii) {
@@ -197,7 +197,7 @@ TEST(utils, shorten_path_utf8) {
     for (size_t max_len = 0; max_len < expected.size(); ++max_len) {
       std::string path = u8string_to_string(path_u8);
       shorten_path_string(path, '/', max_len);
-      EXPECT_EQ_U8STR(u8string_to_string(expected[max_len]), path);
+      EXPECT_TRUE(u8string_to_string(expected[max_len]) == path);
     }
   }
 }

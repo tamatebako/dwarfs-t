@@ -173,7 +173,7 @@ class flatbuffer_chunk_view : public chunk_view_interface {
  * FlatBuffer-based chunk range
  */
 class flatbuffer_chunk_range
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     : public chunk_range_interface  // Only inherit in dual-format builds
 #endif
 {
@@ -184,24 +184,24 @@ class flatbuffer_chunk_range
                          uint32_t begin_index, uint32_t end_index);
 
   size_t size() const
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       override
 #endif
       ;
   
   bool empty() const
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       override
 #endif
       ;
   
   std::shared_ptr<chunk_view_interface const> at(size_t index) const
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       override
 #endif
       ;
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // Dual-format: provide both backend-specific and interface iterators
   iterator native_begin() const;
   iterator native_end() const;
@@ -211,7 +211,7 @@ class flatbuffer_chunk_range
   iterator end() const;
 #endif
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // Iterator implementation for interface (type-erased) - only in dual-format builds
   class iterator_impl : public chunk_range_interface::iterator_interface {
    public:
@@ -339,6 +339,9 @@ class flatbuffer_dir_entry_view : public dir_entry_view_interface {
   uint32_t self_index_;
   uint32_t parent_index_;
   ::dwarfs::flatbuffers::Metadata const* metadata_;
+
+  // Helper to convert entry index to directory index
+  uint32_t entry_to_dir_idx(uint32_t entry_idx) const;
 };
 
 /**

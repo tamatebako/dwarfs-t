@@ -161,6 +161,11 @@ inline std::string exceptionStr(std::exception const& e) {
 #include <io.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+// Windows doesn't have ssize_t by default
+typedef SSIZE_T ssize_t;
+// Undefine Windows macros that conflict with common identifiers
+#undef ERROR
+#undef WARN
 #else
 #include <fcntl.h>
 #include <pthread.h>
@@ -369,7 +374,8 @@ inline std::string prettyPrint(double value, PrettyType type, bool addSpace = tr
       auto format_size = [&](double val, const char* unit) {
         // Check if it's a whole number (within floating point precision)
         double intpart;
-        if (std::modf(val, &intpart) == 0.0) {
+        constexpr double epsilon = 1e-9;
+        if (std::fabs(std::modf(val, &intpart)) < epsilon) {
           oss << static_cast<int>(val) << space << unit;
         } else {
           // Format with up to 2 decimals, removing trailing zeros
@@ -444,7 +450,7 @@ inline std::string prettyPrint(double value, PrettyType type, bool addSpace = tr
           std::snprintf(buf, sizeof(buf), "%.1f", seconds);
           oss << buf << space << "s";
         }
-      } else if (seconds == 0.0) {
+      } else if (std::fabs(seconds) < 1e-9) {
         oss << "0s";
       } else if (seconds >= 0.001) {
         // Milliseconds
@@ -604,6 +610,7 @@ inline bool setThreadName(std::string_view name) {
   return pthread_setname_np(std::string(name).c_str()) == 0;
 #elif defined(_WIN32)
   // Windows thread naming requires Win32 API
+  (void)name;
   return false; // Not critical - just skip
 #else
   (void)name;
@@ -661,8 +668,8 @@ public:
 
   uint64_t count() const { return count_; }
   T sum() const { return sum_; }
-  T min() const { return min_val_; }
-  T max() const { return max_val_; }
+  T min_value() const { return min_val_; }
+  T max_value() const { return max_val_; }
   double avg() const { return count_ > 0 ? static_cast<double>(sum_) / count_ : 0.0; }
 
 private:
@@ -783,7 +790,7 @@ struct Bits {
     size_t bits_read = 0;
 
     while (bits_read < num_bits) {
-      size_t bits_in_block = std::min(num_bits - bits_read, bitsPerBlock - start_bit);
+      size_t bits_in_block = (std::min)(num_bits - bits_read, bitsPerBlock - start_bit);
       T mask = (T(1) << bits_in_block) - 1;
       value |= ((data[start_block] >> start_bit) & mask) << bits_read;
 
@@ -817,7 +824,7 @@ struct Bits {
     size_t bits_written = 0;
 
     while (bits_written < num_bits) {
-      size_t bits_in_block = std::min(num_bits - bits_written, bitsPerBlock - start_bit);
+      size_t bits_in_block = (std::min)(num_bits - bits_written, bitsPerBlock - start_bit);
       T mask = (T(1) << bits_in_block) - 1;
 
       data[start_block] &= ~(mask << start_bit);  // Clear bits
@@ -875,7 +882,14 @@ inline ssize_t readFull(int fd, void* buf, size_t count) {
   size_t remaining = count;
 
   while (remaining > 0) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)
     ssize_t n = ::read(fd, ptr, remaining);
+#pragma warning(pop)
+#else
+    ssize_t n = ::read(fd, ptr, remaining);
+#endif
     if (n < 0) {
       if (errno == EINTR) continue;
       return -1;
@@ -893,7 +907,14 @@ inline ssize_t writeFull(int fd, void const* buf, size_t count) {
   size_t remaining = count;
 
   while (remaining > 0) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)
     ssize_t n = ::write(fd, ptr, remaining);
+#pragma warning(pop)
+#else
+    ssize_t n = ::write(fd, ptr, remaining);
+#endif
     if (n < 0) {
       if (errno == EINTR) continue;
       return -1;

@@ -1,0 +1,75 @@
+diff --git a/CMake/folly-config.h.cmake b/CMake/folly-config.h.cmake
+index 9a309fb..7e6e05f 100644
+--- a/CMake/folly-config.h.cmake
++++ b/CMake/folly-config.h.cmake
+@@ -16,6 +16,9 @@
+ 
+ #pragma once
+ 
++#cmakedefine01 FOLLY_HAS_LIBURING
++#cmakedefine01 FOLLY_HAS_LIBAIO
++
+ #ifdef __APPLE__
+ #include <TargetConditionals.h> // @manual
+ #endif
+diff --git a/CMake/folly-deps.cmake b/CMake/folly-deps.cmake
+index original..updated 100644
+--- a/CMake/folly-deps.cmake
++++ b/CMake/folly-deps.cmake
+@@ -46,17 +46,19 @@ find_package(Boost 1.69.0 REQUIRED
+ list(APPEND FOLLY_LINK_LIBRARIES ${Boost_LIBRARIES})
+ list(APPEND FOLLY_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIRS})
+ 
+-find_package(DoubleConversion MODULE REQUIRED)
++find_package(double-conversion CONFIG REQUIRED)
++set(DOUBLE_CONVERSION_LIBRARY double-conversion::double-conversion)
+ list(APPEND FOLLY_LINK_LIBRARIES ${DOUBLE_CONVERSION_LIBRARY})
+ list(APPEND FOLLY_INCLUDE_DIRECTORIES ${DOUBLE_CONVERSION_INCLUDE_DIR})
+ 
+-find_package(FastFloat MODULE REQUIRED)
++find_package(FastFloat CONFIG REQUIRED)
+ list(APPEND FOLLY_INCLUDE_DIRECTORIES ${FASTFLOAT_INCLUDE_DIR})
++list(APPEND FOLLY_LINK_LIBRARIES FastFloat::fast_float)
+ 
+-find_package(Gflags MODULE)
++set(GFLAGS_USE_TARGET_NAMESPACE ON)
++find_package(LIBGFLAGS NAMES gflags REQUIRED)
++set(LIBGFLAGS_LIBRARY gflags::gflags)
+ set(FOLLY_HAVE_LIBGFLAGS ${LIBGFLAGS_FOUND})
+ if(LIBGFLAGS_FOUND)
+   list(APPEND FOLLY_LINK_LIBRARIES ${LIBGFLAGS_LIBRARY})
+@@ -64,13 +66,17 @@ if(LIBGFLAGS_FOUND)
+   set(FOLLY_LIBGFLAGS_INCLUDE ${LIBGFLAGS_INCLUDE_DIR})
+ endif()
+ 
+-find_package(Glog MODULE)
++find_package(GLOG NAMES glog REQUIRED)
++set(GLOG_LIBRARY glog::glog)
+ set(FOLLY_HAVE_LIBGLOG ${GLOG_FOUND})
+ list(APPEND FOLLY_LINK_LIBRARIES ${GLOG_LIBRARY})
+ list(APPEND FOLLY_INCLUDE_DIRECTORIES ${GLOG_INCLUDE_DIR})
+ 
+-find_package(LibEvent MODULE REQUIRED)
++find_package(LIBEVENT NAMES Libevent REQUIRED)
++set(LIBEVENT_LIB libevent::core libevent::extra)
++if(NOT WIN32)
++  list(APPEND LIBEVENT_LIB libevent::pthreads)
++endif()
+ list(APPEND FOLLY_LINK_LIBRARIES ${LIBEVENT_LIB})
+ list(APPEND FOLLY_INCLUDE_DIRECTORIES ${LIBEVENT_INCLUDE_DIR})
+ 
+@@ -98,12 +104,15 @@ if (ZLIB_FOUND)
+   list(APPEND CMAKE_REQUIRED_LIBRARIES ${ZLIB_LIBRARIES})
+ endif()
+ 
+-find_package(BZip2 MODULE)
++find_package(BZip2)
++set(BZIP2_LIBRARIES BZip2::BZip2)
+ set(FOLLY_HAVE_LIBBZ2 ${BZIP2_FOUND})
+ if (BZIP2_FOUND)
+   list(APPEND FOLLY_INCLUDE_DIRECTORIES ${BZIP2_INCLUDE_DIRS})
+   list(APPEND FOLLY_LINK_LIBRARIES ${BZIP2_LIBRARIES})
+ endif()
++
++find_package(LibAIO)
++find_package(LibUring)

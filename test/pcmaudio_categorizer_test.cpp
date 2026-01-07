@@ -252,7 +252,7 @@ struct pcmfile_builder {
 } // namespace
 
 TEST(pcmaudio_categorizer, requirements) {
-  test::test_logger logger(logger::INFO);
+  test::test_logger logger(LOGGER_LEVEL_INFO);
   boost::program_options::variables_map vm;
   writer::categorizer_registry catreg;
   auto catmgr = writer::categorizer_manager(logger, "/");
@@ -291,7 +291,7 @@ TEST(pcmaudio_categorizer, requirements) {
 
     ASSERT_EQ(1, logger.get_log().size());
     auto const& ent = logger.get_log().front();
-    EXPECT_EQ(logger::WARN, ent.level);
+    EXPECT_EQ(LOGGER_LEVEL_WARN, ent.level);
     EXPECT_THAT(
         ent.output,
         MatchesRegex(
@@ -333,7 +333,7 @@ TEST(pcmaudio_categorizer, requirements) {
 
 class pcmaudio_error_test : public testing::Test {
  public:
-  test::test_logger logger{logger::VERBOSE};
+  test::test_logger logger{LOGGER_LEVEL_VERBOSE};
   writer::categorizer_manager catmgr{logger, "/"};
 
   auto categorize(pcmfile_builder const& builder) {

@@ -1,0 +1,1178 @@
+{
+  "version": 4,
+  "vendor": {
+    "dwarfs": {
+      "appName": "DwarFS"
+    }
+  },
+
+  "configurePresets": [
+    {
+      "name": "common-base",
+      "hidden": true,
+      "description": "Common settings for all presets",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_MAKE_PROGRAM": "ninja",
+        "BUILD_SHARED_LIBS": "OFF",
+        "VCPKG_BUILD": "ON",
+        "WITH_LIBDWARFS": "ON",
+        "WITH_TOOLS": "ON",
+        "WITH_TESTS": "ON",
+        "WITH_BENCHMARKS": "ON",
+        "ENABLE_PERFMON": "ON",
+        "TRY_ENABLE_FLAC": "ON",
+        "TRY_ENABLE_BROTLI": "ON",
+        "TRY_ENABLE_LZ4": "ON",
+        "TRY_ENABLE_LZMA": "ON",
+        "ENABLE_RICEPP": "ON",
+        "USE_JEMALLOC": "ON"
+      },
+      "warnings": {
+        "dev": true,
+        "deprecated": true,
+        "uninitialized": true,
+        "unusedCli": true,
+        "systemVars": false
+      },
+      "environment": {
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      }
+    },
+    {
+      "name": "production-base",
+      "hidden": true,
+      "description": "Production configuration (FlatBuffers + Legacy Thrift only)",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_FEATURES": ""
+      }
+    },
+    {
+      "name": "experimental-base",
+      "hidden": true,
+      "description": "Experimental configuration (+ Modern Thrift)",
+      "cacheVariables": {
+        "DWARFS_WITH_EXPERIMENTAL_THRIFT": "ON",
+        "VCPKG_MANIFEST_FEATURES": "modern-thrift"
+      }
+    },
+    {
+      "name": "x64-linux-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Linux x64 base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-linux",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "x64-linux-production",
+      "inherits": ["x64-linux-base", "production-base"],
+      "description": "Linux x64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-linux-experimental",
+      "inherits": ["x64-linux-base", "experimental-base"],
+      "description": "Linux x64 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-linux-dynamic-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Linux x64 Dynamic base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-linux-dynamic",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "BUILD_SHARED_LIBS": "ON"
+      }
+    },
+    {
+      "name": "x64-linux-dynamic-production",
+      "inherits": ["x64-linux-dynamic-base", "production-base"],
+      "description": "Linux x64 Dynamic Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-linux-dynamic-experimental",
+      "inherits": ["x64-linux-dynamic-base", "experimental-base"],
+      "description": "Linux x64 Dynamic Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-linux-release-dbg-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Linux x64 Release with Debug info base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-linux-release-dbg",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "x64-linux-release-dbg-production",
+      "inherits": ["x64-linux-release-dbg-base", "production-base"],
+      "description": "Linux x64 Release+Debug Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-linux-release-dbg-experimental",
+      "inherits": ["x64-linux-release-dbg-base", "experimental-base"],
+      "description": "Linux x64 Release+Debug Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-linux-musl-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Alpine Linux x64 (musl) base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-linux-musl",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "x64-linux-musl-production",
+      "inherits": ["x64-linux-musl-base", "production-base"],
+      "description": "Alpine Linux x64 (musl) Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-linux-musl-experimental",
+      "inherits": ["x64-linux-musl-base", "experimental-base"],
+      "description": "Alpine Linux x64 (musl) Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "arm64-linux-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Linux ARM64 base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "arm64-linux",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_MAKE_PROGRAM": "ninja"
+      }
+    },
+    {
+      "name": "arm64-linux-production",
+      "inherits": ["arm64-linux-base", "production-base"],
+      "description": "Linux ARM64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "arm64-linux-experimental",
+      "inherits": ["arm64-linux-base", "experimental-base"],
+      "description": "Linux ARM64 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-osx-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS x64 base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-osx",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "VCPKG_TRIPLET": "x64-osx",
+        "USE_HOMEBREW_LIBARCHIVE": "ON"
+      }
+    },
+    {
+      "name": "x64-osx-production",
+      "inherits": ["x64-osx-base", "production-base"],
+      "description": "macOS x64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-osx-experimental",
+      "inherits": ["x64-osx-base", "experimental-base"],
+      "description": "macOS x64 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-osx-dynamic-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS x64 Dynamic base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-osx-dynamic",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "VCPKG_TRIPLET": "x64-osx-dynamic",
+        "BUILD_SHARED_LIBS": "ON",
+        "USE_HOMEBREW_LIBARCHIVE": "ON"
+      }
+    },
+    {
+      "name": "x64-osx-dynamic-production",
+      "inherits": ["x64-osx-dynamic-base", "production-base"],
+      "description": "macOS x64 Dynamic Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-osx-dynamic-experimental",
+      "inherits": ["x64-osx-dynamic-base", "experimental-base"],
+      "description": "macOS x64 Dynamic Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "arm64-osx-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS ARM64 base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "arm64-osx",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "USE_HOMEBREW_LIBARCHIVE": "ON"
+      }
+    },
+    {
+      "name": "arm64-osx-production",
+      "inherits": ["arm64-osx-base", "production-base"],
+      "description": "macOS ARM64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "arm64-osx-experimental",
+      "inherits": ["arm64-osx-base", "experimental-base"],
+      "description": "macOS ARM64 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "arm64-osx-dynamic-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS ARM64 Dynamic base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "arm64-osx-dynamic",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "BUILD_SHARED_LIBS": "ON",
+        "USE_HOMEBREW_LIBARCHIVE": "ON"
+      }
+    },
+    {
+      "name": "arm64-osx-dynamic-production",
+      "inherits": ["arm64-osx-dynamic-base", "production-base"],
+      "description": "macOS ARM64 Dynamic Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "arm64-osx-dynamic-experimental",
+      "inherits": ["arm64-osx-dynamic-base", "experimental-base"],
+      "description": "macOS ARM64 Dynamic Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-osx-static-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS x64 Static base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-osx-static",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "BUILD_SHARED_LIBS": "OFF",
+        "USE_HOMEBREW_LIBARCHIVE": "ON"
+      }
+    },
+    {
+      "name": "x64-osx-static-production",
+      "inherits": ["x64-osx-static-base", "production-base"],
+      "description": "macOS x64 Static Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-osx-static-experimental",
+      "inherits": ["x64-osx-static-base", "experimental-base"],
+      "description": "macOS x64 Static Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "arm64-osx-static-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS ARM64 Static base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "arm64-osx-static",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "BUILD_SHARED_LIBS": "OFF",
+        "USE_HOMEBREW_LIBARCHIVE": "ON"
+      }
+    },
+    {
+      "name": "arm64-osx-static-production",
+      "inherits": ["arm64-osx-static-base", "production-base"],
+      "description": "macOS ARM64 Static Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "arm64-osx-static-experimental",
+      "inherits": ["arm64-osx-static-base", "experimental-base"],
+      "description": "macOS ARM64 Static Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-windows-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-windows",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
+      }
+    },
+    {
+      "name": "x64-windows-production",
+      "inherits": ["x64-windows-base", "production-base"],
+      "description": "Windows x64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-windows-experimental",
+      "inherits": ["x64-windows-base", "experimental-base"],
+      "description": "Windows x64 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-windows-static-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 Static base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-windows-static",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
+      }
+    },
+    {
+      "name": "x64-windows-static-production",
+      "inherits": ["x64-windows-static-base", "production-base"],
+      "description": "Windows x64 Static Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-windows-static-experimental",
+      "inherits": ["x64-windows-static-base", "experimental-base"],
+      "description": "Windows x64 Static Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-windows-static-md-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 Static MD base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-windows-static-md",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
+      }
+    },
+    {
+      "name": "x64-windows-static-md-production",
+      "inherits": ["x64-windows-static-md-base", "production-base"],
+      "description": "Windows x64 Static MD Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-windows-static-md-experimental",
+      "inherits": ["x64-windows-static-md-base", "experimental-base"],
+      "description": "Windows x64 Static MD Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-windows-dynamic-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 Dynamic base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-windows-dynamic",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "ON",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
+      }
+    },
+    {
+      "name": "x64-windows-dynamic-production",
+      "inherits": ["x64-windows-dynamic-base", "production-base"],
+      "description": "Windows x64 Dynamic Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-windows-dynamic-experimental",
+      "inherits": ["x64-windows-dynamic-base", "experimental-base"],
+      "description": "Windows x64 Dynamic Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "arm64-windows-static-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows ARM64 Static base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "arm64-windows-static",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
+      }
+    },
+    {
+      "name": "arm64-windows-static-production",
+      "inherits": ["arm64-windows-static-base", "production-base"],
+      "description": "Windows ARM64 Static Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "arm64-windows-static-experimental",
+      "inherits": ["arm64-windows-static-base", "experimental-base"],
+      "description": "Windows ARM64 Static Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-windows-msys-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 MSYS2 base configuration (MSYS2 packages, no vcpkg)",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_MAKE_PROGRAM": "ninja",
+        "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
+        "CMAKE_PREFIX_PATH": "C:/msys64/mingw64",
+        "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
+        "BOOST_ROOT": "C:/msys64/mingw64",
+        "BOOST_INCLUDEDIR": "C:/msys64/mingw64/include",
+        "BOOST_LIBRARYDIR": "C:/msys64/mingw64/lib",
+        "VCPKG_BUILD": "OFF",
+        "WITH_FUSE_DRIVER": "OFF"
+      }
+    },
+    {
+      "name": "x64-windows-msys-production",
+      "inherits": ["x64-windows-msys-base", "production-base"],
+      "description": "Windows x64 MSYS2 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-windows-msys-experimental",
+      "inherits": ["x64-windows-msys-base", "experimental-base"],
+      "description": "Windows x64 MSYS2 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-windows-mingw-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 MinGW-w64 base configuration (MSYS2 packages, no vcpkg)",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_MAKE_PROGRAM": "ninja",
+        "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
+        "CMAKE_PREFIX_PATH": "C:/msys64/mingw64",
+        "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
+        "BOOST_ROOT": "C:/msys64/mingw64",
+        "BOOST_INCLUDEDIR": "C:/msys64/mingw64/include",
+        "BOOST_LIBRARYDIR": "C:/msys64/mingw64/lib",
+        "VCPKG_BUILD": "OFF",
+        "WITH_FUSE_DRIVER": "OFF"
+      }
+    },
+    {
+      "name": "x64-windows-mingw-production",
+      "inherits": ["x64-windows-mingw-base", "production-base"],
+      "description": "Windows x64 MinGW-w64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-windows-mingw-experimental",
+      "inherits": ["x64-windows-mingw-base", "experimental-base"],
+      "description": "Windows x64 MinGW-w64 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-mingw-static-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 MinGW-w64 base configuration (vcpkg x64-mingw-static triplet)",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-mingw-static",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_MAKE_PROGRAM": "ninja",
+        "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
+        "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
+        "CMAKE_EXE_LINKER_FLAGS": "-mconsole",
+        "CMAKE_MODULE_LINKER_FLAGS": "-mconsole",
+        "WITH_FUSE_DRIVER": "OFF"
+      }
+    },
+    {
+      "name": "x64-mingw-static-production",
+      "inherits": ["x64-mingw-static-base", "production-base"],
+      "description": "Windows x64 MinGW-w64 Production (vcpkg x64-mingw-static, FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-mingw-static-experimental",
+      "inherits": ["x64-mingw-static-base", "experimental-base"],
+      "description": "Windows x64 MinGW-w64 Experimental (vcpkg x64-mingw-static, + Modern Thrift)"
+    }
+  ],
+
+  "buildPresets": [
+    {
+      "name": "x64-linux-production",
+      "configurePreset": "x64-linux-production",
+      "description": "Build Linux x64 Production"
+    },
+    {
+      "name": "x64-linux-experimental",
+      "configurePreset": "x64-linux-experimental",
+      "description": "Build Linux x64 Experimental"
+    },
+    {
+      "name": "x64-linux-dynamic-production",
+      "configurePreset": "x64-linux-dynamic-production",
+      "description": "Build Linux x64 Dynamic Production"
+    },
+    {
+      "name": "x64-linux-dynamic-experimental",
+      "configurePreset": "x64-linux-dynamic-experimental",
+      "description": "Build Linux x64 Dynamic Experimental"
+    },
+    {
+      "name": "x64-linux-release-dbg-production",
+      "configurePreset": "x64-linux-release-dbg-production",
+      "description": "Build Linux x64 Release+Debug Production"
+    },
+    {
+      "name": "x64-linux-release-dbg-experimental",
+      "configurePreset": "x64-linux-release-dbg-experimental",
+      "description": "Build Linux x64 Release+Debug Experimental"
+    },
+    {
+      "name": "x64-linux-musl-production",
+      "configurePreset": "x64-linux-musl-production",
+      "description": "Build Alpine Linux x64 (musl) Production"
+    },
+    {
+      "name": "x64-linux-musl-experimental",
+      "configurePreset": "x64-linux-musl-experimental",
+      "description": "Build Alpine Linux x64 (musl) Experimental"
+    },
+    {
+      "name": "arm64-linux-production",
+      "configurePreset": "arm64-linux-production",
+      "description": "Build Linux ARM64 Production"
+    },
+    {
+      "name": "arm64-linux-experimental",
+      "configurePreset": "arm64-linux-experimental",
+      "description": "Build Linux ARM64 Experimental"
+    },
+    {
+      "name": "x64-osx-production",
+      "configurePreset": "x64-osx-production",
+      "description": "Build macOS x64 Production"
+    },
+    {
+      "name": "x64-osx-experimental",
+      "configurePreset": "x64-osx-experimental",
+      "description": "Build macOS x64 Experimental"
+    },
+    {
+      "name": "x64-osx-dynamic-production",
+      "configurePreset": "x64-osx-dynamic-production",
+      "description": "Build macOS x64 Dynamic Production"
+    },
+    {
+      "name": "x64-osx-dynamic-experimental",
+      "configurePreset": "x64-osx-dynamic-experimental",
+      "description": "Build macOS x64 Dynamic Experimental"
+    },
+    {
+      "name": "x64-osx-static-production",
+      "configurePreset": "x64-osx-static-production",
+      "description": "Build macOS x64 Static Production"
+    },
+    {
+      "name": "x64-osx-static-experimental",
+      "configurePreset": "x64-osx-static-experimental",
+      "description": "Build macOS x64 Static Experimental"
+    },
+    {
+      "name": "arm64-osx-production",
+      "configurePreset": "arm64-osx-production",
+      "description": "Build macOS ARM64 Production"
+    },
+    {
+      "name": "arm64-osx-experimental",
+      "configurePreset": "arm64-osx-experimental",
+      "description": "Build macOS ARM64 Experimental"
+    },
+    {
+      "name": "arm64-osx-dynamic-production",
+      "configurePreset": "arm64-osx-dynamic-production",
+      "description": "Build macOS ARM64 Dynamic Production"
+    },
+    {
+      "name": "arm64-osx-dynamic-experimental",
+      "configurePreset": "arm64-osx-dynamic-experimental",
+      "description": "Build macOS ARM64 Dynamic Experimental"
+    },
+    {
+      "name": "arm64-osx-static-production",
+      "configurePreset": "arm64-osx-static-production",
+      "description": "Build macOS ARM64 Static Production"
+    },
+    {
+      "name": "arm64-osx-static-experimental",
+      "configurePreset": "arm64-osx-static-experimental",
+      "description": "Build macOS ARM64 Static Experimental"
+    },
+    {
+      "name": "x64-windows-production",
+      "configurePreset": "x64-windows-production",
+      "description": "Build Windows x64 Production"
+    },
+    {
+      "name": "x64-windows-experimental",
+      "configurePreset": "x64-windows-experimental",
+      "description": "Build Windows x64 Experimental"
+    },
+    {
+      "name": "x64-windows-static-production",
+      "configurePreset": "x64-windows-static-production",
+      "description": "Build Windows x64 Static Production"
+    },
+    {
+      "name": "x64-windows-static-experimental",
+      "configurePreset": "x64-windows-static-experimental",
+      "description": "Build Windows x64 Static Experimental"
+    },
+    {
+      "name": "x64-windows-static-md-production",
+      "configurePreset": "x64-windows-static-md-production",
+      "description": "Build Windows x64 Static MD Production"
+    },
+    {
+      "name": "x64-windows-static-md-experimental",
+      "configurePreset": "x64-windows-static-md-experimental",
+      "description": "Build Windows x64 Static MD Experimental"
+    },
+    {
+      "name": "x64-windows-dynamic-production",
+      "configurePreset": "x64-windows-dynamic-production",
+      "description": "Build Windows x64 Dynamic Production"
+    },
+    {
+      "name": "x64-windows-dynamic-experimental",
+      "configurePreset": "x64-windows-dynamic-experimental",
+      "description": "Build Windows x64 Dynamic Experimental"
+    },
+    {
+      "name": "arm64-windows-static-production",
+      "configurePreset": "arm64-windows-static-production",
+      "description": "Build Windows ARM64 Static Production"
+    },
+    {
+      "name": "arm64-windows-static-experimental",
+      "configurePreset": "arm64-windows-static-experimental",
+      "description": "Build Windows ARM64 Static Experimental"
+    },
+    {
+      "name": "x64-windows-msys-production",
+      "configurePreset": "x64-windows-msys-production",
+      "description": "Build Windows x64 MSYS2 Production"
+    },
+    {
+      "name": "x64-windows-msys-experimental",
+      "configurePreset": "x64-windows-msys-experimental",
+      "description": "Build Windows x64 MSYS2 Experimental"
+    },
+    {
+      "name": "x64-windows-mingw-production",
+      "configurePreset": "x64-windows-mingw-production",
+      "description": "Build Windows x64 MinGW-w64 Production"
+    },
+    {
+      "name": "x64-windows-mingw-experimental",
+      "configurePreset": "x64-windows-mingw-experimental",
+      "description": "Build Windows x64 MinGW-w64 Experimental"
+    },
+    {
+      "name": "x64-mingw-static-production",
+      "configurePreset": "x64-mingw-static-production",
+      "description": "Build Windows x64 MinGW-w64 Static Production (vcpkg x64-mingw-static)"
+    },
+    {
+      "name": "x64-mingw-static-experimental",
+      "configurePreset": "x64-mingw-static-experimental",
+      "description": "Build Windows x64 MinGW-w64 Static Experimental (vcpkg x64-mingw-static)"
+    }
+  ],
+
+  "testPresets": [
+    {
+      "name": "x64-linux-production",
+      "configurePreset": "x64-linux-production",
+      "description": "Test Linux x64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-linux-experimental",
+      "configurePreset": "x64-linux-experimental",
+      "description": "Test Linux x64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-linux-dynamic-production",
+      "configurePreset": "x64-linux-dynamic-production",
+      "description": "Test Linux x64 Dynamic Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-linux-dynamic-experimental",
+      "configurePreset": "x64-linux-dynamic-experimental",
+      "description": "Test Linux x64 Dynamic Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-linux-release-dbg-production",
+      "configurePreset": "x64-linux-release-dbg-production",
+      "description": "Test Linux x64 Release+Debug Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-linux-release-dbg-experimental",
+      "configurePreset": "x64-linux-release-dbg-experimental",
+      "description": "Test Linux x64 Release+Debug Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-linux-musl-production",
+      "configurePreset": "x64-linux-musl-production",
+      "description": "Test Alpine Linux x64 (musl) Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-linux-musl-experimental",
+      "configurePreset": "x64-linux-musl-experimental",
+      "description": "Test Alpine Linux x64 (musl) Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-linux-production",
+      "configurePreset": "arm64-linux-production",
+      "description": "Test Linux ARM64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-linux-experimental",
+      "configurePreset": "arm64-linux-experimental",
+      "description": "Test Linux ARM64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-osx-production",
+      "configurePreset": "x64-osx-production",
+      "description": "Test macOS x64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-osx-experimental",
+      "configurePreset": "x64-osx-experimental",
+      "description": "Test macOS x64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-osx-dynamic-production",
+      "configurePreset": "x64-osx-dynamic-production",
+      "description": "Test macOS x64 Dynamic Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-osx-dynamic-experimental",
+      "configurePreset": "x64-osx-dynamic-experimental",
+      "description": "Test macOS x64 Dynamic Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-osx-production",
+      "configurePreset": "arm64-osx-production",
+      "description": "Test macOS ARM64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-osx-experimental",
+      "configurePreset": "arm64-osx-experimental",
+      "description": "Test macOS ARM64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-osx-dynamic-production",
+      "configurePreset": "arm64-osx-dynamic-production",
+      "description": "Test macOS ARM64 Dynamic Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-osx-dynamic-experimental",
+      "configurePreset": "arm64-osx-dynamic-experimental",
+      "description": "Test macOS ARM64 Dynamic Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-osx-static-production",
+      "configurePreset": "x64-osx-static-production",
+      "description": "Test macOS x64 Static Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-osx-static-experimental",
+      "configurePreset": "x64-osx-static-experimental",
+      "description": "Test macOS x64 Static Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-osx-static-production",
+      "configurePreset": "arm64-osx-static-production",
+      "description": "Test macOS ARM64 Static Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-osx-static-experimental",
+      "configurePreset": "arm64-osx-static-experimental",
+      "description": "Test macOS ARM64 Static Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-production",
+      "configurePreset": "x64-windows-production",
+      "description": "Test Windows x64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-experimental",
+      "configurePreset": "x64-windows-experimental",
+      "description": "Test Windows x64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-static-production",
+      "configurePreset": "x64-windows-static-production",
+      "description": "Test Windows x64 Static Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-static-experimental",
+      "configurePreset": "x64-windows-static-experimental",
+      "description": "Test Windows x64 Static Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-static-md-production",
+      "configurePreset": "x64-windows-static-md-production",
+      "description": "Test Windows x64 Static MD Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-static-md-experimental",
+      "configurePreset": "x64-windows-static-md-experimental",
+      "description": "Test Windows x64 Static MD Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-dynamic-production",
+      "configurePreset": "x64-windows-dynamic-production",
+      "description": "Test Windows x64 Dynamic Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-dynamic-experimental",
+      "configurePreset": "x64-windows-dynamic-experimental",
+      "description": "Test Windows x64 Dynamic Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-windows-static-production",
+      "configurePreset": "arm64-windows-static-production",
+      "description": "Test Windows ARM64 Static Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-windows-static-experimental",
+      "configurePreset": "arm64-windows-static-experimental",
+      "description": "Test Windows ARM64 Static Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-msys-production",
+      "configurePreset": "x64-windows-msys-production",
+      "description": "Test Windows x64 MSYS2 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-msys-experimental",
+      "configurePreset": "x64-windows-msys-experimental",
+      "description": "Test Windows x64 MSYS2 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-mingw-production",
+      "configurePreset": "x64-windows-mingw-production",
+      "description": "Test Windows x64 MinGW-w64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-mingw-experimental",
+      "configurePreset": "x64-windows-mingw-experimental",
+      "description": "Test Windows x64 MinGW-w64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-mingw-static-production",
+      "configurePreset": "x64-mingw-static-production",
+      "description": "Test Windows x64 MinGW-w64 Static Production (vcpkg x64-mingw-static)",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-mingw-static-experimental",
+      "configurePreset": "x64-mingw-static-experimental",
+      "description": "Test Windows x64 MinGW-w64 Static Experimental (vcpkg x64-mingw-static)",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    }
+  ]
+}

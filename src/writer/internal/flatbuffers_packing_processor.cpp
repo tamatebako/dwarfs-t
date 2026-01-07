@@ -22,6 +22,7 @@
 #include "flatbuffers_packing_processor.h"
 
 #include <algorithm>
+#include <iostream>
 #include <numeric>
 
 #include <dwarfs/logger.h>
@@ -45,7 +46,8 @@ void flatbuffers_packing_processor::pack_metadata() {
     // pack directories
     uint32_t last_first_entry = 0;
 
-    for (auto& d : md_.directories) {
+    for (size_t i = 0; i < md_.directories.size(); ++i) {
+      auto& d = md_.directories[i];
       d.set_parent_entry(0); // this will be recovered
       d.set_self_entry(0);   // this will be recovered
       auto delta = d.first_entry() - last_first_entry;
@@ -106,20 +108,48 @@ void flatbuffers_packing_processor::pack_metadata() {
   }
 
   if (!options_.plain_names_table) {
-    md_.compact_names = string_table::pack_domain(
+    auto packed = string_table::pack_domain(
         md_.names,
         string_table::pack_options(
             options_.pack_names, options_.pack_names_index,
             options_.force_pack_string_tables));
-    md_.names.clear();
+
+    // Validate packed result before clearing source data
+    // For N strings, we need N+1 index entries (N offsets + 1 buffer size marker)
+    bool pack_valid =
+      !packed.buffer.empty() &&
+      packed.index.size() == md_.names.size() + 1 &&
+      packed.symtab.has_value();
+
+    if (pack_valid) {
+      md_.compact_names = std::move(packed);
+      md_.names.clear();
+    } else {
+      // Packing failed - keep plain names, don't set compact_names
+      // (compact_names stays as nullopt)
+    }
   }
 
   if (!options_.plain_symlinks_table) {
-    md_.compact_symlinks = string_table::pack_domain(
+    auto packed = string_table::pack_domain(
         md_.symlinks, string_table::pack_options(
                           options_.pack_symlinks, options_.pack_symlinks_index,
                           options_.force_pack_string_tables));
-    md_.symlinks.clear();
+
+    // Validate packed result before clearing source data
+    // For N strings, we need N+1 index entries (N offsets + 1 buffer size marker)
+    bool pack_valid =
+      !packed.buffer.empty() &&
+      packed.index.size() == md_.symlinks.size() + 1 &&
+      packed.symtab.has_value();
+
+    if (pack_valid) {
+      md_.compact_symlinks = std::move(packed);
+      md_.symlinks.clear();
+    } else {
+      // Packing failed - keep plain symlinks
+      // (compact_symlinks stays as nullopt)
+    }
   }
 
   if (options_.no_category_names) {

@@ -36,11 +36,13 @@ struct fuse_args;
 
 namespace dwarfs::tool {
 
-class iolayer;
+struct iolayer;
+
+namespace dwarfs {
+struct parsed_options;
+}
 
 namespace dwarfs_tool {
-
-struct parsed_options;
 
 /**
  * Handler for mounting DwarFS filesystems via FUSE
@@ -51,10 +53,10 @@ struct parsed_options;
  *
  * Example usage:
  * @code
- *   parsed_options opts;
+ *   dwarfs::parsed_options opts;
  *   fuse_args args = FUSE_ARGS_INIT(argc, argv);
- *   options_parser parser;
- *   parser.parse(argc, argv, iol, opts, args, progname);
+ *   argtable3_options_parser parser;
+ *   parser.parse(argc, argv);
  *
  *   mount_handler handler(opts, args, iol, progname);
  *   return handler.run();
@@ -70,7 +72,7 @@ class mount_handler {
    * @param iol I/O layer for logging and file access
    * @param progname Program name for error messages
    */
-  mount_handler(parsed_options& opts, fuse_args& args, iolayer const& iol,
+  mount_handler(dwarfs::parsed_options& opts, fuse_args& args, iolayer const& iol,
                 std::filesystem::path const& progname);
 
   /**

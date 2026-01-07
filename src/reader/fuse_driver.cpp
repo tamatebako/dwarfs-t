@@ -19,21 +19,20 @@
 #define DWARFS_FUSE_LOWLEVEL 1
 #endif
 
-#if FUSE_USE_VERSION >= 30
 #ifdef DWARFS_USE_FUSE_T
-// FUSE-T uses fuse/ not fuse3/ headers
+// FUSE-T on macOS uses FUSE2 API with headers at fuse/fuse.h
+// Headers are included from fuse/ subdirectory but provide FUSE2 API
 #if DWARFS_FUSE_LOWLEVEL
 #include <fuse/fuse_lowlevel.h>
 #else
 #include <fuse/fuse.h>
 #endif
-#else
-// macFUSE and FUSE3 use fuse3/ headers
+#elif FUSE_USE_VERSION >= 30
+// FUSE3 or macFUSE with FUSE3 API
 #if DWARFS_FUSE_LOWLEVEL
 #include <fuse3/fuse_lowlevel.h>
 #else
 #include <fuse3/fuse.h>
-#endif
 #endif
 #else
 // FUSE2 compatibility
@@ -298,10 +297,16 @@ struct fuse_driver::impl {
 
     bool add_entry(std::string const& name, native_stat const& st,
                    file_off_t off) {
+#if defined(DWARFS_USE_FUSE_T) || FUSE_USE_VERSION < 30
+      // FUSE2 and FUSE-T use 4-parameter filler (no flags argument)
+      // For FUSE-T, offset must be 0
 #ifdef DWARFS_USE_FUSE_T
-      // FUSE-T requires offset to be 0 for readdir filler function
-      return filler_(buf_, name.c_str(), &st, 0, FUSE_FILL_DIR_PLUS) == 0;
+      return filler_(buf_, name.c_str(), &st, 0) == 0;
 #else
+      return filler_(buf_, name.c_str(), &st, off + 1) == 0;
+#endif
+#else
+      // FUSE3 uses 5-parameter filler with flags
       return filler_(buf_, name.c_str(), &st, off + 1, FUSE_FILL_DIR_PLUS) ==
              0;
 #endif
@@ -441,8 +446,12 @@ struct fuse_driver::impl {
   }
 #else
   template <typename LoggerPolicy>
-  static int op_getattr(char const* path, native_stat* st,
-                        struct fuse_file_info*) {
+  static int op_getattr(char const* path, native_stat* st
+#if defined(DWARFS_USE_FUSE_T) || FUSE_USE_VERSION < 30
+  ) {
+#else
+                        , struct fuse_file_info*) {
+#endif
     auto* pimpl =
         reinterpret_cast<impl*>(fuse_get_context()->private_data);
     PERFMON_EXT_SCOPED_SECTION(*pimpl, op_getattr)
@@ -815,10 +824,18 @@ struct fuse_driver::impl {
     });
   }
 #else
+#if defined(DWARFS_USE_FUSE_T) || FUSE_USE_VERSION < 30
+  // FUSE2 and FUSE-T use 5-parameter readdir (no flags argument)
+  template <typename LoggerPolicy>
+  static int op_readdir(char const* path, void* buf, fuse_fill_dir_t filler,
+                        native_off_t off, struct fuse_file_info* /*fi*/) {
+#else
+  // FUSE3 uses 6-parameter readdir with flags
   template <typename LoggerPolicy>
   static int op_readdir(char const* path, void* buf, fuse_fill_dir_t filler,
                         native_off_t off, struct fuse_file_info* /*fi*/,
                         enum fuse_readdir_flags /*flags*/) {
+#endif
     auto* pimpl =
         reinterpret_cast<impl*>(fuse_get_context()->private_data);
     PERFMON_EXT_SCOPED_SECTION(*pimpl, op_readdir)
@@ -991,7 +1008,11 @@ struct fuse_driver::impl {
 #else
   template <typename LoggerPolicy>
   static int op_getxattr(char const* path, char const* name, char* value,
-                         size_t size) {
+                         size_t size
+#if defined(DWARFS_USE_FUSE_T)
+                         , uint32_t /*position*/
+#endif
+                         ) {
     auto* pimpl =
         reinterpret_cast<impl*>(fuse_get_context()->private_data);
     PERFMON_EXT_SCOPED_SECTION(*pimpl, op_getxattr)
@@ -1029,7 +1050,11 @@ struct fuse_driver::impl {
 
   template <typename LoggerPolicy>
   static int op_setxattr(char const* path, char const* name,
-                         char const* /*value*/, size_t size, int /*flags*/) {
+                         char const* /*value*/, size_t size, int /*flags*/
+#if defined(DWARFS_USE_FUSE_T)
+                         , uint32_t /*position*/
+#endif
+                         ) {
     auto* pimpl =
         reinterpret_cast<impl*>(fuse_get_context()->private_data);
     LOG_PROXY(LoggerPolicy, pimpl->lgr);
@@ -1148,13 +1173,22 @@ struct fuse_driver::impl {
 
 #if !DWARFS_FUSE_LOWLEVEL
   template <typename LoggerPolicy>
-  static int op_rename(char const* from, char const* to, unsigned int flags) {
+  static int op_rename(char const* from, char const* to
+#if !defined(DWARFS_USE_FUSE_T) && FUSE_USE_VERSION >= 30
+                       , unsigned int flags
+#endif
+                       ) {
     auto* pimpl =
         reinterpret_cast<impl*>(fuse_get_context()->private_data);
     LOG_PROXY(LoggerPolicy, pimpl->lgr);
 
+#if defined(DWARFS_USE_FUSE_T)
+    LOG_DEBUG << __func__ << "(" << from << ", " << to << ")"
+              << pimpl->get_caller_context();
+#else
     LOG_DEBUG << __func__ << "(" << from << ", " << to << ", " << flags
               << ")" << pimpl->get_caller_context();
+#endif
 
     return -ENOSYS;
   }
@@ -1169,9 +1203,11 @@ struct fuse_driver::impl {
       fuse_operations& ops
 #endif
   ) {
-    ops.init = &impl::op_init<LoggerPolicy>;
 #if DWARFS_FUSE_LOWLEVEL
+    ops.init = &impl::op_init<LoggerPolicy>;
     ops.lookup = &impl::op_lookup<LoggerPolicy>;
+#else
+    // For high-level API, ops.init is optional and can be NULL
 #endif
     ops.getattr = &impl::op_getattr<LoggerPolicy>;
     if (fs.has_symlinks()) {
@@ -1207,7 +1243,7 @@ fuse_driver::~fuse_driver() = default;
 
 #if DWARFS_FUSE_LOWLEVEL
 void fuse_driver::setup_operations(fuse_lowlevel_ops& ops) {
-  if (impl_->config.log_threshold >= logger::DEBUG) {
+  if (impl_->config.log_threshold >= LOGGER_LEVEL_DEBUG) {
     impl_->init_fuse_ops_impl<debug_logger_policy>(ops);
   } else {
     impl_->init_fuse_ops_impl<prod_logger_policy>(ops);
@@ -1215,7 +1251,7 @@ void fuse_driver::setup_operations(fuse_lowlevel_ops& ops) {
 }
 #else
 void fuse_driver::setup_operations(fuse_operations& ops) {
-  if (impl_->config.log_threshold >= logger::DEBUG) {
+  if (impl_->config.log_threshold >= LOGGER_LEVEL_DEBUG) {
     impl_->init_fuse_ops_impl<debug_logger_policy>(ops);
   } else {
     impl_->init_fuse_ops_impl<prod_logger_policy>(ops);

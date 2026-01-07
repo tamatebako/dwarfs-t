@@ -24,10 +24,10 @@
 #include <dwarfs/tool/mkdwarfs/handler_factory.h>
 #include <dwarfs/tool/mkdwarfs/handler_interface.h>
 #include <dwarfs/tool/mkdwarfs/create_handler.h>
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/tool/mkdwarfs/recompress_handler.h>
 #endif
-#include <dwarfs/tool/mkdwarfs/options_parser.h>
+#include <dwarfs/tool/mkdwarfs/parsed_options.h>
 
 #include <stdexcept>
 
@@ -36,15 +36,15 @@ namespace dwarfs::tool::mkdwarfs {
 std::unique_ptr<handler_interface>
 handler_factory::create(parsed_options const& opts) {
   if (opts.is_recompress) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     return std::make_unique<recompress_handler>();
 #else
     throw std::runtime_error(
-        "Recompress functionality requires Thrift support.\n"
-        "This build was compiled without Thrift (DWARFS_WITH_THRIFT=OFF).\n"
-        "Recompressing existing images requires Thrift because the rewrite\n"
+        "Recompress functionality requires Modern Thrift support.\n"
+        "This build was compiled without Modern Thrift (DWARFS_WITH_EXPERIMENTAL_THRIFT=OFF).\n"
+        "Recompressing existing images requires Modern Thrift because the rewrite\n"
         "implementation depends on Thrift-specific metadata APIs.\n\n"
-        "To use recompress features, rebuild with DWARFS_WITH_THRIFT=ON");
+        "To use recompress features, rebuild with DWARFS_WITH_EXPERIMENTAL_THRIFT=ON");
 #endif
   }
 

@@ -1,0 +1,216 @@
+# MinGW/MSYS Matrix Workflow
+#
+# Separate workflow for GCC-based Windows builds.
+# These use completely different toolchains and build configurations than MSVC.
+#
+# Key Differences from MSVC Builds:
+# - Uses GCC instead of MSVC
+# - Different CMake generator and flags
+# - Uses vcpkg with MinGW triplets for dependency management
+# - Different runtime linking (libstdc++, libgcc)
+# - Console subsystem by default (no -mwindows flag issues)
+#
+# Strategy:
+# - Run vcpkg from standard Windows shell (NOT MSYS2) to avoid conflicts
+# - Use vcpkg's MinGW triplets (x64-mingw-static, etc.)
+# - Add MinGW to PATH while avoiding sh.exe/bash.exe conflicts
+
+name: Windows GCC Matrix
+
+on:
+  pull_request:
+    branches: [main, feature/*]
+  push:
+    branches: [main, feature/**]
+    paths-ignore:
+      - '.benchmark/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.gitignore'
+      - '.maintainer-scripts/**'
+      - 'CHANGES.md'
+      - 'CITATION.cff'
+      - 'doc/**'
+      - 'TODO'
+  workflow_dispatch:
+
+concurrency:
+  group: windows-gcc-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GCC_VERSION: '14'
+
+jobs:
+  # ========================================================================
+  # MinGW Build (native Windows GCC)
+  # ========================================================================
+  mingw:
+    name: 🔧 MinGW x64
+    runs-on: windows-latest
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-mingw-static
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      # Install MinGW-w64 for Windows (using MSYS2 without conflicting binaries)
+      - name: 🔧 Install MinGW-w64
+        run: |
+          # Install MSYS2 but DON'T use its shell (to avoid conflicts with vcpkg)
+          C:/msys64/usr/bin/pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
+          # Add MinGW bin to PATH, but NOT MSYS2/usr/bin (avoids sh.exe conflicts)
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: 🧹 Clean build directory
+        run: rm -rf build-x64-mingw-static-production
+        shell: bash
+
+      - name: 📦 Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        env:
+          VCPKG_DEFAULT_TRIPLET: x64-mingw-static
+        with:
+          vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
+          vcpkgJsonGlob: vcpkg-production.json
+          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+
+      - name: 🔨 Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: latest
+          ninjaVersion: latest
+
+      - name: 📦 Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install argcomplete mistletoe
+        shell: pwsh
+
+      - name: 💾 Setup ccache
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          store_cache: false
+          restore_cache: false
+          remove_stale_cache: true
+          override_cache_key: ccache_mingw64
+
+      - name: 🏗️ Build and Test
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: x64-mingw-static-production
+          buildPreset: x64-mingw-static-production
+          testPreset: x64-mingw-static-production
+
+  # ========================================================================
+  # MSYS2 Build (Unix-like environment on Windows)
+  # ========================================================================
+  msys:
+    name: 🔧 MSYS2 x64
+    runs-on: windows-latest
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-mingw-static
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      # Install MSYS2 with MinGW-w64
+      - name: 🔧 Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+            git
+
+      - name: 🧹 Clean build directory
+        run: rm -rf build-x64-mingw-static-production
+        shell: bash
+
+      # NOTE: We DON'T run vcpkg from MSYS2 shell to avoid conflicts!
+      # Instead, we run vcpkg in a later step using standard Windows shell
+
+      - name: 📦 Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        env:
+          VCPKG_DEFAULT_TRIPLET: x64-mingw-static
+        with:
+          vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
+          vcpkgJsonGlob: vcpkg-production.json
+          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+
+      - name: 🔨 Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: latest
+          ninjaVersion: latest
+
+      - name: 📦 Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install argcomplete mistletoe
+        shell: pwsh
+
+      - name: 💾 Setup ccache
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          store_cache: false
+          restore_cache: false
+          remove_stale_cache: true
+          override_cache_key: ccache_msys2
+
+      - name: 🏗️ Build and Test
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: x64-mingw-static-production
+          buildPreset: x64-mingw-static-production
+          testPreset: x64-mingw-static-production
+
+  # ========================================================================
+  # Summary
+  # ========================================================================
+  summary:
+    name: 📊 Summary
+    needs:
+      - mingw
+      - msys
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📊 Results
+        run: |
+          echo "# Windows GCC Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| MinGW x64 | ${{ needs.mingw.result == 'success' && 'success' || needs.mingw.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| MSYS2 x64 | ${{ needs.msys.result == 'success' && 'success' || needs.msys.result }} |" >> $GITHUB_STEP_SUMMARY

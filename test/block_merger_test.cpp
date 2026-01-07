@@ -23,7 +23,7 @@
 
 #include <gtest/gtest.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 // This test uses Folly synchronization primitives (comes with Thrift)
 
 #include <atomic>
@@ -236,10 +236,10 @@ do_run(std::mutex& out_mx, size_t run, std::mt19937& delay_rng) {
   std::exponential_distribution<> inflight_dist(BlockT::kIsSized ? 0.00001
                                                                  : 0.1);
   std::uniform_real_distribution<> speed_dist(0.1, 10.0);
-  std::uniform_int_distribution<> merged_queue_dist(0, 1);
-  std::uniform_int_distribution<> worst_case_size_dist(1, 10000);
-  std::uniform_int_distribution<> release_after_us_dist(1, 10000);
-  std::uniform_int_distribution<> partial_release_repeat_dist(0, 2);
+  std::uniform_int_distribution<int> merged_queue_dist(0, 1);
+  std::uniform_int_distribution<int> worst_case_size_dist(1, 10000);
+  std::uniform_int_distribution<int> release_after_us_dist(1, 10000);
+  std::uniform_int_distribution<int> partial_release_repeat_dist(0, 2);
   auto const num_sources{std::max<size_t>(1, sources_dist(rng))};
   auto const num_slots{std::max<size_t>(1, slots_dist(rng))};
   auto const num_threads{std::max<size_t>(num_slots, threads_dist(delay_rng))};
@@ -529,7 +529,7 @@ TEST(block_merger, random_sized_partial) {
 
 // Folly/Thrift not available - skip tests
 TEST(block_merger, folly_unavailable) {
-  GTEST_SKIP() << "Folly synchronization primitives not available (requires DWARFS_HAVE_THRIFT) - skipping block merger tests";
+  GTEST_SKIP() << "Folly synchronization primitives not available (requires DWARFS_HAVE_EXPERIMENTAL_THRIFT) - skipping block merger tests";
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

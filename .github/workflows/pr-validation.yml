@@ -1,0 +1,31 @@
+# PR Validation Workflow
+#
+# Fast feedback for pull requests.
+# Tests production configuration on Linux x64 only.
+# Target runtime: ~15-20 minutes.
+#
+# For full matrix testing, use ci-matrix.yml manually.
+
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main, feature/*]
+  workflow_dispatch:
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Linux x64 · Production
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: production
+      vcpkg-manifest: vcpkg-production.json

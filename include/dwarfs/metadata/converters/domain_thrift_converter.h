@@ -25,8 +25,6 @@
 
 #include "dwarfs/metadata/domain/metadata.h"
 
-#ifdef DWARFS_HAVE_THRIFT
-
 // Forward declarations to avoid pulling in Thrift headers
 namespace dwarfs::thrift::metadata {
 class chunk;
@@ -197,5 +195,3 @@ dwarfs::thrift::metadata::history_entry to_thrift(const domain::history_entry& e
 dwarfs::thrift::metadata::metadata to_thrift(const domain::metadata& m);
 
 } // namespace dwarfs::metadata::converters
-
-#endif // DWARFS_HAVE_THRIFT

@@ -36,7 +36,7 @@
 
 #include "dwarfs/internal/metadata_structures.h"
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #include <dwarfs/gen-cpp2/features_types.h>
@@ -310,4 +310,4 @@ thrift::metadata::metadata to_thrift(const metadata& m);
 
 } // namespace dwarfs::internal
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

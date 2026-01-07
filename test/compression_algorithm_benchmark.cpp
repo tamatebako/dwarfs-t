@@ -94,8 +94,8 @@ shared_byte_buffer make_log_data(size_t size = 1024 * 1024) {
   };
   
   std::mt19937 rng(42);
-  std::uniform_int_distribution<> level_dist(0, 3);
-  std::uniform_int_distribution<> msg_dist(0, 5);
+  std::uniform_int_distribution<int> level_dist(0, 3);
+  std::uniform_int_distribution<int> msg_dist(0, 5);
   
   while (ss.tellp() < static_cast<std::streampos>(size)) {
     ss << "2025-12-01 10:15:30 " 
@@ -115,7 +115,7 @@ shared_byte_buffer make_log_data(size_t size = 1024 * 1024) {
  */
 shared_byte_buffer make_binary_data(size_t size = 1024 * 1024) {
   std::mt19937 rng(42);
-  std::uniform_int_distribution<uint8_t> dist(0, 255);
+  std::uniform_int_distribution<int> dist(0, 255);
   
   auto out = malloc_byte_buffer::create();
   out.resize(size);
@@ -148,7 +148,7 @@ shared_byte_buffer make_binary_data(size_t size = 1024 * 1024) {
 shared_byte_buffer make_random_data(size_t size = 1024 * 1024) {
   std::random_device rd;
   std::mt19937 rng(rd());
-  std::uniform_int_distribution<uint8_t> dist(0, 255);
+  std::uniform_int_distribution<int> dist(0, 255);
   
   auto out = malloc_byte_buffer::create();
   out.resize(size);

@@ -1,0 +1,135 @@
+# Homebrew Compatibility Testing Configuration
+# This file controls the behavior of the compatibility test suite
+
+# Homebrew Configuration
+homebrew:
+  # dwarfs versions to test against
+  # "0.14.1" refers to the specific Homebrew version
+  # "latest" refers to whatever is currently in Homebrew
+  versions:
+    - "0.14.1"
+    - "latest"
+
+  # Platform configuration
+  platforms:
+    # Test on the current platform (auto-detected)
+    current: true
+
+    # Future: Cross-platform testing (requires cross-compilation or CI)
+    # cross:
+    #   - darwin-arm64
+    #   - darwin-x86_64
+    #   - linux-arm64
+    #   - linux-x86_64
+
+  # Installation paths (auto-detected, but can be overridden)
+  # macOS arm64: /opt/homebrew/bin/mkdwarfs
+  # macOS x86_64: /usr/local/bin/mkdwarfs
+  # Linux: ~/.linuxbrew/bin/mkdwarfs or /home/linuxbrew/.linuxbrew/bin/mkdwarfs
+  mkdwarfs_path: auto  # "auto" for detection, or specify explicit path
+  dwarfs_path: auto   # "auto" for detection, or specify explicit path
+
+# Fixture Cache Configuration
+cache:
+  # Enable fixture caching (recommended: true)
+  enabled: true
+
+  # Directory to store cached fixtures
+  path: test/compat/fixtures
+
+  # Validate fixture checksums before using
+  validate_checksums: true
+
+  # Auto-generate missing fixtures
+  # If false, tests will fail when fixtures are missing
+  auto_generate: true
+
+  # Cache expiration (in days)
+  # Use 0 to never expire
+  expire_days: 0
+
+  # Maximum cache size (in MB)
+  # Use 0 for unlimited
+  max_size_mb: 500
+
+# Test Configuration
+tests:
+  # Test reading Homebrew-generated DFT files
+  read_homebrew_files: true
+
+  # Test writing DFT files that Homebrew can read
+  write_compatible_files: true
+
+  # Test full round-trip (serialize -> Homebrew read, Homebrew write -> deserialize)
+  round_trip: true
+
+  # Enable verbose output
+  verbose: false
+
+  # Stop on first failure
+  fail_fast: false
+
+  # Retry failed tests
+  retry_count: 0
+
+# Test Metadata Configuration
+test_metadata:
+  # Number of files to generate for testing
+  num_files: 100
+
+  # Number of directories to generate
+  num_directories: 10
+
+  # Include symbolic links in test data
+  include_symlinks: true
+
+  # Include hard links in test data
+  include_hardlinks: true
+
+  # Include various file types
+  include_special_files: true
+
+  # File size distribution
+  file_sizes:
+    min: 0
+    max: 10485760  # 10 MB
+    distribution: "random"  # "random", "uniform", "exponential"
+
+  # Directory depth
+  directory_depth:
+    min: 1
+    max: 5
+
+# Reporting Configuration
+reporting:
+  # Generate compatibility report
+  generate_report: true
+
+  # Report output directory
+  output_dir: test/compat/results
+
+  # Report formats
+  formats:
+    - markdown  # .md file
+    - json      # .json file
+    - console   # stdout
+
+  # Include fixture checksums in report
+  include_checksums: true
+
+  # Include timing information
+  include_timing: true
+
+# CI/CD Configuration
+ci:
+  # Upload test results as artifacts
+  upload_artifacts: true
+
+  # Artifact retention (in days)
+  artifact_retention_days: 30
+
+  # Fail CI on test failures
+  fail_on_error: true
+
+  # Notify on failures (future: integrate with notifications)
+  notify_on_failure: false

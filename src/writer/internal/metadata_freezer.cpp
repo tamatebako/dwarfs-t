@@ -21,6 +21,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <cstring>
+#include <span>
+
 #include <dwarfs/logger.h>
 #include <dwarfs/malloc_byte_buffer.h>
 #include <dwarfs/metadata/serialization/serializer_registry.h>
@@ -33,12 +36,12 @@
 // NEW: Include domain model and converter
 #include <dwarfs/metadata/domain/metadata.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #include <dwarfs/metadata/converters/domain_thrift_converter.h>
 #endif
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <thrift/lib/cpp2/frozen/FrozenUtil.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 #include <dwarfs/gen-cpp2/metadata_layouts.h>
@@ -49,7 +52,7 @@ namespace dwarfs::writer::internal {
 
 namespace {
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 template <class T>
 std::pair<shared_byte_buffer, shared_byte_buffer> freeze_to_buffer(T const& x) {
   using namespace ::apache::thrift::frozen;
@@ -93,8 +96,8 @@ class metadata_freezer_ : public metadata_freezer::impl {
     using namespace metadata::serialization;
 
     // For Thrift format: Convert domain → Thrift, then freeze
-    if (format_ == SerializationFormat::THRIFT_COMPACT) {
-#ifdef DWARFS_HAVE_THRIFT
+    if (format_ == SerializationFormat::MODERN_THRIFT) {
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
       // Convert domain model to Thrift
       auto thrift_data = metadata::converters::to_thrift(data);
 
@@ -105,6 +108,50 @@ class metadata_freezer_ : public metadata_freezer::impl {
 #else
       throw std::runtime_error(
           "Thrift format not available (build without Thrift support)");
+#endif
+    }
+
+    // For Legacy Thrift format: Use facade directly with domain model
+    if (format_ == SerializationFormat::LEGACY_THRIFT) {
+#ifdef DWARFS_HAVE_LEGACY_THRIFT
+      // Create facade for Legacy Thrift
+      auto facade = FacadeFactory::create(format_);
+
+      // Serialize domain model to Legacy Thrift CompactProtocol
+      // Format: [8 bytes] size_prefix + [N bytes] schema + [M bytes] frozen_data
+      auto serialized_data = facade->serialize(data);
+
+      // Extract schema from serialized data (skip 8-byte size prefix)
+      // Task 5: frozen_data is empty, Task 6 will add metadata encoding
+      if (serialized_data.size() < 8) {
+        throw std::runtime_error("Legacy Thrift serialization too small (< 8 bytes)");
+      }
+
+      // Read size prefix
+      uint64_t schema_size;
+      std::memcpy(&schema_size, serialized_data.data(), 8);
+
+      if (serialized_data.size() < 8 + schema_size) {
+        throw std::runtime_error("Legacy Thrift serialization incomplete");
+      }
+
+      // Schema section: Thrift Compact Protocol serialized schema
+      std::span<uint8_t const> schema_span(
+          serialized_data.data() + 8, schema_size);
+      std::vector<uint8_t> schema_data(schema_span.begin(), schema_span.end());
+      auto schema_buffer = malloc_byte_buffer::create(schema_data);
+
+      // Data section: Frozen metadata (Task 5: empty, Task 6: will have encoded values)
+      std::vector<uint8_t> frozen_data;
+      auto data_buffer = malloc_byte_buffer::create(frozen_data);
+
+      ti << "freezing metadata (Legacy Thrift) to schema=" << schema_data.size()
+         << " bytes, data=" << frozen_data.size() << " bytes...";
+
+      return {schema_buffer.share(), data_buffer.share()};
+#else
+      throw std::runtime_error(
+          "Legacy Thrift format not available");
 #endif
     }
 

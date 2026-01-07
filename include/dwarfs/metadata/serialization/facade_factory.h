@@ -35,7 +35,7 @@ namespace dwarfs::metadata::serialization {
  *
  * Usage Examples:
  *   // Create facade for specific format
- *   auto facade = FacadeFactory::create(SerializationFormat::BITSERY);
+ *   auto facade = FacadeFactory::create(SerializationFormat::FLATBUFFERS);
  *
  *   // Auto-detect format from data
  *   auto facade = FacadeFactory::create_from_data(binary_data);

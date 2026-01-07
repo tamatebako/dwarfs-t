@@ -1,0 +1,67 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "linux-x64-dynamic-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Linux x64 Dynamic base configuration",
+      "binaryDir": "${sourceDir}/build-linux-x64-dynamic-${config}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "BUILD_SHARED_LIBS": "ON",
+        "TRY_ENABLE_FLAC": "ON",
+        "TRY_ENABLE_BROTLI": "ON",
+        "TRY_ENABLE_LZ4": "ON",
+        "TRY_ENABLE_LZMA": "ON",
+        "ENABLE_RICEPP": "ON",
+        "USE_JEMALLOC": "ON"
+      }
+    },
+    {
+      "name": "linux-x64-dynamic-production",
+      "inherits": ["linux-x64-dynamic-base", "production-overlays"],
+      "description": "Linux x64 Dynamic Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "linux-x64-dynamic-experimental",
+      "inherits": ["linux-x64-dynamic-base", "experimental-overlays"],
+      "description": "Linux x64 Dynamic Experimental (+ Modern Thrift)"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-x64-dynamic-production",
+      "configurePreset": "linux-x64-dynamic-production",
+      "description": "Build Linux x64 Dynamic Production"
+    },
+    {
+      "name": "linux-x64-dynamic-experimental",
+      "configurePreset": "linux-x64-dynamic-experimental",
+      "description": "Build Linux x64 Dynamic Experimental"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "linux-x64-dynamic-production",
+      "configurePreset": "linux-x64-dynamic-production",
+      "description": "Test Linux x64 Dynamic Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "linux-x64-dynamic-experimental",
+      "configurePreset": "linux-x64-dynamic-experimental",
+      "description": "Test Linux x64 Dynamic Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    }
+  ]
+}

@@ -133,7 +133,7 @@ class mkdwarfs_tester : public tester_common {
   static mkdwarfs_tester create_empty();
 
   void add_stream_logger(std::ostream& st,
-                         logger::level_type level = logger::VERBOSE);
+                         logger::level_type level = LOGGER_LEVEL_VERBOSE);
 
   void add_root_dir();
   void add_special_files(bool with_regular_files = true);

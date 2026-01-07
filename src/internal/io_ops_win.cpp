@@ -29,6 +29,8 @@
 #include <windows.h>
 #include <winioctl.h>
 
+#include <algorithm>
+
 #include <dwarfs/detail/file_extent_info.h>
 #include <dwarfs/error.h>
 #include <dwarfs/scope_exit.h>
@@ -190,7 +192,7 @@ get_file_extents(HANDLE h, uint64_t size, std::error_code& ec) {
     }
   }
 
-  if (last_end < size) {
+  if (static_cast<uint64_t>(last_end) < size) {
     extents.emplace_back(extent_kind::hole,
                          file_range{last_end, size - last_end});
   }
@@ -297,7 +299,8 @@ class io_ops_win : public io_ops {
   }
 
   void
-  virtual_free(void* addr, size_t size, std::error_code& ec) const override {
+  virtual_free([[maybe_unused]] void* addr, [[maybe_unused]] size_t size,
+               std::error_code& ec) const override {
     if (!::VirtualFree(addr, 0, MEM_RELEASE)) {
       ec = std::error_code(::GetLastError(), std::system_category());
     }

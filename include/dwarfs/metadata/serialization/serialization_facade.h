@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include <string>
 #include <vector>
 #include <memory>
 #include <cstdint>
@@ -40,7 +41,7 @@ namespace dwarfs::metadata::serialization {
  * 2. IMetadataSerializer: Encodes/decodes domain models to binary
  *
  * Usage Example:
- *   auto facade = FacadeFactory::create(SerializationFormat::BITSERY);
+ *   auto facade = FacadeFactory::create(SerializationFormat::FLATBUFFERS);
  *   auto bytes = facade->serialize_from_thrift(thrift_meta);
  *   auto thrift = facade->deserialize_to_thrift(bytes);
  */

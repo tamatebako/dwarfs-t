@@ -38,6 +38,22 @@
 #include <utility>
 #include <vector>
 
+// Windows compatibility for POSIX macros
+#ifdef _WIN32
+#ifndef F_OK
+#define F_OK 0
+#endif
+#ifndef R_OK
+#define R_OK 4
+#endif
+#ifndef W_OK
+#define W_OK 2
+#endif
+#ifndef X_OK
+#define X_OK 1
+#endif
+#endif
+
 #include <dwarfs/internal/folly_compat.h>
 
 #include <fmt/format.h>

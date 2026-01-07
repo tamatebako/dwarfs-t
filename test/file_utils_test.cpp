@@ -167,6 +167,9 @@ TEST(file_utils, file_stat) {
 }
 
 TEST(file_utils, file_stat_symlink) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Symlinks require developer mode or admin privileges on Windows";
+#else
   using namespace dwarfs;
 
   temporary_directory td("dwarfs");
@@ -188,4 +191,5 @@ TEST(file_utils, file_stat_symlink) {
     EXPECT_TRUE(st.is_symlink());
     EXPECT_EQ(13, st.size());
   }
+#endif
 }

@@ -14,7 +14,6 @@
 # - MSYS/Windows compatibility
 # - macOS compatibility
 
-cmake_minimum_required(VERSION 3.24.0)
 
 # Check if NO_PATCH flag is set
 if(DEFINED NO_PATCH AND NO_PATCH)

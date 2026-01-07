@@ -3,7 +3,6 @@
 // Include generated Thrift types
 #include <dwarfs/gen-cpp2/metadata_types.h>
 
-#include <iostream>
 #include <stdexcept>
 
 namespace dwarfs::metadata::converters {
@@ -20,11 +19,6 @@ domain::metadata ThriftMetadataConverter::to_domain(
   }
 
   auto* t_meta = static_cast<const thrift::metadata::metadata*>(format_specific);
-
-  // DEBUG: Log input Thrift metadata
-  std::cerr << "=== Thrift→Domain Conversion ===" << std::endl;
-  std::cerr << "Input names: " << t_meta->names()->size() << std::endl;
-  std::cerr << "Input dir_entries: " << (t_meta->dir_entries() ? t_meta->dir_entries()->size() : 0) << std::endl;
 
   domain::metadata d_meta;
 
@@ -170,11 +164,6 @@ domain::metadata ThriftMetadataConverter::to_domain(
     d_meta.total_allocated_fs_size = *t_meta->total_allocated_fs_size();
   }
 
-  // DEBUG: Log output Domain metadata
-  std::cerr << "Output names: " << d_meta.names.size() << std::endl;
-  std::cerr << "Output dir_entries: " << (d_meta.dir_entries ? d_meta.dir_entries->size() : 0) << std::endl;
-  std::cerr << "=== End Conversion ===" << std::endl;
-
   return d_meta;
 }
 
@@ -184,11 +173,6 @@ domain::metadata ThriftMetadataConverter::to_domain(
 
 std::unique_ptr<void, void(*)(void*)> ThriftMetadataConverter::from_domain(
     const domain::metadata& d_meta) const {
-
-  // DEBUG: Log input Domain metadata
-  std::cerr << "=== Domain→Thrift Conversion ===" << std::endl;
-  std::cerr << "Input names: " << d_meta.names.size() << std::endl;
-  std::cerr << "Input dir_entries: " << (d_meta.dir_entries ? d_meta.dir_entries->size() : 0) << std::endl;
 
   auto t_meta = std::make_unique<thrift::metadata::metadata>();
 
@@ -333,11 +317,6 @@ std::unique_ptr<void, void(*)(void*)> ThriftMetadataConverter::from_domain(
   if (d_meta.total_allocated_fs_size) {
     t_meta->total_allocated_fs_size() = *d_meta.total_allocated_fs_size;
   }
-
-  // DEBUG: Log output Thrift metadata
-  std::cerr << "Output names: " << t_meta->names()->size() << std::endl;
-  std::cerr << "Output dir_entries: " << (t_meta->dir_entries() ? t_meta->dir_entries()->size() : 0) << std::endl;
-  std::cerr << "=== End Conversion ===" << std::endl;
 
   // Return with custom deleter
   return {

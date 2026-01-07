@@ -81,12 +81,12 @@ class readonly_memory_mapping {
   }
 
   void advise(io_advice advice) const {
-    impl_->advise(advice, 0, std::numeric_limits<size_t>::max(),
+    impl_->advise(advice, 0, (std::numeric_limits<size_t>::max)(),
                   io_advice_range::include_partial, nullptr);
   }
 
   void advise(io_advice advice, std::error_code& ec) const {
-    impl_->advise(advice, 0, std::numeric_limits<size_t>::max(),
+    impl_->advise(advice, 0, (std::numeric_limits<size_t>::max)(),
                   io_advice_range::include_partial, &ec);
   }
 
@@ -111,11 +111,11 @@ class readonly_memory_mapping {
   }
 
   void lock() const {
-    impl_->lock(0, std::numeric_limits<size_t>::max(), nullptr);
+    impl_->lock(0, (std::numeric_limits<size_t>::max)(), nullptr);
   }
 
   void lock(std::error_code& ec) const {
-    impl_->lock(0, std::numeric_limits<size_t>::max(), &ec);
+    impl_->lock(0, (std::numeric_limits<size_t>::max)(), &ec);
   }
 
   void lock(size_t offset, size_t size) const {

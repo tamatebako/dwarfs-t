@@ -1,4 +1,4 @@
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 /* vim:set ts=2 sw=2 sts=2 et: */
 /**
  * \author     Marcus Holland-Moritz (github@mhxnet.de)
@@ -27,10 +27,12 @@
 #include <optional>
 #include <iostream>
 #include <cstdlib>
+#include <string>
 
 #include <thrift/lib/cpp2/protocol/DebugProtocol.h>
 #include <thrift/lib/cpp2/protocol/JSONProtocol.h>
 #include <thrift/lib/cpp2/protocol/SimpleJSONProtocol.h>
+#include <thrift/lib/cpp2/protocol/Serializer.h>
 
 #include <dwarfs/file_stat.h>
 #include <dwarfs/fstypes.h>
@@ -314,9 +316,12 @@ thrift::metadata::metadata const&
 thrift_metadata_builder<LoggerPolicy>::build_thrift_internal() {
   LOG_VERBOSE << "building metadata";
 
-  // WORKAROUND: Force plain tables for Thrift format - packed string tables cause issues with small datasets
-  bool use_plain_names = options_.plain_names_table || md_.names()->size() < 10;
-  bool use_plain_symlinks = options_.plain_symlinks_table || md_.symlinks()->size() < 10;
+  // FIX: Always use plain string tables for Thrift format to ensure backward
+  // compatibility with v0.14.1. Packed string tables use a serialization format
+  // that is incompatible with older readers.
+  // Trade-off: ~5-10% larger metadata, but guaranteed compatibility.
+  bool use_plain_names = true;
+  bool use_plain_symlinks = true;
 
   thrift::metadata::fs_options fsopts;
   fsopts.mtime_only() = !options_.keep_all_times;
@@ -475,6 +480,16 @@ thrift_metadata_builder<LoggerPolicy>::build() {
 }
 
 template <typename LoggerPolicy>
+std::string
+thrift_metadata_builder<LoggerPolicy>::serialize_thrift_direct() {
+  // Build Thrift metadata (existing logic)
+  thrift::metadata::metadata const& thrift_md = build_thrift_internal();
+
+  // Serialize directly using Thrift Compact protocol (no conversion)
+  return apache::thrift::CompactSerializer::serialize<std::string>(thrift_md);
+}
+
+template <typename LoggerPolicy>
 void thrift_metadata_builder<LoggerPolicy>::gather_chunks(inode_manager const& im,
                                                     block_manager const& bm,
                                                     size_t chunk_count) {
@@ -507,7 +522,7 @@ void thrift_metadata_builder<LoggerPolicy>::gather_chunks(inode_manager const& i
 
   // Convert Thrift chunks to domain chunks for block_manager
   std::vector<metadata::domain::chunk> domain_chunks;
-  if (md_.chunks().has_value()) {
+  if (apache::thrift::is_non_optional_field_set_manually_or_by_serializer(md_.chunks())) {
     domain_chunks.reserve(md_.chunks()->size());
     for (auto const& thrift_chunk : *md_.chunks()) {
       domain_chunks.push_back(metadata::converters::from_thrift(thrift_chunk));
@@ -792,7 +807,7 @@ template <typename LoggerPolicy>
 void thrift_metadata_builder<LoggerPolicy>::update_nlink() {
   if (md_.options()) {
     auto const& opts = md_.options().value();
-    if (opts.inodes_have_nlink().has_value()) {
+    if (apache::thrift::is_non_optional_field_set_manually_or_by_serializer(opts.inodes_have_nlink())) {
       if (opts.inodes_have_nlink().value() != options_.no_hardlink_table) {
         LOG_DEBUG << "keeping existing nlink fields";
         return;
@@ -913,20 +928,21 @@ void thrift_metadata_builder<LoggerPolicy>::update_totals_and_size_cache() {
                                          : reg_inode_num;
       auto const info = isp.get(chunk_table_index);
 
+      // CRITICAL FIX: Always populate cache for ALL regular files
+      // regardless of chunk count. This ensures file sizes are available
+      // even when min_chunk_count threshold isn't met (e.g., small files
+      // or when file hashing reduces effective chunk count).
+      // Cache size_lookup by inode_num for correct lookups after file rearrangement.
+      cache.size_lookup()[inode_num] = info.size;
+
+      if (info.allocated_size != info.size) {
+        cache.allocated_size_lookup()[inode_num] = info.allocated_size;
+      }
+
       if (info.num_chunks >= options_.inode_size_cache_min_chunk_count) {
-        LOG_DEBUG << "caching size " << info.size << " for chunk table index "
-                  << chunk_table_index << " with " << info.num_chunks
-                  << " chunks";
-
-        cache.size_lookup()[chunk_table_index] = info.size;
-
-        if (info.allocated_size != info.size) {
-          LOG_DEBUG << "caching allocated size " << info.allocated_size
-                    << " for chunk table index " << chunk_table_index
-                    << " with " << info.num_chunks << " chunks";
-
-          cache.allocated_size_lookup()[chunk_table_index] = info.allocated_size;
-        }
+        LOG_DEBUG << "caching size " << info.size << " for inode_num "
+                  << inode_num << " (chunk_table_index=" << chunk_table_index
+                  << ") with " << info.num_chunks << " chunks";
       }
 
       size_t shared_count{1};
@@ -947,7 +963,7 @@ void thrift_metadata_builder<LoggerPolicy>::update_totals_and_size_cache() {
     }
   }
 
-  if (md_.total_fs_size().has_value()) {
+  if (apache::thrift::is_non_optional_field_set_manually_or_by_serializer(md_.total_fs_size())) {
     auto const old_size = md_.total_fs_size().value();
     if (old_size != total_fs_size) {
       LOG_WARN << "correcting total file system size: was " << old_size
@@ -1334,4 +1350,4 @@ template thrift_metadata_builder<prod_logger_policy>::thrift_metadata_builder(
 
 } // namespace dwarfs::writer::internal
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

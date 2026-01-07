@@ -7,6 +7,11 @@
 
 #ifdef DWARFS_HAVE_FLATBUFFERS
 
+#include <array>
+#include <cstdint>
+#include <string>
+#include <vector>
+
 #include "metadata_serializer.h"
 #include "../domain/metadata.h"
 
@@ -16,7 +21,8 @@ namespace dwarfs::metadata::serialization {
  * FlatBuffers Serializer
  *
  * Implements metadata serialization using Google FlatBuffers.
- * This is the modern unified format replacing Cereal and Bitsery.
+ *
+ * This is the modern unified format (Thrift is legacy).
  *
  * Features:
  * - Zero-copy memory-mapped access

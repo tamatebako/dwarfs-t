@@ -16,76 +16,66 @@
 
 namespace dwarfs {
 class logger;
+
+namespace metadata::domain {
+  class metadata;
+}
 }
 
 namespace dwarfs::reader::internal {
 
-// Forward declarations
-class global_metadata_interface;
-class inode_view_interface;
-class dir_entry_view_interface;
-
 /**
- * Metadata format enumeration
+ * Factory for loading metadata using SerializerRegistry
  *
- * Identifies the serialization format used for metadata storage.
- */
-enum class metadata_format {
-  flatbuffers,  ///< FlatBuffers format (modern default, required)
-  thrift        ///< Thrift Compact format (legacy, optional)
-};
-
-/**
- * Factory for creating metadata backend instances
+ * This factory uses the Strategy Pattern via SerializerRegistry to:
+ * - Auto-detect metadata format from magic bytes
+ * - Create appropriate serializer for the format
+ * - Deserialize to domain::metadata
  *
- * This factory implements the Strategy Pattern to create appropriate
- * backend instances based on the detected or specified format.
+ * Design Principles:
+ * - Single Responsibility: Only loads metadata
+ * - Open/Closed: Extensible via SerializerRegistry
+ * - Dependency Inversion: Depends on SerializerRegistry abstraction
+ * - MECE: No format logic here (all in serializers)
  *
- * Design Pattern: Factory Method + Strategy
- * Purpose: Decouple metadata creation from specific backend implementations
- * Principle: Dependency Inversion (depend on abstract factory)
- *
- * Key Features:
- * - Automatic format detection via magic bytes
- * - Runtime polymorphism via interface pointers
- * - Support for multiple serialization formats
- * - Clean separation of format-specific logic
+ * Clean Architecture:
+ * - NO backend classes
+ * - NO format-specific code paths
+ * - Uses ONLY SerializerRegistry
+ * - Returns domain::metadata directly
  */
 class metadata_factory {
  public:
   /**
-   * Detect metadata format from raw data
+   * Load metadata from raw data
    *
-   * @param data Raw metadata section data
-   * @return Detected format, or flatbuffers as default
-   */
-  static metadata_format detect_format(std::span<uint8_t const> data);
-
-  /**
-   * Create global metadata instance from raw data
-   *
-   * Automatically detects format and creates appropriate backend.
+   * Automatically detects format using SerializerRegistry and
+   * deserializes to domain::metadata.
    *
    * @param lgr Logger for diagnostics
    * @param data Raw metadata section data
-   * @return Pointer to global_metadata_interface implementation
-   * @throws runtime_error if format detection fails or data is invalid
+   * @return Unique pointer to domain::metadata
+   * @throws runtime_error if format detection fails or deserialization fails
    */
-  static std::unique_ptr<global_metadata_interface>
-  create_global_metadata(logger& lgr, std::span<uint8_t const> data);
+  static std::unique_ptr<dwarfs::metadata::domain::metadata>
+  load_metadata(logger& lgr, std::span<uint8_t const> data);
 
   /**
-   * Create global metadata instance with explicit format
+   * Load metadata from schema and frozen data (Legacy Thrift format)
+   *
+   * For Legacy Thrift (Frozen2) format, the schema is stored in a separate
+   * section from the frozen metadata. This overload handles that case.
    *
    * @param lgr Logger for diagnostics
-   * @param data Raw metadata section data
-   * @param format Explicit format to use
-   * @return Pointer to global_metadata_interface implementation
-   * @throws runtime_error if specified format is not available or data is invalid
+   * @param schema Raw schema section data (METADATA_V2_SCHEMA)
+   * @param data Raw frozen metadata section data (METADATA_V2)
+   * @return Unique pointer to domain::metadata
+   * @throws runtime_error if deserialization fails
    */
-  static std::unique_ptr<global_metadata_interface>
-  create_global_metadata(logger& lgr, std::span<uint8_t const> data,
-                        metadata_format format);
+  static std::unique_ptr<dwarfs::metadata::domain::metadata>
+  load_metadata_legacy(logger& lgr,
+                      std::span<uint8_t const> schema,
+                      std::span<uint8_t const> data);
 };
 
 } // namespace dwarfs::reader::internal

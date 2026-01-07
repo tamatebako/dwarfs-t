@@ -47,7 +47,7 @@ namespace dwarfs {
 
 class library_dependencies;
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 namespace thrift::history {
 class history;
 } // namespace thrift::history
@@ -99,7 +99,7 @@ class history {
   nlohmann::json as_json() const;
 
  private:
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   std::unique_ptr<thrift::history::history> history_;
 #else
   std::unique_ptr<history_internal::history_data> history_;

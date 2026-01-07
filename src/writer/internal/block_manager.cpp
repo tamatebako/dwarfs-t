@@ -49,7 +49,7 @@ void block_manager::set_written_block(size_t logical_block,
 
 void block_manager::map_logical_blocks(
     std::vector<chunk_type>& vec,
-    std::optional<inode_hole_mapper> const& hole_mapper) const {
+    [[maybe_unused]] std::optional<inode_hole_mapper> const& hole_mapper) const {
   std::lock_guard lock{mx_};
 
   for (size_t i = 0; i < vec.size(); ++i) {

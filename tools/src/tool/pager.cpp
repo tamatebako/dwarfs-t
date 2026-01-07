@@ -62,6 +62,7 @@ std::span<pager_program const> get_pagers() {
 } // namespace
 
 #ifdef _WIN32
+#undef X_OK // MinGW's io.h defines X_OK, undef to avoid conflict
 #define X_OK 0
 #endif
 

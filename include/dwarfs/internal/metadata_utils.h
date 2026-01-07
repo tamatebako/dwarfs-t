@@ -23,7 +23,7 @@
 
 #include <cstdint>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <thrift/lib/cpp2/frozen/FrozenUtil.h>
 
 #include <dwarfs/gen-cpp2/metadata_layouts.h>
@@ -48,7 +48,7 @@ enum class inode_rank {
 
 inode_rank get_inode_rank(uint32_t mode);
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 size_t find_inode_rank_offset(
     ::apache::thrift::frozen::Layout<thrift::metadata::metadata>::View meta,
     inode_rank rank);

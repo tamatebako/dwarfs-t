@@ -29,7 +29,7 @@
 #include <dwarfs/tool/mkdwarfs/handler_factory.h>
 #include <dwarfs/tool/mkdwarfs/handler_interface.h>
 #include <dwarfs/tool/mkdwarfs/options_parser.h>
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/tool/mkdwarfs/recompress_handler.h>
 #endif
 

@@ -1,0 +1,52 @@
+--- a/folly/container/FBVector.h	2026-01-04 19:53:49
++++ b/folly/container/FBVector.h	2026-01-04 19:53:49
+@@ -998,11 +998,11 @@
+     }
+ 
+     void* p = impl_.b_;
+-    // xallocx() will shrink to precisely newCapacityBytes (which was generated
++    // je_xallocx() will shrink to precisely newCapacityBytes (which was generated
+     // by goodMallocSize()) if it successfully shrinks in place.
+     if ((usingJEMalloc() && kUsingStdAllocator) &&
+         newCapacityBytes >= folly::jemallocMinInPlaceExpandable &&
+-        xallocx(p, newCapacityBytes, 0, 0) == newCapacityBytes) {
++        je_xallocx(p, newCapacityBytes, 0, 0) == newCapacityBytes) {
+       impl_.z_ += newCap - oldCap;
+     } else {
+       T* newB = static_cast<T*>(catch_exception(
+@@ -1039,7 +1039,7 @@
+ 
+     auto const newCapacityBytes = folly::goodMallocSize(n * sizeof(T));
+     void* p = impl_.b_;
+-    if (xallocx(p, newCapacityBytes, 0, 0) == newCapacityBytes) {
++    if (je_xallocx(p, newCapacityBytes, 0, 0) == newCapacityBytes) {
+       impl_.z_ = impl_.b_ + newCapacityBytes / sizeof(T);
+       return true;
+     }
+@@ -1175,7 +1175,7 @@
+     return (capacity() * 3 + 1) / 2;
+   }
+ 
+-  static bool emplace_back_aux_xallocx(
++  static bool emplace_back_aux_je_xallocx(
+       size_type& byte_sz,
+       size_type current_size,
+       size_type push_back_capacity,
+@@ -1203,7 +1203,7 @@
+       void* p = b;
+       size_t actual;
+ 
+-      if ((actual = xallocx(p, lower, extra, 0)) >= lower) {
++      if ((actual = je_xallocx(p, lower, extra, 0)) >= lower) {
+         z = b + actual / sizeof(T);
+         return true;
+       }
+@@ -1216,7 +1216,7 @@
+   void emplace_back_aux(Args&&... args) {
+     // Try to reserve in place.
+     size_type byte_sz;
+-    if (emplace_back_aux_xallocx(
++    if (emplace_back_aux_je_xallocx(
+             byte_sz, size(), computePushBackCapacity(), impl_.z_, impl_.b_)) {
+       M_construct(impl_.e_, std::forward<Args>(args)...);
+       ++impl_.e_;

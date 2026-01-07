@@ -96,7 +96,7 @@ class entry : public entry_interface {
   virtual type_t type() const = 0;
   bool is_directory() const override;
   virtual void walk(std::function<void(entry*)> const& f);
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift overload (only when Thrift is available)
   void
   pack(thrift::metadata::inode_data& entry_v2, global_entry_data const& data,
@@ -183,7 +183,7 @@ class dir : public entry {
   void walk(std::function<void(entry*)> const& f) override;
   void accept(entry_visitor& v, bool preorder) override;
   void sort();
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift overloads (only when Thrift is available)
   void pack(thrift::metadata::metadata& mv2, global_entry_data const& data,
             time_resolution_converter const& timeres) const;

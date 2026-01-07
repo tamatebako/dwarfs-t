@@ -16,50 +16,52 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-# Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
+# Use tamatebako/jemalloc via vcpkg overlay port (ports/jemalloc/)
+# The overlay port fetches from GitHub tag v5.5.0 and builds with CMake
+# CRITICAL: This is the ONLY jemalloc with ARM64 support (Windows, Linux, macOS)
+
+# Try to find jemalloc via CMake CONFIG first
+find_package(jemalloc CONFIG QUIET)
+
+if(NOT jemalloc_FOUND)
+  # Fallback to pkg-config
+  find_package(PkgConfig QUIET)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(jemalloc QUIET jemalloc)
+    if(jemalloc_FOUND)
+      # Create imported target for consistency
+      if(NOT TARGET jemalloc::jemalloc)
+        add_library(jemalloc::jemalloc INTERFACE IMPORTED)
+        target_include_directories(jemalloc::jemalloc INTERFACE ${jemalloc_INCLUDE_DIRS})
+        target_link_libraries(jemalloc::jemalloc INTERFACE ${jemalloc_LINK_LIBRARIES})
+        target_link_directories(jemalloc::jemalloc INTERFACE ${jemalloc_LIBRARY_DIRS})
+      endif()
+      message(STATUS "Found jemalloc via pkg-config: ${jemalloc_VERSION}")
+      set(JEMALLOC_FOUND TRUE)
+    endif()
+  endif()
 endif()
 
-# Try to find jemalloc via pkg-config first (system package)
-pkg_check_modules(JEMALLOC IMPORTED_TARGET jemalloc>=${JEMALLOC_REQUIRED_VERSION})
+if(NOT jemalloc_FOUND)
+  message(FATAL_ERROR "jemalloc not found! Install via vcpkg, Homebrew, or system package manager.")
+endif()
 
-if(JEMALLOC_FOUND)
-  message(STATUS "Using system jemalloc: ${JEMALLOC_VERSION}")
-  # Create alias for consistent interface
-  if(NOT TARGET jemalloc::jemalloc)
-    add_library(jemalloc::jemalloc ALIAS PkgConfig::JEMALLOC)
-  endif()
-else()
-  # Fall back to tamatebako fork which supports more platforms (including Windows ARM64, musl)
-  message(STATUS "System jemalloc not found, fetching tamatebako fork...")
+message(STATUS "Using jemalloc (preferably Tebako v5.5.0 for ARM64 support)")
+set(JEMALLOC_FOUND TRUE)
 
-  if(DEFINED ENV{DWARFS_LOCAL_REPO_PATH})
-    set(JEMALLOC_GIT_REPO $ENV{DWARFS_LOCAL_REPO_PATH}/jemalloc)
-  else()
-    set(JEMALLOC_GIT_REPO https://github.com/tamatebako/jemalloc.git)
-  endif()
+# Verify jemalloc::jemalloc target exists
+if(NOT TARGET jemalloc::jemalloc)
+  message(FATAL_ERROR "jemalloc found but jemalloc::jemalloc target missing")
+endif()
 
-  FetchContent_Declare(
-    jemalloc
-    GIT_REPOSITORY ${JEMALLOC_GIT_REPO}
-    GIT_TAG 5.5.0
-    EXCLUDE_FROM_ALL
-    SYSTEM
-  )
-
-  # jemalloc build options
-  set(JEMALLOC_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-  set(JEMALLOC_BUILD_DOC OFF CACHE BOOL "" FORCE)
-
-  FetchContent_MakeAvailable(jemalloc)
-
-  message(STATUS "jemalloc fetched successfully from tamatebako fork (v5.5.0)")
-
-  # The tamatebako fork provides jemalloc::jemalloc target
-  if(NOT TARGET jemalloc::jemalloc)
-    message(FATAL_ERROR "jemalloc::jemalloc target not found after fetch")
-  endif()
+# CRITICAL: Set CMAKE_PREFIX_PATH and include dirs for Folly to find jemalloc
+get_target_property(_jemalloc_includes jemalloc::jemalloc INTERFACE_INCLUDE_DIRECTORIES)
+if(_jemalloc_includes)
+  # Add to CMAKE_PREFIX_PATH so Folly's checks can find it
+  foreach(_inc ${_jemalloc_includes})
+    get_filename_component(_jemalloc_prefix "${_inc}" DIRECTORY)
+    list(APPEND CMAKE_PREFIX_PATH "${_jemalloc_prefix}")
+  endforeach()
+  list(REMOVE_DUPLICATES CMAKE_PREFIX_PATH)
+  set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH}" CACHE PATH "Search path" FORCE)
 endif()

@@ -2,7 +2,7 @@
 
 ## SYNOPSIS
 
-`dwarfsextract` `-i` *image* [`-o` *dir*] [*options*...]  
+`dwarfsextract` `-i` *image* [`-o` *dir*] [*options*...]
 `dwarfsextract` `-i` *image* -f *format* [`-o` *file*] [*options*...]
 
 ## DESCRIPTION
@@ -224,8 +224,31 @@ See `benchmarks/run_format_comparison.py` for automated comparison tools.
 
 ## ENVIRONMENT VARIABLES
 
-See [dwarfs-env(7)](dwarfs-env.md) for environment variables that
-influence the behavior of `dwarfsextract`.
+All options can be configured via environment variables using the pattern:
+
+    DWARFS_DWARFSEXTRACT_<OPTION>=value
+
+For example:
+
+    export DWARFS_DWARFSEXTRACT_NUM_WORKERS=8
+    dwarfsextract -i image.dff -o /dest      # Uses 8 workers from ENV
+    dwarfsextract -i image.dff -o /dest -n 4 # Uses 4 (CLI overrides ENV)
+
+Command-line arguments always take precedence over environment variables, which in turn
+take precedence over default values. This follows the MECE (Mutually Exclusive,
+Collectively Exhaustive) principle.
+
+Common environment variables:
+
+- `DWARFS_DWARFSEXTRACT_NUM_WORKERS`: Number of extraction worker threads
+- `DWARFS_DWARFSEXTRACT_CACHE_SIZE`: Block cache size (e.g., `512m`, `1g`)
+- `DWARFS_DWARFSEXTRACT_LOG_LEVEL`: Logging level (error|warn|info|verbose|debug|trace)
+
+For a complete reference of all supported environment variables, see
+[ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
+
+For runtime environment variables that affect filesystem operation, see
+[dwarfs-env(7)](dwarfs-env.md).
 
 ## AUTHOR
 

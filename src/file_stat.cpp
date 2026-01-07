@@ -82,6 +82,11 @@ int utf8_len_of_print_name(WCHAR const* wstr, int wlen_chars) {
 
   int need = ::WideCharToMultiByte(CP_UTF8, 0, wstr, wlen_chars, nullptr, 0,
                                    nullptr, nullptr);
+  // Undef Windows min/max macros to avoid conflict with std::max
+#ifdef _MSC_VER
+#undef min
+#undef max
+#endif
   return std::max(0, need);
 };
 

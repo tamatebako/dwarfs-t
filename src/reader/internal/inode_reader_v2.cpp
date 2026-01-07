@@ -51,16 +51,11 @@
 
 #include <dwarfs/reader/internal/block_cache.h>
 
-// Include complete type definitions for chunk_range
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
-#include <dwarfs/reader/internal/metadata_types_flatbuffers.h>
-#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
-#include <dwarfs/reader/internal/metadata_types_thrift.h>
-#endif
-
-#include <dwarfs/reader/internal/inode_reader_v2.h>
+#include <dwarfs/reader/internal/domain_metadata_views.h>
 #include <dwarfs/reader/internal/lru_cache.h>
 #include <dwarfs/reader/internal/offset_cache.h>
+
+#include <dwarfs/reader/internal/inode_reader_v2.h>
 
 namespace dwarfs::reader::internal {
 
@@ -236,7 +231,7 @@ void inode_reader_<LoggerPolicy>::dump(std::ostream& os,
                                        std::string const& indent,
                                        chunk_range const& chunks) const {
   for (auto const& [index, chunk] : ranges::views::enumerate(chunks)) {
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     // Dual-format: iterator returns shared_ptr<chunk_view_interface>
     if (chunk->is_data()) {
       os << indent << "  [" << index << "] -> DATA (block=" << chunk->block()
@@ -245,13 +240,22 @@ void inode_reader_<LoggerPolicy>::dump(std::ostream& os,
       os << indent << "  [" << index << "] -> HOLE (size=" << chunk->size()
          << ")\n";
     }
-#else
-    // Single-format: iterator returns value
-    if (chunk.is_data()) {
-      os << indent << "  [" << index << "] -> DATA (block=" << chunk.block()
-         << ", offset=" << chunk.offset() << ", size=" << chunk.size() << ")\n";
+#elif defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+    // FlatBuffers-only: iterator returns shared_ptr<chunk_view_interface>
+    if (chunk->is_data()) {
+      os << indent << "  [" << index << "] -> DATA (block=" << chunk->block()
+         << ", offset=" << chunk->offset() << ", size=" << chunk->size() << ")\n";
     } else {
-      os << indent << "  [" << index << "] -> HOLE (size=" << chunk.size()
+      os << indent << "  [" << index << "] -> HOLE (size=" << chunk->size()
+         << ")\n";
+    }
+#else
+    // Thrift-only: iterator returns shared_ptr<chunk_view_interface>
+    if (chunk->is_data()) {
+      os << indent << "  [" << index << "] -> DATA (block=" << chunk->block()
+         << ", offset=" << chunk->offset() << ", size=" << chunk->size() << ")\n";
+    } else {
+      os << indent << "  [" << index << "] -> HOLE (size=" << chunk->size()
          << ")\n";
     }
 #endif

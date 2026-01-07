@@ -12,18 +12,68 @@
 
 *~
 .*.swp
+*.bak
+*.o
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+build.ninja
+.ninja_deps
+.ninja_log
+CMakeUserPresets.json
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Benchmark artifacts (downloaded dynamically)
+/benchmarks/benchmark-files/
+/test-images/
+
+# Benchmark results (generated locally)
+/results/
+/benchmark-results/
+
+# Example Project Gutenberg content (downloaded dynamically)
+example/pg*-h/
+
+# AI development tools
+create-continue-plan-prompt.md
+TODO
+
+# Testing
+Testing/
 
 # VS build environment
 .vs/
 out/
 CMakeSettings.json
 
-
 # Tebako
 .vscode/
-deps
 include/dwarfs/version.h
 src/dwarfs/version.cpp
 /benchmarks/results
 /benchmark-files
 *.pyc
+vcpkg_installed/
+buildtrees/
+vcpkg-triplets-osx-*/
+.claude/
+.idea/
+*.code-workspace
+
+# Example build artifacts
+example/*/*/build/
+example/*/*/CMakeCache.txt
+example/*/*/CMakeFiles/
+example/*/*/build.ninja
+example/*/*/cmake_install.cmake
+example/*/*/.ninja_deps
+example/*/*/.ninja_log
+example/*/*/Testing/
+example/*/*/static-site-server
+example/*/*/*.o
+
+# End of .gitignore

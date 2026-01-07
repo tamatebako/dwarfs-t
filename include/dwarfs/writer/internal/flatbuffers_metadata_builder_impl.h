@@ -202,6 +202,13 @@ class flatbuffers_metadata_builder final : public metadata_builder::impl {
   void apply_chmod();
 
   /**
+   * Recover directory entries after delta-compression.
+   * Restores self_entry and parent_entry values that were zeroed
+   * during pack_metadata() for delta-compression.
+   */
+  void recover_directory_entries();
+
+  /**
    * Get time resolution in seconds.
    */
   uint32_t get_time_resolution() const;

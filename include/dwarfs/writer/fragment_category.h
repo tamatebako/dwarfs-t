@@ -38,9 +38,9 @@ class fragment_category {
   using value_type = uint32_t;
 
   static constexpr value_type const uninitialized{
-      std::numeric_limits<value_type>::max()};
+      (std::numeric_limits<value_type>::max())};
   static constexpr value_type const min{0};
-  static constexpr value_type const max{std::numeric_limits<value_type>::max() -
+  static constexpr value_type const max{(std::numeric_limits<value_type>::max)() -
                                         1};
 
   fragment_category() = default;

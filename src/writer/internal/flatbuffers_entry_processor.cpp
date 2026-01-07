@@ -5,22 +5,31 @@
  *
  * This file is part of dwarfs.
  *
- * dwarfs is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * dwarfs is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with dwarfs.  If not, see <https://www.gnu.org/licenses/>.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "flatbuffers_entry_processor.h"
 
+#include <algorithm>
+#include <iostream>
 #include <unordered_map>
 #include <vector>
 
@@ -49,15 +58,27 @@ void flatbuffers_entry_processor::gather_entries(
   md_.inodes.resize(num_inodes);
   md_.directories.reserve(dirs.size() + 1);
 
+  // Single-pass: For each directory in depth-first order,
+  // add its entry and then its children.
+  // This maintains the depth-first ordering required by the walk algorithm,
+  // where first_entry correctly points to the first child of each directory.
   for (auto p : dirs) {
-    if (!p->has_parent()) {
-      p->set_entry_index(md_.dir_entries->size());
+    // Check if entry_index is already set (by parent's pack())
+    // If so, the directory's entry was already added as a child of its parent
+    if (!p->entry_index()) {
+      // Set entry_index and add directory's own entry to dir_entries
+      uint32_t entry_idx = md_.dir_entries->size();
+      p->set_entry_index(entry_idx);
       p->pack_entry(md_, ge_data, timeres_);
     }
 
+    // Now pack directory metadata and add children
+    // first_entry will be set to the current size of dir_entries,
+    // which is correct because children come after the directory's entry
     p->pack(md_, ge_data, timeres_);
   }
 
+  // Add sentinel directory
   metadata::domain::directory sentinel;
   sentinel.set_parent_entry(0);
   sentinel.set_first_entry(md_.dir_entries->size());

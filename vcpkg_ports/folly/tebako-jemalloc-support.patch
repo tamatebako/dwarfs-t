@@ -1,0 +1,51 @@
+diff --git a/folly/portability/Malloc.h b/folly/portability/Malloc.h
+index 1234567..abcdefg 100644
+--- a/folly/portability/Malloc.h
++++ b/folly/portability/Malloc.h
+@@ -35,10 +35,46 @@
+ #else
+ #include <jemalloc/jemalloc.h> // @manual
++// Tebako jemalloc support: Tebako uses je_ prefix for all functions
++// We need to provide unprefixed aliases for folly code that expects them
++// NOTE: We do NOT redefine malloc/free/calloc as that breaks std::malloc etc.
++#ifndef nallocx
++#define nallocx je_nallocx
++#endif
++#ifndef mallocx
++#define mallocx je_mallocx
++#endif
++#ifndef sdallocx
++#define sdallocx je_sdallocx
++#endif
++#ifndef xallocx
++#define xallocx je_xallocx
++#endif
++#ifndef dallocx
++#define dallocx je_dallocx
++#endif
++#ifndef rallocx
++#define rallocx je_rallocx
++#endif
++#ifndef sallocx
++#define sallocx je_sallocx
++#endif
++#ifndef mallctl
++#define mallctl je_mallctl
++#endif
++#ifndef mallctlnametomib
++#define mallctlnametomib je_mallctlnametomib
++#endif
++#ifndef mallctlbymib
++#define mallctlbymib je_mallctlbymib
++#endif
++#ifndef malloc_stats_print
++#define malloc_stats_print je_malloc_stats_print
++#endif
+ #define FOLLY_HAS_JEMALLOC_DEFS 1
+ #endif
+ #else
+ #if !defined(__FreeBSD__)
+ #if __has_include(<malloc.h>)
+ #include <malloc.h>
+ #endif
+ #define FOLLY_HAS_JEMALLOC_DEFS 0

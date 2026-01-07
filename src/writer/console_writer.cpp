@@ -335,7 +335,7 @@ void console_writer::update(writer_progress& prog, bool last) {
   }
 
   if (opts_.progress == NONE) {
-    if (INFO <= log_threshold()) {
+    if (LOGGER_LEVEL_INFO <= log_threshold()) {
       std::lock_guard lock(log_mutex());
       write_nolock(oss.str());
     }

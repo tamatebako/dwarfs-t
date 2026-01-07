@@ -14,14 +14,16 @@ namespace dwarfs::metadata::serialization {
  * Serialization format enumeration
  *
  * Identifies the serialization format used for DwarFS metadata.
- * Two formats are supported:
- * - THRIFT_COMPACT: Legacy Apache Thrift format (optional, for compatibility)
- * - FLATBUFFERS: Modern unified FlatBuffers format (required, default)
+ * Three formats are supported:
+ * - LEGACY_THRIFT: Hand-coded Frozen2 (Homebrew v0.14.1 compat, always available)
+ * - FLATBUFFERS: Modern unified format (header-only, recommended default)
+ * - MODERN_THRIFT: Modern Thrift CompactProtocol (optional, requires fbthrift)
  * - AUTO_DETECT: Automatically detect format from magic bytes
  */
 enum class SerializationFormat {
-  THRIFT_COMPACT,   // Legacy Apache Thrift (no magic bytes, fallback)
-  FLATBUFFERS,      // FlatBuffers (file identifier: "DFBF")
+  LEGACY_THRIFT,    // Hand-coded Frozen2 (no magic bytes, priority 50, fallback)
+  FLATBUFFERS,      // FlatBuffers (magic: "DFBF", priority 120, default)
+  MODERN_THRIFT,    // Modern Thrift CompactProtocol (magic: {0x82, 0x21}, priority 100)
   AUTO_DETECT       // Auto-detect from magic bytes
 };
 
@@ -37,6 +39,11 @@ namespace magic_bytes {
   constexpr uint8_t FLATBUFFERS_MAGIC_2 = 'F';
   constexpr uint8_t FLATBUFFERS_MAGIC_3 = 'B';
   constexpr uint8_t FLATBUFFERS_MAGIC_4 = 'F';
+
+  // Modern Thrift CompactProtocol header bytes
+  // {0x82, 0x21} = CompactProtocol struct header pattern
+  constexpr uint8_t MODERN_THRIFT_MAGIC_1 = 0x82;
+  constexpr uint8_t MODERN_THRIFT_MAGIC_2 = 0x21;
 } // namespace magic_bytes
 
 /**
@@ -47,10 +54,12 @@ namespace magic_bytes {
  */
 constexpr std::string_view get_format_name(SerializationFormat format) {
   switch (format) {
-    case SerializationFormat::THRIFT_COMPACT:
-      return "Thrift Compact";
+    case SerializationFormat::LEGACY_THRIFT:
+      return "Legacy Thrift (Frozen2)";
     case SerializationFormat::FLATBUFFERS:
       return "FlatBuffers";
+    case SerializationFormat::MODERN_THRIFT:
+      return "Modern Thrift (CompactProtocol)";
     case SerializationFormat::AUTO_DETECT:
       return "Auto-Detect";
     default:

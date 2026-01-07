@@ -67,8 +67,24 @@ int create_handler::run(
     // FIXME: Need to update handler interface to pass unique_ptr
   }
 
+  // Convert input_list from vector<string> to vector<filesystem::path> if present
+  std::optional<std::vector<std::filesystem::path>> input_paths;
+  if (opts.input_list) {
+    input_paths.emplace();
+    input_paths->reserve(opts.input_list->size());
+    for (auto const& str : *opts.input_list) {
+      input_paths->emplace_back(str);
+    }
+  }
+
+  // Create span from vector if present
+  std::optional<std::span<std::filesystem::path const>> input_list_span;
+  if (input_paths) {
+    input_list_span.emplace(*input_paths);
+  }
+
   // Execute the scan
-  s.scan(fsw, opts.input_path, prog, opts.input_list, iol.file, extra_deps);
+  s.scan(fsw, opts.input_path, prog, input_list_span, iol.file, extra_deps);
 
   return 0;
 }

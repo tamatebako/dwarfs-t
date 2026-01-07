@@ -83,7 +83,7 @@ class inode : public object {
   virtual bool
   append_chunks_to(std::vector<metadata::domain::chunk>& vec,
                    std::optional<inode_hole_mapper>& hole_mapper) const = 0;
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift compatibility wrapper (only when Thrift available)
   virtual bool
   append_chunks_to(std::vector<thrift::metadata::chunk>& vec,

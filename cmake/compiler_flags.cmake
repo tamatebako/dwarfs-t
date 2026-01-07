@@ -17,11 +17,6 @@
 #
 
 # Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
-endif()
 
 # ============================================================================
 # Include Directories for All Targets
@@ -51,8 +46,6 @@ foreach(tgt ${LIBDWARFS_TARGETS} ${LIBDWARFS_OBJECT_TARGETS}
   endif()
 
   set_target_properties(${tgt} PROPERTIES EXPORT_COMPILE_COMMANDS ON)
-
-  target_link_libraries(${tgt} PUBLIC Boost::boost)
 
   if(WITH_LIBDWARFS)
     target_include_directories(${tgt} PUBLIC
@@ -136,6 +129,9 @@ foreach(tgt ${LIBDWARFS_TARGETS} ${LIBDWARFS_OBJECT_TARGETS}
         /w14928 # illegal copy-initialization; more than one user-defined conversion has been implicitly applied
 
         /wd4456 # declaration hides previous local declaration
+        /wd4702 # unreachable code in third-party headers (e.g., range-v3)
+        /wd4324 # structure padding due to alignment specifier
+        /wd4996 # getenv deprecation warning (CRT_SECURE_NO_WARNINGS)
       )
       if(DWARFS_GIT_BUILD)
         target_compile_options(${tgt} PRIVATE /WX)

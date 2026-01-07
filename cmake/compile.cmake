@@ -17,11 +17,6 @@
 #
 
 # Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
-endif()
 
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
@@ -108,7 +103,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:Embedded>")
   set(MSVC_USE_STATIC_RUNTIME ON CACHE BOOL "static build")
 
-  add_compile_definitions(_WIN32_WINNT=0x0601 WINVER=0x0601)
+  add_compile_definitions(_WIN32_WINNT=0x0601 WINVER=0x0601 NOMINMAX)
 
   foreach(CompilerFlag CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO)
     string(REPLACE "/RTC1" "" ${CompilerFlag} "${${CompilerFlag}}")

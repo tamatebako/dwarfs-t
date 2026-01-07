@@ -9,108 +9,112 @@
  */
 
 #include <dwarfs/reader/internal/metadata_factory.h>
-#include <dwarfs/reader/internal/metadata_view_interface.h>
+
+#include <fmt/format.h>
+#include <iostream>
 
 #include <dwarfs/error.h>
 #include <dwarfs/logger.h>
-
-#ifdef DWARFS_HAVE_FLATBUFFERS
-#include <dwarfs/reader/internal/metadata_types_flatbuffers.h>
-#include <dwarfs/gen-flatbuffers/metadata.h>
-#include <flatbuffers/flatbuffers.h>
-#endif
-
-#ifdef DWARFS_HAVE_THRIFT
-#include <dwarfs/reader/internal/metadata_types_thrift.h>
-#include <thrift/lib/cpp2/frozen/FrozenUtil.h>
-#include <dwarfs/gen-cpp2/metadata_layouts.h>
-#include <dwarfs/gen-cpp2/metadata_types.h>
-#include <dwarfs/gen-cpp2/metadata_types_custom_protocol.h>
-#endif
+#include <dwarfs/metadata/domain/metadata.h>
+#include <dwarfs/metadata/serialization/init_serializers.h>
+#include <dwarfs/metadata/serialization/serializer_registry.h>
+#include <dwarfs/metadata/serialization/serialization_format.h>
+#include <dwarfs/metadata/legacy/frozen2_deserializer.h>
+#include <dwarfs/metadata/legacy/frozen_schema_serializer.h>
 
 namespace dwarfs::reader::internal {
 
-namespace {
+std::unique_ptr<dwarfs::metadata::domain::metadata>
+metadata_factory::load_metadata([[maybe_unused]] logger& lgr, std::span<uint8_t const> data) {
+  using namespace dwarfs::metadata::serialization;
 
-#ifdef DWARFS_HAVE_FLATBUFFERS
-// FlatBuffers file identifier for metadata
-constexpr char kFlatBuffersIdentifier[] = "DWFS";
-constexpr size_t kFlatBuffersIdentifierSize = 4;
-#endif
+  // Initialize serializers (must be called before using registry)
+  init_serializers();
 
-} // anonymous namespace
+  // Get singleton registry
+  auto& registry = SerializerRegistry::instance();
 
-metadata_format metadata_factory::detect_format(std::span<uint8_t const> data) {
-#ifdef DWARFS_HAVE_FLATBUFFERS
-  // Check for FlatBuffers magic bytes
-  // FlatBuffers stores a file identifier at offset 4-7
-  if (data.size() >= 8) {  // Need at least 8 bytes (4 for size prefix + 4 for identifier)
-    // FlatBuffers format: [4-byte size][4-byte file identifier][data...]
-    // Skip the 4-byte size prefix and check the identifier
-    if (std::memcmp(data.data() + 4, kFlatBuffersIdentifier, kFlatBuffersIdentifierSize) == 0) {
-      return metadata_format::flatbuffers;
+  // Convert span to vector for SerializerRegistry interface
+  std::vector<uint8_t> data_vec(data.begin(), data.end());
+
+  // Detect format using SerializerRegistry
+  auto format = registry.detect_format(data_vec);
+
+  if (!format) {
+    DWARFS_THROW(runtime_error, "Unable to detect metadata format");
+  }
+
+  // Create serializer for detected format
+  auto serializer = registry.create_serializer(*format);
+
+  if (!serializer) {
+    DWARFS_THROW(runtime_error,
+        fmt::format("Serializer for format '{}' not available",
+                    registry.get_format_name(*format)));
+  }
+
+  // Deserialize to domain model
+  // Use a helper to handle exceptions from serializer
+  auto deserialize_with_error_handling = [&]() -> std::unique_ptr<void, void (*)(void*)> {
+    try {
+      return serializer->deserialize(data_vec);
+    } catch (std::exception const& e) {
+      DWARFS_THROW(runtime_error,
+          fmt::format("Metadata deserialization failed: {}", e.what()));
+    }
+  };
+
+  auto metadata_ptr = deserialize_with_error_handling();
+
+  if (!metadata_ptr) {
+    DWARFS_THROW(runtime_error, "Metadata deserialization failed");
+  }
+
+  // Cast the void* to domain::metadata*
+  // SerializerRegistry returns void* for type erasure, but we know it's metadata*
+  auto* raw_ptr = static_cast<dwarfs::metadata::domain::metadata*>(
+      metadata_ptr.release());
+
+  auto domain_meta = std::unique_ptr<dwarfs::metadata::domain::metadata>(raw_ptr);
+
+  // CRITICAL FIX: If directories were packed with delta compression,
+  // we need to decompress the first_entry values after deserialization.
+  // The writer delta-compresses first_entry when pack_directories is enabled,
+  // but the deserializer just reads the compressed values as-is.
+  if (domain_meta->options.has_value() && domain_meta->options.value().packed_directories) {
+    uint32_t accumulated = 0;
+    for (auto& dir : domain_meta->directories) {
+      uint32_t delta = dir.first_entry();
+      accumulated += delta;
+      dir.set_first_entry(accumulated);
     }
   }
-#endif
 
-#ifdef DWARFS_HAVE_THRIFT
-  // If no FlatBuffers magic found and Thrift is available, assume Thrift
-  // Thrift doesn't have a magic header, so this is a fallback
-  return metadata_format::thrift;
-#else
-  // No Thrift support, default to FlatBuffers
-  return metadata_format::flatbuffers;
-#endif
+  return domain_meta;
 }
 
-std::unique_ptr<global_metadata_interface>
-metadata_factory::create_global_metadata(logger& lgr, std::span<uint8_t const> data) {
-  auto format = detect_format(data);
-  return create_global_metadata(lgr, data, format);
-}
+std::unique_ptr<dwarfs::metadata::domain::metadata>
+metadata_factory::load_metadata_legacy(logger& lgr,
+                                      std::span<uint8_t const> schema,
+                                      std::span<uint8_t const> data) {
+  // Suppress unused parameter warning
+  (void)lgr;
 
-std::unique_ptr<global_metadata_interface>
-metadata_factory::create_global_metadata(logger& lgr, std::span<uint8_t const> data,
-                                        metadata_format format) {
-  switch (format) {
-    case metadata_format::flatbuffers: {
-#ifdef DWARFS_HAVE_FLATBUFFERS
-      // Verify FlatBuffers data integrity
-      ::flatbuffers::Verifier verifier(data.data(), data.size());
-      if (!::dwarfs::flatbuffers::VerifyMetadataBuffer(verifier)) {
-        DWARFS_THROW(runtime_error, "FlatBuffers metadata verification failed");
-      }
+  try {
+    // Parse schema
+    auto parsed_schema = dwarfs::metadata::legacy::FrozenSchemaSerializer::deserialize(schema);
 
-      // Get the metadata root
-      auto meta = ::dwarfs::flatbuffers::GetMetadata(data.data());
-      if (!meta) {
-        DWARFS_THROW(runtime_error, "Failed to get FlatBuffers metadata root");
-      }
+    // Deserialize metadata
+    auto meta_value = dwarfs::metadata::legacy::Frozen2Deserializer::deserialize(parsed_schema, data);
 
-      // Create and return FlatBuffers backend wrapped in unique_ptr to interface
-      return std::make_unique<flatbuffers_backend::global_metadata>(lgr, meta);
-#else
-      DWARFS_THROW(runtime_error, "FlatBuffers support not compiled in");
-#endif
-    }
+    // Create domain metadata
+    auto domain_meta = std::unique_ptr<dwarfs::metadata::domain::metadata>(
+        new dwarfs::metadata::domain::metadata(std::move(meta_value)));
 
-    case metadata_format::thrift: {
-#ifdef DWARFS_HAVE_THRIFT
-      // Map Thrift Frozen2 data using mapFrozen
-      auto frozen_meta = ::apache::thrift::frozen::mapFrozen<
-          ::dwarfs::thrift::metadata::metadata>(
-          ::folly::ByteRange(data.data(), data.size()));
-      
-      // Bundled implicitly converts to the view type needed by global_metadata
-      // Create and return Thrift backend wrapped in unique_ptr to interface
-      return std::make_unique<thrift_backend::global_metadata>(lgr, frozen_meta);
-#else
-      DWARFS_THROW(runtime_error, "Thrift support not compiled in");
-#endif
-    }
-
-    default:
-      DWARFS_THROW(runtime_error, "Unknown metadata format");
+    return domain_meta;
+  } catch (std::exception const& e) {
+    DWARFS_THROW(runtime_error,
+        fmt::format("Failed to load Legacy Thrift metadata: {}", e.what()));
   }
 }
 

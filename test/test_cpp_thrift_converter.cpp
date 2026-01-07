@@ -14,7 +14,7 @@
  * \date 2025-11-12
  */
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include "dwarfs/internal/cpp_thrift_converter.h"
 #include <cassert>
@@ -296,8 +296,8 @@ int main() {
 #include <iostream>
 
 int main() {
-  std::cout << "Thrift support not enabled (DWARFS_HAVE_THRIFT not defined)" << std::endl;
+  std::cout << "Thrift support not enabled (DWARFS_HAVE_EXPERIMENTAL_THRIFT not defined)" << std::endl;
   return 0;
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

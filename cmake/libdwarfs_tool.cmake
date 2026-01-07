@@ -17,11 +17,6 @@
 #
 
 # Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
-endif()
 
 add_library(
   dwarfs_tool OBJECT
@@ -54,7 +49,7 @@ target_link_libraries(dwarfs_tool PUBLIC dwarfs_common)
 target_include_directories(dwarfs_tool PUBLIC tools/include)
 
 if(USE_JEMALLOC AND TARGET jemalloc::jemalloc)
-  target_link_libraries(dwarfs_tool PRIVATE /opt/homebrew/Cellar/jemalloc/5.3.0/lib/libjemalloc.dylib)
+  target_link_libraries(dwarfs_tool PRIVATE jemalloc::jemalloc)
   target_compile_definitions(dwarfs_tool PRIVATE DWARFS_USE_JEMALLOC)
 endif()
 

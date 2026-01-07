@@ -562,7 +562,7 @@ TEST(block_cache, sequential_access_detector) {
     return a.first.string() < b.first.string();
   });
 
-  t.lgr = std::make_unique<test::test_logger>(logger::VERBOSE);
+  t.lgr = std::make_unique<test::test_logger>(LOGGER_LEVEL_VERBOSE);
   auto test_lgr = dynamic_cast<test::test_logger*>(t.lgr.get());
 
   for (size_t thresh : {0, 1, 2, 4, 8, 16, 32}) {

@@ -20,6 +20,7 @@ cmake_minimum_required(VERSION 3.28.0)
 
 project(ricepp)
 
+include(CheckCXXCompilerFlag)
 include(FetchContent)
 
 if(NOT TARGET range-v3::range-v3)
@@ -32,11 +33,14 @@ if(NOT TARGET range-v3::range-v3)
   FetchContent_MakeAvailable(range-v3)
 endif()
 
-if(WIN32)
+if(MSVC)
   add_compile_options(/Zc:__cplusplus /utf-8 /wd4267 /wd4244 /wd5219)
   # Apply /MT or /MTd  (multithread, static version of the run-time library)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:Embedded>")
+  add_compile_definitions(_WIN32_WINNT=0x0601 WINVER=0x0601)
+elseif(MINGW)
+  # MinGW-specific settings
   add_compile_definitions(_WIN32_WINNT=0x0601 WINVER=0x0601)
 endif()
 
@@ -168,8 +172,8 @@ if(WITH_BENCHMARKS)
     target_link_libraries(ricepp_benchmark_fits PRIVATE ricepp benchmark::benchmark)
 
     if (JEMALLOC_FOUND)
-      target_link_libraries(ricepp_benchmark PRIVATE PkgConfig::JEMALLOC)
-      target_link_libraries(ricepp_benchmark_fits PRIVATE PkgConfig::JEMALLOC)
+      target_link_libraries(ricepp_benchmark PRIVATE jemalloc::jemalloc)
+      target_link_libraries(ricepp_benchmark_fits PRIVATE jemalloc::jemalloc)
     endif()
     if(mimalloc_FOUND)
       target_link_libraries(ricepp_benchmark PRIVATE mimalloc-static)
@@ -179,7 +183,7 @@ if(WITH_BENCHMARKS)
 endif()
 
 if(WITH_TESTS)
-  if(NOT TARGET gtest)
+  if(NOT TARGET GTest::gtest)
     message(STATUS "[ricepp] fetching googletest")
     FetchContent_Declare(
       googletest
@@ -188,6 +192,8 @@ if(WITH_TESTS)
       EXCLUDE_FROM_ALL
     )
     FetchContent_MakeAvailable(googletest)
+  else()
+    message(STATUS "[ricepp] using existing GoogleTest")
   endif()
 
   enable_testing()
@@ -199,10 +205,10 @@ if(WITH_TESTS)
     test/codec_test.cpp
   )
 
-  target_link_libraries(ricepp_test PRIVATE ricepp gtest gmock gtest_main)
+  target_link_libraries(ricepp_test PRIVATE ricepp GTest::gtest GTest::gmock GTest::gtest_main)
 
   if (JEMALLOC_FOUND)
-    target_link_libraries(ricepp_test PRIVATE PkgConfig::JEMALLOC)
+    target_link_libraries(ricepp_test PRIVATE jemalloc::jemalloc)
   endif()
   if (mimalloc_FOUND)
     target_link_libraries(ricepp_test PRIVATE mimalloc-static)

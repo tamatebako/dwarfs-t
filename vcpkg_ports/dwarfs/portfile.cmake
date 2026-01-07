@@ -1,0 +1,86 @@
+# vcpkg portfile for dwarfs
+# DwarFS - A fast high-compression read-only file system
+# Version: 0.16.0.9 - Force rebuild with workaround removed
+
+vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
+
+# Use local source tree instead of fetching from git
+set(SOURCE_PATH "${CMAKE_CURRENT_LIST_DIR}/../..")
+
+vcpkg_cmake_configure(
+    SOURCE_PATH ${SOURCE_PATH}
+    OPTIONS
+        -DWITH_TESTS=OFF
+        -DWITH_LIBDWARFS=ON
+        -DWITH_TOOLS=ON
+        -DWITH_FUSE_DRIVER=OFF
+)
+
+vcpkg_cmake_install()
+
+# Manually move CMake config files from lib/cmake to share
+# (vcpkg_cmake_config_fixup requires both release and debug, but we only have release)
+if(EXISTS "${CURRENT_PACKAGES_DIR}/lib/cmake/dwarfs")
+    file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/share")
+    file(RENAME
+        "${CURRENT_PACKAGES_DIR}/lib/cmake/dwarfs"
+        "${CURRENT_PACKAGES_DIR}/share/dwarfs")
+
+    # Fix the config file paths
+    file(READ "${CURRENT_PACKAGES_DIR}/share/dwarfs/dwarfs-config.cmake" CONFIG_CONTENT)
+    string(REPLACE
+        "\${PACKAGE_PREFIX_DIR}/lib/cmake/dwarfs"
+        "\${PACKAGE_PREFIX_DIR}/share/dwarfs"
+        CONFIG_CONTENT
+        "${CONFIG_CONTENT}")
+    file(WRITE "${CURRENT_PACKAGES_DIR}/share/dwarfs/dwarfs-config.cmake" "${CONFIG_CONTENT}")
+endif()
+
+# Remove debug cmake if it exists
+if(EXISTS "${CURRENT_PACKAGES_DIR}/debug/lib/cmake")
+    file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/lib/cmake")
+endif()
+
+file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/include)
+file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/share)
+
+# Install generated flatbuffers headers (created during build)
+# These are generated in CMAKE_BINARY_DIR and need special handling
+file(GLOB_RECURSE GEN_FB_HEADERS
+     "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/include/dwarfs/gen-flatbuffers/*.h")
+foreach(HEADER ${GEN_FB_HEADERS})
+    file(RELATIVE_PATH REL_HEADER
+         "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/include"
+         "${HEADER}")
+    get_filename_component(HEADER_DIR "${REL_HEADER}" DIRECTORY)
+    file(INSTALL "${HEADER}"
+         DESTINATION "${CURRENT_PACKAGES_DIR}/include/${HEADER_DIR}")
+endforeach()
+
+vcpkg_fixup_pkgconfig()
+
+# Create phmap config for header-only parallel-hashmap
+# This is needed because dwarfs targets reference phmap
+file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/share/phmap")
+file(WRITE "${CURRENT_PACKAGES_DIR}/share/phmap/phmap-config.cmake" "
+include(CMakeFindDependencyMacro)
+find_dependency(Threads REQUIRED)
+
+add_library(phmap INTERFACE IMPORTED)
+set_target_properties(phmap PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES \"\${PACKAGE_PREFIX_DIR}/include\"
+)
+")
+
+# Update dwarfs-config.cmake to find phmap before including targets
+file(READ "${CURRENT_PACKAGES_DIR}/share/dwarfs/dwarfs-config.cmake" CONFIG_CONTENT)
+# Add phmap find_dependency after Threads
+string(REPLACE
+    "find_dependency(Threads REQUIRED)"
+    "find_dependency(Threads REQUIRED)\nfind_dependency(phmap CONFIG)"
+    CONFIG_CONTENT
+    "${CONFIG_CONTENT}")
+file(WRITE "${CURRENT_PACKAGES_DIR}/share/dwarfs/dwarfs-config.cmake" "${CONFIG_CONTENT}")
+
+# Install license using proper vcpkg function
+vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE.GPL-3.0")

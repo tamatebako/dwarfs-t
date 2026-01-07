@@ -1,0 +1,378 @@
+// DwarFS FlatBuffers Metadata Schema
+// This schema defines the serialization format for DwarFS filesystem metadata
+//
+// Copyright (c) Marcus Holland-Moritz
+// SPDX-License-Identifier: MIT
+//
+// This replaces Thrift/Cereal/Bitsery as the unified modern metadata format
+// File format version: DwarFS v2.5
+// FlatBuffers format version: 1.0
+
+namespace dwarfs.flatbuffers;
+
+//==============================================================================
+// Core Data Structures
+//==============================================================================
+
+/// One chunk of data
+///
+/// A single file inode can be composed of multiple chunks, e.g. because
+/// segments can be reused or because a single file spans multiple blocks.
+/// Chunks may be overlapping if there is identical data in different files.
+///
+/// A chunk is really just a view onto an otherwise unstructured file system
+/// block.
+table Chunk {
+  block:uint32;    // file system block number
+  offset:uint32;   // offset from start of block, in bytes
+  size:uint32;     // size of chunk, in bytes
+}
+
+/// One directory
+///
+/// This structure represents the links between directory entries.
+/// The `parent_entry` references the parent directory's `dir_entry`.
+/// The `first_entry` members can be used to access the entries contained
+/// in the directory.
+///
+/// The range of contained entries is:
+///
+///    dir_entries[directory[inode].first_entry]
+///    ..
+///    dir_entries[directory[inode + 1].first_entry - 1]
+///
+/// Note that as of v2.3, directory entries can be stored "packed", in
+/// which case only the `first_entry` fields are populated and stored
+/// delta-compressed. The `first_entry` field must be unpacked before
+/// using and the `parent_entry` and `self_entry` fields must be built
+/// by traversing the `dir_entries` using the unpacked `first_entry`
+/// fields.
+table Directory {
+  parent_entry:uint32;  // indexes into `dir_entries`
+  first_entry:uint32;   // indexes into `dir_entries`
+  self_entry:uint32;    // indexes into `dir_entries` (v2.5+)
+}
+
+/// Inode Data
+///
+/// This structure contains all necessary metadata for an inode, such as
+/// its mode (i.e. permissions and inode type), its owner/group and its
+/// timestamps.
+table InodeData {
+  // Core inode attributes
+  mode_index:uint32;   // index into `metadata.modes[]`
+  owner_index:uint32;  // index into `metadata.uids[]`
+  group_index:uint32;  // index into `metadata.gids[]`
+
+  // Timestamps (relative to `metadata.timestamp_base`)
+  atime_offset:uint64;
+  mtime_offset:uint64;
+  ctime_offset:uint64;
+
+  // v2.5+ fields: subsecond timestamps and btime
+  btime_offset:uint64;      // birth time (v2.5+)
+  atime_subsec:uint64;      // subsecond part of atime (v2.5+)
+  mtime_subsec:uint64;      // subsecond part of mtime (v2.5+)
+  ctime_subsec:uint64;      // subsecond part of ctime (v2.5+)
+  btime_subsec:uint64;      // subsecond part of btime (v2.5+)
+
+  // Hard link count (v2.5+)
+  nlink_minus_one:uint32;   // number of hard links - 1
+
+  // Deprecated v2.2 fields (for backwards compatibility)
+  name_index_v2_2:uint32;   // DEPRECATED: index into `metadata.names[]`
+  inode_v2_2:uint32;        // DEPRECATED: inode number
+}
+
+/// A directory entry
+///
+/// This structure represents a single directory entry and just combines
+/// a name with an inode number. The inode number can then be used to
+/// look up almost all other metadata.
+table DirEntry {
+  name_index:uint32;  // index into metadata.names
+  inode_num:uint32;   // index into metadata.inodes
+}
+
+//==============================================================================
+// File System Options and Attributes
+//==============================================================================
+
+/// File system options
+table FsOptions {
+  // Time storage options
+  mtime_only:bool;                               // file system contains only mtime time stamps
+  time_resolution_sec:uint32;                    // time base and offsets stored with this resolution
+  subsecond_resolution_nsec_multiplier:uint32;   // multiplier to convert subsecond part to nanoseconds (v2.5+)
+
+  // Packing options
+  packed_chunk_table:bool;          // chunk_table stored delta-compressed
+  packed_directories:bool;          // directories stored delta-compressed
+  packed_shared_files_table:bool;   // shared_files_table stored in packed format
+
+  // v2.5+ features
+  has_btime:bool;           // file system contains btime (birth time) time stamps
+  inodes_have_nlink:bool;   // inodes contain valid nlink values in `inode_data.nlink_minus_one`
+}
+
+/// An (optionally packed) string table
+table StringTable {
+  buffer:[ubyte];         // raw buffer containing concatenation of all strings (binary data)
+  symtab:[ubyte];         // symbol table for fsst compression (optional, binary data)
+  index:[uint32];         // (optionally packed) index; if packed, stored delta-compressed
+  packed_index:bool;      // indicates if the index is packed
+}
+
+/// Size cache for highly fragmented file inodes
+///
+/// For highly fragmented inodes, computing the size from the
+/// individual chunks can be extremely slow. This cache can be
+/// used to bypass the chunk lookup and size computation.
+table InodeSizeCache {
+  // Maps from inode number to size
+  size_lookup_keys:[uint32];
+  size_lookup_values:[uint64];
+
+  // Maps from inode number to allocated_size (only used if the inode is sparse, v2.5+)
+  allocated_size_lookup_keys:[uint32];
+  allocated_size_lookup_values:[uint64];
+
+  // Minimum number of chunks for a file to be found in the cache
+  min_chunk_count:uint64;
+}
+
+/// Metadata rewrite history entry
+///
+/// This structure contains the version of the metadata format used
+/// for tracking metadata rewrite history.
+table HistoryEntry {
+  major:uint8;                  // major version number
+  minor:uint8;                  // minor version number
+  dwarfs_version:string;        // version string of dwarfs library
+  block_size:uint32;            // block size at time of creation
+  options:FsOptions;            // file system options at time of creation
+}
+
+//==============================================================================
+// Root Metadata Structure
+//==============================================================================
+
+/// File System Metadata
+///
+/// This is the root structure for all file system metadata.
+table Metadata {
+  //==========================================================================
+  // Core filesystem structures
+  //==========================================================================
+
+  /// Ranges of chunks that make up regular files. Identical
+  /// files share the same chunk range. The range of chunks
+  /// for a regular file are:
+  ///
+  ///   chunks[chunk_table[index]] .. chunks[chunk_table[index + 1] - 1]
+  ///
+  /// Here, `index` is either `inode - file_inode_offset` for
+  /// unique file inodes, or for shared file inodes:
+  ///
+  ///   shared_files[inode - file_inode_offset - unique_files] + unique_files
+  ///
+  /// Note that here `shared_files` is the unpacked version of
+  /// `shared_files_table`.
+  chunks:[Chunk];
+
+  /// All directories, indexed by inode number. There's one extra
+  /// sentinel directory at the end that has `first_entry` point to
+  /// the end of `dir_entries`, so directory entry lookup work the
+  /// same for all directories.
+  ///
+  /// Note that this list is stored in a packed format as of v2.3
+  /// if `options.packed_directories` is `true` and must be unpacked
+  /// before use. See the documentation for the `directory` struct.
+  directories:[Directory];
+
+  /// Inode metadata, indexed by inode number.
+  ///
+  /// Inodes are assigned strictly in the following order:
+  ///
+  ///   - directories, starting with the root dir at inode 0
+  ///   - symbolic links
+  ///   - unique regular files
+  ///   - shared regular files
+  ///   - character and block devices
+  ///   - named pipes and sockets
+  ///
+  /// The inode type can be determined from its mode, which makes
+  /// it possible to find the inode offsets for each distinct type
+  /// by a simple binary search. These inode offsets are required
+  /// to perform lookups into lists indexed by non-directory inode
+  /// numbers.
+  ///
+  /// The number of shared regular files can be determined from
+  /// `shared_files_table`.
+  inodes:[InodeData];
+
+  /// Chunk lookup table, indexed by `inode - file_inode_offset`.
+  /// There's one extra sentinel item at the end that points to the
+  /// end of `chunks`, so chunk lookups work the same for all inodes.
+  ///
+  /// Note that this list is stored delta-compressed as of v2.3
+  /// if `options.packed_chunk_table` is `true` and must be unpacked
+  /// before use.
+  chunk_table:[uint32];
+
+  /// DEPRECATED: Entry table (v2.2 compatibility)
+  entry_table_v2_2:[uint32];
+
+  /// Symlink lookup table, indexed by `inode - symlink_inode_offset`
+  symlink_table:[uint32];
+
+  //==========================================================================
+  // Lookup tables for deduplication
+  //==========================================================================
+
+  uids:[uint32];           // user ids, for lookup by `inode.owner_index`
+  gids:[uint32];           // group ids, for lookup by `inode.group_index`
+  modes:[uint32];          // inode modes, for lookup by `inode.mode_index`
+  names:[string];          // directory entry names, for lookup by `dir_entry.name_index`
+  symlinks:[string];       // symlink targets, for lookup by index from `symlink_table`
+
+  //==========================================================================
+  // Filesystem parameters
+  //==========================================================================
+
+  timestamp_base:uint64;   // timestamp base for all inode timestamps
+  block_size:uint32;       // file system block size in bytes
+  total_fs_size:uint64;    // total file system size in bytes
+
+  //==========================================================================
+  // Optional features (v2.1+)
+  //==========================================================================
+
+  devices:[uint64];        // device ids, for lookup by `inode - device_inode_offset`
+  options:FsOptions;       // file system options
+
+  //==========================================================================
+  // v2.3+ features: directory entries and shared files
+  //==========================================================================
+
+  /// All directory entries
+  ///
+  /// Starting with the root directory entry at index 0, this
+  /// list contains ranges all directory entries of the file
+  /// system. Along with `directories`, this allows traversal
+  /// of the full file system structure.
+  ///
+  /// The ranges of entries that belong to a single directory
+  /// are determined by `directory.first_entry`. Within a single
+  /// directory, entries are ordered asciibetically by name,
+  /// which makes it possible to efficiently find entries using
+  /// binary search.
+  dir_entries:[DirEntry];
+
+  /// Shared files mapping
+  ///
+  /// Note that this list is stored in a packed format if
+  /// `options.packed_shared_files_table` is `true` and must be
+  /// unpacked before use.
+  ///
+  /// In packed format, it is stored as number of repetitions
+  /// per index, offset by 2 (the minimum number of repetitions),
+  /// so e.g. a packed list
+  ///
+  ///   [0, 3, 1, 0, 1]
+  ///
+  /// would unpack to:
+  ///
+  ///   [0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 4]
+  ///
+  /// So the packed 5-element array provides mappings for 15 shared
+  /// file inodes. Assuming 10 unique files and a file inode offset
+  /// of 10, a regular file inode 25 would be a shared file inode,
+  /// and the index for lookup in `chunk_table` would be `10 + 1`.
+  shared_files_table:[uint32];
+
+  /// DEPRECATED: total size of hardlinked files beyond the first link, in bytes
+  /// NOTE: This is only kept for backwards compatibility, it is no
+  ///       longer used in dwarfs-0.14.0 and later.
+  total_hardlink_size:uint64;
+
+  //==========================================================================
+  // Metadata information
+  //==========================================================================
+
+  dwarfs_version:string;      // version string
+  create_timestamp:uint64;    // unix timestamp of metadata creation time
+
+  //==========================================================================
+  // Compact string storage (v2.3+)
+  //==========================================================================
+
+  compact_names:StringTable;     // compact storage for directory entry names
+  compact_symlinks:StringTable;  // compact storage for symlink targets
+
+  //==========================================================================
+  // v2.5+ features
+  //==========================================================================
+
+  preferred_path_separator:uint32;  // preferred path separator of original file system
+
+  /// The set of features used in this file system image. As long
+  /// as an older binary supports all features, it will be able
+  /// to use images created with newer versions. We use strings
+  /// here instead of an enum so older versions can still output
+  /// names of features used by a newer version.
+  features:[string];
+
+  /// The set of categories used in this file system image. Used
+  /// for displaying and to select compression algorithms when
+  /// recompressing the image.
+  category_names:[string];
+
+  /// The category of each block in the file system image. The
+  /// index into this vector is the block number and the value
+  /// is an index into `category_names`.
+  block_categories:[uint32];
+
+  /// Size cache for highly fragmented file inodes
+  reg_file_size_cache:InodeSizeCache;
+
+  /// Unique block categorization metadata JSON strings. These
+  /// can be used to compress a block with a metadata-dependent
+  /// algorithm after having been compressed with a general
+  /// purpose algorithm.
+  category_metadata_json:[string];
+
+  /// The metadata associated with each block. Maps from block
+  /// number to index into `categorization_metadata_json`.
+  block_category_metadata_keys:[uint32];
+  block_category_metadata_values:[uint32];
+
+  /// Version strings for all metadata versions
+  metadata_version_history:[HistoryEntry];
+
+  //==========================================================================
+  // Sparse file support (v2.5+)
+  //==========================================================================
+
+  /// The block index used to encode a hole in a chunk.
+  hole_block_index:uint32;
+
+  /// The size of sparse file holes that are too large to be
+  /// stored efficiently in the chunk table, in bytes.
+  large_hole_size:[uint64];
+
+  /// Total allocated file system size in bytes.
+  total_allocated_fs_size:uint64;
+}
+
+//==============================================================================
+// Root type declaration
+//==============================================================================
+
+root_type Metadata;
+
+// File identifier for format detection (4 bytes: "DFBF" = DwarFs FlatBuffer)
+file_identifier "DFBF";
+
+// File extension for metadata files
+file_extension "dfbf";

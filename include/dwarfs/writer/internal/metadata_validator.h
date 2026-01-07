@@ -24,7 +24,7 @@
 #include <string>
 
 namespace dwarfs::metadata::domain {
-struct metadata;
+class metadata;
 }
 
 namespace dwarfs::writer::internal {

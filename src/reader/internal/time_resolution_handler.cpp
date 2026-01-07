@@ -1,4 +1,4 @@
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 /* vim:set ts=2 sw=2 sts=2 et: */
 /**
  * \author     Marcus Holland-Moritz (github@mhxnet.de)
@@ -42,7 +42,7 @@
 #include <dwarfs/reader/internal/time_resolution_handler.h>
 
 // Include backend implementations
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/reader/internal/metadata_types_thrift.h>
 #endif
 
@@ -95,7 +95,7 @@ time_resolution_handler::time_resolution_handler(
     ::apache::thrift::frozen::View<thrift::metadata::history_entry> hist)
     : time_resolution_handler(hist, 0) {}
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // Dual-format: use namespace-qualified type
 void time_resolution_handler::fill_stat_timevals(
     file_stat& st, thrift_backend::inode_view_impl const& ivr) const {
@@ -151,18 +151,18 @@ std::string time_resolution_handler::get_time_resolution_string() const {
 }
 
 } // namespace dwarfs::reader::internal
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
-// FlatBuffers implementations - ONLY when Thrift is NOT available
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
-#include <dwarfs/reader/internal/time_resolution_handler.h>
+// FlatBuffers implementations
+#ifdef DWARFS_HAVE_FLATBUFFERS
+#include <dwarfs/reader/internal/metadata_types_flatbuffers.h>
 #include <dwarfs/gen-flatbuffers/metadata.h>
 
 namespace dwarfs::reader::internal {
 
 namespace {
 
-uint32_t get_resolution_fb(flatbuffers::Metadata const* meta) {
+uint32_t get_resolution_fb(dwarfs::flatbuffers::Metadata const* meta) {
   if (auto opts = meta->options()) {
     auto val = opts->time_resolution_sec();
     if (val > 0) {
@@ -173,7 +173,7 @@ uint32_t get_resolution_fb(flatbuffers::Metadata const* meta) {
   return 1;
 }
 
-uint32_t get_resolution_fb(flatbuffers::HistoryEntry const* hist) {
+uint32_t get_resolution_fb(dwarfs::flatbuffers::HistoryEntry const* hist) {
   if (auto opts = hist->options()) {
     auto val = opts->time_resolution_sec();
     if (val > 0) {
@@ -184,7 +184,7 @@ uint32_t get_resolution_fb(flatbuffers::HistoryEntry const* hist) {
   return 1;
 }
 
-uint32_t get_nsec_multiplier_fb(flatbuffers::Metadata const* meta, uint32_t resolution [[maybe_unused]]) {
+uint32_t get_nsec_multiplier_fb(dwarfs::flatbuffers::Metadata const* meta, uint32_t resolution [[maybe_unused]]) {
   if (auto opts = meta->options()) {
     auto val = opts->subsecond_resolution_nsec_multiplier();
     if (val > 0) {
@@ -196,7 +196,7 @@ uint32_t get_nsec_multiplier_fb(flatbuffers::Metadata const* meta, uint32_t reso
   return 0;
 }
 
-uint32_t get_nsec_multiplier_fb(flatbuffers::HistoryEntry const* hist, uint32_t resolution [[maybe_unused]]) {
+uint32_t get_nsec_multiplier_fb(dwarfs::flatbuffers::HistoryEntry const* hist, uint32_t resolution [[maybe_unused]]) {
   if (auto opts = hist->options()) {
     auto val = opts->subsecond_resolution_nsec_multiplier();
     if (val > 0) {
@@ -210,17 +210,38 @@ uint32_t get_nsec_multiplier_fb(flatbuffers::HistoryEntry const* hist, uint32_t 
 
 } // namespace
 
-time_resolution_handler::time_resolution_handler(flatbuffers::Metadata const* meta)
+time_resolution_handler::time_resolution_handler(dwarfs::flatbuffers::Metadata const* meta)
     : timebase_{meta->timestamp_base()}
     , resolution_{get_resolution_fb(meta)}
     , nsec_multiplier_{get_nsec_multiplier_fb(meta, resolution_)}
     , mtime_only_{meta->options() && meta->options()->mtime_only()} {}
 
-time_resolution_handler::time_resolution_handler(flatbuffers::HistoryEntry const* hist)
+time_resolution_handler::time_resolution_handler(dwarfs::flatbuffers::HistoryEntry const* hist)
     : timebase_{0}  // History entries don't have timebase
     , resolution_{get_resolution_fb(hist)}
     , nsec_multiplier_{get_nsec_multiplier_fb(hist, resolution_)}
     , mtime_only_{hist->options() && hist->options()->mtime_only()} {}
 
+void time_resolution_handler::fill_stat_timevals(
+    file_stat& st, flatbuffers_backend::inode_view_impl const& ivr) const {
+  auto const mtime_nsec =
+      nsec_multiplier_ > 0 ? ivr.mtime_subsec() * nsec_multiplier_ : 0;
+  st.set_mtimespec(resolution_ * (timebase_ + ivr.mtime_offset()), mtime_nsec);
+
+  if (mtime_only_) {
+    st.set_atimespec(st.mtimespec_unchecked());
+    st.set_ctimespec(st.mtimespec_unchecked());
+  } else {
+    auto const atime_nsec =
+        nsec_multiplier_ > 0 ? ivr.atime_subsec() * nsec_multiplier_ : 0;
+    auto const ctime_nsec =
+        nsec_multiplier_ > 0 ? ivr.ctime_subsec() * nsec_multiplier_ : 0;
+    st.set_atimespec(resolution_ * (timebase_ + ivr.atime_offset()),
+                     atime_nsec);
+    st.set_ctimespec(resolution_ * (timebase_ + ivr.ctime_offset()),
+                     ctime_nsec);
+  }
+}
+
 } // namespace dwarfs::reader::internal
-#endif // DWARFS_HAVE_FLATBUFFERS && !DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_FLATBUFFERS

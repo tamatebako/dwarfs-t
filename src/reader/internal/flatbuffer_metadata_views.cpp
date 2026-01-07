@@ -364,7 +364,7 @@ std::shared_ptr<chunk_view_interface const> flatbuffer_chunk_range::at(size_t in
       metadata_->large_hole_size());
 }
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 flatbuffer_chunk_range::iterator flatbuffer_chunk_range::native_begin() const {
   return iterator(this, 0);
 }
@@ -590,9 +590,111 @@ bool flatbuffer_dir_entry_view::is_root() const {
   return self_index_ == 0;
 }
 
+uint32_t flatbuffer_dir_entry_view::entry_to_dir_idx(uint32_t entry_idx) const {
+  // Find the directory that this entry belongs to
+  if (!metadata_ || !metadata_->dir_entries() || !metadata_->directories()) {
+    return 0;  // Legacy format or no directories, return root
+  }
+
+  auto directories = metadata_->directories();
+
+  // First check if this entry IS a directory's self_entry
+  // If so, return that directory's index
+  for (size_t dir_idx = 0; dir_idx < directories->size(); ++dir_idx) {
+    auto const* directory = directories->Get(dir_idx);
+    if (directory && directory->self_entry() == entry_idx) {
+      return static_cast<uint32_t>(dir_idx);
+    }
+  }
+
+  // Otherwise find the directory whose range contains this entry
+  // This is the same logic used in walk() to determine parent_dir_idx
+  uint32_t result = 0;
+  for (size_t dir_idx = 0; dir_idx < directories->size(); ++dir_idx) {
+    auto const* directory = directories->Get(dir_idx);
+    if (directory && directory->first_entry() <= entry_idx) {
+      result = dir_idx;
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
 std::string flatbuffer_dir_entry_view::path() const {
-  // TODO: Build full path by walking parent chain
-  return name();
+  // For legacy format (no dir_entries), the filesystem is flat (all files in root)
+  if (!metadata_ || !metadata_->dir_entries()) {
+    // Return just the name for flat filesystem (no leading /)
+    return name();
+  }
+
+  // Build full path by traversing up the directory tree
+  std::vector<std::string> components;
+  uint32_t current = self_index_;
+  uint32_t parent = parent_index_;
+
+  // Traverse up to root, collecting names
+  while (current != 0 || parent != 0) {
+    // Get current entry's name
+    auto dir_entries = metadata_->dir_entries();
+    if (!dir_entries || current >= dir_entries->size()) {
+      break;
+    }
+
+    auto const* entry = dir_entries->Get(current);
+    if (!entry) {
+      break;
+    }
+
+    uint32_t name_idx = entry->name_index();
+    std::string name_from_idx = [this, name_idx]() -> std::string {
+      auto names = metadata_->names();
+      return names && name_idx < names->size() ? names->Get(name_idx)->str() : "";
+    }();
+
+    if (name_from_idx.empty()) {
+      break;
+    }
+    components.push_back(name_from_idx);
+
+    // Stop if we reached root
+    if (parent == current || parent == 0) {
+      break;
+    }
+
+    // Move up to parent
+    current = parent;
+
+    // CRITICAL: Convert entry index to directory index before looking up parent_entry
+    uint32_t parent_dir_idx = entry_to_dir_idx(current);
+
+    auto directories = metadata_->directories();
+    if (!directories || parent_dir_idx >= directories->size()) {
+      break;
+    }
+
+    auto const* directory = directories->Get(parent_dir_idx);
+    if (!directory) {
+      break;
+    }
+
+    parent = directory->parent_entry();
+  }
+
+  // Build path from components (reverse order)
+  if (components.empty()) {
+    return "";  // Root
+  }
+
+  // Join components with /
+  std::string result;
+  for (auto it = components.rbegin(); it != components.rend(); ++it) {
+    if (!result.empty()) {
+      result += "/";
+    }
+    result += *it;
+  }
+  return result;
 }
 
 //==============================================================================

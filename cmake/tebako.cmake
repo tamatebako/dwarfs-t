@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: MIT
 #
 
-cmake_minimum_required(VERSION 3.24.0)
 
 message(STATUS ">>>>> Tebako build mode enabled")
 

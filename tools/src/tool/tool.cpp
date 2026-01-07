@@ -69,20 +69,28 @@ namespace {
 
 #ifdef DWARFS_USE_JEMALLOC
 std::string get_jemalloc_version() {
-#ifdef __APPLE__
+#if defined(__APPLE__)
   char const* j = JEMALLOC_VERSION;
+  std::string rv{j};
+  if (auto pos = rv.find('-'); pos != std::string::npos) {
+    rv.erase(pos, std::string::npos);
+  }
+  return rv;
+#elif defined(_WIN32)
+  // mallctl not available on Windows with Tebako jemalloc
+  return "5.5.0"; // Tebako jemalloc version
 #else
   char const* j = nullptr;
   size_t s = sizeof(j);
   // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
   ::mallctl("version", &j, &s, nullptr, 0);
   assert(j);
-#endif
   std::string rv{j};
   if (auto pos = rv.find('-'); pos != std::string::npos) {
     rv.erase(pos, std::string::npos);
   }
   return rv;
+#endif
 }
 #endif
 
@@ -152,7 +160,7 @@ void add_common_options(po::options_description& opts,
   opts.add_options()
     ("log-level",
         po::value<logger::level_type>(&logopts.threshold)
-            ->default_value(logger::INFO),
+            ->default_value(LOGGER_LEVEL_INFO),
         log_level_desc.c_str())
     ("log-with-context",
         po::value<std::optional<bool>>(&logopts.with_context)->zero_tokens(),

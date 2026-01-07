@@ -1,33 +1,140 @@
 {
-  "builtin-baseline": "ce613c41372b23b1f51333815feb3edd87ef8a8b",
+  "name": "dwarfs",
+  "version": "0.16.0",
+  "description": "DwarFS - A fast high-compression read-only file system",
+  "homepage": "https://github.com/tamatebako/dwarfs",
+  "license": "GPL-2.0-only",
+  "supports": "!uwp",
+  "builtin-baseline": "f14401ca0f2754347c3864da7488a9b955b4e47a",
+  "features": {
+    "modern-thrift": {
+      "description": "Enable Modern Thrift (fbthrift) support via folly",
+      "dependencies": [
+        {
+          "name": "folly",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        },
+        {
+          "name": "fizz",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        },
+        {
+          "name": "mvfst",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        },
+        {
+          "name": "wangle",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        },
+        {
+          "name": "fbthrift",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        }
+      ]
+    }
+  },
   "dependencies": [
-    {"name": "benchmark", "version>=": "1.9.4"},
-    {"name": "boost-asio", "version>=": "1.88.0", "default-features": false, "features": []},
-    {"name": "boost-chrono", "version>=": "1.88.0"},
-    {"name": "boost-convert", "version>=": "1.88.0"},
-    {"name": "boost-crc", "version>=": "1.88.0"},
-    {"name": "boost-filesystem", "version>=": "1.88.0"},
-    {"name": "boost-iostreams", "version>=": "1.88.0", "default-features": false, "features": []},
-    {"name": "boost-process", "version>=": "1.88.0"},
-    {"name": "boost-program-options", "version>=": "1.88.0"},
-    {"name": "boost-thread", "version>=": "1.88.0"},
-    {"name": "boost-uuid", "version>=": "1.88.0"},
-    {"name": "brotli", "version>=": "1.1.0"},
-    {"name": "cpptrace", "version>=": "1.0.4"},
-    {"name": "double-conversion", "version>=": "3.3.1"},
-    {"name": "fmt", "version>=": "12.0.0"},
-    {"name": "glog", "version>=": "0.7.1"},
-    {"name": "libarchive", "version>=": "3.8.1", "default-features": false, "features": []},
-    {"name": "libevent", "version>=": "2.1.12+20230128#1"},
-    {"name": "libflac", "version>=": "1.5.0"},
-    {"name": "liblzma", "version>=": "5.8.1"},
-    {"name": "lz4", "version>=": "1.10.0"},
-    {"name": "nlohmann-json", "version>=": "3.12.0"},
-    {"name": "libressl", "version>=": "4.1.0"},
-    {"name": "pkgconf", "version>=": "2.4.3"},
-    {"name": "range-v3", "version>=": "0.12.0#4"},
-    {"name": "utfcpp", "version>=": "4.0.6"},
-    {"name": "xxhash", "version>=": "0.8.3"},
-    {"name": "zstd", "version>=": "1.5.7"}
+    "bzip2",
+    "boost-program-options",
+    "boost-filesystem",
+    {
+      "name": "boost-iostreams",
+      "features": ["bzip2"]
+    },
+    "boost-context",
+    "boost-chrono",
+    "boost-convert",
+    "boost-uuid",
+    "boost-process",
+    "boost-algorithm",
+    "boost-asio",
+    "boost-range",
+    "boost-functional",
+    "boost-container",
+    "boost-lexical-cast",
+    {
+      "name": "argtable3",
+      "version>=": "3.3.1"
+    },
+    {
+      "name": "openssl",
+      "version>=": "3.6.0#3"
+    },
+    {
+      "name": "libarchive",
+      "version>=": "3.8.4"
+    },
+    {
+      "name": "xxhash",
+      "version>=": "0.8.2"
+    },
+    {
+      "name": "zstd",
+      "version>=": "1.5.7"
+    },
+    {
+      "name": "lz4",
+      "version>=": "1.10.0"
+    },
+    {
+      "name": "liblzma",
+      "version>=": "5.8.1"
+    },
+    {
+      "name": "brotli",
+      "version>=": "1.2.0"
+    },
+    {
+      "name": "libflac",
+      "version>=": "1.5.0"
+    },
+    {
+      "name": "fmt",
+      "version>=": "12.1.0"
+    },
+    {
+      "name": "range-v3",
+      "version>=": "0.12.0"
+    },
+    { "name": "parallel-hashmap",
+      "version>=": "2.0.0"
+    },
+    {
+      "name": "flatbuffers",
+      "version>=": "25.9.23"
+    },
+    {
+      "name": "nlohmann-json",
+      "version>=": "3.12.0"
+    },
+    {
+      "name": "utfcpp",
+      "version>=": "4.0.6"
+    },
+    {
+      "name": "date",
+      "version>=": "3.0.4"
+    },
+    {
+      "name": "jemalloc",
+      "version>=": "5.5.0"
+    },
+    {
+      "name": "libsodium"
+    },
+    {
+      "name": "gtest",
+      "version>=": "1.14.0"
+    },
+    {
+      "name": "libfuse",
+      "version>=": "3.17.3",
+      "platform": "linux"
+    }
   ]
 }

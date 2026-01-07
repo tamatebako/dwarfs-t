@@ -13,7 +13,6 @@
 # - MKD: Build library + mkdwarfs only (tebako default)
 # - LIB: Build library only (for cross-compilation)
 
-cmake_minimum_required(VERSION 3.24.0)
 
 # Define build scope variable
 if(NOT DEFINED TEBAKO_BUILD_SCOPE)

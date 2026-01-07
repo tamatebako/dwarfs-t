@@ -9,8 +9,8 @@
 #include "dwarfs/metadata/serialization/serialization_format.h"
 #include "dwarfs/metadata/domain/metadata.h"
 
-#ifdef DWARFS_HAVE_THRIFT
-#include "thrift/dwarfs/gen-cpp2/metadata_types.h"
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+#include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
 
 #include <stdexcept>
@@ -39,7 +39,7 @@ MetadataSerializationFacade::MetadataSerializationFacade(
 MetadataSerializationFacade& MetadataSerializationFacade::operator=(
     MetadataSerializationFacade&&) noexcept = default;
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 // Thrift-specific methods (only when Thrift available)
 
 // Writer API: Thrift → Bytes
@@ -82,7 +82,7 @@ MetadataSerializationFacade::deserialize_to_thrift(
       static_cast<::dwarfs::thrift::metadata::metadata*>(thrift_meta_ptr.release()));
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // NEW: Direct domain model serialization (preferred method, always available)
 std::vector<uint8_t> MetadataSerializationFacade::serialize(

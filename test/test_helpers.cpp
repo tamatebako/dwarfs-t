@@ -25,7 +25,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
-#include <iostream>
 #include <random>
 #include <regex>
 
@@ -309,7 +308,7 @@ simplestat os_access_mock::add_file(fs::path const& path, file_size_t size,
   if (random) {
     thread_local std::mt19937_64 rng{42};
 
-    std::uniform_int_distribution<> choice_dist{0, 4};
+    std::uniform_int_distribution<int> choice_dist{0, 4};
     auto choice = choice_dist(rng);
 
     switch (choice) {
@@ -622,7 +621,8 @@ std::string create_random_string(size_t size, uint8_t min, uint8_t max,
                                  std::mt19937_64& gen) {
   std::string rv;
   rv.resize(size);
-  std::uniform_int_distribution<> byte_dist{min, max};
+  std::uniform_int_distribution<int> byte_dist{static_cast<int>(min),
+                                                 static_cast<int>(max)};
   std::generate(rv.begin(), rv.end(), [&] { return byte_dist(gen); });
   return rv;
 }

@@ -28,9 +28,10 @@
 
 #include <algorithm>
 #include <iterator>
+#include <optional>
 #include <stdexcept>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <thrift/lib/cpp/util/EnumUtils.h>
 #endif
 
@@ -40,7 +41,7 @@ namespace dwarfs::internal {
 
 namespace {
 
-#ifndef DWARFS_HAVE_THRIFT
+#ifndef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 // Plain C++ enum string mapping (no Thrift utilities)
 struct feature_info {
   feature value;
@@ -77,7 +78,7 @@ std::optional<feature> plain_string_to_feature(std::string_view name) {
 constexpr bool is_supported_feature(feature /*f*/) { return true; }
 
 std::string feature_name(feature f) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   return apache::thrift::util::enumNameOrThrow(f);
 #else
   return plain_feature_name(f);
@@ -94,7 +95,7 @@ bool feature_set::has(feature f) const {
 
 std::set<std::string> feature_set::get_supported() {
   std::set<std::string> rv;
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   for (auto f : apache::thrift::TEnumTraits<feature>::values) {
     if (is_supported_feature(f)) {
       rv.insert(feature_name(f));

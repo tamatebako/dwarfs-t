@@ -82,7 +82,7 @@
 #include <dwarfs/tool/sysinfo.h>
 #include <dwarfs/tool/tool.h>
 #include <dwarfs/util.h>
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/utility/rewrite_filesystem.h>
 #include <dwarfs/utility/rewrite_options.h>
 #endif
@@ -100,10 +100,10 @@
 #include <dwarfs/writer/scanner_options.h>
 #include <dwarfs/writer/segmenter_factory.h>
 #include <dwarfs/writer/writer_progress.h>
-#include <dwarfs/tool/mkdwarfs/options_parser.h>
+#include <dwarfs/tool/mkdwarfs/argtable3_options_parser.h>
 #include <dwarfs/tool/mkdwarfs/create_handler.h>
 #include <dwarfs/tool/mkdwarfs/handler_factory.h>
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/tool/mkdwarfs/recompress_handler.h>
 #endif
 #include <dwarfs_tool_main.h>
@@ -407,25 +407,35 @@ get_format_from_string(std::string const& format_str) {
   if (format_str == "flatbuffers" || format_str == "flatbuffer") {
     // FlatBuffers is always available (REQUIRED)
     return SerializationFormat::FLATBUFFERS;
+  } else if (format_str == "legacy-thrift" || format_str == "legacy") {
+    // Legacy Thrift (Frozen2) - hand-coded, Homebrew v0.14.1 compatible
+    return SerializationFormat::LEGACY_THRIFT;
   } else if (format_str == "thrift") {
-#ifdef DWARFS_HAVE_THRIFT
-    return SerializationFormat::THRIFT_COMPACT;
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+    // Note: "thrift" with DWARFS_HAVE_EXPERIMENTAL_THRIFT creates EXPERIMENTAL Modern Thrift format
+    // This is NOT compatible with Homebrew dwarfs (which uses Legacy Thrift)
+    return SerializationFormat::MODERN_THRIFT;
 #else
     throw std::runtime_error(
-        "Thrift format not available (build without Thrift support)");
+        "Modern Thrift format not available (build without fbthrift support)");
 #endif
   } else if (format_str == "cereal" || format_str == "bitsery") {
     throw std::runtime_error(
         fmt::format("Metadata format '{}' is no longer supported. "
                     "Cereal and Bitsery formats were removed in v0.16.0. "
-                    "Please use 'flatbuffers' (default) or 'thrift' (legacy) instead. "
+                    "Please use 'flatbuffers' (default/recommended), "
+                    "'legacy-thrift' (Homebrew compatible, uses .dwarfs extension), or "
+                    "'thrift' (experimental Modern Thrift fbthrift, uses .dftx extension) instead. "
                     "To convert existing images, use: mkdwarfs --recompress=metadata "
                     "--rebuild-metadata --format=flatbuffers -I old.dwarfs -O new.dwarfs",
                     format_str));
   } else {
     throw std::runtime_error(
         fmt::format("Unknown metadata format: '{}'. "
-                    "Supported formats: flatbuffers (default), thrift (legacy)",
+                    "Supported formats:\n"
+                    "  flatbuffers - FlatBuffers format (.dff, stable, recommended default)\n"
+                    "  legacy-thrift - Legacy Thrift/Frozen2 (.dwarfs, stable, Homebrew compatible)\n"
+                    "  thrift - Modern Thrift CompactProtocol (.dftx, experimental, fbthrift)",
                     format_str));
   }
 }
@@ -437,7 +447,7 @@ int mkdwarfs_main(int argc, sys_char** argv, iolayer const& iol) {
   using namespace std::string_view_literals;
   using namespace dwarfs::binary_literals;
 
-  size_t const num_cpu = std::max(hardware_concurrency(), 1U);
+  [[maybe_unused]] size_t const num_cpu = std::max(hardware_concurrency(), 1U);
   static constexpr size_t const kDefaultMaxActiveBlocks{4};
   static constexpr size_t const kDefaultBloomFilterSize{4};
 
@@ -460,20 +470,35 @@ int mkdwarfs_main(int argc, sys_char** argv, iolayer const& iol) {
   uint16_t uid = 0, gid = 0;  // Initialize to safe defaults
   categorize_optval categorizer_list;
 
-  // Parse command-line options using options_parser
-  mkdwarfs::options_parser opt_parser;
-  mkdwarfs::parsed_options opts;
+  // Parse command-line options using argtable3_options_parser
+  mkdwarfs::argtable3_options_parser opt_parser;
 
-  if (auto rc = opt_parser.parse(argc, argv, iol, opts)) {
-    // Parser handles help, errors, etc. Just return the code
+#ifdef DWARFS_BUILTIN_MANPAGE
+  // Wire up manpage for --man flag
+  opt_parser.set_manpage_context(manpage::get_mkdwarfs_manpage(), iol);
+#endif
+
+  // Load environment variables before parsing
+  opt_parser.load_environment_variables();
+
+  if (auto rc = opt_parser.parse(argc, argv)) {
+    // Parser handles help, version, man, errors, etc.
     return rc;
   }
+
+  // Get parsed options (use reference to avoid copy but allow modification)
+  auto& opts = opt_parser.get_parsed_options();
+
+#ifdef DWARFS_BUILTIN_MANPAGE
+  // Manpage handling is now in the parser
+  // No need for separate check here since parser handles it
+#endif
 
   // Map parsed options to local variables for compatibility
   path_str = opts.input_path.native();
   output_str = opts.output_path.native();
-  if (opts.header_path) {
-    header_str = opts.header_path->native();
+  if (!opts.header_path.empty()) {
+    header_str = opts.header_path.native();
   }
   level = opts.level;
   sf_config = opts.segmenter_config;
@@ -497,7 +522,7 @@ int mkdwarfs_main(int argc, sys_char** argv, iolayer const& iol) {
   progress_mode = opts.progress_mode;
   no_progress = opts.no_progress;
   debug_filter = opts.debug_filter;
-  filter = opts.filter_rules;
+  filter = tool::vector_to_sys_strings(opts.filter_rules);
   force_overwrite = opts.force_overwrite;
   no_section_index = opts.no_section_index;
   no_history = opts.no_history;
@@ -579,7 +604,7 @@ int mkdwarfs_main(int argc, sys_char** argv, iolayer const& iol) {
   std::unique_ptr<output_stream> output;
   std::ostream* os = nullptr;
 
-  if (output_str == "-") {
+  if (output_str == SYS_STR("-")) {
     os = &iol.out;
   } else {
     std::filesystem::path output_path(output_str);

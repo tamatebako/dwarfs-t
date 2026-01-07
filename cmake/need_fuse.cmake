@@ -16,12 +16,23 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-# Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
+# Option to disable FUSE support (useful for CI/builds without FUSE)
+option(DWARFS_WITH_FUSE "Enable FUSE support for filesystem mounting" ON)
+
+# Include guard to prevent double processing
+if(DWARFS_FUSE_CONFIGURED)
+  return()
 endif()
+set(DWARFS_FUSE_CONFIGURED TRUE CACHE INTERNAL "FUSE configuration has been processed")
+
+if(NOT DWARFS_WITH_FUSE)
+  message(STATUS "FUSE support disabled by DWARFS_WITH_FUSE=OFF")
+  return()
+endif()
+
+# Initialize FUSE_FOUND and FUSE_IMPLEMENTATION
+set(FUSE_FOUND FALSE)
+set(FUSE_IMPLEMENTATION "")
 
 if(WIN32)
   if(NOT WINFSP_PATH)
@@ -29,36 +40,48 @@ if(WIN32)
   endif()
   find_library(WINFSP winfsp-x64.lib "${WINFSP_PATH}/lib")
   if (NOT WINFSP)
-    message(FATAL_ERROR "No WinFsp library found")
+    message(STATUS "WinFsp not found - FUSE driver will not be built")
+    set(FUSE_FOUND FALSE)
+  else()
+    set(FUSE_FOUND TRUE)
+    set(FUSE_IMPLEMENTATION "winfsp")
   endif()
 else()
   if(APPLE)
-    # On macOS, try FUSE-T first (default), then macFUSE/osxfuse
-    option(USE_FUSE_T "Prefer FUSE-T over macFUSE on macOS" ON)
+    # On macOS, we ONLY use FUSE-T
+    # FUSE-T installs headers to: /Library/Application Support/fuse-t/include/fuse/
+    # The code includes <fuse/fuse_lowlevel.h>, so we need the parent directory
+    # of the fuse/ directory for the include path
 
-    if(USE_FUSE_T)
-      # Try FUSE-T first
-      pkg_check_modules(FUSE_T IMPORTED_TARGET fuse-t>=1.0.0)
+    find_path(FUSE_T_INCLUDE_DIR
+      NAMES fuse.h
+      PATHS
+        "/Library/Application Support/fuse-t/include/fuse"
+      NO_DEFAULT_PATH
+      NO_CMAKE_FIND_ROOT_PATH
+    )
+    if(FUSE_T_INCLUDE_DIR)
+      # Get parent directory for include path (code includes <fuse/fuse_lowlevel.h>)
+      get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" DIRECTORY)
+      set(FUSE_IMPLEMENTATION "fuse-t")
+      set(FUSE_FOUND TRUE)
+      message(STATUS "Found FUSE-T headers at: ${FUSE_T_INCLUDE_DIR}")
+
+      # Try to find FUSE-T library via pkg-config first (Homebrew installs here)
+      # Fall back to find_library if pkg-config is not available
+      find_package(PkgConfig REQUIRED)
+      pkg_check_modules(FUSE_T fuse-t>=1.0.0)
       if(FUSE_T_FOUND)
-        set(FUSE_IMPLEMENTATION "fuse-t")
-        set(FUSE_FOUND TRUE)
-        # Create alias for consistency with other platforms
-        add_library(PkgConfig::FUSE ALIAS PkgConfig::FUSE_T)
-        message(STATUS "Using FUSE-T on macOS (version ${FUSE_T_VERSION})")
+        message(STATUS "Found FUSE-T library via pkg-config: ${FUSE_T_LIBRARIES} (${FUSE_T_LDFLAGS})")
+        # Use the first library from FUSE_T_LIBRARIES
+        list(GET FUSE_T_LIBRARIES 0 FUSE_T_LIBRARY)
+        message(STATUS "Using FUSE-T library: ${FUSE_T_LIBRARY}")
+        set(FUSE_T_LIBRARY "${FUSE_T_LIBRARY}" CACHE FILEPATH "Path to FUSE-T library")
+      else()
+        message(FATAL_ERROR "FUSE-T library not found via pkg-config")
       endif()
-    endif()
-
-    # Fallback to macFUSE/osxfuse if FUSE-T not found or not preferred
-    if(NOT FUSE_FOUND)
-      pkg_check_modules(FUSE IMPORTED_TARGET fuse>=2.9.9)
-      if(FUSE_FOUND)
-        set(FUSE_IMPLEMENTATION "macos-fuse")
-        message(STATUS "Using macFUSE/osxfuse on macOS (version ${FUSE_VERSION})")
-      endif()
-    endif()
-
-    if(NOT FUSE_FOUND)
-      message(FATAL_ERROR "No FUSE implementation found on macOS. Install FUSE-T (brew install fuse-t) or macFUSE (brew install --cask macfuse).")
+    else()
+      message(FATAL_ERROR "FUSE-T headers not found at /Library/Application Support/fuse-t/include/fuse. Install FUSE-T: brew install fuse-t. Set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
     endif()
   else()
     # Linux: Try FUSE3 first, then FUSE2
@@ -70,7 +93,7 @@ else()
     elseif(FUSE_FOUND)
       set(FUSE_IMPLEMENTATION "fuse2")
     else()
-      message(FATAL_ERROR "No FUSE or FUSE3 library found")
+      message(FATAL_ERROR "No FUSE or FUSE3 library found. Install FUSE development packages for FUSE driver support. Set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
     endif()
   endif()
 endif()

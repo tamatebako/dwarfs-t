@@ -46,7 +46,7 @@
  * }
  *
  * // Specific accessor usage
- * #ifdef DWARFS_HAVE_THRIFT
+ * #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
  *   auto frozen = map_frozen<thrift::metadata::metadata>(schema, data);
  *   frozen_metadata_accessor accessor(std::move(frozen));
  * #else
@@ -70,7 +70,7 @@
 #include <stdexcept>
 #include <variant>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <thrift/lib/cpp2/frozen/FrozenUtil.h>
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
@@ -226,7 +226,7 @@ private:
 // Frozen Metadata Accessor (Conditional on Thrift)
 // ============================================================================
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 /**
  * frozen_metadata_accessor - Accesses Thrift frozen metadata layout
@@ -243,7 +243,7 @@ private:
  * Thread Safety:
  * - Safe for concurrent reads (frozen layout is immutable)
  *
- * Note: Only available when DWARFS_HAVE_THRIFT is defined at compile time.
+ * Note: Only available when DWARFS_HAVE_EXPERIMENTAL_THRIFT is defined at compile time.
  */
 class frozen_metadata_accessor {
 public:
@@ -335,7 +335,7 @@ private:
   apache::thrift::frozen::MappedFrozen<thrift::metadata::metadata> meta_;
 };
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // ============================================================================
 // Type-Erased Variant (Runtime Polymorphism)
@@ -355,7 +355,7 @@ private:
  * }, accessor);
  * \endcode
  */
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 using metadata_accessor_variant = std::variant<
   frozen_metadata_accessor,
   structured_metadata_accessor
@@ -386,7 +386,7 @@ auto visit_metadata(metadata_accessor_variant const& accessor, Visitor&& visitor
 static_assert(MetadataAccessor<structured_metadata_accessor>,
               "structured_metadata_accessor must satisfy MetadataAccessor concept");
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 static_assert(MetadataAccessor<frozen_metadata_accessor>,
               "frozen_metadata_accessor must satisfy MetadataAccessor concept");
 #endif

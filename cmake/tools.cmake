@@ -17,11 +17,34 @@
 #
 
 # Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
-endif()
+
+# ============================================================================
+# FUSE Library Linking Helper (DRY function)
+# ============================================================================
+
+# Function to link FUSE library to a target with proper RPATH
+# Usage: link_fuse_library(target_name)
+# Parameters:
+#   target_name - The target to link FUSE to
+function(link_fuse_library TARGET_NAME)
+  if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
+    # FUSE-T doesn't always provide pkg-config files, link directly
+    target_link_libraries(${TARGET_NAME} PRIVATE "${FUSE_T_LIBRARY}")
+    # Set RPATH for FUSE-T library directory so dyld can find it at runtime
+    # RPATH is only needed on macOS/Unix, not Windows
+    if(APPLE AND FUSE_T_LIBRARY_DIRS)
+      target_link_options(${TARGET_NAME} PRIVATE
+        "LINKER:-rpath,${FUSE_T_LIBRARY_DIRS}"
+      )
+    endif()
+  elseif(TARGET PkgConfig::FUSE3)
+    target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::FUSE3)
+  elseif(TARGET PkgConfig::FUSE)
+    target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::FUSE)
+  elseif(WINFSP)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${WINFSP})
+  endif()
+endfunction()
 
 # ============================================================================
 # Tool Targets (mkdwarfs, dwarfsck, dwarfsextract)
@@ -30,30 +53,31 @@ endif()
 if(WITH_TOOLS)
   foreach(tgt mkdwarfs dwarfsck dwarfsextract)
     # Create empty secondary libraries for Thrift-specific functionality
-    if(DWARFS_HAVE_THRIFT)
+    if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       add_library(${tgt}_secondary INTERFACE)
     endif()
 
     add_library(${tgt}_main OBJECT tools/src/${tgt}_main.cpp)
-    target_link_libraries(${tgt}_main PRIVATE dwarfs_tool)
-    if(DWARFS_HAVE_THRIFT)
+    target_link_libraries(${tgt}_main PRIVATE dwarfs_tool dwarfs_tool_support)
+    if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       target_link_libraries(${tgt}_main PRIVATE ${tgt}_secondary)
     endif()
     add_executable(${tgt} tools/src/${tgt}.cpp)
+
     target_link_libraries(${tgt} PRIVATE ${tgt}_main)
     target_link_libraries(${tgt} PRIVATE dwarfs_tool)
-    if(APPLE AND FUSE_FOUND)
-      target_link_libraries(${tgt}_main PRIVATE PkgConfig::FUSE)
-    elseif(FUSE3_FOUND)
-      target_link_libraries(${tgt}_main PRIVATE PkgConfig::FUSE3)
-    endif()
+    # Link FUSE library using the DRY helper function
+    link_fuse_library(${tgt}_main)
+
+    # MinGW: Use wmain (Unicode) entry point for tools
+    add_mingw_unicode_support(${tgt})
 
     list(APPEND MAIN_TARGETS ${tgt}_main)
     list(APPEND BINARY_TARGETS ${tgt})
 
     install(TARGETS ${tgt} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
     if(MSVC)
-      install(FILES $<$<CXX_COMPILER_ID:MSVC>:$<TARGET_PDB_FILE:${tgt}>> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+      install(FILES $<TARGET_PDB_FILE:${tgt}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
     endif()
     if(NOT WIN32)
       install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/completions/bash/${tgt}
@@ -63,26 +87,40 @@ if(WITH_TOOLS)
     endif()
   endforeach()
 
-  # Add mkdwarfs-specific source files
-  target_sources(mkdwarfs_main PRIVATE tools/src/mkdwarfs/options_parser.cpp)
-  target_sources(mkdwarfs_main PRIVATE tools/src/mkdwarfs/create_handler.cpp)
-  target_sources(mkdwarfs_main PRIVATE tools/src/mkdwarfs/handler_factory.cpp)
-
-  # Add recompress handler (requires Thrift support)
-  if(DWARFS_HAVE_THRIFT)
-    target_sources(mkdwarfs_main PRIVATE tools/src/mkdwarfs/recompress_handler.cpp)
-  endif()
+  # NOTE: mkdwarfs-specific sources (options_parser, handlers) are now in dwarfs_tool_support
+  # No need to add them here - they're compiled once in the library
 
   target_link_libraries(mkdwarfs_main PRIVATE dwarfs_writer dwarfs_reader)
   target_link_libraries(dwarfsck_main PRIVATE dwarfs_reader)
   target_link_libraries(dwarfsextract_main PRIVATE dwarfs_extractor)
 
-  if(DWARFS_HAVE_THRIFT)
+  # Executables also need the same libraries for final linking
+  target_link_libraries(mkdwarfs PRIVATE dwarfs_writer dwarfs_reader dwarfs_tool_support)
+  target_link_libraries(dwarfsck PRIVATE dwarfs_reader dwarfs_tool_support)
+  target_link_libraries(dwarfsextract PRIVATE dwarfs_extractor dwarfs_tool_support)
+
+  # Link jemalloc to executables (required by Folly in libraries)
+  if(USE_JEMALLOC)
+    if(TARGET jemalloc::jemalloc)
+      target_link_libraries(mkdwarfs PRIVATE jemalloc::jemalloc)
+      target_link_libraries(dwarfsck PRIVATE jemalloc::jemalloc)
+      target_link_libraries(dwarfsextract PRIVATE jemalloc::jemalloc)
+    elseif(TARGET PkgConfig::JEMALLOC)
+      target_link_libraries(mkdwarfs PRIVATE PkgConfig::JEMALLOC)
+      target_link_libraries(dwarfsck PRIVATE PkgConfig::JEMALLOC)
+      target_link_libraries(dwarfsextract PRIVATE PkgConfig::JEMALLOC)
+    endif()
+  endif()
+
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     target_link_libraries(mkdwarfs_main PRIVATE dwarfs_rewrite)
+    target_link_libraries(mkdwarfs PRIVATE dwarfs_rewrite)
   endif()
 
   if(WITH_UNIVERSAL_BINARY)
     add_executable(dwarfsuniversal tools/src/universal.cpp)
+    add_mingw_unicode_support(dwarfsuniversal)
+
     list(APPEND BINARY_TARGETS dwarfsuniversal)
 
     target_compile_definitions(dwarfsuniversal PRIVATE
@@ -104,6 +142,8 @@ if(WITH_TOOLS)
 
   if(WITH_FUSE_EXTRACT_BINARY)
     add_executable(dwarfsfuseextract tools/src/universal.cpp)
+    add_mingw_unicode_support(dwarfsfuseextract)
+
     list(APPEND BINARY_TARGETS dwarfsfuseextract)
 
     target_compile_definitions(dwarfsfuseextract PRIVATE
@@ -128,16 +168,20 @@ endif()
 
 if(WITH_PXATTR)
   add_executable(pxattr tools/src/pxattr.cpp)
+  add_mingw_unicode_support(pxattr)
+
   list(APPEND BINARY_TARGETS pxattr)
   install(TARGETS pxattr RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   if(MSVC)
-    install(FILES $<$<CXX_COMPILER_ID:MSVC>:$<TARGET_PDB_FILE:pxattr>> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+    install(FILES $<TARGET_PDB_FILE:pxattr> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
   endif()
 endif()
 
 if(WITH_EXAMPLE)
   add_executable(example example/example.cpp)
   target_link_libraries(example PRIVATE dwarfs_reader dwarfs_extractor)
+  add_mingw_unicode_support(example)
+
   list(APPEND BINARY_TARGETS example)
 endif()
 
@@ -152,53 +196,54 @@ if(WITH_FUSE_DRIVER)
   if(TARGET dwarfs_reader)
     target_compile_definitions(dwarfs_reader PRIVATE _FILE_OFFSET_BITS=64)
     if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
-      target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=31 DWARFS_USE_FUSE_T)
-      target_include_directories(dwarfs_reader BEFORE PRIVATE "/Library/Application Support/fuse-t/include/fuse")
+      # FUSE-T uses FUSE2 API with headers at fuse/fuse.h
+      # The DWARFS_USE_FUSE_T define triggers special include path handling in fuse_driver.cpp
+      # Use high-level API (DWARFS_FUSE_LOWLEVEL=0) to avoid lowlevel header complications
+      target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=29 DWARFS_USE_FUSE_T DWARFS_FUSE_LOWLEVEL=0)
+      # FUSE_T_INCLUDE_DIR is set by need_fuse.cmake
+      if(FUSE_T_INCLUDE_DIR)
+        target_include_directories(dwarfs_reader BEFORE PRIVATE "${FUSE_T_INCLUDE_DIR}")
+      endif()
     elseif(FUSE3_FOUND)
-      target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=35)
+      target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=35 DWARFS_FUSE_LOWLEVEL=1)
+      target_compile_definitions(dwarfs_tool_support PRIVATE FUSE_USE_VERSION=35 DWARFS_FUSE_LOWLEVEL=1)
     elseif(FUSE_FOUND)
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=29)
     elseif(WIN32 AND WINFSP)
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=32 DWARFS_FUSE_LOWLEVEL=0)
     endif()
-    
+
     # Link FUSE library to dwarfs_reader
-    if(TARGET PkgConfig::FUSE_T)
-      target_link_libraries(dwarfs_reader PRIVATE PkgConfig::FUSE_T)
-    elseif(TARGET PkgConfig::FUSE3)
-      target_link_libraries(dwarfs_reader PRIVATE PkgConfig::FUSE3)
-    elseif(TARGET PkgConfig::FUSE)
-      target_link_libraries(dwarfs_reader PRIVATE PkgConfig::FUSE)
-    elseif(WINFSP)
-      target_link_libraries(dwarfs_reader PRIVATE ${WINFSP})
-    endif()
+    link_fuse_library(dwarfs_reader)
   endif()
 
   file(RELATIVE_PATH relative_sbindir_to_bindir "${CMAKE_INSTALL_FULL_SBINDIR}" "${CMAKE_INSTALL_FULL_BINDIR}")
 
   if(FUSE3_FOUND OR WINFSP OR APPLE)
     add_library(dwarfs_main OBJECT tools/src/dwarfs_main.cpp)
-    target_sources(dwarfs_main PRIVATE
-      tools/src/dwarfs/options_parser.cpp
-      tools/src/dwarfs/mount_handler.cpp)
     target_compile_definitions(dwarfs_main PRIVATE _FILE_OFFSET_BITS=64)
     if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t")
-      target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=31 DWARFS_USE_FUSE_T)
-      # FUSE-T uses /usr/local/include/fuse but old macFUSE headers may also be there
-      # Use the actual FUSE-T library path instead
-      target_include_directories(dwarfs_main BEFORE PRIVATE "/Library/Application Support/fuse-t/include/fuse")
+      # FUSE-T uses FUSE2 API with headers at fuse/fuse.h
+      # The DWARFS_USE_FUSE_T define triggers special include path handling in fuse_driver.cpp
+      # Use high-level API (DWARFS_FUSE_LOWLEVEL=0) to avoid lowlevel header complications
+      target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=29 DWARFS_USE_FUSE_T DWARFS_FUSE_LOWLEVEL=0)
+      # FUSE-T (via Homebrew or official installer) installs to:
+      # /Library/Application Support/fuse-t/include/fuse
+      if(FUSE_T_INCLUDE_DIR)
+        target_include_directories(dwarfs_main BEFORE PRIVATE "${FUSE_T_INCLUDE_DIR}")
+      endif()
     elseif(FUSE3_FOUND)
-      target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=35)
+      target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=35 DWARFS_FUSE_LOWLEVEL=1)
+      target_compile_definitions(dwarfs_tool_support PRIVATE FUSE_USE_VERSION=35 DWARFS_FUSE_LOWLEVEL=1)
     endif()
-    target_link_libraries(dwarfs_main PRIVATE dwarfs_tool dwarfs_reader)
-    if(APPLE AND FUSE_FOUND)
-      target_link_libraries(dwarfs_main PRIVATE PkgConfig::FUSE)
-    elseif(FUSE3_FOUND)
-      target_link_libraries(dwarfs_main PRIVATE PkgConfig::FUSE3)
-    endif()
+    target_link_libraries(dwarfs_main PRIVATE dwarfs_tool dwarfs_reader dwarfs_tool_support)
+    # Link FUSE library using the DRY helper function
+    link_fuse_library(dwarfs_main)
     add_executable(dwarfs-bin tools/src/dwarfs.cpp)
     target_link_libraries(dwarfs-bin PRIVATE dwarfs_main)
     target_link_libraries(dwarfs-bin PRIVATE dwarfs_tool)
+    add_mingw_unicode_support(dwarfs-bin)
+
     set_target_properties(dwarfs-bin PROPERTIES OUTPUT_NAME dwarfs)
     if(WINFSP)
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=32
@@ -214,13 +259,13 @@ if(WITH_FUSE_DRIVER)
       endif()
       if(TARGET dwarfsfuseextract)
         target_link_libraries(dwarfsfuseextract PRIVATE delayimp.lib)
-        target_link_options(dwarfsextract_private PRIVATE /DELAYLOAD:winfsp-x64.dll)
+        target_link_options(dwarfsextract PRIVATE /DELAYLOAD:winfsp-x64.dll)
         target_compile_definitions(dwarfsfuseextract PRIVATE DWARFS_UNIVERSAL_FUSE_DRIVER)
       endif()
       if(WINFSP)
         install(TARGETS dwarfs-bin RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
         if(MSVC)
-          install(FILES $<$<CXX_COMPILER_ID:MSVC>:$<TARGET_PDB_FILE:dwarfs-bin>> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+          install(FILES $<TARGET_PDB_FILE:dwarfs-bin> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
         endif()
       else()
         install(TARGETS dwarfs-bin RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -236,17 +281,20 @@ if(WITH_FUSE_DRIVER)
       endif()
       list(APPEND BINARY_TARGETS dwarfs-bin)
       list(APPEND MAIN_TARGETS dwarfs_main)
-      target_link_libraries(dwarfs_main PRIVATE dwarfs_reader)
-      target_link_libraries(dwarfs_main PRIVATE dwarfs_tool)
+      target_link_libraries(dwarfs_main PRIVATE dwarfs_reader
+                           PRIVATE dwarfs_tool
+                           PRIVATE dwarfs_tool_support)
     endif()
 
-    if(FUSE_FOUND AND (NOT APPLE) AND (WITH_LEGACY_FUSE OR NOT FUSE3_FOUND))
+    if(FUSE_FOUND AND (NOT APPLE) AND (NOT WIN32) AND (WITH_LEGACY_FUSE OR NOT FUSE3_FOUND))
       add_library(dwarfs2_main OBJECT tools/src/dwarfs_main.cpp)
       target_compile_definitions(dwarfs2_main PRIVATE _FILE_OFFSET_BITS=64
                                                   FUSE_USE_VERSION=29)
       target_link_libraries(dwarfs2_main PRIVATE PkgConfig::FUSE)
       add_executable(dwarfs2-bin tools/src/dwarfs.cpp)
       target_link_libraries(dwarfs2-bin PRIVATE dwarfs2_main)
+      add_mingw_unicode_support(dwarfs2-bin)
+
       if(TARGET dwarfsuniversal AND (NOT FUSE3_FOUND))
         target_link_libraries(dwarfsuniversal PRIVATE dwarfs2_main)
         target_compile_definitions(dwarfsuniversal PRIVATE DWARFS_UNIVERSAL_FUSE_DRIVER)
@@ -262,7 +310,7 @@ if(WITH_FUSE_DRIVER)
         endif()
         install(TARGETS ${_stub_target} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
         if(MSVC)
-          install(FILES $<$<CXX_COMPILER_ID:MSVC>:$<TARGET_PDB_FILE:${_stub_target}>> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+          install(FILES $<TARGET_PDB_FILE:${_stub_target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
         endif()
       endif()
       set_target_properties(dwarfs2-bin PROPERTIES OUTPUT_NAME dwarfs2)
@@ -274,7 +322,8 @@ if(WITH_FUSE_DRIVER)
                          SYMBOLIC)")
       list(APPEND BINARY_TARGETS dwarfs2-bin)
       list(APPEND MAIN_TARGETS dwarfs2_main)
-      target_link_libraries(dwarfs2_main PRIVATE dwarfs_tool)
+      target_link_libraries(dwarfs2_main PRIVATE dwarfs_tool
+                           PRIVATE dwarfs_tool_support)
     endif()
   endif()
 endif()

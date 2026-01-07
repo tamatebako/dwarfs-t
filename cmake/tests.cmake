@@ -17,11 +17,26 @@
 #
 
 # Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
-endif()
+
+# ============================================================================
+# FUSE-T RPATH Helper for Test Targets
+# ============================================================================
+
+# Function to add FUSE-T RPATH to test targets
+# This is needed because static libraries don't propagate RPATH to dependent executables
+# Usage: add_fuse_rpath_to_tests(target1 target2 ...)
+function(add_fuse_rpath_to_tests)
+  # RPATH is only needed on macOS/Unix, not Windows
+  if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t" AND FUSE_T_LIBRARY_DIRS)
+    foreach(TARGET_NAME ${ARGV})
+      if(TARGET ${TARGET_NAME})
+        target_link_options(${TARGET_NAME} PRIVATE
+          "LINKER:-rpath,${FUSE_T_LIBRARY_DIRS}"
+        )
+      endif()
+    endforeach()
+  endif()
+endfunction()
 
 # ============================================================================
 # Test Helpers Library
@@ -38,6 +53,8 @@ if(WITH_TESTS OR WITH_BENCHMARKS OR WITH_FUZZ)
     test/test_dirtree.cpp
     test/filter_test_data.cpp
     test/test_file_data.cpp
+    test/test_fixtures.cpp
+    test/test_common.cpp
   )
   if(WITH_BENCHMARKS)
     target_sources(dwarfs_test_helpers PRIVATE test/test_strings.cpp)
@@ -52,7 +69,7 @@ if(WITH_TESTS OR WITH_BENCHMARKS OR WITH_FUZZ)
     target_link_libraries(treediff PRIVATE dwarfs_test_helpers)
 
     add_executable(sparsedump test/sparsedump.cpp)
-    target_link_libraries(treediff PRIVATE dwarfs_common)
+    target_link_libraries(sparsedump PRIVATE dwarfs_common)
 
     list(APPEND BINARY_TARGETS treediff sparsedump)
   endif()
@@ -66,283 +83,261 @@ if(WITH_TESTS AND WITH_TOOLS)
 endif()
 
 # ============================================================================
+# Test Fixtures Library (OOP Architecture)
+# ============================================================================
+
+if(WITH_TESTS)
+  add_library(dwarfs_test_fixtures
+    test/fixtures/dwarfs_test_fixture.cpp
+    test/fixtures/filesystem_test_fixture.cpp
+  )
+  target_link_libraries(dwarfs_test_fixtures
+    PUBLIC
+      dwarfs_test_helpers
+      GTest::gtest
+      dwarfs_reader
+      dwarfs_writer
+  )
+  set_property(TARGET dwarfs_test_fixtures PROPERTY CXX_STANDARD ${DWARFS_CXX_STANDARD})
+endif()
+
+# ============================================================================
 # Test Targets
 # ============================================================================
 
 if(WITH_TESTS)
-  if(WITH_LIBDWARFS)
-    add_executable(dwarfs_unit_tests
-      test/align_advise_range_test.cpp
-      test/badfs_test.cpp
-      test/backend_compatibility_test.cpp
-      test/block_merger_test.cpp
-      test/block_range_test.cpp
-      test/byte_buffer_test.cpp
-      test/checksum_test.cpp
-      test/chmod_transformer_test.cpp
-      test/compare_directories_test.cpp
-      test/entry_test.cpp
-      test/error_test.cpp
-      test/file_access_test.cpp
-      test/file_range_utils_test.cpp
-      test/file_utils_test.cpp
-      test/file_view_test.cpp
-      test/filesystem_test.cpp
-      test/filesystem_writer_test.cpp
-      test/fragment_category_test.cpp
-      test/fsst_test.cpp
-      test/glob_matcher_test.cpp
-      test/global_metadata_test.cpp
-      test/integral_value_parser_test.cpp
-      test/lazy_value_test.cpp
-      test/lru_cache_test.cpp
-      test/mappable_file_test.cpp
-      test/io_ops_test.cpp
-      test/metadata_factory_test.cpp
-      test/metadata_requirements_test.cpp
-      test/metadata_test.cpp
-      test/metadata_view_interface_test.cpp
-      test/metadata/serialization_test.cpp
-      test/metadata/serialization/serialization_facade_test.cpp
-      test/metadata/serialization_benchmark_test.cpp
-      test/metadata/format_conversion_test.cpp
-      test/metadata/converters/round_trip_string_table_test.cpp
-      test/metadata/converters/thrift_metadata_converter_test.cpp
-      test/nilsimsa_test.cpp
-      test/options_test.cpp
-      test/os_access_generic_test.cpp
-      test/packed_int_vector_test.cpp
-      test/packed_ptr_test.cpp
-      test/pcm_sample_transformer_test.cpp
-      test/sorted_array_map_test.cpp
-      test/sparse_file_seeker_test.cpp
-      test/speedometer_test.cpp
-      test/string_test.cpp
-      test/terminal_test.cpp
-      test/test_iolayer_test.cpp
-      test/time_resolution_converter_test.cpp
-      test/unicode_test.cpp
-      test/utils_test.cpp
-      test/worker_group_test.cpp
-      test/xattr_test.cpp
-    )
+  # Enable CTest support - must be called before gtest_discover_tests
+  enable_testing()
 
+  # Include GoogleTest module for gtest_discover_tests
+  include(GoogleTest)
+
+  # Modular test executables for specific subsystems
+  # These test specific functionality in focused test suites
+
+  # Filesystem tests - Core filesystem operations
+  add_executable(dwarfs_filesystem_tests
+    test/filesystem/filesystem_uid_gid_test.cpp
+    test/filesystem/filesystem_basic_test.cpp
+    test/filesystem/filesystem_operations_test.cpp
+  )
+  target_link_libraries(dwarfs_filesystem_tests
+    PRIVATE dwarfs_test_fixtures GTest::gtest_main
+  )
+
+  target_compile_definitions(dwarfs_filesystem_tests PRIVATE
+    TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test"
+    TOOLS_BIN_DIR="${CMAKE_CURRENT_BINARY_DIR}"
+  )
+  # Add FUSE-T RPATH for test targets that link to dwarfs_reader
+  add_fuse_rpath_to_tests(dwarfs_filesystem_tests)
+  # Use PRE_TEST discovery mode for cross-platform compatibility
+  # (POST_BUILD can fail on Windows if DLLs aren't in PATH during build)
+  gtest_discover_tests(dwarfs_filesystem_tests DISCOVERY_MODE PRE_TEST)
+endif()
+
+# Additional libraries for compression benchmark
+if(TARGET dwarfs_compression_benchmark)
+  target_link_libraries(dwarfs_compression_benchmark PRIVATE
+    dwarfs_compressor dwarfs_decompressor)
+endif()
+
+# Development tools
+if(BUILD_FSST_MAIN)
+  add_executable(fsst_main fsst/fsst.cpp)
+  target_link_libraries(fsst_main PRIVATE dwarfs_fsst)
+
+endif()
+
+# Compatibility target deleted. The following tests are here for reference.
+# Main monolithic test suite (to be deprecated)
+
+if(WITH_TESTS)
+  # Modular test suites extracted from dwarfs_test.cpp
+  add_executable(dwarfs_segmenter_tests
+    test/segmenter/segmenter_test.cpp
+  )
+  target_link_libraries(dwarfs_segmenter_tests
+    PRIVATE dwarfs_test_helpers GTest::gtest_main
+  )
+  gtest_discover_tests(dwarfs_segmenter_tests DISCOVERY_MODE PRE_TEST)
+
+  add_executable(dwarfs_filter_tests
+    test/filter/filter_test.cpp
+  )
+  target_link_libraries(dwarfs_filter_tests
+    PRIVATE dwarfs_test_helpers GTest::gtest_main
+  )
+  gtest_discover_tests(dwarfs_filter_tests DISCOVERY_MODE PRE_TEST)
+
+  add_executable(dwarfs_compression_tests
+    test/compression/compression_test.cpp
+    test/compression/compression_regression_test.cpp
+  )
+  target_link_libraries(dwarfs_compression_tests
+    PRIVATE dwarfs_test_helpers GTest::gtest_main
+  )
+  gtest_discover_tests(dwarfs_compression_tests DISCOVERY_MODE PRE_TEST)
+
+  # Scanner and metadata tests removed - they depend on functions in dwarfs_test.cpp anonymous namespace
+  # TODO: Refactor to make these extractable
+
+  # Tests that require folly
+  set(FOLLY_TESTS
+    test/compat_test.cpp
+    test/block_merger_test.cpp
+    test/filesystem_test.cpp
+    test/integral_value_parser_test.cpp
+    test/io_ops_test.cpp
+    test/os_access_generic_test.cpp
+    test/pcm_sample_transformer_test.cpp
+    test/utils_test.cpp
+  )
+
+  add_executable(dwarfs_unit_tests
+    test/align_advise_range_test.cpp
+    test/badfs_test.cpp
+    test/backend_compatibility_test.cpp
+    test/block_range_test.cpp
+    test/byte_buffer_test.cpp
+    test/checksum_test.cpp
+    test/chmod_transformer_test.cpp
+    test/compare_directories_test.cpp
+    test/entry_test.cpp
+    test/environment_variables_test.cpp
+    test/error_test.cpp
+    test/file_access_test.cpp
+    test/file_range_utils_test.cpp
+    test/file_utils_test.cpp
+    test/file_view_test.cpp
+    test/filesystem_writer_test.cpp
+    test/fragment_category_test.cpp
+    test/fsst_test.cpp
+    test/glob_matcher_test.cpp
+    test/global_metadata_test.cpp
+    test/lazy_value_test.cpp
+    test/lru_cache_test.cpp
+    test/mappable_file_test.cpp
+    test/metadata_factory_test.cpp
+    test/metadata_requirements_test.cpp
+ test/metadata_test.cpp
+    test/metadata_view_interface_test.cpp
+    test/metadata/serialization_test.cpp
+    test/metadata/serialization/serialization_facade_test.cpp
+    test/metadata/serialization_benchmark_test.cpp
+    test/metadata/format_conversion_test.cpp
+    test/metadata/converters/round_trip_string_table_test.cpp
+    test/metadata/converters/thrift_metadata_converter_test.cpp
+    test/metadata/converters/flatbuffers_converter_test.cpp
+    test/metadata/converter_roundtrip_test.cpp
+    test/nilsimsa_test.cpp
+    test/options_test.cpp
+    test/packed_int_vector_test.cpp
+    test/packed_ptr_test.cpp
+    test/sorted_array_map_test.cpp
+    test/sparse_file_seeker_test.cpp
+    test/speedometer_test.cpp
+    test/string_test.cpp
+    test/terminal_test.cpp
+    test/test_iolayer_test.cpp
+    test/time_resolution_converter_test.cpp
+    test/unicode_test.cpp
+    test/worker_group_test.cpp
+    test/xattr_test.cpp
+    # Homebrew compatibility tests
+    test/homebrew_compatibility_test.cpp
+    # Modern Thrift metadata tests
+    test/metadata/modern_thrift_serialization_test.cpp
+    test/metadata/modern/converter_test.cpp
+    test/metadata/converters/cpp_thrift_converter_test.cpp
+  )
+
+  # Add folly-dependent tests only if folly is available
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+    target_sources(dwarfs_unit_tests PRIVATE ${FOLLY_TESTS})
+  endif()
+  target_link_libraries(dwarfs_unit_tests
+    PRIVATE dwarfs_test_helpers GTest::gtest_main GTest::gmock
+  )
+
+  # Link Modern Thrift library if available
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET dwarfs_metadata_modern_thrift)
+    target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_metadata_modern_thrift)
+  endif()
+
+  # Link extractor and rewrite libraries for compat tests (requires folly)
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+    if(TARGET dwarfs_extractor)
+      target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_extractor)
+    endif()
+    if(TARGET dwarfs_rewrite)
+      target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_rewrite)
+    endif()
+  endif()
+  gtest_discover_tests(dwarfs_unit_tests DISCOVERY_MODE PRE_TEST)
+
+  # Categorizer tests require folly
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     add_executable(dwarfs_categorizer_tests
       test/fits_categorizer_test.cpp
       test/incompressible_categorizer_test.cpp
       test/pcmaudio_categorizer_test.cpp
     )
+    target_link_libraries(dwarfs_categorizer_tests
+      PRIVATE dwarfs_test_helpers GTest::gtest_main
+    )
+    gtest_discover_tests(dwarfs_categorizer_tests DISCOVERY_MODE PRE_TEST)
+  endif()
 
+  # Expensive tests (dwarfs_test.cpp) uses folly
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     add_executable(dwarfs_expensive_tests
-      test/compat_test.cpp
       test/dwarfs_test.cpp
     )
-
-    list(APPEND DWARFS_TESTS
-      dwarfs_categorizer_tests
-      dwarfs_expensive_tests
-      dwarfs_unit_tests
+    target_link_libraries(dwarfs_expensive_tests
+      PRIVATE dwarfs_test_helpers GTest::gtest_main
     )
+    gtest_discover_tests(dwarfs_expensive_tests DISCOVERY_MODE PRE_TEST)
+  endif()
 
-    if(FLAC_FOUND OR ENABLE_RICEPP)
-      add_executable(dwarfs_compressor_tests)
-      list(APPEND DWARFS_TESTS dwarfs_compressor_tests)
-      if(FLAC_FOUND)
-        target_sources(dwarfs_compressor_tests PRIVATE test/flac_compressor_test.cpp)
-      endif()
-      if(ENABLE_RICEPP)
-        target_sources(dwarfs_compressor_tests PRIVATE test/ricepp_compressor_test.cpp)
-      endif()
+  if(FLAC_FOUND OR ENABLE_RICEPP)
+    add_executable(dwarfs_compressor_tests)
+    list(APPEND DWARFS_TESTS dwarfs_compressor_tests)
+    if(FLAC_FOUND)
+      target_sources(dwarfs_compressor_tests PRIVATE test/flac_compressor_test.cpp)
     endif()
-
-    # Comprehensive compression algorithm benchmark
-    add_executable(dwarfs_compression_benchmark
-      test/compression_algorithm_benchmark.cpp
+    # ricepp_compressor_test.cpp uses folly/lang/Bits.h
+    if(ENABLE_RICEPP AND DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+      target_sources(dwarfs_compressor_tests PRIVATE test/ricepp_compressor_test.cpp)
+    endif()
+    target_link_libraries(dwarfs_compressor_tests
+      PRIVATE dwarfs_test_helpers GTest::gtest_main
     )
-    list(APPEND DWARFS_TESTS dwarfs_compression_benchmark)
+    gtest_discover_tests(dwarfs_compressor_tests DISCOVERY_MODE PRE_TEST)
   endif()
 
-  if(WITH_TOOLS)
-    add_executable(tool_main_test
-      test/tool_main_cmdline_test.cpp
-      test/tool_main_logging_test.cpp
-      test/tool_main_perfmon_test.cpp
-      test/tool_dwarfsck_main_basic_test.cpp
-      test/tool_dwarfsextract_main_basic_test.cpp
-      test/tool_mkdwarfs_main_basic_test.cpp
-      test/tool_mkdwarfs_main_build_test.cpp
-      test/tool_mkdwarfs_main_metadata_test.cpp
-      test/tool_mkdwarfs_main_rebuild_test.cpp
-      test/tool_mkdwarfs_main_recompress_test.cpp
-      test/tool_mkdwarfs_main_sparse_test.cpp
-      test/tool_mkdwarfs_main_time_resolution_test.cpp
-      test/tool_mkdwarfs_integration_test.cpp
-    )
+  # Comprehensive compression algorithm benchmark
+  add_executable(dwarfs_compression_benchmark
+    test/compression_algorithm_benchmark.cpp
+  )
+  target_link_libraries(dwarfs_compression_benchmark
+    PRIVATE dwarfs_test_helpers GTest::gtest_main
+  )
+  list(APPEND DWARFS_TESTS dwarfs_compression_benchmark)
 
-    list(APPEND DWARFS_TESTS
-      block_cache_test
-      tool_main_test
-    )
-  endif()
-
-  if(WITH_TOOLS OR WITH_FUSE_DRIVER)
-    if(NOT WITH_TOOLS)
-      find_program(MKDWARFS_EXE mkdwarfs mkdwarfs.exe)
-      find_program(DWARFSCK_EXE dwarfsck dwarfsck.exe)
-      find_program(DWARFSEXTRACT_EXE dwarfsextract dwarfsextract.exe)
-    endif()
-    if(WITH_TOOLS OR (MKDWARFS_EXE AND DWARFSCK_EXE AND DWARFSEXTRACT_EXE))
-      list(APPEND DWARFS_TESTS
-        tools_test
-      )
-    endif()
-  endif()
-
-  if((WITH_TOOLS OR WITH_FUSE_DRIVER) AND WITH_MAN_OPTION)
-    list(APPEND DWARFS_TESTS manpage_test)
-  endif()
-
-  add_library(dwarfs_test_main OBJECT test/test_main.cpp)
-  target_link_libraries(dwarfs_test_main PUBLIC GTest::gtest GTest::gmock dwarfs_common)
-  if(DWARFS_STACKTRACE_ENABLED)
-    target_link_libraries(dwarfs_test_main PRIVATE cpptrace::cpptrace)
-  endif()
-
-  foreach (test ${DWARFS_TESTS})
-    if(NOT TARGET ${test})
-      add_executable(${test} test/${test}.cpp)
-    endif()
-
-    if(CMAKE_CROSSCOMPILING)
-      target_compile_definitions(${test} PRIVATE DWARFS_TEST_CROSS_COMPILE)
-    endif()
-
-    target_link_libraries(
-      ${test} PRIVATE dwarfs_test_helpers dwarfs_test_main
-    )
-
-    if(NOT PREFER_SYSTEM_GTEST)
-      ### This is a wild hack. At least on macOS, gtest and basically everything
-      ### Homebrew is installed in /usr/local, and /usr/local/include can end up
-      ### in the compiler's include path *before* the include path of our local
-      ### gtest/gmock. The following code tries to ensure that the gtest/gmock
-      ### include paths are searched first.
-      get_target_property(gmock_include_dirs gmock INTERFACE_INCLUDE_DIRECTORIES)
-      get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
-      target_include_directories(${test} SYSTEM BEFORE PRIVATE ${gmock_include_dirs} ${gtest_include_dirs})
-    endif()
-
-    if(WIN32)
-      target_compile_options(${test} PRIVATE /bigobj)
-    endif()
-
-    list(APPEND TEST_TARGETS ${test})
-  endforeach()
-
-  if(TARGET tool_main_test)
-    target_link_libraries(tool_main_test PRIVATE dwarfs_tool_main_tester PkgConfig::LIBARCHIVE)
-  endif()
-
-  if(TARGET dwarfs_unit_tests)
-    target_link_libraries(dwarfs_unit_tests PRIVATE phmap)
-    # Add serialization dependencies for metadata/serialization_test.cpp
-    if(TARGET bitsery)
-      target_link_libraries(dwarfs_unit_tests PRIVATE bitsery)
-    endif()
-    if(TARGET cereal::cereal)
-      target_link_libraries(dwarfs_unit_tests PRIVATE cereal::cereal)
-    endif()
-    if(TARGET folly AND TARGET dwarfs_metadata_thrift)
-      target_link_libraries(dwarfs_unit_tests PRIVATE folly dwarfs_metadata_thrift)
-    endif()
-  endif()
-
-  if(TARGET manpage_test)
-    if(WITH_TOOLS)
-      target_compile_definitions(manpage_test PRIVATE DWARFS_WITH_TOOLS)
-      target_link_libraries(manpage_test PRIVATE mkdwarfs_main dwarfsck_main dwarfsextract_main)
-    endif()
-    if(TARGET dwarfs_main)
-      target_compile_definitions(manpage_test PRIVATE DWARFS_WITH_FUSE_DRIVER)
-      target_link_libraries(manpage_test PRIVATE dwarfs_main)
-    endif()
-  endif()
-
-  if(TARGET tools_test)
-    target_compile_definitions(tools_test PRIVATE
-      $<$<AND:$<BOOL:${WITH_UNIVERSAL_BINARY}>,$<BOOL:${WITH_TOOLS}>>:DWARFS_HAVE_UNIVERSAL_BINARY>
-      $<$<BOOL:${WITH_TOOLS}>:DWARFS_WITH_TOOLS>
-      $<$<BOOL:${WITH_FUSE_DRIVER}>:DWARFS_WITH_FUSE_DRIVER>
-      $<$<BOOL:${MKDWARFS_EXE}>:MKDWARFS_BINARY=\"${MKDWARFS_EXE}\">
-      $<$<BOOL:${DWARFSCK_EXE}>:DWARFSCK_BINARY=\"${DWARFSCK_EXE}\">
-      $<$<BOOL:${DWARFSEXTRACT_EXE}>:DWARFSEXTRACT_BINARY=\"${DWARFSEXTRACT_EXE}\">
-      $<$<BOOL:${CMAKE_CROSSCOMPILING}>:DWARFS_CROSSCOMPILING_EMULATOR=\"${CMAKE_CROSSCOMPILING_EMULATOR}\">
-    )
-    if(NOT WIN32)
-      string(REPLACE ";" ":" DWARFS_CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH}")
-      target_compile_definitions(tools_test PRIVATE
-        DWARFS_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"
-        $<$<BOOL:${CMAKE_PREFIX_PATH}>:DWARFS_CMAKE_PREFIX_PATH=\"${DWARFS_CMAKE_PREFIX_PATH}\">
-      )
-    endif()
-  endif()
-
-  if(TARGET block_cache_test)
-    target_link_libraries(block_cache_test PRIVATE mkdwarfs_main)
-  endif()
-
-  foreach(tgt dwarfs_categorizer_tests
-              dwarfs_compression_benchmark
-              tool_main_test)
-    if(TARGET ${tgt})
-      target_link_libraries(${tgt} PRIVATE dwarfs_writer)
-    endif()
-  endforeach()
-  
-  # Add rewrite and extractor libraries for expensive tests
-  if(TARGET dwarfs_expensive_tests)
-    target_link_libraries(dwarfs_expensive_tests PRIVATE dwarfs_rewrite dwarfs_extractor)
-  endif()
-  
-  # Additional libraries for compression benchmark
-  if(TARGET dwarfs_compression_benchmark)
-    target_link_libraries(dwarfs_compression_benchmark PRIVATE
-      dwarfs_compressor dwarfs_decompressor)
-  endif()
-
-  if(ENABLE_COVERAGE)
-    list(APPEND GTEST_COMMON_PROPERTIES
-         "ENVIRONMENT" "LLVM_PROFILE_FILE=${CMAKE_BINARY_DIR}/profile/%32m.profraw")
-  endif()
-
-  if(ENABLE_TSAN)
-    list(APPEND GTEST_COMMON_PROPERTIES
-         "ENVIRONMENT" "TSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/tsan.supp")
-  endif()
-
-  foreach(tgt ${TEST_TARGETS})
-    gtest_discover_tests(${tgt}
-      DISCOVERY_TIMEOUT 120
-      PROPERTIES ${GTEST_COMMON_PROPERTIES}
-    )
-  endforeach()
-
-  foreach(tgt dwarfs_categorizer_tests tools_test)
-    if(TARGET ${tgt})
-      gtest_discover_tests(${tgt}
-        DISCOVERY_TIMEOUT 120
-        TEST_SUFFIX ".iolayer-read"
-        PROPERTIES ${GTEST_COMMON_PROPERTIES}
-                   ENVIRONMENT "DWARFS_IOLAYER_OPTS=open_mode=read"
-      )
-      gtest_discover_tests(${tgt}
-        DISCOVERY_TIMEOUT 120
-        TEST_SUFFIX ".iolayer-map-size"
-        PROPERTIES ${GTEST_COMMON_PROPERTIES}
-                   ENVIRONMENT "DWARFS_IOLAYER_OPTS=max_eager_map_size=4k"
-      )
-    endif()
-  endforeach()
+  # Add FUSE-T RPATH to all test targets that link to dwarfs_reader
+  # This is needed because static libraries don't propagate RPATH to executables
+  add_fuse_rpath_to_tests(
+    dwarfs_filesystem_tests
+    dwarfs_segmenter_tests
+    dwarfs_filter_tests
+    dwarfs_compression_tests
+    dwarfs_unit_tests
+    dwarfs_categorizer_tests
+    dwarfs_expensive_tests
+    dwarfs_compressor_tests
+    dwarfs_compression_benchmark
+  )
 endif()
 
 # ============================================================================
@@ -368,9 +363,12 @@ if(WITH_LIBDWARFS AND WITH_BENCHMARKS)
       target_link_libraries(multiversioning_benchmark PRIVATE dwarfs_writer)
       list(APPEND BENCHMARK_TARGETS multiversioning_benchmark)
 
-      add_executable(converter_benchmark test/converter_benchmark.cpp)
-      target_link_libraries(converter_benchmark PRIVATE dwarfs_test_helpers benchmark::benchmark)
-      list(APPEND BENCHMARK_TARGETS converter_benchmark)
+      # converter_benchmark uses folly, only build if available
+      if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+        add_executable(converter_benchmark test/converter_benchmark.cpp)
+        target_link_libraries(converter_benchmark PRIVATE dwarfs_test_helpers benchmark::benchmark)
+        list(APPEND BENCHMARK_TARGETS converter_benchmark)
+      endif()
 
       add_executable(sorted_array_map_benchmark test/sorted_array_map_benchmark.cpp)
       target_link_libraries(sorted_array_map_benchmark PRIVATE benchmark::benchmark)
@@ -382,8 +380,42 @@ if(WITH_LIBDWARFS AND WITH_BENCHMARKS)
       list(APPEND BENCHMARK_TARGETS nilsimsa_benchmark)
     endif()
 
-    list(APPEND BINARY_TARGETS ${BENCHMARK_TARGETS})
+    list(APPEND BENCHMARK_TARGETS ${BENCHMARK_TARGETS})
+
+    # Add FUSE-T RPATH for benchmark targets that link to dwarfs_reader
+    add_fuse_rpath_to_tests(
+      dwarfs_benchmark
+      segmenter_benchmark
+      multiversioning_benchmark
+      converter_benchmark
+      nilsimsa_benchmark
+    )
   endif()
+endif()
+
+# ============================================================================
+# libdwarfs API Benchmarks
+# ============================================================================
+
+if(WITH_LIBDWARFS AND WITH_BENCHMARKS)
+  # Add libdwarfs API benchmarks subdirectory
+  add_subdirectory(benchmarks/libdwarfs)
+
+  # Add targets to benchmark list (for convenience)
+  list(APPEND BENCHMARK_TARGETS
+    single_file_bench
+    multiple_files_bench
+    full_extract_bench
+    random_access_bench
+  )
+
+  # Add FUSE-T RPATH for libdwarfs API benchmarks that link to dwarfs_reader
+  add_fuse_rpath_to_tests(
+    single_file_bench
+    multiple_files_bench
+    full_extract_bench
+    random_access_bench
+  )
 endif()
 
 # ============================================================================
@@ -402,6 +434,12 @@ if(WITH_LIBDWARFS AND WITH_FUZZ)
   add_executable(fuzz_reader test/fuzz_reader.cpp)
   target_link_libraries(fuzz_reader PRIVATE dwarfs_reader)
   list(APPEND BINARY_TARGETS fuzz_reader)
+
+  # Add FUSE-T RPATH for fuzz targets that link to dwarfs_reader
+  add_fuse_rpath_to_tests(
+    fuzz_mkdwarfs
+    fuzz_reader
+  )
 endif()
 
 # ============================================================================

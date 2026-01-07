@@ -32,7 +32,7 @@
 #include <dwarfs/internal/metadata_utils.h>
 #include <dwarfs/metadata/domain/metadata.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
 
@@ -44,7 +44,7 @@ namespace dwarfs::internal {
 
 namespace {
 
-#if defined(DWARFS_HAVE_THRIFT) || defined(DWARFS_HAVE_FLATBUFFERS)
+#if defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) || defined(DWARFS_HAVE_FLATBUFFERS)
 size_t find_inode_rank_offset_impl(inode_rank rank, size_t size,
                                    auto&& get_inode_mode) {
   auto range = boost::irange<size_t>(0, size);
@@ -80,7 +80,7 @@ inode_rank get_inode_rank(uint32_t mode) {
   }
 }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 size_t find_inode_rank_offset(
     ::apache::thrift::frozen::Layout<thrift::metadata::metadata>::View meta,
     inode_rank rank) {

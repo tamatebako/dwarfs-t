@@ -65,7 +65,7 @@
 #include <dwarfs/writer/internal/similarity.h>
 #include <dwarfs/writer/internal/similarity_ordering.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
 
@@ -248,7 +248,7 @@ class inode_ : public inode {
     return true;
   }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift compatibility wrapper
   bool append_chunks_to(
       std::vector<thrift::metadata::chunk>& vec,

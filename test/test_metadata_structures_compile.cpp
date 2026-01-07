@@ -211,7 +211,7 @@ void test_concept_satisfaction() {
   static_assert(MetadataAccessor<structured_metadata_accessor>,
                 "structured_metadata_accessor must satisfy MetadataAccessor");
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   static_assert(MetadataAccessor<frozen_metadata_accessor>,
                 "frozen_metadata_accessor must satisfy MetadataAccessor");
 #endif

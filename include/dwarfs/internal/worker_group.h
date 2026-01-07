@@ -67,7 +67,7 @@ class worker_group {
   explicit worker_group(
       logger& lgr, os_access const& os, char const* group_name,
       size_t num_workers = 1,
-      size_t max_queue_len = std::numeric_limits<size_t>::max(),
+      size_t max_queue_len = (std::numeric_limits<size_t>::max)(),
       int niceness = 0);
 
   worker_group() = default;

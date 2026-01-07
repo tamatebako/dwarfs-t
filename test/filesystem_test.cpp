@@ -76,7 +76,7 @@ std::string valid_v2_header(uint32_t section_number = 0) {
 
 } // namespace
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 TEST(filesystem, metadata_symlink_win) {
   test::test_logger lgr;
@@ -222,7 +222,7 @@ TEST(filesystem, metadata_symlink_unix) {
 }
 
 TEST(filesystem, find_image_offset) {
-#ifndef DWARFS_HAVE_THRIFT
+#ifndef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   GTEST_SKIP() << "Test uses pre-built Thrift image";
 #endif
   DWARFS_SLOW_TEST();
@@ -466,4 +466,4 @@ TEST(filesystem, pre_built_images_unavailable) {
   GTEST_SKIP() << "Pre-built test images are in Thrift format - skipping when Thrift reader unavailable";
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

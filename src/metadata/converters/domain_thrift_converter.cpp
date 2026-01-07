@@ -12,8 +12,6 @@
 
 #include "dwarfs/metadata/converters/domain_thrift_converter.h"
 
-#ifdef DWARFS_HAVE_THRIFT
-
 #include <dwarfs/gen-cpp2/metadata_types.h>
 
 namespace dwarfs::metadata::converters {
@@ -592,5 +590,3 @@ dwarfs::thrift::metadata::metadata to_thrift(const domain::metadata& m) {
 }
 
 } // namespace dwarfs::metadata::converters
-
-#endif // DWARFS_HAVE_THRIFT

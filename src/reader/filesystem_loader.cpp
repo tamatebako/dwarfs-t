@@ -29,6 +29,7 @@
 #include <dwarfs/reader/filesystem_loader.h>
 
 #include <filesystem>
+#include <iostream>
 #include <memory>
 
 #include <dwarfs/logger.h>
@@ -88,15 +89,16 @@ filesystem_v2_lite
 filesystem_loader::load(logger& lgr, os_access& os,
                         filesystem_load_config const& config,
                         std::shared_ptr<performance_monitor> perfmon) {
-  LOG_PROXY(prod_logger_policy, lgr);
+  // Temporarily disable LOG_PROXY to debug crash
+  // LOG_PROXY(prod_logger_policy, lgr);
 
-  auto ti = LOG_TIMED_INFO;
-  auto& opts = config;
+  // auto ti = LOG_TIMED_INFO;
+  [[maybe_unused]] auto& opts = config;
 
   // Canonicalize the image path
   auto fsimage = os.canonical(config.image_path);
 
-  LOG_DEBUG << "attempting to load filesystem from " << fsimage;
+  // LOG_DEBUG << "attempting to load filesystem from " << fsimage;
 
   // Create filesystem options
   auto fsopts = make_options(config);
@@ -104,7 +106,7 @@ filesystem_loader::load(logger& lgr, os_access& os,
   // Create the filesystem instance
   filesystem_v2_lite fs(lgr, os, fsimage, fsopts, perfmon);
 
-  ti << "file system initialized";
+  // ti << "file system initialized";
 
   return fs;
 }

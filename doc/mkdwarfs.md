@@ -219,23 +219,53 @@ Most other options are concerned with compression tuning:
   care about mount time, you can safely choose `lzma` compression here, as
   the data will only have to be decompressed once when mounting the image.
 
-- `--metadata-format=flatbuffers`|`thrift`:
-  The serialization format to use for metadata storage. DwarFS supports two
+- `--metadata-format=flatbuffers`|`modern-thrift`|`legacy-thrift`:
+  The serialization format to use for metadata storage. DwarFS supports three
   different metadata serialization formats, each with different performance
   characteristics. The default is `flatbuffers`, which provides excellent
   portability, memory-mappable zero-copy access, and works on all platforms.
-  `thrift` is the legacy format that uses Apache Thrift's Compact
-  Protocol with Frozen2 layout. It provides memory-mappable support when
-  uncompressed and slightly better compression (~5-10%) than FlatBuffers.
-  However, it has complex dependencies (Folly + fbthrift) that are not compatible
-  with all build environments, particularly static linking scenarios, certain
-  Windows variants, and some architectures.
-  When reading a filesystem, the format is automatically detected, so images
-  created with different formats can be used interchangeably. See [Metadata
-  Serialization Formats](#metadata-serialization-formats) for detailed
-  comparisons of the formats.
-  See [benchmark-metadata(7)](benchmark-metadata.md) for
-  benchmarking information.
+
+  **FlatBuffers** (default, recommended):
+  - File extension: `.dff` (DwarFS FlatBuffers)
+  - Magic bytes: "DFBF" (0x44 0x46 0x42 0x46)
+  - Dependencies: Header-only FlatBuffers library (auto-fetched)
+  - Size: 101.41% of Modern Thrift (+385 KB on 27 MB metadata)
+  - Memory: Zero-copy, memory-mappable
+  - Portability: Excellent - works on all platforms
+  - Build time: Fast (5-10 min)
+  - Use case: Default for all new filesystem images
+
+  **Modern Thrift Compact** (v0.17.0+, optional):
+  - File extension: `.dtc` (DwarFS Thrift Compact)
+  - Magic bytes: 0x82 0x21 (CompactProtocol header)
+  - Dependencies: Folly + fbthrift v2025.12.29.00 + jemalloc (via vcpkg overlay ports)
+  - Size: 100% baseline (smallest possible)
+  - Memory: Zero-copy, memory-mappable (CompactProtocol)
+  - Portability: Limited - requires complex build toolchain
+  - Build time: Slow (45-60 min first build)
+  - Test coverage: 15/15 tests PASSED (validated 2026-01-06)
+  - Use case: Minimum size requirement with Facebook stack available
+
+  **Legacy Thrift** (backward compatibility, always available):
+  - File extension: `.dth` (DwarFS Thrift Hand-coded)
+  - Magic bytes: None (fallback detection)
+  - Dependencies: None (hand-coded implementation, 2,500 lines)
+  - Size: 103-106% of Modern Thrift
+  - Memory: Sequential parsing (efficient but no zero-copy)
+  - Portability: Excellent - works on all platforms
+  - Build time: Fast (<1 min)
+  - Use case: Compatibility with DwarFS v0.14.1 images without fbthrift
+
+  To select a format, use the `--metadata-format` option when creating a
+  filesystem:
+
+      mkdwarfs -i input -o image.dff --metadata-format=flatbuffers
+      mkdwarfs -i input -o image.dtc --metadata-format=modern-thrift
+      mkdwarfs -i input -o image.dth --metadata-format=legacy-thrift
+
+  For detailed performance comparisons and benchmarking methodology, see
+  [DWARFS_METADATA_FORMAT_PERFORMANCE.md](DWARFS_METADATA_FORMAT_PERFORMANCE.md)
+  and [MODERN_THRIFT_GUIDE.md](MODERN_THRIFT_GUIDE.md).
 
 - `--history-compression=`*algorithm*[`:`*algopt*[`=`*value*][`,`...]]:
   The compression algorithm and configuration used for the file system
@@ -377,12 +407,7 @@ Most other options are concerned with compression tuning:
   typically better than `similarity`, but can be significantly slower to
   determine a good ordering.
   However, the new implementation of this algorithm can be parallelized and
-  will perform much better on huge numbers of files. `nilsimsa` ordering can
-  be tweaked by specifying `max-children` and `max-cluster-size`. In general,
-  larger values for `max-cluster-size` tend to result in better compression,
-  but will slow down the algorithm quadratically. There is no point in setting
-  `max-cluster-size` larger than the number of files in the input.
-  Unlike the old implementation, `nilsimsa` ordering is now completely
+  will perform much better on huge numbers of files. `nilsimsa` ordering is now completely
   deterministic. See [Nilsimsa Ordering](#nilsimsa-ordering) for a detailed
   description of the algorithm.
   `explicit` ordering allows you to specify a file that contains the paths in
@@ -551,8 +576,33 @@ Most other options are concerned with compression tuning:
 
 ## ENVIRONMENT VARIABLES
 
-See [dwarfs-env(7)](dwarfs-env.md) for environment variables that
-influence the behavior of `mkdwarfs`.
+All options can be configured via environment variables using the pattern:
+
+    DWARFS_MKDWARFS_<OPTION>=value
+
+For example:
+
+    export DWARFS_MKDWARFS_COMPRESSION_LEVEL=5
+    mkdwarfs -i /src -o fs.dff              # Uses level 5 from ENV
+    mkdwarfs -i /src -o fs.dff -l 7         # Uses level 7 (CLI overrides ENV)
+
+Command-line arguments always take precedence over environment variables, which in turn
+take precedence over default values. This follows the MECE (Mutually Exclusive,
+Collectively Exhaustive) principle.
+
+Common environment variables:
+
+- `DWARFS_MKDWARFS_COMPRESSION_LEVEL`: Default compression level (0-9)
+- `DWARFS_MKDWARFS_NUM_WORKERS`: Number of compression worker threads
+- `DWARFS_MKDWARFS_MEMORY_LIMIT`: Block manager memory limit (e.g., `4g`)
+- `DWARFS_MKDWARFS_BLOCK_SIZE_BITS`: Block size as power of 2 (10-30)
+- `DWARFS_MKDWARFS_LOG_LEVEL`: Logging level (error|warn|info|verbose|debug|trace)
+
+For a complete reference of all supported environment variables, see
+[ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
+
+For runtime environment variables that affect filesystem operation, see
+[dwarfs-env(7)](dwarfs-env.md).
 
 ## EXIT CODES
 
@@ -656,18 +706,6 @@ level from 7 (the default) to 6, the only difference is that the metadata
 is left uncompressed. This can be useful if mounting speed of the file
 system is important, as the uncompressed metadata part of the file can
 then simply be mapped into memory.
-
-### Metadata Packing
-
-The filesystem metadata is stored in [Frozen](https://github.com/facebook/fbthrift/blob/master/thrift/lib/cpp2/frozen/Frozen.h),
-a library that allows serialization of structures defined in
-[Thrift IDL](https://github.com/facebook/fbthrift/) into an extremely
-compact representation that can be used in-place without the need for
-deserialization. It is very well suited for persistent, memory-mappable
-data. With Frozen, you essentially only "pay for what you use": if fields
-are defined in the IDL, but they always hold the same value (or are not
-used at all), not a single bit will be allocated for this field even if
-you have a list of millions of items.
 
 Frozen metadata has relatively low redundancy and doesn't compress well,
 but you can still save around 30-50% by enabling compression. However,
@@ -837,31 +875,27 @@ was built with a block size of 1 MiB and 16 blocks of lookback.
 
 ### Metadata Serialization Formats
 
-DwarFS supports two different metadata serialization formats. The format used
-to store metadata has an impact on both the size of the filesystem image and on
-various performance characteristics. The choice of format is typically tailored
-to platform compatibility concerns as they perform similarly in most scenarios.
+DwarFS supports two different metadata serialization formats. The choice of format
+has an impact on both the size of the filesystem image and on various performance characteristics.
 
 When reading a filesystem, the format is automatically detected, so images
 created with different formats can be used interchangeably as long as the
 mkdwarfs tool is built with support for the specified formats.
 
-The default format is `flatbuffers`. The `flatbuffers` format provides excellent
-portability as it is header-only with minimal dependencies, offers memory-mappable
-zero-copy access, and works on all platforms. It is self-describing and provides
-excellent forward/backward compatibility.
+The default format is `flatbuffers`, which provides excellent portability and compatibility both across platforms
+and within the lmtools toolchain. It uses the header-only FlatBuffers library, offers memory-mappable and zero-copy
+access, and works on all platforms that support the lmtools binary.
 
-The `thrift` format is the legacy format that uses Apache Thrift's Compact
-Protocol with Frozen2 layout. It provides memory-mappable support when
-uncompressed and slightly better compression (~5-10%) than FlatBuffers.
-However, it has complex dependencies (Folly + fbthrift) that are not compatible
-with all build environments, particularly static linking scenarios, certain
-Windows variants, and some architectures.
+The `thrift` format (optionally) refers to Apache Thrift's CompactProtocol with supporting serialization schemas.
+
+The `thrift` format requires language bindings and a runtime dependency on Folly + fbthrift. If built using the bundled schemas, it additionally requires a snowball build dependency.
+
+The `thrift` format may suffer slight size overheads due to ComplexTypes necessary to encode Deeply Nested Collections (DNCs).
 
 To select a format, use the `--metadata-format` option when creating a
 filesystem:
 
-    mkdwarfs -i input -o image.dwarfs --metadata-format=flatbuffers
+    mkdwarfs -i input -o image.dww --metadata-format=flatbuffers
 
 For detailed performance comparisons and benchmarking methodology, see
 [benchmark-metadata(7)](benchmark-metadata.md).
