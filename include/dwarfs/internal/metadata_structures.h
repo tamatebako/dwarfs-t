@@ -6,8 +6,7 @@
  *
  * This file contains plain C++ equivalents of all Thrift metadata structures
  * used in DwarFS filesystem images. These structures are serialization-agnostic
- * and can be used with Thrift frozen layouts, Cereal, Bitsery, or other
- * serialization backends.
+ * and can be used with Thrift frozen layouts or FlatBuffers.
  *
  * Design Principles:
  * - MECE (Mutually Exclusive, Collectively Exhaustive) architecture

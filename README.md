@@ -5,7 +5,9 @@
 
 A fast, high-compression, read-only filesystem with excellent metadata serialization flexibility.
 
-This is the **Tebako fork** of DwarFS, providing enhanced portability, extensive CI/CD coverage, and flexible metadata serialization options. For the original DwarFS documentation, see [`README.DWARFS.md`](README.DWARFS.md).
+This is the **Tebako fork** of DwarFS, providing enhanced portability, extensive
+CI/CD coverage, and flexible metadata serialization options. For the original
+DwarFS documentation, see [`README.DWARFS.md`](README.DWARFS.md).
 
 ---
 
@@ -152,7 +154,10 @@ mkdwarfs -i input -o output.dff --compression=brotli:quality=5
 
 ## Metadata Serialization Formats
 
-This fork supports two metadata serialization formats:
+This fork supports **three** metadata serialization formats.
+
+DwarFS-T's additional metadata formats utilize magic bytes for format detection
+and implement a clean "Strategy Pattern" architecture.
 
 ### FlatBuffers (Default) ✅
 
@@ -160,38 +165,71 @@ This fork supports two metadata serialization formats:
 
 - **Size Efficiency**: 102.91% of Thrift (only +2.91% overhead)
 - **Dependencies**: Header-only FlatBuffers library (auto-fetched)
-- **Portability**: ⭐⭐⭐⭐⭐ Excellent - works on all platforms
+- **Portability**: ⭐⭐⭐⭐⭐ Excellent - works on all platforms, supports static builds
 - **Memory**: Zero-copy, memory-mappable access
 - **Format**: Self-describing (includes schema)
 - **Build Time**: Fast (header-only)
+- **Priority**: 120 (highest)
 
 **Use for**: All new filesystem images
 
-### Thrift Compact (Optional)
+### Modern Thrift Compact
 
-**Status**: Legacy, optional for backward compatibility
+**Status**: ✅ **optional**
 
-- **Size Efficiency**: 100% (baseline, smallest)
-- **Dependencies**: Folly + fbthrift (complex build)
-- **Portability**: ⭐⭐ Limited - difficult on Windows, older macOS
-- **Memory**: Zero-copy, memory-mappable (Frozen2)
-- **Format**: Bit-packed structures
-- **Build Time**: Slow (full Folly compile)
+- **Size Efficiency**: 100% (baseline, smallest possible)
+- **Dependencies**: Folly, fbthrift, jemalloc (all via vcpkg v2025.12.29.00)
+- **Portability**: ⭐⭐ Limited - requires complex build toolchain, static builds delicate
+- **Memory**: Zero-copy, memory-mappable (CompactProtocol)
+- **Format**: CompactProtocol with magic bytes `{0x82, 0x21}`
+- **Build Time**: Slow (45-60 min first build, full stack compilation)
+- **Priority**: 100 (medium-high)
+- **File Extension**: `.dtc` (DwarFS Thrift Compact - recommended)
 
-**Use for**: Reading old images only
+**Use for**: Minimum size requirement, environments with existing Facebook stack
 
-### Size Comparison (Verified)
+### Legacy Thrift (Frozen2) (DwarFS v0.14.1 compatible)
 
-Test conducted on 101 files, 156 KiB dataset:
+**Status**: ✅ Always available.
 
-| Format | Size | Relative | Status |
-|--------|------|----------|--------|
-| **FlatBuffers** | 103,135 bytes | **102.91%** | ✅ Default |
-| Thrift Compact | 100,215 bytes | 100% | Optional |
+- **Size Efficiency**: 100% baseline (Frozen2 bit-packed format)
+- **Dependencies**: None (hand-coded Frozen2 implementation)
+- **Portability**: ⭐⭐⭐⭐⭐ Excellent - works on all platforms, supports static builds
+- **Memory**: Sequential parsing (efficient bit-level packing)
+- **Format**: Frozen2 bit-packed structures (compatible with dwarfs-rs v0.14.x)
+- **Build Time**: Fast (~30 seconds)
+- **Priority**: 50 (fallback)
+- **File Extension**: `.dth` (recommended)
 
-The 2.91% overhead is negligible and well worth the portability gains.
+**Use for**: Homebrew v0.14.1 backward compatibility without fbthrift dependency
 
-**Documentation**: See [`doc/PHASE_B_SIZE_ANALYSIS.md`](doc/PHASE_B_SIZE_ANALYSIS.md) for detailed analysis.
+**Format Detection**: Legacy Thrift serves as the **fallback** format when no
+magic bytes are detected, ensuring backward compatibility with v0.14.1 images
+that don't have format identifiers.
+
+### Size Comparison
+
+Test conducted on Perl 5.43.3 dataset (96.5 MB, 6,816 files):
+
+| Format | Size | Relative | Priority | Status |
+|--------|------|----------|----------|--------|
+| **FlatBuffers** | 27,672,472 bytes | **101.41%** (+385 KB) | 120 | ✅ Default |
+| **Modern Thrift** | 27,286,666 bytes | **100%** (baseline) | 100 | ✅ |
+| **Legacy Thrift** | ~28-29 MB | **100%** | 50 | ✅ Always available |
+
+**Key Highlights** (TODO UPDATE):
+- Modern Thrift: 100% baseline - smallest but requires full Facebook stack (fbthrift v2025.12.29.00)
+- FlatBuffers: 1.41% overhead at level 3 - negligible, excellent portability
+- Legacy Thrift: 3-6% overhead - acceptable for backward compatibility without fbthrift
+
+**Performance** (TODO UPDATE):
+- Compression: Modern Thrift 17-29% faster than FlatBuffers at levels 1-3
+- Extraction: Virtually identical (3.4% difference within noise)
+- Size: 0.07-1.41% smaller than FlatBuffers (minimal difference)
+
+The small overhead for FlatBuffers is well worth the portability and simplicity gains.
+
+**Documentation**: See [`doc/DWARFS_METADATA_FORMAT_PERFORMANCE.md`](doc/DWARFS_METADATA_FORMAT_PERFORMANCE.md) for detailed analysis.
 
 ### Multi-Format Architecture (v0.16.0)
 
@@ -203,16 +241,18 @@ DwarFS v0.16.0 implements a clean **Strategy Pattern** for metadata serializatio
 - Located in `metadata::domain::metadata`
 
 **Multiple Serialization Strategies**:
-- **FlatBuffers Strategy**: Default serializer (modern, portable)
-- **Thrift Strategy**: Legacy serializer (optional, backward compatible)
-- Runtime format detection via magic bytes
+- **FlatBuffers Strategy**: Modern default serializer (portable, memory-mappable)
+- **Legacy Thrift Strategy**: Hand-coded Thrift Compact (backward compatible, no fbthrift)
+- **Thrift Compact Strategy**: Optional modern fbthrift serializer (smallest format)
+- Runtime format detection via magic bytes and fallback
 
 **Architecture Benefits**:
-- ✅ **Extensibility**: Easy to add new formats (e.g., Protocol Buffers, Cap'n Proto)
-- ✅ **Testability**: Mock interfaces for unit testing
-- ✅ **Maintainability**: Each format in separate, focused files
-- ✅ **Flexibility**: Build with one or both formats
-- ✅ **Clarity**: No mixing of format-specific code
+- **Extensibility**: Easy to add new formats (e.g., Protocol Buffers, Cap'n Proto)
+- **Testability**: Mock interfaces for unit testing
+- **Maintainability**: Each format in separate, focused files
+- **Flexibility**: Build with one, two, or all three formats
+- **Clarity**: No mixing of format-specific code
+- **Backward Compatibility**: Legacy Thrift ensures v0.14.1 compatibility
 
 **Comprehensive Documentation**:
 
@@ -235,7 +275,158 @@ cd docs/
 cat docs/_guides/format-selection.adoc
 ```
 
-**See Also**: [`.kilocode/rules/memory-bank/architecture.md`](.kilocode/rules/memory-bank/architecture.md) for detailed system architecture.
+---
+
+## Architecture
+
+### System Overview
+
+DwarFS is structured as a modular C++20 project with five core libraries, multiple command-line tools, a FUSE driver, and comprehensive test infrastructure.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Command-Line Tools                          │
+│  mkdwarfs │ dwarfsck │ dwarfsextract │ dwarfs (FUSE driver)     │
+└──────┬──────────┬─────────────┬────────────────┬────────────────┘
+       │          │             │                │
+       ▼          ▼             ▼                ▼
+┌──────────┐ ┌──────────┐ ┌──────────┐    ┌──────────┐
+│ dwarfs_  │ │ dwarfs_  │ │ dwarfs_  │    │ dwarfs_  │
+│ writer   │ │ rewrite  │ │extractor │    │ reader   │
+└────┬─────┘ └────┬─────┘ └────┬─────┘    └────┬─────┘
+     │            │             │               │
+     └────────────┴─────────────┴───────────────┤
+                                                 ▼
+                                          ┌──────────┐
+                                          │ dwarfs_  │
+                                          │ common   │
+                                          └──────────┘
+```
+
+### Core Libraries
+
+1. **dwarfs_common** ([`include/dwarfs/`](include/dwarfs/))
+   - Foundation layer: compression, I/O, utilities
+   - Block compressor/decompressor interfaces
+   - Platform-independent file access
+   - Logging and performance monitoring
+
+2. **dwarfs_reader** ([`include/dwarfs/reader/`](include/dwarfs/reader/))
+   - Read and interpret DwarFS filesystem images
+   - Metadata parsing (FlatBuffers/Thrift)
+   - Block cache with prefetching
+   - Directory traversal, file lookup
+
+3. **dwarfs_writer** ([`include/dwarfs/writer/`](include/dwarfs/writer/))
+   - Create DwarFS filesystem images
+   - Multi-threaded scanning
+   - Deduplication and segmentation
+   - Category-aware compression
+
+4. **dwarfs_extractor** ([`include/dwarfs/utility/filesystem_extractor.h`](include/dwarfs/utility/filesystem_extractor.h))
+   - Extract to disk or archive formats
+   - Multi-threaded extraction
+   - Pattern-based selective extraction
+
+5. **dwarfs_rewrite** ([`include/dwarfs/utility/rewrite_filesystem.h`](include/dwarfs/utility/rewrite_filesystem.h))
+   - Recompress or rebuild existing images
+   - Change compression algorithms
+   - Rebuild metadata with new options
+
+### Metadata Serialization Architecture (v0.16.0)
+
+DwarFS implements a clean **Strategy Pattern** for metadata serialization:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│       Abstract Interfaces (Format-Agnostic)             │
+│                                                         │
+│  metadata_builder (writer) │  metadata_provider (reader)│
+│  - gather_chunks()         │  - get_chunk()            │
+│  - gather_entries()        │  - get_directory()        │
+│  - build() → domain        │  - get_inode()            │
+└──────────────────┬────────────────────────────────────┘
+                   │
+         ┌─────────┴─────────┐
+         │   implements      │   implements
+         ▼                   ▼
+┌────────────────┐    ┌────────────────┐
+│ FlatBuffers    │    │ Thrift Impl    │
+│ Implementation │    │  (optional)    │
+│  (required)    │    │                │
+│                │    │ Converts       │
+│ Works directly │    │ domain ↔       │
+│ with domain    │    │ thrift types   │
+│ model          │    │                │
+└────────────────┘    └────────────────┘
+         │                   │
+         └───────────────────┤
+                             ▼
+                  ┌──────────────────┐
+                  │   Domain Model   │
+                  │ metadata::domain │
+                  │   ::metadata     │
+                  └──────────────────┘
+```
+
+**Key Components**:
+
+- **Domain Model** ([`include/dwarfs/metadata/domain/metadata.h`](include/dwarfs/metadata/domain/metadata.h))
+  - Format-agnostic C++ structures
+  - Core business logic operates on this
+
+- **Backend Adapter** ([`src/reader/internal/backend_adapter.{h,cpp}`](src/reader/internal/backend_adapter.h))
+  - Bridges domain model ↔ backend-specific types
+  - Handles all three build configurations (FlatBuffers-only, Thrift-only, both)
+  - Thread-local caching for Thrift conversions
+
+- **Format Serializers**
+  - FlatBuffers: [`src/metadata/serialization/flatbuffers_serializer.cpp`](src/metadata/serialization/flatbuffers_serializer.cpp)
+  - Thrift: [`src/metadata/serialization/thrift_compact_serializer.cpp`](src/metadata/serialization/thrift_compact_serializer.cpp)
+
+### Component Relationships
+
+**Read Path (FUSE Driver)**:
+```
+dwarfs_main (FUSE callbacks)
+    ↓
+filesystem_v2 (file/directory lookup)
+    ↓
+metadata_v2 (inode access) → Format adapters (FlatBuffers/Thrift)
+    ↓
+inode_reader_v2 (chunk reading) → block_cache (LRU + prefetch)
+```
+
+**Write Path (mkdwarfs)**:
+```
+Scanner (multi-threaded traversal)
+    ↓
+Categorizer (detect file types)
+    ↓
+Segmenter (find duplicates)
+    ↓
+filesystem_writer (build blocks)
+    ↓
+metadata_builder (metadata finish) → Serializer (FlatBuffers/Thrift)
+```
+
+### Design Patterns
+
+**Strategy Pattern** (Metadata Serialization):
+- Abstract `metadata_writer_interface` and `metadata_provider`
+- FlatBuffers and Thrift implementations
+- Runtime format detection
+
+**Adapter Pattern** (Backend Bridge):
+- `backend_adapter` translates domain model to backend types
+- Handles all three build configurations seamlessly
+
+**Registry Pattern** (Extensibility):
+- Compressor registry ([`compressor_registry.h`](include/dwarfs/compressor_registry.h))
+- Categorizer registry ([`writer/categorizer_registry.h`](include/dwarfs/writer/categorizer_registry.h))
+- Serializer registry ([`serializer_registry.h`](include/dwarfs/metadata/serialization/serializer_registry.h))
+
+For detailed architecture documentation, see [`doc/dwarfs-metadata-architecture.md`](doc/dwarfs-metadata-architecture.md).
 
 ---
 
@@ -311,6 +502,123 @@ ninja -C build
 sudo ninja -C build install
 ```
 
+#### Building with vcpkg (Static Builds)
+
+vcpkg provides fully static builds with all dependencies included.
+Perfect for creating portable binaries.
+
+```bash
+# Install vcpkg
+git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
+~/vcpkg/bootstrap-vcpkg.sh
+export VCPKG_ROOT="$HOME/vcpkg"
+
+# Build DwarFS
+cd dwarfs
+./scripts/build-all-and-test.sh --vcpkg
+```
+
+**Build Time**: First build takes 30-60 minutes (dependencies built from source).
+Subsequent builds are much faster (~5 minutes).
+
+See [`doc/vcpkg-build-guide.md`](doc/vcpkg-build-guide.md) for detailed instructions.
+
+**Supported Platforms**:
+- Linux: x64, ARM64
+- macOS: x64 (Intel), ARM64 (Apple Silicon)
+- Windows: x64, ARM64
+
+##### vcpkg Triplet Selection
+
+DwarFS supports **20 standard vcpkg triplets** across all platforms, providing flexibility for both static and dynamic linking:
+
+**Windows (8 triplets)**:
+- `x64-windows` (dynamic DLLs - default)
+- `x64-windows-static` (standalone executable)
+- `x64-mingw-dynamic` (MinGW DLLs)
+- `x64-mingw-static` (MinGW static)
+- `arm64-windows` (ARM64 DLLs)
+- `arm64-windows-static` (ARM64 static)
+- `arm64-mingw-dynamic` (ARM64 MinGW DLLs)
+- `arm64-mingw-static` (ARM64 MinGW static)
+
+**macOS (4 triplets)**:
+- `arm64-osx` (Apple Silicon static - default)
+- `arm64-osx-dynamic` (Apple Silicon shared libraries)
+- `x64-osx` (Intel static)
+- `x64-osx-dynamic` (Intel shared libraries)
+
+**Linux (4 triplets)**:
+- `arm64-linux` (ARM64 static - default)
+- `arm64-linux-dynamic` (ARM64 shared libraries)
+- `x64-linux` (x64 static - default)
+- `x64-linux-dynamic` (x64 shared libraries)
+
+**Triplet Selection Guide**:
+
+| Use Case | Recommended Triplet | Why |
+|----------|---------------------|-----|
+| **Standalone executables** | `*-static` | No runtime dependencies |
+| **Library distribution** | `*-dynamic` | Users link against shared libs |
+| **macOS deployment** | `arm64-osx` | Native Apple Silicon |
+| **Windows deployment** | `x64-windows-static` | Self-contained executable |
+| **Linux containers** | `x64-linux` | Static by default |
+
+**Example Builds**:
+
+```bash
+# macOS Apple Silicon (static)
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+  -DVCPKG_TARGET_TRIPLET=arm64-osx \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=OFF \
+  -DWITH_TESTS=ON
+ninja -C build
+
+# Windows x64 (static executable)
+cmake -B build -GNinja ^      ^
+  -DCMAKE_BUILD_TYPE=Release ^      ^
+  -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake ^      ^
+  -DVCPKG_TARGET_TRIPLET=x64-windows-static ^      ^
+  -DDWARFS_WITH_FLATBUFFERS=ON ^      ^
+  -DDWARFS_WITH_THRIFT=OFF ^      ^
+  -DWITH_TESTS=ON
+ninja -C build
+
+# Linux x64 (with Modern Thrift)
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+  -DVCPKG_TARGET_TRIPLET=x64-linux \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=ON \
+  -DWITH_TESTS=ON
+ninja -C build
+```
+
+##### Dependency Management (v0.17.0)
+
+**BZip2 Resolution**: DwarFS v0.17.0 includes an important fix for BZip2 dependency resolution with vcpkg:
+
+**Problem** (pre-v0.17.0):
+- boost-iostreams requires BZip2::BZip2 target during configuration
+- CMake was finding Boost before BZip2 target existed
+- Build failures on all vcpkg triplets
+
+**Solution** (v0.17.0+):
+- BZip2 is now found **before** Boost in CMake configuration
+- Platform-agnostic solution works on all 20 triplets
+- Located in [`cmake/vcpkg/bzip2.cmake`](cmake/vcpkg/bzip2.cmake)
+
+**Impact**:
+- ✅ All 20 vcpkg triplets now build successfully
+- ✅ No custom triplet files needed
+- ✅ Platform-agnostic dependency management
+
+**For detailed build instructions and troubleshooting**: See [`doc/vcpkg-build-guide.md`](doc/vcpkg-build-guide.md)
+
 #### Via vcpkg
 
 The easiest way to install DwarFS is via [vcpkg](https://vcpkg.io/), Microsoft's C++ package manager:
@@ -348,6 +656,36 @@ target_link_libraries(your_target PRIVATE
 - Platform-specific notes
 - CMake integration examples
 - Troubleshooting tips
+
+#### Building Tools Separately with vcpkg
+
+DwarFS libraries can be built and installed via vcpkg, then tools built separately.
+This is useful for:
+- Embedding DwarFS in C++ applications
+- Building custom tools using DwarFS libraries
+- Static linking scenarios
+- Cross-platform development
+
+**Workflow**:
+
+```bash
+# 1. Install DwarFS libraries via vcpkg
+vcpkg install dwarfs
+
+# 2. Build tools using installed libraries
+cd tools
+cmake -B build -DCMAKE_PREFIX_PATH=$VCPKG_ROOT/installed/<triplet>
+cmake --build build
+
+# 3. Use the tools
+./build/mkdwarfs -i /path/to/input -o filesystem.dff
+./build/dwarfsck filesystem.dff
+./build/dwarfsextract -i filesystem.dff -o /path/to/output
+```
+
+**Example**: See [`example/static-site-server/`](example/static-site-server/) for a complete working example of embedding DwarFS in a C++ application.
+
+**Note**: Tools built this way have manpage support disabled (use `--help` instead of `--man`).
 
 ### Basic Usage
 
@@ -388,30 +726,76 @@ dwarfsextract -i output.dff -o extracted/
 mkdwarfs -i input -o output.dft --format=thrift
 ```
 
+### Environment Variables
+
+DwarFS tools support configuration via environment variables. This is useful for:
+
+- Setting default options in shell profiles
+- Configuring tools in containerized environments
+- Scripting without repetitive command-line arguments
+
+**Pattern**: `DWARFS_<TOOL>_<OPTION>=value`
+
+**Example**:
+```bash
+# Set defaults for mkdwarfs
+export DWARFS_MKDWARFS_COMPRESSION_LEVEL=7
+export DWARFS_MKDWARFS_NUM_WORKERS=8
+
+# Simple invocation uses environment variables
+mkdwarfs -i /data -o archive.dff  # Uses level 7, 8 workers
+
+# CLI arguments override environment variables
+mkdwarfs -i /data -o archive.dff -l 9  # Uses level 9, 8 workers
+```
+
+**Common Variables**:
+
+| Tool | Variable | Description |
+|------|----------|-------------|
+| **mkdwarfs** | `DWARFS_MKDWARFS_COMPRESSION_LEVEL` | Compression level (0-9) |
+|  | `DWARFS_MKDWARFS_NUM_WORKERS` | Worker threads |
+|  | `DWARFS_MKDWARFS_MEMORY_LIMIT` | Memory limit (e.g., `4g`) |
+| **dwarfs** | `DWARFS_DWARFS_CACHE_SIZE` | Block cache size (e.g., `1g`) |
+|  | `DWARFS_DWARFS_NUM_WORKERS` | Decompression workers |
+| **dwarfsck** | `DWARFS_DWARFSCK_NUM_WORKERS` | Verification workers |
+| **dwarfsextract** | `DWARFS_DWARFSEXTRACT_NUM_WORKERS` | Extraction workers |
+| **All tools** | `DWARFS_<TOOL>_LOG_LEVEL` | Logging level |
+
+**Complete Reference**: See [`doc/ENVIRONMENT_VARIABLES.md`](doc/ENVIRONMENT_VARIABLES.md) for all supported variables.
+
 ---
 
 ## Build Configuration
 
 ### Metadata Serialization Options
 
-DwarFS supports **three valid build configurations** for metadata serialization. Both FlatBuffers and Thrift are **optional** - at least one must be enabled.
+DwarFS supports **three metadata serialization formats** with flexible build configurations:
 
 ```cmake
-# FlatBuffers support (modern default)
+# FlatBuffers support (modern default, recommended)
 -DDWARFS_WITH_FLATBUFFERS=ON  # Default: ON
 
-# Thrift support (legacy/backward compatibility)
+# Thrift Compact support (legacy/backward compatibility, complex dependencies)
 -DDWARFS_WITH_THRIFT=ON  # Default: ON (auto-OFF in Tebako builds)
+
+# Legacy Thrift support (ALWAYS available, no option needed)
+# Hand-coded Thrift Compact implementation - always compiled in
 ```
+
+**Key Points**:
+- **Legacy Thrift**: ALWAYS available (no CMake option, always compiled)
+- **FlatBuffers**: Optional but recommended (default: ON)
+- **Thrift Compact**: Optional (default: ON, requires Folly + fbthrift)
 
 ### Valid Build Configurations
 
-| Configuration | FlatBuffers | Thrift | Functionality | Recommendation |
-|---------------|-------------|--------|---------------|----------------|
-| **FlatBuffers-only** | ✅ ON | ❌ OFF | 100% - All features | ✅ **Recommended** for new deployments |
-| **Thrift-only** | ❌ OFF | ✅ ON | 100% - All features | ✅ Valid for legacy environments |
-| **Both formats** | ✅ ON | ✅ ON | 99.9% - See notes below | ⚠️ Development/testing only |
-| Neither format | ❌ OFF | ❌ OFF | ❌ INVALID | ❌ Build will fail |
+| Configuration | FlatBuffers | Legacy Thrift | Thrift Compact | Functionality | Recommendation |
+|---------------|-------------|---------------|----------------|---------------|----------------|
+| **FlatBuffers-only** | ✅ ON | ✅ Always | ❌ OFF | 100% - All features | ✅ **Recommended** for new deployments |
+| **Thrift-only** | ❌ OFF | ✅ Always | ✅ ON | 100% - All features | ✅ Valid for legacy environments |
+| **All formats** | ✅ ON | ✅ Always | ✅ ON | 99.9% - See notes | ⚠️ Development/testing only |
+| **Minimal** | ❌ OFF | ✅ Always | ❌ OFF | Read-only | ⚠️ Can read but not create images |
 
 #### FlatBuffers-Only Build (Recommended)
 
@@ -425,11 +809,17 @@ cmake -B build -GNinja \
 ninja -C build
 ```
 
+**Capabilities**:
+- ✅ **FlatBuffers**: Create and read `.dff` images (modern default)
+- ✅ **Legacy Thrift**: Read v0.14.1 `.dft` images (always available)
+- ❌ **Thrift Compact**: Cannot use fbthrift format
+
 **Advantages**:
 - ✅ Header-only dependencies (no Folly/fbthrift)
 - ✅ Fast compilation
 - ✅ Excellent cross-platform support
 - ✅ Full sparse file support (`SEEK_DATA`/`SEEK_HOLE`)
+- ✅ Backward compatible with Homebrew v0.14.1
 - ✅ Creates `.dff` images by default
 
 **Perfect for**: Production use, embedded systems, static builds, Tebako integration
@@ -446,11 +836,17 @@ cmake -B build -GNinja \
 ninja -C build
 ```
 
+**Capabilities**:
+- ❌ **FlatBuffers**: Cannot create `.dff` images
+- ✅ **Legacy Thrift**: Read v0.14.1 `.dft` images (always available)
+- ✅ **Thrift Compact**: Create and read fbthrift `.dft` images
+
 **Advantages**:
 - ✅ Smallest metadata size (baseline 100%)
 - ✅ Zero-copy memory-mapped access (Frozen2)
 - ✅ Full sparse file support (`SEEK_DATA`/`SEEK_HOLE`)
 - ✅ Creates `.dft` images by default
+- ✅ Backward compatible with Homebrew v0.14.1
 
 **Trade-offs**:
 - ⚠️ Requires Folly + fbthrift (complex dependencies)
@@ -472,7 +868,10 @@ ninja -C build
 ```
 
 **Capabilities**:
-- ✅ Reads both FlatBuffers and Thrift images
+- ✅ **FlatBuffers**: Create and read `.dff` images
+- ✅ **Legacy Thrift**: Read v0.14.1 `.dft` images (always available)
+- ✅ **Thrift Compact**: Create and read fbthrift `.dft` images
+- ✅ Reads all three formats seamlessly
 - ✅ Auto-converts FlatBuffers→Thrift internally (lines 72-87 in `metadata_v2_factory.cpp`)
 - ✅ All filesystem operations work (create, mount, check, extract)
 
@@ -484,7 +883,7 @@ ninja -C build
 - ⚠️ Slower compilation (includes both Folly and FlatBuffers)
 - ⚠️ Larger binary size
 
-**Use case**: Local development when you need to test both formats, reading legacy Thrift images alongside new FlatBuffers images
+**Use case**: Local development when you need to test all formats, reading legacy Thrift images alongside new FlatBuffers images
 
 ### Choosing Your Build Configuration
 
@@ -492,12 +891,13 @@ ninja -C build
 
 | If you... | Then build... | Because... |
 |-----------|---------------|------------|
-| **Are deploying new systems** | FlatBuffers-only | Best portability, simplest dependencies |
-| **Need maximum compression** | Thrift-only | Smallest metadata (3% smaller than FlatBuffers) |
+| **Are deploying new systems** | FlatBuffers-only | Best portability, Legacy Thrift included for v0.14.1 compat |
+| **Need Homebrew v0.14.1 compatibility** | FlatBuffers-only | Legacy Thrift always available, no fbthrift needed |
+| **Need maximum compression** | Thrift-only | Smallest metadata with fbthrift (but Legacy Thrift also available) |
 | **Have existing Thrift infrastructure** | Thrift-only | Leverage existing Folly deployment |
-| **Are developing DwarFS itself** | Both formats | Test cross-format compatibility |
-| **Need to read old Thrift images** | FlatBuffers-only | Can still extract/check Thrift images |
-| **Are using Tebako** | FlatBuffers-only | Thrift incompatible with static linking |
+| **Are developing DwarFS itself** | Both formats | Test cross-format compatibility (all 3 formats) |
+| **Need to read old Homebrew images** | FlatBuffers-only | Legacy Thrift handles v0.14.1 images perfectly |
+| **Are using Tebako** | FlatBuffers-only | Thrift Compact incompatible with static linking |
 | **Need full sparse file support** | Single-format (either) | Both-format build disables `SEEK_DATA`/`SEEK_HOLE` |
 
 ### Format Compatibility
@@ -635,8 +1035,66 @@ Tested via cross-compilation:
 ### Architecture Documentation
 
 Located in `.kilocode/rules/memory-bank/`:
-- [`architecture.md`](.kilocode/rules/memory-bank/architecture.md) - System architecture
-- [`tech.md`](.kilocode/rules/memory-bank/tech.md) - Technical stack
+- [`architecture.md`](doc/architecture.md) - System architecture
+- [`tech.md`](doc/tech.md) - Technical stack
+
+---
+
+## Testing
+
+DwarFS includes a comprehensive test suite validating all metadata serialization formats.
+
+### Test Suites
+
+**Metadata Format Tests** (all passing ✅):
+- **frozen_bits_tests**: Bit-packing operations (15 tests)
+- **metadata_serializer_tests**: Legacy Thrift serialization (10 tests)
+- **legacy_thrift_tests**: Thrift Compact protocol (31 tests)
+- **serialization_registry_tests**: Format detection and conversion (10 tests)
+
+**Additional Test Suites**:
+- **Unit tests**: Algorithm, data structure, utility tests (60+ files)
+- **Integration tests**: Tool workflows, cross-tool compatibility
+- **Categorizer tests**: PCM audio, FITS image detection
+- **Compressor tests**: All 6 compression algorithms
+
+### Running Tests
+
+```bash
+# Build with tests enabled
+cmake -B build -GNinja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DWITH_TESTS=ON
+ninja -C build
+
+# Run all tests
+ctest --test-dir build -j
+
+# Run metadata tests only
+ctest --test-dir build --tests-regex "metadata|legacy|frozen"
+
+# Run specific test suite
+./build/serialization_registry_tests
+./build/frozen_bits_tests
+./build/legacy_thrift_tests
+```
+
+### Test Coverage
+
+**Metadata Serialization**:
+- ✅ FlatBuffers round-trip serialization
+- ✅ Legacy Thrift round-trip serialization
+- ✅ Thrift Compact round-trip serialization (if enabled)
+- ✅ Cross-format conversion (Legacy ↔ FlatBuffers)
+- ✅ Format auto-detection (magic bytes + fallback)
+- ✅ U64 value preservation (no truncation)
+
+**Backward Compatibility**:
+- ✅ Can read Homebrew v0.14.1 images (via Legacy Thrift)
+- ✅ Cross-format conversion preserves all metadata
+- ✅ Format detection works with all three formats
+
+**Documentation**: See [`test/`](test/) directory for test source code.
 
 ---
 

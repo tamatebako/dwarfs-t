@@ -1,0 +1,216 @@
+---
+name: Windows Builds
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-selfhosted:
+    runs-on:
+      - self-hosted
+      - Windows
+
+    strategy:
+      matrix:
+        arch:
+          - X64
+        build_mode:
+          - Release
+          - Debug
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: '0'
+          ref: ${{ github.ref }}
+
+      - name: Set MSVC Dev Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure Build
+        shell: cmd
+        run: |
+          cmake -B${{ runner.temp }}\build -S${{ runner.workspace }}\dwarfs -GNinja -DCMAKE_MAKE_PROGRAM=C:\bin\ninja.exe -DCMAKE_BUILD_TYPE=${{ matrix.build_mode }} -DWITH_UNIVERSAL_BINARY=ON -DWITH_TESTS=ON -DWITH_BENCHMARKS=ON -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DVCPKG_INSTALLED_DIR=${{ runner.workspace }}\vcpkg-install-dwarfs -DDWARFS_ARTIFACTS_DIR=Z:\artifacts\dwarfs -DWITH_PXATTR=ON -DENABLE_STACKTRACE=${{ matrix.build_mode == 'Debug' && 'ON' || 'OFF' }}
+
+      - name: Run Build
+        shell: cmd
+        run: |
+          cmake --build ${{ runner.temp }}\build
+
+      - name: Run Test
+        shell: cmd
+        run: |
+          copy "C:\Program Files (x86)\WinFsp\bin\winfsp-x64.dll" ${{ runner.temp }}\build
+          ctest --test-dir ${{ runner.temp }}\build --output-on-failure -j
+
+      - name: Build Package
+        shell: cmd
+        run: |
+          cmake --build ${{ runner.temp }}\build --target package
+
+      - name: Compress Universal Binary
+        shell: cmd
+        run: |
+          cmake --build ${{ runner.temp }}\build --target universal_upx
+
+      - name: Copy Artifacts
+        shell: cmd
+        run: |
+          cmake --build ${{ runner.temp }}\build --target copy_artifacts
+
+  windows-vcpkg:
+    name: Windows vcpkg - ${{ matrix.arch }} - ${{ matrix.format }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # x64 builds
+          - runner: windows-latest
+            arch: x64
+            triplet: x64-windows-static
+            format: all-formats
+            with_thrift: ON
+
+          - runner: windows-latest
+            arch: x64
+            triplet: x64-windows-static
+            format: minimal
+            with_thrift: OFF
+
+          # ARM64 builds (cross-compilation)
+          - runner: windows-latest
+            arch: ARM64
+            triplet: arm64-windows-static
+            format: all-formats
+            with_thrift: ON
+
+          - runner: windows-latest
+            arch: ARM64
+            triplet: arm64-windows-static
+            format: minimal
+            with_thrift: OFF
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup vcpkg
+        run: |
+          if ("${{ matrix.arch }}" -eq "ARM64") {
+            # boost-fiber not supported on ARM64, exclude it
+            vcpkg install --classic --triplet=${{ matrix.triplet }} `
+              boost-system boost-filesystem boost-program-options `
+              boost-iostreams boost-context `
+              zlib lz4 zstd xxhash bzip2 liblzma `
+              libarchive libevent double-conversion jemalloc gtest
+          } else {
+            vcpkg install --classic --triplet=${{ matrix.triplet }} `
+              boost-system boost-filesystem boost-program-options `
+              boost-iostreams boost-context boost-fiber `
+              zlib lz4 zstd xxhash bzip2 liblzma `
+              libarchive libevent double-conversion jemalloc gtest
+          }
+
+      - name: Install Thrift
+        if: matrix.with_thrift == 'ON'
+        run: |
+          vcpkg install --classic --triplet=${{ matrix.triplet }} thrift
+
+      - name: Install WinFsp
+        run: |
+          choco install winfsp -y
+
+      - name: Configure
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A ${{ matrix.arch }} `
+            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DWITH_TESTS=ON `
+            -DWITH_BENCHMARKS=ON `
+            -DWITH_FUSE_DRIVER=ON `
+            -DDWARFS_WITH_THRIFT=${{ matrix.with_thrift }} `
+            -DDWARFS_WITH_FLATBUFFERS=ON
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        if: matrix.arch != 'ARM64'
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Benchmark Smoke Test
+        if: matrix.arch != 'ARM64'
+        continue-on-error: true
+        run: |
+          ./build/Release/dwarfs_benchmark.exe --benchmark_min_time=0.1s --benchmark_filter=.*Creation.*
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwarfs-windows-${{ matrix.arch }}-${{ matrix.format }}
+          path: build/Release/dwarfs*.exe
+
+  windows-msys2:
+    name: Windows MSys2 - ${{ matrix.sys }}
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        sys: [ucrt64, mingw64]
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Setup MSys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.sys }}
+          update: true
+          install: >-
+            git tar bison flex
+          pacboy: >-
+            toolchain:p cmake:p ninja:p boost:p
+            openssl:p libevent:p double-conversion:p
+            fmt:p glog:p lz4:p xz:p zstd:p xxhash:p
+            bzip2:p libarchive:p gtest:p
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Configure
+        run: |
+          cmake -B build -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_TESTS=ON \
+            -DWITH_BENCHMARKS=ON \
+            -DWITH_FUSE_DRIVER=OFF \
+            -DDWARFS_WITH_THRIFT=OFF \
+            -DDWARFS_WITH_FLATBUFFERS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Benchmark Smoke Test
+        continue-on-error: true
+        run: |
+          ./build/dwarfs_benchmark --benchmark_min_time=0.1s --benchmark_filter=.*Creation.*

@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <vector>
 
 #include <fmt/format.h>
 
@@ -198,6 +199,15 @@ class legacy_string_table_cpp : public string_table::impl {
   explicit legacy_string_table_cpp(std::span<std::string const> v)
       : v_{v} {}
 
+  // NEW: Constructor that accepts vector by value and owns the data
+  explicit legacy_string_table_cpp(std::vector<std::string> v)
+      : owned_v_{std::move(v)}
+      , v_{owned_v_} {}
+
+  std::string operator[](size_t i) const {
+    return std::string{v_[i]};
+  }
+
   std::string lookup(size_t index) const override {
     return v_[index];
   }
@@ -208,21 +218,28 @@ class legacy_string_table_cpp : public string_table::impl {
 
   bool is_packed() const override { return false; }
 
-  size_t size() const override {
-    return v_.size();
-  }
+  size_t size() const override { return v_.size(); }
 
   size_t unpacked_size() const override {
     return std::accumulate(v_.begin(), v_.end(), size_t{0},
-                           [](size_t n, auto const& s) { return n + s.size(); });
+                           [](auto sum, auto const& s) {
+                             return sum + s.size();
+                           });
   }
 
  private:
+  std::vector<std::string> owned_v_;  // NEW: Owned data (empty if using span)
   std::span<std::string const> v_;
 };
 
 string_table::string_table(std::span<std::string const> v)
     : impl_{std::make_unique<legacy_string_table_cpp>(v)} {}
+
+// NEW: Constructor that owns the vector data (FlatBuffers-only)
+#if !defined(DWARFS_HAVE_THRIFT) && defined(DWARFS_HAVE_FLATBUFFERS)
+string_table::string_table(std::vector<std::string> v)
+    : impl_{std::make_unique<legacy_string_table_cpp>(std::move(v))} {}
+#endif
 
 // C++ implementation - always available when FLATBUFFERS is enabled
 #ifdef DWARFS_HAVE_FLATBUFFERS
@@ -266,13 +283,13 @@ class packed_string_table_cpp : public string_table::impl {
       throw std::out_of_range(fmt::format(
           "string_table::lookup({}): index is empty", index));
     }
-    
+
     if (index >= size - 1) {
       throw std::out_of_range(fmt::format(
           "string_table::lookup({}): index out of range (max={})",
           index, size - 2));
     }
-    
+
     auto beg = buffer_;
     auto end = buffer_;
 

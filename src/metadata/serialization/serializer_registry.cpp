@@ -107,13 +107,15 @@ std::optional<SerializationFormat> SerializerRegistry::detect_format(
     }
   }
 
-  // No magic bytes found - assume legacy Thrift format
-  // Legacy Thrift images don't have magic bytes, so this is the fallback
-  if (is_format_available(SerializationFormat::THRIFT_COMPACT)) {
-    return SerializationFormat::THRIFT_COMPACT;
+  // No magic bytes found - check if this could be legacy Thrift format
+  // Legacy Thrift images don't have magic bytes, but they should have
+  // a reasonable minimum size to be valid metadata
+  if (data.size() >= 16 && is_format_available(SerializationFormat::LEGACY_THRIFT)) {
+    return SerializationFormat::LEGACY_THRIFT;
   }
 
-  // If Thrift support is not available, we can't read this image
+  // If data is too small or Legacy Thrift support is not available,
+  // we can't read this image
   return std::nullopt;
 }
 

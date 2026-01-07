@@ -1,0 +1,201 @@
+---
+name: build-and-test
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        description: 'Operating system (ubuntu, macos, windows)'
+        required: true
+        type: string
+      arch:
+        description: 'Architecture (x64, aarch64, ARM64)'
+        required: false
+        type: string
+        default: 'x64'
+      runner:
+        description: 'Runner label'
+        required: false
+        type: string
+        default: ''
+      format:
+        description: 'Format configuration (flatbuffers-only, thrift-only, both-formats)'
+        required: true
+        type: string
+      with_thrift:
+        description: 'Enable Thrift support'
+        required: true
+        type: boolean
+      with_flatbuffers:
+        description: 'Enable FlatBuffers support'
+        required: true
+        type: boolean
+      should_pass:
+        description: 'Whether the build should succeed'
+        required: false
+        type: boolean
+        default: true
+      expected_pass:
+        description: 'Expected number of passing tests'
+        required: false
+        type: number
+        default: 0
+      expected_skip:
+        description: 'Expected number of skipped tests'
+        required: false
+        type: number
+        default: 0
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ inputs.runner != '' && inputs.runner || (inputs.os == 'ubuntu' && 'ubuntu-latest' || inputs.os == 'macos' && 'macos-latest' || 'windows-latest') }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # Install latest CMake (3.28+ required)
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: 'latest'
+
+      # Setup vcpkg for dependency management
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 'efe5a56fb70ea16e3a96b7b4acfb6e62ae2028b9'
+
+      # Install dependencies (Ubuntu)
+      - name: Install Dependencies (Ubuntu)
+        if: inputs.os == 'ubuntu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Install Dependencies (macOS)
+        if: inputs.os == 'macos'
+        run: |
+          brew install \
+            ninja \
+            openssl \
+            libevent \
+            double-conversion \
+            fmt \
+            glog \
+            lz4 \
+            xz \
+            zstd \
+            xxhash \
+            bzip2 \
+            libarchive \
+            googletest
+
+      - name: Install Dependencies (Windows)
+        if: inputs.os == 'windows'
+        run: |
+          choco install winfsp -y
+          vcpkg install --classic --triplet=x64-windows-static `
+            boost-system boost-filesystem boost-program-options `
+            boost-iostreams boost-context boost-fiber `
+            zlib lz4 zstd xxhash bzip2 liblzma `
+            libarchive libevent double-conversion gtest
+
+      # Configure
+      - name: Configure (Unix)
+        if: inputs.os != 'windows'
+        continue-on-error: ${{ !inputs.should_pass }}
+        shell: bash
+        run: |
+          cmake -B build -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DWITH_TESTS=ON \
+            -DWITH_FUSE_DRIVER=OFF \
+            -DDWARFS_WITH_THRIFT=${{ inputs.with_thrift && 'ON' || 'OFF' }} \
+            -DDWARFS_WITH_FLATBUFFERS=${{ inputs.with_flatbuffers && 'ON' || 'OFF' }}
+
+      - name: Configure (Windows)
+        if: inputs.os == 'windows'
+        continue-on-error: ${{ !inputs.should_pass }}
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DWITH_TESTS=ON `
+            -DWITH_FUSE_DRIVER=ON \
+            -DDWARFS_WITH_THRIFT=${{ inputs.with_thrift && 'ON' || 'OFF' }} \
+            -DDWARFS_WITH_FLATBUFFERS=${{ inputs.with_flatbuffers && 'ON' || 'OFF' }}
+
+      # Build
+      - name: Build (Unix)
+        if: inputs.os != 'windows'
+        continue-on-error: ${{ !inputs.should_pass }}
+        shell: bash
+        run: |
+          cmake --build build --parallel
+
+      - name: Build (Windows)
+        if: inputs.os == 'windows'
+        continue-on-error: ${{ !inputs.should_pass }}
+        run: |
+          cmake --build build --config Release --parallel
+
+      # Verify expected outcome (build success/failure)
+      - name: Verify Build Outcome
+        shell: bash
+        run: |
+          if [ "${{ inputs.should_pass }}" = "true" ]; then
+            if [ "${{ inputs.os }}" = "windows" ]; then
+              test -f build/Release/mkdwarfs.exe || (echo "ERROR: Expected build to succeed but mkdwarfs.exe not found" && exit 1)
+            else
+              test -f build/mkdwarfs || (echo "ERROR: Expected build to succeed but mkdwarfs not found" && exit 1)
+            fi
+            echo "✅ Build succeeded as expected for ${{ inputs.format }}"
+          else
+            if [ "${{ inputs.os }}" = "windows" ]; then
+              if [ -f build/Release/mkdwarfs.exe ]; then
+                echo "ERROR: Expected build to fail but it succeeded"
+                exit 1
+              fi
+            else
+              if [ -f build/mkdwarfs ]; then
+                echo "ERROR: Expected build to fail but it succeeded"
+                exit 1
+              fi
+            fi
+            echo "✅ Build failed as expected"
+          fi
+
+      # Run tests
+      - name: Test (Unix)
+        if: inputs.should_pass && inputs.os != 'windows'
+        shell: bash
+        run: |
+          ctest --test-dir build --output-on-failure -j
+
+      - name: Test (Windows)
+        if: inputs.should_pass && inputs.os == 'windows'
+        run: |
+          ctest --test-dir build -C Release --output-on-failure -j
+
+      # Upload artifacts
+      - name: Upload Artifacts
+        if: inputs.should_pass
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwarfs-${{ inputs.os }}-${{ inputs.arch }}-${{ inputs.format }}
+          path: |
+            build/mkdwarfs${{ inputs.os == 'windows' && '.exe' || '' }}
+            build/Release/mkdwarfs.exe
+            build/dwarfs${{ inputs.os == 'windows' && '.exe' || '' }}
+            build/Release/dwarfs.exe
+          if-no-files-found: warn

@@ -10,7 +10,6 @@
 #
 # Sets tebako-specific compile definitions based on platform
 
-cmake_minimum_required(VERSION 3.24.0)
 
 # Global tebako compile definitions
 # These are required for proper operation with tebako's dependencies

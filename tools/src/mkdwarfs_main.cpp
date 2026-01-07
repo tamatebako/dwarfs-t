@@ -100,7 +100,7 @@
 #include <dwarfs/writer/scanner_options.h>
 #include <dwarfs/writer/segmenter_factory.h>
 #include <dwarfs/writer/writer_progress.h>
-#include <dwarfs/tool/mkdwarfs/options_parser.h>
+#include <dwarfs/tool/mkdwarfs/argtable3_options_parser.h>
 #include <dwarfs/tool/mkdwarfs/create_handler.h>
 #include <dwarfs/tool/mkdwarfs/handler_factory.h>
 #ifdef DWARFS_HAVE_THRIFT
@@ -460,20 +460,35 @@ int mkdwarfs_main(int argc, sys_char** argv, iolayer const& iol) {
   uint16_t uid = 0, gid = 0;  // Initialize to safe defaults
   categorize_optval categorizer_list;
 
-  // Parse command-line options using options_parser
-  mkdwarfs::options_parser opt_parser;
-  mkdwarfs::parsed_options opts;
+  // Parse command-line options using argtable3_options_parser
+  mkdwarfs::argtable3_options_parser opt_parser;
 
-  if (auto rc = opt_parser.parse(argc, argv, iol, opts)) {
-    // Parser handles help, errors, etc. Just return the code
+#ifdef DWARFS_BUILTIN_MANPAGE
+  // Wire up manpage for --man flag
+  opt_parser.set_manpage_context(manpage::get_mkdwarfs_manpage(), iol);
+#endif
+
+  // Load environment variables before parsing
+  opt_parser.load_environment_variables();
+
+  if (auto rc = opt_parser.parse(argc, argv)) {
+    // Parser handles help, version, man, errors, etc.
     return rc;
   }
+
+  // Get parsed options (use reference to avoid copy but allow modification)
+  auto& opts = opt_parser.get_parsed_options();
+
+#ifdef DWARFS_BUILTIN_MANPAGE
+  // Manpage handling is now in the parser
+  // No need for separate check here since parser handles it
+#endif
 
   // Map parsed options to local variables for compatibility
   path_str = opts.input_path.native();
   output_str = opts.output_path.native();
-  if (opts.header_path) {
-    header_str = opts.header_path->native();
+  if (!opts.header_path.empty()) {
+    header_str = opts.header_path.native();
   }
   level = opts.level;
   sf_config = opts.segmenter_config;

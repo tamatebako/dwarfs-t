@@ -27,3 +27,4 @@ src/dwarfs/version.cpp
 /benchmarks/results
 /benchmark-files
 *.pyc
+vcpkg_installed/

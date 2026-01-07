@@ -230,6 +230,13 @@ int options_parser::parse(int argc, sys_char** argv, iolayer const& iol,
   // Parse FUSE arguments
   fuse_opt_parse(&args, &opts, dwarfs_opts.data(), option_hdl);
 
+#ifdef DWARFS_BUILTIN_MANPAGE
+  // Check for --man BEFORE validation
+  if (opts.is_man) {
+    return 0;
+  }
+#endif
+
   // Handle auto-mountpoint
   if (opts.is_auto_mountpoint) {
     if (handle_auto_mountpoint(opts, args, iol)) {

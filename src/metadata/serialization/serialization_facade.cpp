@@ -10,7 +10,7 @@
 #include "dwarfs/metadata/domain/metadata.h"
 
 #ifdef DWARFS_HAVE_THRIFT
-#include "thrift/dwarfs/gen-cpp2/metadata_types.h"
+#include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
 
 #include <stdexcept>

@@ -42,15 +42,6 @@
 #include <dwarfs/gen-flatbuffers/history_generated.h>
 #endif
 
-#ifdef DWARFS_HAVE_CEREAL
-#include <cereal/cereal.hpp>
-#include <cereal/archives/binary.hpp>
-#include <cereal/types/optional.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/string.hpp>
-#include <cereal/types/vector.hpp>
-#endif
-
 #include <dwarfs/config.h>
 #include <dwarfs/history.h>
 #include <dwarfs/library_dependencies.h>
@@ -59,41 +50,6 @@
 #include <dwarfs/version.h>
 
 namespace dwarfs {
-
-#ifndef DWARFS_HAVE_THRIFT
-// Cereal serialization support for plain structures
-namespace history_internal {
-
-#ifdef DWARFS_HAVE_CEREAL
-template <class Archive>
-void serialize(Archive& ar, dwarfs_version& v) {
-  ar(cereal::make_nvp("major", v.major),
-     cereal::make_nvp("minor", v.minor),
-     cereal::make_nvp("patch", v.patch),
-     cereal::make_nvp("is_release", v.is_release),
-     cereal::make_nvp("git_rev", v.git_rev),
-     cereal::make_nvp("git_branch", v.git_branch),
-     cereal::make_nvp("git_desc", v.git_desc));
-}
-
-template <class Archive>
-void serialize(Archive& ar, history_entry& e) {
-  ar(cereal::make_nvp("version", e.version),
-     cereal::make_nvp("system_id", e.system_id),
-     cereal::make_nvp("compiler_id", e.compiler_id),
-     cereal::make_nvp("arguments", e.arguments),
-     cereal::make_nvp("timestamp", e.timestamp),
-     cereal::make_nvp("library_versions", e.library_versions));
-}
-
-template <class Archive>
-void serialize(Archive& ar, history_data& h) {
-  ar(cereal::make_nvp("entries", h.entries));
-}
-#endif // DWARFS_HAVE_CEREAL
-
-} // namespace history_internal
-#endif // !DWARFS_HAVE_THRIFT
 
 history::history(history_config const& cfg)
 #ifdef DWARFS_HAVE_THRIFT
@@ -130,20 +86,19 @@ void history::parse_append(std::span<uint8_t const> data) {
                               std::make_move_iterator(tmp.entries()->begin()),
                               std::make_move_iterator(tmp.entries()->end()));
 #else
-#ifdef DWARFS_HAVE_FLATBUFFERS
-  // FlatBuffers deserialization
+  // FlatBuffers deserialization (required, always available)
   auto fb_history = dwarfs::flatbuffers::history::GetHistory(data.data());
   if (!fb_history || !fb_history->entries()) {
     throw std::runtime_error("history::parse_append: invalid FlatBuffers data");
   }
-  
+
   for (auto const* fb_entry : *fb_history->entries()) {
     if (!fb_entry || !fb_entry->version()) {
       continue;
     }
-    
+
     auto& entry = history_->entries.emplace_back();
-    
+
     // Parse version
     auto const* fb_version = fb_entry->version();
     entry.version.major = fb_version->major();
@@ -159,7 +114,7 @@ void history::parse_append(std::span<uint8_t const> data) {
     if (fb_version->git_desc() && fb_version->git_desc()->size() > 0) {
       entry.version.git_desc = fb_version->git_desc()->str();
     }
-    
+
     // Parse system and compiler IDs
     if (fb_entry->system_id()) {
       entry.system_id = fb_entry->system_id()->str();
@@ -167,7 +122,7 @@ void history::parse_append(std::span<uint8_t const> data) {
     if (fb_entry->compiler_id()) {
       entry.compiler_id = fb_entry->compiler_id()->str();
     }
-    
+
     // Parse arguments
     if (fb_entry->arguments() && fb_entry->arguments()->size() > 0) {
       entry.arguments = std::vector<std::string>();
@@ -177,12 +132,12 @@ void history::parse_append(std::span<uint8_t const> data) {
         }
       }
     }
-    
+
     // Parse timestamp
     if (cfg_.with_timestamps && fb_entry->timestamp() != 0) {
       entry.timestamp = fb_entry->timestamp();
     }
-    
+
     // Parse library versions
     if (fb_entry->library_versions() && fb_entry->library_versions()->size() > 0) {
       entry.library_versions = std::set<std::string>();
@@ -193,26 +148,6 @@ void history::parse_append(std::span<uint8_t const> data) {
       }
     }
   }
-#else
-#ifdef DWARFS_HAVE_CEREAL
-  history_internal::history_data tmp;
-  std::string str(reinterpret_cast<char const*>(data.data()), data.size());
-  std::istringstream is(str);
-  cereal::BinaryInputArchive ar(is);
-  ar(tmp);
-  if (!cfg_.with_timestamps) {
-    for (auto& entry : tmp.entries) {
-      entry.timestamp.reset();
-    }
-  }
-  history_->entries.insert(history_->entries.end(),
-                           std::make_move_iterator(tmp.entries.begin()),
-                           std::make_move_iterator(tmp.entries.end()));
-#else
-  throw std::runtime_error(
-      "history::parse_append: no serialization support available");
-#endif
-#endif
 #endif
 }
 
@@ -284,12 +219,11 @@ shared_byte_buffer history::serialize() const {
   ::apache::thrift::CompactSerializer::serialize(*history_, &buf);
   return malloc_byte_buffer::create(buf).share();
 #else
-#ifdef DWARFS_HAVE_FLATBUFFERS
-  // FlatBuffers serialization (highest priority for non-Thrift builds)
+  // FlatBuffers serialization (required, always available)
   ::flatbuffers::FlatBufferBuilder builder;
-  
+
   std::vector<::flatbuffers::Offset<dwarfs::flatbuffers::history::HistoryEntry>> fb_entries;
-  
+
   for (auto const& entry : history_->entries) {
     // Build version
     auto fb_version = dwarfs::flatbuffers::history::CreateDwarfsVersion(
@@ -302,7 +236,7 @@ shared_byte_buffer history::serialize() const {
       entry.version.git_branch ? builder.CreateString(*entry.version.git_branch) : 0,
       entry.version.git_desc ? builder.CreateString(*entry.version.git_desc) : 0
     );
-    
+
     // Build arguments
     std::vector<::flatbuffers::Offset<::flatbuffers::String>> fb_args;
     if (entry.arguments.has_value()) {
@@ -310,7 +244,7 @@ shared_byte_buffer history::serialize() const {
         fb_args.push_back(builder.CreateString(arg));
       }
     }
-    
+
     // Build library versions
     std::vector<::flatbuffers::Offset<::flatbuffers::String>> fb_libs;
     if (entry.library_versions.has_value()) {
@@ -318,7 +252,7 @@ shared_byte_buffer history::serialize() const {
         fb_libs.push_back(builder.CreateString(lib));
       }
     }
-    
+
     // Build entry
     auto fb_entry = dwarfs::flatbuffers::history::CreateHistoryEntry(
       builder,
@@ -329,34 +263,22 @@ shared_byte_buffer history::serialize() const {
       entry.timestamp.value_or(0),
       fb_libs.empty() ? 0 : builder.CreateVector(fb_libs)
     );
-    
+
     fb_entries.push_back(fb_entry);
   }
-  
+
   auto fb_history = dwarfs::flatbuffers::history::CreateHistory(
     builder,
     builder.CreateVector(fb_entries)
   );
-  
+
   builder.Finish(fb_history);
-  
+
   auto buf_ptr = builder.GetBufferPointer();
   auto buf_size = builder.GetSize();
   return malloc_byte_buffer::create(
     std::span<uint8_t const>(buf_ptr, buf_size)
   ).share();
-#else
-#ifdef DWARFS_HAVE_CEREAL
-  std::ostringstream os;
-  cereal::BinaryOutputArchive ar(os);
-  ar(*history_);
-  std::string buf = os.str();
-  return malloc_byte_buffer::create(buf).share();
-#else
-  throw std::runtime_error(
-      "history::serialize: no serialization support available");
-#endif
-#endif
 #endif
 }
 

@@ -9,109 +9,56 @@
  */
 
 #include <dwarfs/reader/internal/metadata_factory.h>
-#include <dwarfs/reader/internal/metadata_view_interface.h>
+
+#include <fmt/format.h>
 
 #include <dwarfs/error.h>
 #include <dwarfs/logger.h>
-
-#ifdef DWARFS_HAVE_FLATBUFFERS
-#include <dwarfs/reader/internal/metadata_types_flatbuffers.h>
-#include <dwarfs/gen-flatbuffers/metadata.h>
-#include <flatbuffers/flatbuffers.h>
-#endif
-
-#ifdef DWARFS_HAVE_THRIFT
-#include <dwarfs/reader/internal/metadata_types_thrift.h>
-#include <thrift/lib/cpp2/frozen/FrozenUtil.h>
-#include <dwarfs/gen-cpp2/metadata_layouts.h>
-#include <dwarfs/gen-cpp2/metadata_types.h>
-#include <dwarfs/gen-cpp2/metadata_types_custom_protocol.h>
-#endif
+#include <dwarfs/metadata/domain/metadata.h>
+#include <dwarfs/metadata/serialization/serializer_registry.h>
+#include <dwarfs/metadata/serialization/serialization_format.h>
 
 namespace dwarfs::reader::internal {
 
-namespace {
+std::unique_ptr<dwarfs::metadata::domain::metadata>
+metadata_factory::load_metadata(logger& lgr, std::span<uint8_t const> data) {
+  using namespace dwarfs::metadata::serialization;
 
-#ifdef DWARFS_HAVE_FLATBUFFERS
-// FlatBuffers file identifier for metadata
-constexpr char kFlatBuffersIdentifier[] = "DWFS";
-constexpr size_t kFlatBuffersIdentifierSize = 4;
-#endif
+  // Get singleton registry
+  auto& registry = SerializerRegistry::instance();
 
-} // anonymous namespace
+  // Convert span to vector for SerializerRegistry interface
+  std::vector<uint8_t> data_vec(data.begin(), data.end());
 
-metadata_format metadata_factory::detect_format(std::span<uint8_t const> data) {
-#ifdef DWARFS_HAVE_FLATBUFFERS
-  // Check for FlatBuffers magic bytes
-  // FlatBuffers stores a file identifier at offset 4-7
-  if (data.size() >= 8) {  // Need at least 8 bytes (4 for size prefix + 4 for identifier)
-    // FlatBuffers format: [4-byte size][4-byte file identifier][data...]
-    // Skip the 4-byte size prefix and check the identifier
-    if (std::memcmp(data.data() + 4, kFlatBuffersIdentifier, kFlatBuffersIdentifierSize) == 0) {
-      return metadata_format::flatbuffers;
-    }
+  // Detect format using SerializerRegistry
+  auto format = registry.detect_format(data_vec);
+
+  if (!format) {
+    DWARFS_THROW(runtime_error, "Unable to detect metadata format");
   }
-#endif
 
-#ifdef DWARFS_HAVE_THRIFT
-  // If no FlatBuffers magic found and Thrift is available, assume Thrift
-  // Thrift doesn't have a magic header, so this is a fallback
-  return metadata_format::thrift;
-#else
-  // No Thrift support, default to FlatBuffers
-  return metadata_format::flatbuffers;
-#endif
-}
+  // Create serializer for detected format
+  auto serializer = registry.create_serializer(*format);
 
-std::unique_ptr<global_metadata_interface>
-metadata_factory::create_global_metadata(logger& lgr, std::span<uint8_t const> data) {
-  auto format = detect_format(data);
-  return create_global_metadata(lgr, data, format);
-}
-
-std::unique_ptr<global_metadata_interface>
-metadata_factory::create_global_metadata(logger& lgr, std::span<uint8_t const> data,
-                                        metadata_format format) {
-  switch (format) {
-    case metadata_format::flatbuffers: {
-#ifdef DWARFS_HAVE_FLATBUFFERS
-      // Verify FlatBuffers data integrity
-      ::flatbuffers::Verifier verifier(data.data(), data.size());
-      if (!::dwarfs::flatbuffers::VerifyMetadataBuffer(verifier)) {
-        DWARFS_THROW(runtime_error, "FlatBuffers metadata verification failed");
-      }
-
-      // Get the metadata root
-      auto meta = ::dwarfs::flatbuffers::GetMetadata(data.data());
-      if (!meta) {
-        DWARFS_THROW(runtime_error, "Failed to get FlatBuffers metadata root");
-      }
-
-      // Create and return FlatBuffers backend wrapped in unique_ptr to interface
-      return std::make_unique<flatbuffers_backend::global_metadata>(lgr, meta);
-#else
-      DWARFS_THROW(runtime_error, "FlatBuffers support not compiled in");
-#endif
-    }
-
-    case metadata_format::thrift: {
-#ifdef DWARFS_HAVE_THRIFT
-      // Map Thrift Frozen2 data using mapFrozen
-      auto frozen_meta = ::apache::thrift::frozen::mapFrozen<
-          ::dwarfs::thrift::metadata::metadata>(
-          ::folly::ByteRange(data.data(), data.size()));
-      
-      // Bundled implicitly converts to the view type needed by global_metadata
-      // Create and return Thrift backend wrapped in unique_ptr to interface
-      return std::make_unique<thrift_backend::global_metadata>(lgr, frozen_meta);
-#else
-      DWARFS_THROW(runtime_error, "Thrift support not compiled in");
-#endif
-    }
-
-    default:
-      DWARFS_THROW(runtime_error, "Unknown metadata format");
+  if (!serializer) {
+    DWARFS_THROW(runtime_error,
+        fmt::format("Serializer for format '{}' not available",
+                    registry.get_format_name(*format)));
   }
+
+  // Deserialize to domain model
+  auto metadata_ptr = serializer->deserialize(data_vec);
+
+  if (!metadata_ptr) {
+    DWARFS_THROW(runtime_error, "Metadata deserialization failed");
+  }
+
+  // Cast the void* to domain::metadata*
+  // SerializerRegistry returns void* for type erasure, but we know it's metadata*
+  auto* raw_ptr = static_cast<dwarfs::metadata::domain::metadata*>(
+      metadata_ptr.release());
+
+  return std::unique_ptr<dwarfs::metadata::domain::metadata>(raw_ptr);
 }
 
 } // namespace dwarfs::reader::internal

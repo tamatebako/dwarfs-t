@@ -155,60 +155,16 @@ archive in memory is infeasible for large archives.
 [^wav1]: https://hippolytus.feralhosting.com/sonniss/Sonniss.com-GDC2024-GameAudioBundle1of9.zip
 [^wav2]: `$ find mnt -type f | xargs -d $'\n' -n1 -P16 sha256sum`
 
-## Tool Architecture (v0.16.0+)
+## Tool Architecture (v0.17.0+)
 
-Starting with v0.16.0, all DwarFS command-line tools follow a consistent **handler pattern** architecture that separates CLI parsing, business logic, and reusable library components.
-
-### Benefits
-
-- **Modular design**: 50-80% reduction in main() complexity
-- **Reusable libraries**: Embed DwarFS in C++ applications
-- **Testable components**: Each module tested independently
-- **Consistent patterns**: All tools follow same structure
-
-### Architecture
-
-```
-tool_main.cpp (thin CLI, ~350 lines)
-  ├── options_parser (CLI arguments)
-  └── handler (business logic)
-      └── Library Classes (reusable)
-```
-
-### Library APIs for Embedding
-
-DwarFS v0.16.0+ provides reusable library APIs:
-
-**Filesystem Loading** (`dwarfs::reader::filesystem_loader`):
-```cpp
-#include <dwarfs/reader/filesystem_loader.h>
-
-dwarfs::reader::filesystem_load_config config;
-config.image_path = "myfs.dwarfs";
-config.cache_size = 1_GiB;
-auto fs = dwarfs::reader::filesystem_loader::load(logger, os, config);
-```
-
-**FUSE Operations** (`dwarfs::reader::fuse_driver`):
-```cpp
-#include <dwarfs/reader/fuse_driver.h>
-
-dwarfs::reader::fuse_driver driver(std::move(fs), config);
-driver.mount("/mnt/point");
-```
-
-### Platform Support
-
-- **Linux**: FUSE2, FUSE3
-- **macOS**: macFUSE, FUSE-T (userspace, no kernel extension)
-- **Windows**: WinFsp
-- **FreeBSD**: Linux compatibility layer
+Starting with v0.17.0, all DwarFS command-line tools follow a consistent **handler pattern** architecture that separates CLI parsing, business logic, and reusable library components.
 
 For detailed documentation, see:
 - [`doc/mkdwarfs.md`](doc/mkdwarfs.md) - Create filesystems
 - [`doc/dwarfs.md`](doc/dwarfs.md) - Mount filesystems
 - [`doc/dwarfsck.md`](doc/dwarfsck.md) - Check/inspect
 - [`doc/dwarfsextract.md`](doc/dwarfsextract.md) - Extract files
+- [`doc/TESTING.md`](doc/TESTING.md) - Testing guide (v0.17.0+)
 
 ## Metadata Serialization Formats (v0.16.0+)
 

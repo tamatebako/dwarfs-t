@@ -1,0 +1,140 @@
+Continue DwarFS Phase 5: Complete Cleanup + Benchmark Suite
+
+COMPLETED (Phase 4):
+✅ FlatBuffers integration (2c018cc5) - 64 files
+✅ Jemalloc v5.5.0 integration (f2880664) 
+✅ mkdwarfs CLI updated (c758afc4)
+✅ Pushed to CI/CD: feature/multi-format-serialization-fuse
+
+CURRENT STATE:
+- Branch: feature/multi-format-serialization-fuse
+- Commits: 3 commits pushed
+- CI/CD: Running validation
+- Found: 777 Cereal/Bitsery references (dev only, never released)
+
+PHASE 5: TWO-PART EXECUTION
+
+PART 1 - CLEANUP (1-1.5 hours)
+Remove all development-only format references
+
+Priority Steps:
+1. Delete WIP documentation (~10 files) - SAFE
+   - doc/CEREAL_BITSERY_REMOVAL_PLAN.md
+   - doc/FLATBUFFERS_FINAL_CEREAL_BITSERY_REMOVED.md
+   - doc/SESSION_CONTINUATION_2025-11-*.md
+   - .github/CI-UNIFIED-WORKFLOW.md
+   - benchmarks/results/test_report.md
+   - (see full list in CEREAL_BITSERY_CLEANUP_PLAN.md)
+
+2. Update test files (~5 files) - CAREFUL
+   - test/metadata/serialization_test.cpp (60 refs)
+   - test/metadata/format_conversion_test.cpp (67 refs)
+   - test/metadata/serialization_benchmark_test.cpp (32 refs)
+   - test/metadata/serialization/serialization_facade_test.cpp (30 refs)
+   - Remove Cereal/Bitsery test cases, keep FlatBuffers+Thrift
+
+3. Clean CMake configuration (~2 files)
+   - cmake/libdwarfs.cmake - Remove DWARFS_HAVE_CEREAL/BITSERY
+   - CMakeLists.txt - Remove cereal::cereal/bitsery linking
+
+4. Update user documentation (~3-4 files)
+   - doc/dwarfs-format.md
+   - .kilocode/rules/memory-bank/tech.md
+   - .kilocode/rules/memory-bank/context.md
+
+5. Verify cleanup:
+   ```bash
+   grep -r "cereal\|bitsery" --include="*.cpp" --include="*.h" \
+     --include="*.cmake" --exclude-dir=build* . | wc -l
+   # Should be 0 or very minimal
+   ```
+
+PART 2 - BENCHMARK UPDATE (30 min)
+Update benchmark suite to test FlatBuffers instead of Cereal/Bitsery
+
+Files to Update:
+1. benchmarks/run_metadata_format_benchmark.py
+   - Replace 'cereal'/'bitsery' with 'flatbuffers'
+   - Keep 'thrift' for comparison
+   - Update format list
+
+2. benchmarks/generate_metadata_report.py
+   - Update format names in report generation
+   - Remove Cereal/Bitsery columns
+   - Add FlatBuffers metrics
+
+3. benchmarks/lib/*.py (if needed)
+   - Update format constants
+   - Update validation logic
+
+Run Benchmarks:
+```bash
+# Prerequisites: CI/CD success OR local build working
+
+# Run benchmark suite
+./benchmarks/run_metadata_format_benchmark.py \
+  --mkdwarfs ./build/mkdwarfs \
+  --dwarfsextract ./build/dwarfsextract \
+  --dwarfs ./build/dwarfs \
+  --output ./benchmark-results.json
+
+# Generate report
+./benchmarks/generate_metadata_report.py \
+  --input ./benchmark-results.json \
+  --output ./doc/benchmark-flatbuffers-vs-thrift.html
+```
+
+Expected Metrics:
+- Image size: FlatBuffers ~5-10% larger
+- Creation time: Similar
+- Mount time: FlatBuffers faster (zero-copy)
+- Read throughput: FlatBuffers faster
+- Memory usage: Similar
+
+COMMIT STRATEGY:
+
+After Part 1 (Cleanup):
+```bash
+git add -A
+git commit -m "chore: remove development-only format references
+
+- Delete WIP documentation files  
+- Remove Cereal/Bitsery test cases
+- Clean CMake configuration
+- Update user documentation
+
+Cereal/Bitsery never released, development only."
+```
+
+After Part 2 (Benchmarks):
+```bash
+git add benchmarks/
+git commit -m "feat(benchmarks): update suite for FlatBuffers vs Thrift
+
+- Replace Cereal/Bitsery with FlatBuffers in benchmark suite
+- Update report generation for current formats
+- Run comprehensive performance comparison"
+```
+
+DETAILED REFERENCES:
+- Cleanup Plan: doc/CEREAL_BITSERY_CLEANUP_PLAN.md (detailed breakdown)
+- Smoke Test: doc/PHASE_5_SMOKE_TEST_AND_CLEANUP.md (test procedures)
+
+QUICK START:
+1. Execute Part 1 cleanup (systematic removal)
+2. Update benchmark suite (Part 2)
+3. Wait for CI/CD success OR fix local build
+4. Run benchmarks
+5. Document results
+6. Final push
+
+VERIFICATION:
+[ ] 777 refs → 0 refs (or only in git history)
+[ ] Benchmark suite updated for FlatBuffers
+[ ] Benchmark results documented
+[ ] All changes committed
+[ ] CI/CD still passing
+
+FINAL DELIVERABLE:
+Clean codebase with FlatBuffers (default) + Thrift (legacy) only,
+plus comprehensive performance comparison report.

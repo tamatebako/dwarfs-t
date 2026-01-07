@@ -11,7 +11,6 @@
 # Detects the operating system and sets platform-specific flags
 # Uses bash to query $OSTYPE for Unix-like systems
 
-cmake_minimum_required(VERSION 3.24.0)
 
 # Default bash path
 set(GNU_BASH "bash" CACHE STRING "Path to bash executable")

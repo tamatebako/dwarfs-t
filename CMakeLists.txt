@@ -36,6 +36,32 @@ project(dwarfs LANGUAGES CXX C)
 include(ExternalProject)
 include(CheckCXXSourceCompiles)
 
+cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
+
+# Allow build tree includes (required for vcpkg + Folly)
+if(POLICY CMP0111)
+  cmake_policy(SET CMP0111 OLD)
+endif()
+
+# ============================================================================
+# vcpkg Integration for Static Builds
+# ============================================================================
+
+# Detect if vcpkg toolchain is active
+if(DEFINED CMAKE_TOOLCHAIN_FILE AND CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
+  set(VCPKG_BUILD ON)
+  message(STATUS "vcpkg build detected: ${CMAKE_TOOLCHAIN_FILE}")
+
+  # Force static linking in vcpkg mode
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries" FORCE)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" CACHE STRING "Static library suffix" FORCE)
+
+  message(STATUS "Static linking enabled (vcpkg mode)")
+else()
+  set(VCPKG_BUILD OFF)
+  message(STATUS "Non-vcpkg build: using pkg-config or FetchContent")
+endif()
+
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
 option(WITH_TOOLS "build with tools" ON)
 option(WITH_FUSE_DRIVER "build with FUSE driver" ON)
@@ -111,13 +137,13 @@ set(LIBFMT_REQUIRED_VERSION 10.0)
 set(LIBFMT_PREFERRED_VERSION 12.0.0)
 
 set(GOOGLETEST_REQUIRED_VERSION 1.13.0)
-set(GOOGLETEST_PREFERRED_VERSION 1.17.0)
+set(GOOGLETEST_PREFERRED_VERSION v1.17.0)
 
 set(RANGE_V3_REQUIRED_VERSION 0.12.0)
 set(RANGE_V3_PREFERRED_VERSION 0.12.0)
 
 set(PARALLEL_HASHMAP_REQUIRED_VERSION 1.3.8)
-set(PARALLEL_HASHMAP_PREFERRED_VERSION 2.0.0)
+set(PARALLEL_HASHMAP_PREFERRED_VERSION v1.3.12)
 
 set(BOOST_REQUIRED_VERSION 1.67.0)
 set(LIBCRYPTO_REQUIRED_VERSION 3.0.0)
@@ -190,6 +216,7 @@ if(STATIC_BUILD_DO_NOT_USE)
 endif()
 
 if(WITH_MAN_PAGES)
+  include("${CMAKE_SOURCE_DIR}/cmake/ensure_mistletoe.cmake")
   include("${CMAKE_SOURCE_DIR}/cmake/manpage.cmake")
   if(WITH_LIBDWARFS)
     list(APPEND DWARFS_MANPAGES dwarfs-format.5 dwarf-env.7)
@@ -208,15 +235,21 @@ endif()
 include(FetchContent)
 include(GNUInstallDirs)
 
+# Header-only libraries - vcpkg-aware
 if(WITH_TESTS)
-  include(${CMAKE_SOURCE_DIR}/cmake/need_gtest.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/gtest.cmake)
 endif()
 
-include(${CMAKE_SOURCE_DIR}/cmake/need_fmt.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/need_range_v3.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/fmt.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/range_v3.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/json.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/utf8cpp.cmake)
 
 if(WITH_LIBDWARFS)
-  include(${CMAKE_SOURCE_DIR}/cmake/need_phmap.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/phmap.cmake)
+
+  # BZip2 must be found BEFORE Boost (required by boost-iostreams)
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/bzip2.cmake)
 
   find_package(Boost ${BOOST_REQUIRED_VERSION} REQUIRED CONFIG
                COMPONENTS chrono program_options
@@ -237,36 +270,26 @@ if(WITH_LIBDWARFS)
     find_package(cpptrace REQUIRED CONFIG)
   endif()
 
-  pkg_check_modules(LIBCRYPTO REQUIRED IMPORTED_TARGET libcrypto>=${LIBCRYPTO_REQUIRED_VERSION})
-  if(USE_SUBDIR_LIBARCHIVE)
-    add_compile_definitions(LIBARCHIVE_STATIC)
-    add_subdirectory(libarchive EXCLUDE_FROM_ALL)
-    add_library(PkgConfig::LIBARCHIVE ALIAS archive_static)
-  else()
-    pkg_check_modules(LIBARCHIVE REQUIRED IMPORTED_TARGET libarchive>=${LIBARCHIVE_REQUIRED_VERSION})
-  endif()
-  pkg_check_modules(XXHASH REQUIRED IMPORTED_TARGET libxxhash>=${XXHASH_REQUIRED_VERSION})
-  pkg_check_modules(ZSTD REQUIRED IMPORTED_TARGET libzstd>=${ZSTD_REQUIRED_VERSION})
-  if(TRY_ENABLE_LZ4)
-    pkg_check_modules(LIBLZ4 IMPORTED_TARGET liblz4>=${LIBLZ4_REQUIRED_VERSION})
-  endif()
-  if(TRY_ENABLE_LZMA)
-    pkg_check_modules(LIBLZMA IMPORTED_TARGET liblzma>=${LIBLZMA_REQUIRED_VERSION})
-  endif()
-  if(TRY_ENABLE_BROTLI)
-    pkg_check_modules(LIBBROTLIDEC IMPORTED_TARGET libbrotlidec>=${LIBBROTLI_REQUIRED_VERSION})
-    pkg_check_modules(LIBBROTLIENC IMPORTED_TARGET libbrotlienc>=${LIBBROTLI_REQUIRED_VERSION})
-  endif()
-  # pkg_check_modules(LIBMAGIC IMPORTED_TARGET libmagic>=${LIBMAGIC_REQUIRED_VERSION})
-  if(TRY_ENABLE_FLAC)
-    pkg_check_modules(FLAC IMPORTED_TARGET flac++>=${FLAC_REQUIRED_VERSION})
-  endif()
+  # ============================================================================
+  # Dependency Discovery - Modular vcpkg-aware
+  # ============================================================================
 
-  if(USE_JEMALLOC)
-    # Use tamatebako jemalloc fork which supports Windows ARM64, musl, and more platforms
-    include(${CMAKE_SOURCE_DIR}/cmake/need_jemalloc.cmake)
-  endif()
+  # Standard libraries - always required
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/openssl.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/libarchive.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/xxhash.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/zstd.cmake)
 
+  # Compression libraries - MANDATORY for static builds
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/lz4.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/lzma.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/brotli.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/flac.cmake)
+
+  # Memory allocator - MANDATORY for static builds
+  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/jemalloc.cmake)
+
+  # mimalloc is alternative (mutually exclusive with jemalloc)
   if(USE_MIMALLOC)
     find_package(mimalloc ${MIMALLOC_REQUIRED_VERSION} REQUIRED CONFIG)
   endif()
@@ -285,14 +308,39 @@ if(WITH_LIBDWARFS)
   # NOW checks for folly/thrift targets (created above)
   include(${CMAKE_SOURCE_DIR}/cmake/metadata_serialization.cmake)
 
+  # ============================================================================
+  # WORKAROUND: Fix CMake 4.x + vcpkg generator expression bug
+  # ============================================================================
+  # CMake 4.1.2 + vcpkg toolchain doesn't evaluate $<LINK_ONLY:Threads::Threads>
+  # properly in link commands, causing literal generator expressions in link.txt
+  # files. This workaround removes them after Threads is found (via Folly/FBThrift).
+  #
+  # See: Session 94 - Modern Thrift Testing
+  # TODO: Remove when CMake/vcpkg is fixed upstream
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
+    if(TARGET Threads::Threads)
+      # Get current link libraries
+      get_target_property(_threads_link_libs Threads::Threads INTERFACE_LINK_LIBRARIES)
+      if(_threads_link_libs)
+        # Remove generator expressions from INTERFACE_LINK_LIBRARIES
+        string(REGEX REPLACE "\\$<[^>]+>" "" _threads_link_libs_clean "${_threads_link_libs}")
+        set_target_properties(Threads::Threads PROPERTIES
+          INTERFACE_LINK_LIBRARIES "${_threads_link_libs_clean}"
+        )
+        message(STATUS "Applied CMake 4.x generator expression workaround for Threads::Threads")
+      endif()
+    endif()
+  endif()
+  # ============================================================================
+
   # If Thrift was enabled but targets don't exist yet (non-git build),
   # try to build from submodules as fallback
   if(DWARFS_WITH_THRIFT AND NOT TARGET folly)
     include(${CMAKE_SOURCE_DIR}/cmake/folly.cmake)
     include(${CMAKE_SOURCE_DIR}/cmake/thrift_library.cmake)
     include(${CMAKE_SOURCE_DIR}/cmake/thrift.cmake)
-    # Re-check if Thrift is now available
-    include(${CMAKE_SOURCE_DIR}/cmake/metadata_serialization.cmake)
+    # Note: metadata_serialization.cmake already included above at line 306
+    # No need to re-include it here as the detection logic will pick up the newly available targets
   endif()
 
   if(ENABLE_RICEPP)
@@ -301,6 +349,9 @@ if(WITH_LIBDWARFS)
   endif()
 
   include(${CMAKE_SOURCE_DIR}/cmake/libdwarfs.cmake)
+
+  # Tool support library (CLI utilities for all tools)
+  include(${CMAKE_SOURCE_DIR}/cmake/tool_support.cmake)
 
   set(DWARFS_HAVE_CPPTRACE ${cpptrace_FOUND})
   set(DWARFS_HAVE_LIBZSTD ON)

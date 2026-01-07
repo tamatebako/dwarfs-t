@@ -139,7 +139,7 @@ TEST(SerializationTest, FormatAvailability) {
   EXPECT_FALSE(formats.empty());
 
 #ifdef DWARFS_HAVE_THRIFT
-  EXPECT_TRUE(registry.is_format_available(SerializationFormat::THRIFT_COMPACT));
+  EXPECT_TRUE(registry.is_format_available(SerializationFormat::MODERN_THRIFT));
 #endif
 
 #ifdef DWARFS_HAVE_FLATBUFFERS
@@ -153,7 +153,7 @@ TEST(SerializationTest, ThriftCapabilities) {
 
   EXPECT_TRUE(serializer.can_read());
   EXPECT_FALSE(serializer.can_write());  // Read-only
-  EXPECT_EQ(serializer.get_format(), SerializationFormat::THRIFT_COMPACT);
+  EXPECT_EQ(serializer.get_format(), SerializationFormat::MODERN_THRIFT);
   EXPECT_EQ(serializer.get_format_name(), "Thrift Compact");
 }
 

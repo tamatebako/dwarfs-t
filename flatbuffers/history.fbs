@@ -1,0 +1,44 @@
+// DwarFS FlatBuffers History Schema
+// This schema defines the serialization format for DwarFS filesystem history
+//
+// Copyright (c) Marcus Holland-Moritz
+// SPDX-License-Identifier: MIT
+//
+// This provides an alternative to Thrift/Cereal for history serialization,
+// enabling FlatBuffers-only builds to track creation history.
+
+namespace dwarfs.flatbuffers.history;
+
+/// DwarFS version information
+table DwarfsVersion {
+  major: uint16;
+  minor: uint16;
+  patch: uint16;
+  is_release: bool;
+  git_rev: string;
+  git_branch: string;
+  git_desc: string;
+}
+
+/// Single history entry tracking one creation/modification of the filesystem
+table HistoryEntry {
+  version: DwarfsVersion;
+  system_id: string;
+  compiler_id: string;
+  arguments: [string];
+  timestamp: int64;
+  library_versions: [string];
+}
+
+/// Complete history of all filesystem creations/modifications
+table History {
+  entries: [HistoryEntry];
+}
+
+root_type History;
+
+// File identifier for format detection (4 bytes: "DFHF" = DwarFs History FlatBuffer)
+file_identifier "DFHF";
+
+// File extension for history files
+file_extension "dfhf";

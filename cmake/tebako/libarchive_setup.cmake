@@ -11,7 +11,6 @@
 # Configures libarchive for tebako builds
 # This module imports the setup script from TOOLS if available
 
-cmake_minimum_required(VERSION 3.24.0)
 
 # Check if TOOLS directory exists
 if(NOT EXISTS "${TOOLS}")

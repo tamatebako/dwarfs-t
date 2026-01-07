@@ -7,10 +7,7 @@
 #include "dwarfs/metadata/serialization/serialization_facade.h"
 #include "dwarfs/metadata/serialization/facade_factory.h"
 #include "dwarfs/metadata/serialization/serialization_format.h"
-
-#ifdef DWARFS_HAVE_THRIFT
-#include "thrift/dwarfs/gen-cpp2/metadata_types.h"
-#endif
+#include "dwarfs/metadata/domain/metadata.h"
 
 using namespace dwarfs::metadata;
 

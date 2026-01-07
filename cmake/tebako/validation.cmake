@@ -88,7 +88,9 @@ endif()
 message(STATUS "Tebako: Checking for required build tools...")
 
 # Check for CMake minimum version
-cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
+if(CMAKE_VERSION VERSION_LESS "3.24")
+  message(FATAL_ERROR "CMake 3.24 or higher is required for Tebako builds")
+endif()
 message(STATUS "Tebako: CMake version ${CMAKE_VERSION} >= 3.24 ✓")
 
 # Check for C++ compiler

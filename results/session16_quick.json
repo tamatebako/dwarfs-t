@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "timestamp": "2025-12-19T02:49:05Z",
+    "hostname": "MacBook-Pro-2.local",
+    "cpu": "arm",
+    "memory": "128GB",
+    "os": "Darwin 24.6.0",
+    "dwarfs_version": "unknown",
+    "fuse_implementation": "fuse-t"
+  },
+  "datasets": {
+    "perl": {
+      "name": "perl",
+      "source_path": "benchmark-files/perl-5.43.3/perl-5.43.3",
+      "source_size_bytes": 101201588,
+      "file_count": 6816,
+      "test_file": "doio.c"
+    }
+  },
+  "results": []
+}

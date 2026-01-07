@@ -38,7 +38,7 @@
 #include <dwarfs/reader/filesystem_options.h>
 #include <dwarfs/reader/filesystem_v2.h>
 #include <dwarfs/tool/iolayer.h>
-#include <dwarfs/tool/mkdwarfs/options_parser.h>
+#include <dwarfs/tool/mkdwarfs/argtable3_options_parser.h>
 #include <dwarfs/utility/rewrite_filesystem.h>
 #include <dwarfs/utility/rewrite_options.h>
 #include <dwarfs/writer/console_writer.h>

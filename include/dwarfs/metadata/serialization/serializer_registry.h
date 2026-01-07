@@ -91,11 +91,11 @@ private:
  * to automatically register themselves at program startup.
  *
  * Example:
- *   static SerializerRegistration<CerealBinarySerializer> registration{
- *     "Cereal Binary",
- *     {0xCE, 0xEA, 0x01},
+ *   static SerializerRegistration<FlatBuffersSerializer> registration{
+ *     "FlatBuffers Binary",
+ *     {0x00, 0x01},
  *     100,
- *     SerializationFormat::CEREAL_BINARY
+ *     SerializationFormat::FLATBUFFERS_BINARY
  *   };
  */
 template<typename SerializerType>

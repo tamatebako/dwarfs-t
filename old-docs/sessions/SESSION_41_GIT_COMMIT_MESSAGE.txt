@@ -1,0 +1,27 @@
+feat(build): add vcpkg-based tools build system with proper CMake exports
+
+Implements two-layer build architecture for DwarFS tools using vcpkg:
+1. Layer 1: vcpkg installs libdwarfs from local source (overlay port)
+2. Layer 2: tools/CMakeLists.txt builds CLI tools via find_package()
+
+New Files (3):
+- tools/CMakeLists.txt (153 lines): Standalone tool build
+- tools/vcpkg.json: Manifest mode configuration
+- tools/vcpkg-configuration.json: Overlay ports/triplets
+
+Fixed CMake Package Installation (3 files):
+- cmake/libdwarfs.cmake: Use share/dwarfs (vcpkg convention vs lib/cmake)
+- cmake/dwarfs-config.cmake.in: Add LibArchive::LibArchive alias for
+  exported target compatibility (PkgConfig::LIBARCHIVE → LibArchive::LibArchive)
+- vcpkg_ports/dwarfs/portfile.cmake: Remove vcpkg_cmake_config_fixup
+  (configs now install to correct location directly)
+
+Architecture Benefits:
+- Clean separation: tools build independently of library development
+- vcpkg best practices: Uses standard find_package() pattern
+- Portable: Works on all vcpkg-supported platforms
+- Matches example/static-site-server/ reference pattern
+
+Session: 41 Phase 2
+Status: Infrastructure complete, ready for verification after cache clear
+Refs: doc/SESSION_41_ARCHITECTURAL_DESIGN.md, doc/SESSION_42_CONTINUATION_PROMPT.md

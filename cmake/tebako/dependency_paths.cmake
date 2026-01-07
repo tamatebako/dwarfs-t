@@ -12,7 +12,6 @@
 # DEPS: External dependencies (libraries, headers)
 # TOOLS: Build tools and scripts (cmake scripts, patches, etc.)
 
-cmake_minimum_required(VERSION 3.24.0)
 
 # DEPS Directory Configuration
 if(NOT DEFINED DEPS)

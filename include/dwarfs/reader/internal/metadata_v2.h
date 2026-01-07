@@ -43,25 +43,6 @@
 
 #include <dwarfs/reader/metadata_types.h>
 
-// DO NOT include legacy internal/metadata_types.h - it conflicts with type aliases
-// Each backend includes its own types:
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
-#include <dwarfs/reader/internal/metadata_types_flatbuffers.h>
-// Import types into internal namespace for FlatBuffers-only builds
-namespace dwarfs::reader::internal {
-using chunk_range = flatbuffers_backend::chunk_range;
-}
-#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
-#include <dwarfs/reader/internal/metadata_types_thrift.h>
-// Import types into internal namespace for Thrift-only builds
-namespace dwarfs::reader::internal {
-using chunk_range = thrift_backend::chunk_range;
-}
-#else
-// Dual-format:  chunk_range is forward-declared in metadata_types.h
-// Each backend will have its own chunk_range type
-#endif
-
 namespace dwarfs {
 
 class logger;
@@ -83,8 +64,6 @@ struct getattr_options;
 struct metadata_options;
 
 namespace internal {
-
-class metadata_v2_data;
 
 class metadata_v2 {
  public:
@@ -201,10 +180,6 @@ class metadata_v2 {
     return impl_->get_block_numbers_by_category(category);
   }
 
-  metadata_v2_data const& internal_data() const {
-    return impl_->internal_data();
-  }
-
   class impl {
    public:
     virtual ~impl() = default;
@@ -276,7 +251,23 @@ class metadata_v2 {
     virtual std::vector<size_t>
     get_block_numbers_by_category(std::string_view category) const = 0;
 
-    virtual metadata_v2_data const& internal_data() const = 0;
+    // Methods for metadata_v2_utils to delegate to
+    virtual void dump(std::ostream& os, fsinfo_options const& opts,
+                      filesystem_info const* fsinfo,
+                      std::function<void(std::string const&, uint32_t)> const& icb) const = 0;
+
+    virtual nlohmann::json
+    info_as_json(fsinfo_options const& opts, filesystem_info const* fsinfo) const = 0;
+
+    virtual nlohmann::json as_json() const = 0;
+
+    virtual std::string serialize_as_json(bool simple) const = 0;
+
+    virtual std::unique_ptr<thrift::metadata::metadata> thaw() const = 0;
+
+    virtual std::unique_ptr<thrift::metadata::metadata> unpack() const = 0;
+
+    virtual std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const = 0;
   };
 
   // Friend declarations for factory functions (dual-format builds)
@@ -287,10 +278,12 @@ class metadata_v2 {
       std::shared_ptr<performance_monitor const> const& perfmon);
 
   friend metadata_v2 make_metadata_v2_flatbuffers(
-      logger& lgr, std::span<uint8_t const> schema,
-      std::span<uint8_t const> data, metadata_options const& options,
+      logger& lgr, std::span<uint8_t const> data,
+      metadata_options const& options,
       int inode_offset, bool force_consistency_check,
       std::shared_ptr<performance_monitor const> const& perfmon);
+
+  friend class metadata_v2_utils;  // Allow access to impl_
 
  private:
   std::unique_ptr<impl> impl_;
@@ -318,7 +311,7 @@ class metadata_v2_utils {
   std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const;
 
  private:
-  metadata_v2_data const& data_;
+  metadata_v2::impl const& impl_;  // Changed from metadata_v2_data const&
 };
 
 } // namespace internal

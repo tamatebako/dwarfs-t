@@ -1,0 +1,13 @@
+I'm continuing the DwarFS multi-format metadata serialization refactoring. Phase 1 (FlatBuffers backend) is 98% complete with ONE remaining compiler error.
+
+Please read these files in order:
+1. doc/CONTINUATION_PROMPT.md - Quick start guide
+2. doc/PHASE_1_FINAL_STATUS_2025-11-22.md - Detailed status
+3. doc/COMPLETE_CONTINUATION_PLAN.md - Full roadmap
+4. .kilocode/rules/memory-bank/context.md - Current work
+
+The immediate task:
+Fix constructor signature in src/reader/internal/metadata_v2_flatbuffers.cpp:2166 by adding `LoggerPolicy const&` parameter, then build and test.
+
+All work is on branch: feature/multi-format-serialization-fuse
+Working directory: /Users/mulgogi/src/external/dwarfs

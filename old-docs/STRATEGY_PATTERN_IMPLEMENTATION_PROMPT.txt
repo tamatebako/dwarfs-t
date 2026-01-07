@@ -1,0 +1,273 @@
+DwarFS Strategy Pattern Implementation - Complete Format Independence
+
+PROJECT: dwarfs-t (Tebako-enhanced fork of dwarfs)
+BRANCH: feature/multi-format-serialization-fuse
+GOAL: Implement Strategy Pattern for true format-independence
+
+CONTEXT:
+============
+This is the Tebako-enhanced fork of dwarfs (dwarfs-t), providing better
+portability and format flexibility than the original mhx/dwarfs.
+
+After Phases 5-8 (4 commits, 40+ files, 3,800+ lines of docs), we discovered
+that the writer still has hard Thrift dependencies preventing FlatBuffers-only
+builds on AppleClang 17.
+
+Current Status:
+✅ Reader: Fully format-independent, works on AppleClang 17
+✅ Build system: Fixed
+✅ Benchmark suite: Updated and ready
+⚠️ Writer: Still Thrift-dependent (metadata_builder uses thrift types)
+
+ARCHITECTURAL SOLUTION:
+=======================
+Implement Strategy Pattern with Dependency Inversion Principle (DIP)
+
+Architecture Document: doc/METADATA_ARCHITECTURE_STRATEGY_PATTERN.md (600+ lines)
+Implementation Roadmap: doc/METADATA_STRATEGY_PATTERN_ROADMAP.md (207 lines)
+
+High-Level Design:
+```
+┌──────────────────────────────────────┐
+│  metadata_provider (Abstract)         │  ← Interface
+│  - get_chunk(inode, offset)           │
+│  - get_directory(inode)               │
+│  - ... all read operations            │
+└────────┬───────────────────┬──────────┘
+         │                   │
+         │ implements        │ implements
+         ▼                   ▼
+┌─────────────────┐  ┌─────────────────┐
+│ ThriftProvider  │  │ FlatBuffers     │  ← Strategies
+│                 │  │ Provider        │
+│ (existing code) │  │ (new code)      │
+└─────────────────┘  └─────────────────┘
+
+┌──────────────────────────────────────┐
+│  metadata_builder (Abstract)          │  ← Interface
+│  - add_chunk(block, offset, size)     │
+│  - add_directory(...)                 │
+│  - build() → domain::metadata         │
+└────────┬───────────────────┬──────────┘
+         │                   │
+         │ implements        │ implements
+         ▼                   ▼
+┌─────────────────┐  ┌─────────────────┐
+│ ThriftBuilder   │  │ FlatBuffers     │  ← Strategies
+│                 │  │ Builder         │
+│ (refactor exist)│  │ (new code)      │
+└─────────────────┘  └─────────────────┘
+
+┌──────────────────────────────────────┐
+│  Factory                              │  ← Creation
+│  create_provider(format, data)        │
+│  create_builder(format, options)      │
+└───────────────────────────────────────┘
+```
+
+BENEFITS:
+- Thrift and FlatBuffers COMPLETELY separate
+- No #ifdef in application logic
+- Each format in its own files
+- Easy to add new formats
+- Mockable for testing
+
+IMPLEMENTATION PLAN (6 Phases):
+=================================
+
+PHASE 1: Define Abstract Interfaces (Week 1)
+- Create include/dwarfs/reader/metadata_provider.h
+- Create include/dwarfs/writer/internal/metadata_builder.h (interface)
+- Define ALL operations needed
+- Domain model as return/parameter types
+
+PHASE 2: Refactor Thrift Implementation (Week 2)
+- Move existing code to thrift_metadata_provider.cpp
+- Move existing builder to thrift_metadata_builder.cpp
+- Make them implement new interfaces
+- No functional changes, just organization
+
+PHASE 3: Implement FlatBuffers Strategies (Week 2-3)
+- Create flatbuffers_metadata_provider.cpp
+- Create flatbuffers_metadata_builder.cpp
+- Implement interfaces using FlatBuffers directly
+- Domain model as intermediate
+
+PHASE 4: Create Factories (Week 3)
+- metadata_provider_factory.cpp
+- metadata_builder_factory.cpp
+- Runtime format selection
+
+PHASE 5: Update Integration Points (Week 4)
+- scanner.cpp: Use builder interface
+- filesystem_writer.cpp: Use builder interface
+- filesystem_v2.cpp: Use provider interface
+- All clients: Depend on abstraction, not concrete
+
+PHASE 6: Testing & Validation (Week 5-6)
+- Unit tests for each strategy
+- Integration tests
+- Performance validation
+- Cross-platform CI/CD
+
+IMMEDIATE TASKS:
+================
+
+1. Create metadata_provider interface:
+   File: include/dwarfs/reader/metadata_provider.h
+
+   ```cpp
+   class metadata_provider {
+   public:
+       virtual ~metadata_provider() = default;
+
+       // Chunk operations
+       virtual metadata::domain::chunk
+       get_chunk(uint32_t inode, uint32_t index) const = 0;
+
+       // Directory operations
+       virtual metadata::domain::directory
+       get_directory(uint32_t inode) const = 0;
+
+       // ... all read operations
+   };
+   ```
+
+2. Create metadata_builder interface:
+   File: include/dwarfs/writer/internal/metadata_builder.h
+
+   ```cpp
+   class metadata_builder {
+   public:
+       virtual ~metadata_builder() = default;
+
+       // Add operations (incremental)
+       virtual void add_chunk(uint32_t block, uint32_t offset, uint32_t size) = 0;
+       virtual void add_directory(...) = 0;
+
+       // Build operation (final)
+       virtual metadata::domain::metadata build() = 0;
+   };
+   ```
+
+3. Create factories:
+   File: include/dwarfs/reader/metadata_provider_factory.h
+   File: include/dwarfs/writer/internal/metadata_builder_factory.h
+
+4. Refactor Thrift code to implement interfaces:
+   - Move existing code into *_thrift.cpp implementations
+   - Make them implement the interfaces
+   - Guard with #ifdef DWARFS_HAVE_THRIFT
+
+5. Implement FlatBuffers strategies:
+   - Create new *_flatbuffers.cpp implementations
+   - Implement same interfaces
+   - No Thrift dependencies
+
+6. Update clients:
+   - scanner.cpp: Use builder factory
+   - filesystem_writer.cpp: Use builder interface
+   - filesystem_v2.cpp: Use provider factory
+
+ALSO FIX (Quick Wins):
+======================
+
+1. ASCII Art for Tebako Fork:
+   File: Likely in README.md or tool output code
+   Change "dwarfs" to "dwarfs-t" in banner to distinguish Tebako fork
+
+2. Library Version Reporting:
+   File: src/library_dependencies.cpp
+   - Add: flatbuffers version (missing)
+   - Fix: jemalloc showing 5.3.0 → should show 5.5.0 (tamatebako fork)
+
+BUILD TARGETS:
+==============
+
+After each phase, test:
+
+FlatBuffers-only (AppleClang 17):
+```bash
+cmake -B build-fb-only -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=OFF \
+  -DWITH_TESTS=OFF \
+  -DWITH_TOOLS=ON
+
+ninja -C build-fb-only
+# MUST work on AppleClang 17
+```
+
+Both formats:
+```bash
+cmake -B build-both -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DDWARFS_WITH_FLATBUFFERS=ON \
+  -DDWARFS_WITH_THRIFT=ON \
+  -DWITH_TESTS=ON \
+  -DWITH_TOOLS=ON
+
+ninja -C build-both
+ctest --test-dir build-both
+# All tests must pass
+```
+
+TIMELINE:
+=========
+- Quick fixes (ASCII, versions): 1 hour
+- Phase 1 (Interfaces): 1-2 days
+- Phase 2 (Thrift refactor): 2-3 days
+- Phase 3 (FlatBuffers impl): 3-4 days
+- Phase 4 (Factories): 1 day
+- Phase 5 (Integration): 2-3 days
+- Phase 6 (Testing): 2-3 days
+
+Total: 12-18 days (2-3 weeks full-time, 4-6 weeks part-time)
+
+PRINCIPLES:
+===========
+- SOLID: Single Responsibility, Dependency Inversion, Interface Segregation
+- MECE: Mutually Exclusive, Collectively Exhaustive separation
+- OCP: Open for extension (new formats), Closed for modification
+- Strategy Pattern: Runtime format selection via polymorphism
+- Factory Pattern: Encapsulate object creation
+
+REFERENCES:
+===========
+- doc/METADATA_ARCHITECTURE_STRATEGY_PATTERN.md (600 lines - THE BIBLE)
+- doc/METADATA_STRATEGY_PATTERN_ROADMAP.md (207 lines - implementation guide)
+- doc/WRITER_DOMAIN_MODEL_REFACTOR.md (previous attempts, lessons learned)
+- .kilocode/rules/memory-bank/architecture.md (overall project architecture)
+
+SUCCESS CRITERIA:
+=================
+✓ AppleClang 17 builds FlatBuffers-only (without Thrift), and also FlatBuffers+Thrift, and also Thrift-only
+✓ Both Thrift and FlatBuffers work independently
+✓ No #ifdef DWARFS_HAVE_THRIFT in application logic
+✓ Each format in separate files
+✓ Clean interfaces, proper abstraction
+✓ All tests pass
+✓ Performance within 10% between formats
+✓ Can add new serialization format without touching existing code
+
+MEMORY BANK UPDATE:
+===================
+After completion, update:
+- .kilocode/rules/memory-bank/architecture.md - Add Strategy Pattern section
+- .kilocode/rules/memory-bank/context.md - Update as Phase 9 complete
+- .kilocode/rules/memory-bank/tech.md - Note implementation approach
+
+START HERE:
+===========
+1. Read doc/METADATA_ARCHITECTURE_STRATEGY_PATTERN.md completely
+2. Start with Phase 1: Define interfaces (create .h files)
+3. Extract operations from existing Thrift code
+4. Design clean API with domain model types
+5. Iterate with user before implementing strategies
+
+CRITICAL UNDERSTANDING:
+=======================
+This is NOT about converting Thrift to domain model.
+This is about creating ABSTRACTION LAYER that both formats implement.
+Think HIGHER level: Interfaces, Strategies, Factories, Patterns.

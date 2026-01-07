@@ -17,11 +17,6 @@
 #
 
 # Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
-endif()
 
 if(WIN32)
   if(NOT WINFSP_PATH)
@@ -42,8 +37,10 @@ else()
       if(FUSE_T_FOUND)
         set(FUSE_IMPLEMENTATION "fuse-t")
         set(FUSE_FOUND TRUE)
-        # Create alias for consistency with other platforms
-        add_library(PkgConfig::FUSE ALIAS PkgConfig::FUSE_T)
+        # Create alias for consistency with other platforms (only if not already exists)
+        if(NOT TARGET PkgConfig::FUSE)
+          add_library(PkgConfig::FUSE ALIAS PkgConfig::FUSE_T)
+        endif()
         message(STATUS "Using FUSE-T on macOS (version ${FUSE_T_VERSION})")
       endif()
     endif()

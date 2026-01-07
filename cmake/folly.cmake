@@ -16,46 +16,44 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-# Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
+#
+# VCPKG-ONLY FOLLY CONFIGURATION
+#
+# This file enforces use of Folly from vcpkg overlay ports (Tebako fork).
+# Submodule-based builds are NO LONGER SUPPORTED.
+#
+
+# Enforce vcpkg toolchain
+if(NOT VCPKG_TOOLCHAIN AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  message(FATAL_ERROR
+    "Folly MUST be provided by vcpkg. "
+    "Set CMAKE_TOOLCHAIN_FILE to vcpkg.cmake or use -DCMAKE_TOOLCHAIN_FILE=\${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+  )
 endif()
 
+# Configuration for Folly (applied before find_package)
 set(FOLLY_NO_EXCEPTION_TRACER ON CACHE BOOL "disable exception tracer")
+
+# Disable zstd in Folly (DwarFS uses its own zstd)
 set(ZSTD_INCLUDE_DIR "" CACHE PATH "don't build folly with zstd" FORCE)
-set(ZSTD_LIBRARY_RELEASE
-    "ZSTD_LIBRARY_RELEASE-NOTFOUND"
-    CACHE FILEPATH "don't build folly with zstd" FORCE)
-set(ZSTD_LIBRARY_DEBUG
-    "ZSTD_LIBRARY_DEBUG-NOTFOUND"
-    CACHE FILEPATH "don't build folly with zstd" FORCE)
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-  set(FOLLY_USE_JEMALLOC OFF CACHE BOOL "don't build folly with jemalloc" FORCE)
-endif()
+set(ZSTD_LIBRARY_RELEASE "ZSTD_LIBRARY_RELEASE-NOTFOUND" CACHE FILEPATH "don't build folly with zstd" FORCE)
+set(ZSTD_LIBRARY_DEBUG "ZSTD_LIBRARY_DEBUG-NOTFOUND" CACHE FILEPATH "don't build folly with zstd" FORCE)
 
-# TODO: this is due to a bug in folly's Portability.h
+# CRITICAL: Do NOT force FOLLY_USE_JEMALLOC OFF
+# Per critical-rules.md RULE 1: We MUST use Tebako's jemalloc fork
+# Let Folly auto-detect and use jemalloc if available
+
 add_compile_definitions(FOLLY_CFG_NO_COROUTINES)
-
 add_compile_definitions(GLOG_NO_ABBREVIATED_SEVERITIES NOMINMAX NOGDI)
 
-# TODO: temporary workaround until this is fixed in folly
-#       see https://github.com/facebook/folly/issues/2149
+# Temporary workaround for glog export issue
+# See: https://github.com/facebook/folly/issues/2149
 add_compile_definitions(GLOG_USE_GLOG_EXPORT)
 
-set(
-  CXX_STD "gnu++${DWARFS_CXX_STANDARD}"
-  CACHE STRING
-  "The C++ standard argument to pass to the compiler."
-)
+set(CXX_STD "gnu++${DWARFS_CXX_STANDARD}" CACHE STRING "The C++ standard argument to pass to the compiler.")
+set(MSVC_LANGUAGE_VERSION "c++${DWARFS_CXX_STANDARD}" CACHE STRING "The C++ standard argument to pass to the compiler.")
 
-set(
-  MSVC_LANGUAGE_VERSION "c++${DWARFS_CXX_STANDARD}"
-  CACHE STRING
-  "The C++ standard argument to pass to the compiler."
-)
-
+# Disable unnecessary dependencies in Folly
 set(CMAKE_DISABLE_FIND_PACKAGE_ZLIB ON)
 set(CMAKE_DISABLE_FIND_PACKAGE_BZip2 ON)
 set(CMAKE_DISABLE_FIND_PACKAGE_Snappy ON)
@@ -64,131 +62,58 @@ set(CMAKE_DISABLE_FIND_PACKAGE_LibUring ON)
 set(CMAKE_DISABLE_FIND_PACKAGE_Libsodium ON)
 set(CMAKE_DISABLE_FIND_PACKAGE_LibDwarf ON)
 
-if(NOT PREFER_SYSTEM_FAST_FLOAT)
-  # Set FASTFLOAT_INCLUDE_DIR in cache before folly's find_package runs
-  # find_path will use cached value if it exists and is valid
-  set(FASTFLOAT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/fast_float" CACHE PATH "fast_float include directory")
-endif()
-
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/folly EXCLUDE_FROM_ALL SYSTEM)
-
-if(NOT PREFER_SYSTEM_FAST_FLOAT)
-  # fast_float was added to folly_deps, but CMake doesn't allow source paths in INTERFACE properties
-  # Solution: Remove absolute path, add as BUILD_INTERFACE generator expression instead
-  get_target_property(_tmpdirs folly_deps INTERFACE_INCLUDE_DIRECTORIES)
-  list(REMOVE_ITEM _tmpdirs "${CMAKE_CURRENT_SOURCE_DIR}/fast_float")
-  list(APPEND _tmpdirs "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fast_float>")
-  set_target_properties(folly_deps PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${_tmpdirs}")
-endif()
-
-if(NOT DWARFS_FMT_LIB)
-  get_target_property(FOLLY_DEPS_INTERFACE_LINK_LIBRARIES folly_deps INTERFACE_LINK_LIBRARIES)
-  list(REMOVE_ITEM FOLLY_DEPS_INTERFACE_LINK_LIBRARIES fmt::fmt)
-  set_target_properties(folly_deps PROPERTIES INTERFACE_LINK_LIBRARIES "${FOLLY_DEPS_INTERFACE_LINK_LIBRARIES}")
-endif()
-
-# remove dependencies that are not needed
-get_target_property(_tmp_folly_deps folly_deps INTERFACE_LINK_LIBRARIES)
-list(REMOVE_ITEM _tmp_folly_deps ${LIBEVENT_LIB} ${OPENSSL_LIBRARIES})
-list(REMOVE_ITEM _tmp_folly_deps Boost::context Boost::atomic Boost::regex Boost::system)
-if(NOT WIN32)
-  list(REMOVE_ITEM _tmp_folly_deps Boost::thread)
-endif()
-set_target_properties(folly_deps PROPERTIES INTERFACE_LINK_LIBRARIES "${_tmp_folly_deps}")
-
-add_library(dwarfs_folly_lite OBJECT
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/Conv.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/Demangle.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/ExceptionString.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/File.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/FileUtil.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/Format.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/ScopeGuard.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/String.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/Unicode.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/container/detail/F14Table.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/detail/FileUtilDetail.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/detail/SplitStringSimd.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/hash/SpookyHashV2.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/io/IOBuf.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/io/IOBufQueue.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/json/dynamic.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/json/json.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/json/json_pointer.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/lang/CString.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/lang/Exception.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/lang/SafeAssert.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/lang/ToAscii.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/memory/SanitizeAddress.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/memory/SanitizeLeak.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/memory/detail/MallocImpl.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/net/NetOps.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/Stdlib.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/SysUio.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/Unistd.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/stats/QuantileEstimator.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/stats/TDigest.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/stats/detail/DoubleRadixSort.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/system/HardwareConcurrency.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/system/ThreadName.cpp
-)
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  # silence warning until this is fixed upstream
-  set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/net/NetOps.cpp
-    PROPERTIES COMPILE_FLAGS "-Wno-address"
-  )
-endif()
-
-if(WIN32)
-  target_sources(dwarfs_folly_lite PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/net/detail/SocketFileDescriptorMap.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/Fcntl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/PThread.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/Sockets.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/SysFile.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/SysMman.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/SysResource.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/SysStat.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/folly/folly/portability/Time.cpp
-  )
-endif()
-
-set_property(TARGET dwarfs_folly_lite PROPERTY CXX_STANDARD ${DWARFS_CXX_STANDARD})
-target_include_directories(
-  dwarfs_folly_lite SYSTEM PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/folly>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/folly>
-)
-
-# On platforms other than x86 / arm, we need to use the fallback
-if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|aarch64")
-  target_compile_definitions(dwarfs_folly_lite PUBLIC FOLLY_F14_FORCE_FALLBACK=1)
-endif()
-
-if(NOT PREFER_SYSTEM_FAST_FLOAT)
-  target_include_directories(
-    dwarfs_folly_lite SYSTEM PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fast_float>
-  )
-endif()
-
-apply_folly_compile_options_to_target(dwarfs_folly_lite)
-target_link_libraries(dwarfs_folly_lite PUBLIC folly_deps)
-
-foreach(tgt dwarfs_folly_lite)
-  if(TARGET ${tgt})
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-      # See: https://github.com/cpp-best-practices/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
-      target_compile_options(${tgt} PRIVATE
-        /wd4189
-        /wd4242
-        /wd4458
-        /wd4866
-        /wd5039
-        /wd5246
-      )
+# jemalloc configuration (CRITICAL - RULE 1)
+# Only force FOLLY_USE_JEMALLOC OFF if explicitly disabled
+# Let Folly detect and use jemalloc if available (e.g., from Tebako vcpkg overlay)
+if(DEFINED USE_JEMALLOC AND NOT USE_JEMALLOC)
+  set(FOLLY_USE_JEMALLOC OFF CACHE BOOL "Disable jemalloc per USE_JEMALLOC option" FORCE)
+  set(FOLLY_HAVE_MALLOC_USABLE_SIZE OFF CACHE BOOL "No malloc_usable_size without jemalloc" FORCE)
+  add_compile_definitions(FOLLY_ASSUME_NO_JEMALLOC=1 FOLLY_ASSUME_NO_TCMALLOC=1)
+else()
+  # When jemalloc IS enabled (or not explicitly disabled), configure it
+  # This applies to ALL builds, not just Thrift builds
+  if(TARGET jemalloc::jemalloc OR TARGET PkgConfig::JEMALLOC)
+    # Get jemalloc include directories (works for both vcpkg and pkg-config)
+    set(_jemalloc_includes "")
+    if(TARGET jemalloc::jemalloc)
+      get_target_property(_jemalloc_includes jemalloc::jemalloc INTERFACE_INCLUDE_DIRECTORIES)
+    elseif(TARGET PkgConfig::JEMALLOC)
+      get_target_property(_jemalloc_includes PkgConfig::JEMALLOC INTERFACE_INCLUDE_DIRECTORIES)
     endif()
+
+    if(_jemalloc_includes)
+      # Add to CMAKE_REQUIRED_INCLUDES for Folly's try_compile checks
+      list(APPEND CMAKE_REQUIRED_INCLUDES ${_jemalloc_includes})
+      # Add as compiler flags so Folly's configure checks can find jemalloc headers
+      foreach(_inc ${_jemalloc_includes})
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${_inc}")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${_inc}")
+      endforeach()
+    endif()
+
+    # Get libraries and add to linker flags (vcpkg only)
+    if(TARGET jemalloc::jemalloc)
+      get_target_property(_jemalloc_libs jemalloc::jemalloc INTERFACE_LINK_LIBRARIES)
+      if(_jemalloc_libs)
+        foreach(_lib ${_jemalloc_libs})
+          set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_lib}")
+        endforeach()
+      endif()
+    endif()
+
+    # CRITICAL: Define USE_JEMALLOC globally for ALL libdwarfs code
+    # This ensures consistent ABI between Folly and DwarFS libraries
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_JEMALLOC=1")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_JEMALLOC=1")
   endif()
-endforeach()
+endif()
+
+# Find Folly from vcpkg
+find_package(folly CONFIG REQUIRED)
+
+message(STATUS "Using vcpkg-provided Folly library")
+
+# Verify Folly::folly target exists
+if(NOT TARGET Folly::folly)
+  message(FATAL_ERROR "Folly::folly target not found. Ensure vcpkg overlay ports are configured correctly.")
+endif()

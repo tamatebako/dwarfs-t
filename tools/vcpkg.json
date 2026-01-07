@@ -1,0 +1,11 @@
+{
+  "name": "dwarfs-tools",
+  "version": "0.16.0",
+  "description": "DwarFS command-line tools",
+  "dependencies": [
+    {
+      "name": "dwarfs",
+      "version>=": "0.16.0"
+    }
+  ]
+}

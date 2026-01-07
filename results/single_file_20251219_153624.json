@@ -1,0 +1,31 @@
+{
+  "single_file_extraction": {
+    "iterations": 3,
+    "memory": {
+      "count": 3,
+      "max": 147456.0,
+      "mean": 76458.66666666667,
+      "median": 81920.0,
+      "min": 0.0,
+      "stddev": 73879.5479502503
+    },
+    "metadata": {
+      "cache_size": "1073741824",
+      "data_size": "48451",
+      "file_path": "/Porting/Maintainers.pl",
+      "file_size": "48451",
+      "image_path": "./test-images/perl-5.43.3.dff",
+      "num_workers": "4"
+    },
+    "name": "single_file_extraction",
+    "throughput_mb_per_sec": 16.05343712706874,
+    "time": {
+      "count": 3,
+      "max": 0.008292708,
+      "mean": 0.002878291666666666,
+      "median": 0.000209375,
+      "min": 0.000132792,
+      "stddev": 0.004689178436781046
+    }
+  }
+}

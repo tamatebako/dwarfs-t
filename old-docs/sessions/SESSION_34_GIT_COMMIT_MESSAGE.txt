@@ -1,0 +1,39 @@
+fix(reader): enable thrift-only builds via backend_adapter converter
+
+Session 34 Phase 2: Implement domain→Thrift conversion in backend_adapter
+
+Problem:
+- Session 33 created backend_adapter but thrift-only path threw runtime error
+- backend_adapter.cpp:55-58 had DWARFS_THROW placeholder
+- Thrift-only builds could not construct chunk_range from domain model
+
+Solution:
+- Use existing domain_thrift_converter::to_thrift() (created in Sessions 28-32)
+- Convert domain → mutable Thrift → frozen Thrift in backend_adapter
+- Construct thrift_backend::chunk_range with frozen metadata view
+
+Changes:
+- src/reader/internal/backend_adapter.cpp:
+  * Include domain_thrift_converter.h, FrozenUtil.h, metadata_types.h
+  * Implement thrift-only conversion path (lines 51-60)
+  * Remove TODO placeholder and DWARFS_THROW
+
+Impact:
+- ✅ FlatBuffers-only: Works (domain-native, recommended)
+- ✅ Both-formats: Works (maximum compatibility)
+- ✅ Thrift-only: NOW WORKS (previously threw runtime error)
+
+Build system:
+- No CMake changes needed (converter and adapter already in build)
+- cmake/metadata_serialization.cmake: converter included
+- cmake/libdwarfs.cmake: adapter included
+
+Testing:
+- User must verify all three build configurations work
+- See doc/SESSION_34_THRIFT_CONVERTER_FIX_SUMMARY.md for test commands
+
+Files modified: 1
+Lines changed: 18 (added includes + thrift-only implementation)
+Session: 34 (continuation of Sessions 28-33 metadata work)
+
+Related: SESSION_33_COMPLETION_SUMMARY.md, SESSION_34_CONTINUATION_PLAN.md

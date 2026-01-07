@@ -1,4 +1,3 @@
-// ... existing code ...
 /* vim:set ts=2 sw=2 sts=2 et: */
 /**
  * \author     Ribose Inc.
@@ -18,10 +17,6 @@
 
 #include <dwarfs/reader/internal/metadata_view_interface.h>
 #include <dwarfs/reader/internal/metadata_factory.h>
-
-#ifdef DWARFS_HAVE_FLATBUFFERS
-#include <dwarfs/reader/internal/metadata_types_flatbuffers.h>
-#endif
 
 #ifdef DWARFS_HAVE_THRIFT
 #include <dwarfs/reader/internal/metadata_types_thrift.h>

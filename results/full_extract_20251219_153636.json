@@ -1,0 +1,32 @@
+{
+  "full_extraction_multi_thread": {
+    "iterations": 3,
+    "memory": {
+      "count": 3,
+      "max": 8847360.0,
+      "mean": 3058346.6666666665,
+      "median": 327680.0,
+      "min": 0.0,
+      "stddev": 5016109.057400301
+    },
+    "metadata": {
+      "cache_size": "1073741824",
+      "data_size": "101201588",
+      "extraction_threads": "4",
+      "file_count": "6816",
+      "image_path": "./test-images/perl-5.43.3.dff",
+      "num_workers": "4",
+      "total_size": "101201588"
+    },
+    "name": "full_extraction_multi_thread",
+    "throughput_mb_per_sec": 27.752648759740968,
+    "time": {
+      "count": 3,
+      "max": 7.457653958,
+      "mean": 3.4776268056666666,
+      "median": 1.488131375,
+      "min": 1.487095084,
+      "stddev": 3.446804660617961
+    }
+  }
+}

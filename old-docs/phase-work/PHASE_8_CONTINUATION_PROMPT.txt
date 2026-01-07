@@ -1,0 +1,163 @@
+Continue DwarFS Phase 8: Complete AppleClang 17 Compatibility
+
+PRIORITY: CRITICAL - Modern compiler support is mandatory, not optional
+
+CONTEXT:
+- Branch: feature/multi-format-serialization-fuse
+- Subtask commit: 63965892 (folly_compat + block_manager fixes)
+- Current: AppleClang 17 still has compilation failures
+- Required: FULL AppleClang 17 support with architectural solutions
+
+UNACCEPTABLE STATUS:
+❌ "Known Issues" with AppleClang 17
+❌ "Works on CI only" mentality  
+❌ Workarounds instead of proper architecture
+❌ Documented limitations for modern compilers
+
+PRINCIPLE:
+"Fix the architecture, not the symptoms"
+- Use proper OOP: methods, not complex lambdas
+- Apply SOLID principles throughout
+- MECE organization everywhere
+- No technical debt
+
+REMAINING APPLECLANG 17 ISSUES:
+
+1. similarity_ordering.cpp:664,687
+   - Lambda capture of move-only types (receiver with unique_ptr)
+   - Current: Variable renaming workaround
+   - Required: Extract to member method, use std::bind
+
+2. filesystem_writer.cpp:978
+   - Lambda capture of block_decompressor (move-only)
+   - Current: shared_ptr workaround from subtask
+   - Required: Extract to member method
+
+3. Categorizer files
+   - Inheritance/virtual function issues
+   - Required: Apply ISP (Interface Segregation Principle)
+   - Required: MECE hierarchy
+
+4. Linker: boost_program_options symbols
+   - Required: Fix CMake PUBLIC linkage chain
+   - Required: Verify transitive dependencies
+
+ARCHITECTURAL SOLUTIONS (Not Workarounds):
+
+Pattern 1 - Method Extraction (SRP):
+```cpp
+// Extract lambda body to private method
+void execute_job_impl(UniqueType obj, RefType const& ref) {
+    // Complex logic here
+}
+
+// Use std::bind, not lambda capture
+wg_.add_job(std::bind(&Class::execute_job_impl, 
+                      this, 
+                      std::move(obj), 
+                      std::cref(ref)));
+```
+
+Pattern 2 - Job Wrapper Class (OCP):
+```cpp
+template<typename Func, typename... Args>
+class job_wrapper {
+    Func func_;
+    std::tuple<Args...> args_;
+public:
+    void operator()() { 
+        std::apply(func_, std::move(args_)); 
+    }
+};
+```
+
+Pattern 3 - Interface Segregation (ISP):
+```cpp
+// Minimal base (ONE responsibility)
+class categorizer {
+    virtual fragment_category categorize(file const&) const = 0;
+};
+
+// Optional capability (separate interface)
+class metadata_provider {
+    virtual std::string get_metadata(fragment_category) const = 0;
+};
+
+// Implementations (MECE, clean)
+class pcm_categorizer : public categorizer, public metadata_provider {
+    // Single, focused implementation
+};
+```
+
+TASKS (Phase 8A - AppleClang 17 Fixes):
+
+1. Fix similarity_ordering.cpp (1 hour):
+   - Read current implementation
+   - Extract lambda to member method
+   - Use std::bind or wrapper class
+   - Test with AppleClang 17
+
+2. Fix filesystem_writer.cpp (30 min):
+   - Remove shared_ptr workaround
+   - Extract decompression to method
+   - Use proper dispatch
+
+3. Fix categorizer hierarchy (1 hour):
+   - Apply ISP
+   - Create MECE structure
+   - Clean inheritance
+
+4. Fix linker issues (30 min):
+   - Check boost linkage
+   - Verify PUBLIC propagation
+   - Test
+
+5. Verify AppleClang 17 (30 min):
+   - Full build test
+   - Run test suite
+   - Confirm no errors/warnings
+
+TASKS (Phase 8B - CMake Modularization):
+
+6. Create modular structure (3-4 hours):
+   - Follow CMAKE_REFACTORING_ARCHITECTURE.md
+   - Apply MECE principles
+   - One responsibility per file
+   - Master < 200 lines
+
+VERIFICATION:
+- ✅ AppleClang 17 builds completely
+- ✅ All tests pass
+- ✅ No workarounds
+- ✅ Clean architecture
+- ✅ MECE organization
+
+REFERENCES:
+- doc/PHASE_8_APPLECLANG17_FIX_PLAN.md (392 lines - complete strategy)
+- doc/CMAKE_REFACTORING_ARCHITECTURE.md (448 lines - MECE/SOLID design)
+
+CRITICAL UNDERSTANDING:
+AppleClang 17 is a MODERN, CURRENT compiler. It must be fully supported.
+"Known issues" are unacceptable. Architectural solutions are mandatory.
+
+TIMELINE: 7.5 hours for proper solution
+- 3.5h: AppleClang 17 fixes (architectural)
+- 4h: CMake modularization (MECE/SOLID)
+
+GOAL: 
+Professional-quality codebase with:
+- Full modern compiler support (including AppleClang 17)
+- Clean OOP architecture (no complex lambdas)
+- MECE organization (CMake and code)
+- SOLID principles applied
+- Zero technical debt
+
+START HERE:
+1. Read doc/PHASE_8_APPLECLANG17_FIX_PLAN.md (complete architectural guidance)
+2. Fix similarity_ordering with method extraction
+3. Fix filesystem_writer with proper dispatch
+4. Apply ISP to categorizers
+5. Verify AppleClang 17 builds completely
+6. Then modularize CMake (MECE structure)
+
+NO SHORTCUTS. NO WORKAROUNDS. DO IT RIGHT.

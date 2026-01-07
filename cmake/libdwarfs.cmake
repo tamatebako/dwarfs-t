@@ -17,11 +17,6 @@
 #
 
 # Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
-endif()
 
 add_library(
   dwarfs_common
@@ -96,6 +91,19 @@ add_library(
   ${DWARFS_SERIALIZATION_SOURCES}
 )
 
+# CRITICAL: Set up FlatBuffers dependencies IMMEDIATELY after target creation
+# so that generated headers are available during source compilation
+if(TARGET dwarfs_metadata_flatbuffers)
+  add_dependencies(dwarfs_common dwarfs_metadata_flatbuffers_generate)
+  target_link_libraries(dwarfs_common PUBLIC dwarfs_metadata_flatbuffers)
+  target_include_directories(dwarfs_common PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
+  )
+endif()
+
+# NOTE: USE_JEMALLOC=1 is now set globally in cmake/folly.cmake
+# before Folly is built, ensuring ABI consistency
+
 add_library(
   dwarfs_compressor
 
@@ -128,7 +136,10 @@ add_library(
   # Interface layer (always available, format-agnostic)
   include/dwarfs/reader/internal/metadata_factory.h
 
-  include/dwarfs/reader/internal/metadata_types_flatbuffers.h
+  # Strategy Pattern: Reader implementations (conditionally compiled)
+  src/reader/metadata_reader_factory.cpp  # Factory (always compiled, has guards)
+  $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:src/reader/flatbuffers_metadata_reader.cpp>
+  $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/reader/thrift_metadata_reader.cpp>
 
   src/reader/internal/block_cache.cpp
   src/reader/internal/block_cache_byte_buffer_factory.cpp
@@ -138,11 +149,20 @@ add_library(
   src/reader/internal/metadata_analyzer.cpp
   src/reader/internal/metadata_factory.cpp
   $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/reader/internal/metadata_types_thrift.cpp>
-  $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:src/reader/internal/metadata_types_flatbuffers.cpp>
   src/reader/internal/periodic_executor.cpp
-  
+
   # metadata_v2 implementation (always needed)
   src/reader/internal/metadata_v2.cpp
+
+  # Session 97: Domain metadata implementation (always needed)
+  src/reader/internal/domain_metadata_impl.cpp
+
+  # Session 31: Domain-based common operations (always compiled)
+  src/reader/internal/common_metadata_operations.cpp
+  src/reader/internal/domain_metadata_views.cpp
+
+  # Session 33: Backend adapter for type construction (always compiled)
+  src/reader/internal/backend_adapter.cpp
 
   # Factory - only in dual-format builds
   $<$<AND:$<BOOL:${DWARFS_HAVE_THRIFT}>,$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>>:src/reader/internal/metadata_v2_factory.cpp>
@@ -157,22 +177,11 @@ if(DWARFS_HAVE_THRIFT AND DWARFS_HAVE_FLATBUFFERS)
   )
 endif()
 
-# In dual-format mode, ensure FlatBuffers implementation uses FlatBuffers types
-if(DWARFS_HAVE_THRIFT AND DWARFS_HAVE_FLATBUFFERS)
-  set_source_files_properties(
-    src/reader/internal/metadata_types_flatbuffers.cpp
-    src/reader/internal/metadata_v2_flatbuffers.cpp
-    PROPERTIES
-    COMPILE_OPTIONS "-DDWARFS_FLATBUFFERS_BACKEND"
-  )
-endif()
-
 target_link_libraries(dwarfs_reader
-  PRIVATE
-  $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:flatbuffers>
   PUBLIC
   dwarfs_common
   dwarfs_decompressor
+  phmap
 )
 
 add_library(
@@ -197,6 +206,10 @@ add_library(
   src/writer/segmenter_factory.cpp
   src/writer/writer_progress.cpp
 
+  # Strategy Pattern: Writer implementations (conditionally compiled)
+  $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:src/writer/flatbuffers_metadata_writer.cpp>
+  $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/writer/thrift_metadata_writer.cpp>
+
   src/writer/internal/block_manager.cpp
   src/writer/internal/chmod_transformer.cpp
   src/writer/internal/entry.cpp
@@ -215,11 +228,11 @@ add_library(
   src/writer/internal/metadata_builder_factory.cpp  # Factory (always needed)
   $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:src/writer/internal/flatbuffers_metadata_builder.cpp>  # FlatBuffers strategy
   $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/writer/internal/thrift_metadata_builder.cpp>  # Thrift strategy
-  
+
   # Utility classes (always compiled)
   src/writer/internal/inode_size_calculator.cpp
   src/writer/internal/metadata_validator.cpp
-  
+
   # FlatBuffers processors (conditional)
   $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:src/writer/internal/flatbuffers_chunk_processor.cpp>
   $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:src/writer/internal/flatbuffers_entry_processor.cpp>
@@ -257,6 +270,10 @@ add_library(
   src/utility/filesystem_extractor.cpp
 )
 
+# Tool Support Library - now in separate module
+# Included at end of file to ensure all dependencies are defined
+# See cmake/tool_support.cmake for implementation
+
 add_library(
   dwarfs_fsst OBJECT
   fsst/libfsst.cpp
@@ -281,9 +298,22 @@ if(NOT DEFINED DWARFS_WITH_THRIFT OR DWARFS_WITH_THRIFT)
 endif()
 
 target_link_libraries(dwarfs_common PRIVATE PkgConfig::LIBCRYPTO PkgConfig::XXHASH PkgConfig::ZSTD)
-# Link folly_lite only if Thrift support is enabled (folly.cmake was included)
-if(DWARFS_HAVE_THRIFT AND TARGET dwarfs_folly_lite)
-  target_link_libraries(dwarfs_common PRIVATE dwarfs_folly_lite)
+# Link fmt for string formatting (used throughout codebase)
+target_link_libraries(dwarfs_common PUBLIC fmt::fmt)
+# Link nlohmann_json for JSON support in history.h (header-only, PRIVATE)
+target_link_libraries(dwarfs_common PRIVATE nlohmann_json::nlohmann_json)
+# Link Legacy Thrift library (always available, no external deps)
+if(TARGET dwarfs_metadata_legacy)
+  target_link_libraries(dwarfs_common PUBLIC dwarfs_metadata_legacy)
+endif()
+# Link Folly from vcpkg when Thrift support is enabled
+if(DWARFS_HAVE_THRIFT AND TARGET Folly::folly)
+  target_link_libraries(dwarfs_common PRIVATE Folly::folly)
+endif()
+# Link Modern Thrift library when available
+if(DWARFS_HAVE_THRIFT AND TARGET dwarfs_metadata_modern_thrift)
+  target_link_libraries(dwarfs_common PUBLIC dwarfs_metadata_modern_thrift)
+  message(STATUS "Modern Thrift library linked to dwarfs_common")
 endif()
 target_link_libraries(dwarfs_compressor PRIVATE dwarfs_common)
 target_link_libraries(dwarfs_decompressor PRIVATE dwarfs_common)
@@ -293,6 +323,12 @@ target_link_libraries(dwarfs_writer PRIVATE PkgConfig::ZSTD)
 target_link_libraries(dwarfs_extractor PUBLIC dwarfs_reader)
 if(DWARFS_HAVE_THRIFT)
   target_link_libraries(dwarfs_rewrite PUBLIC dwarfs_reader dwarfs_writer)
+endif()
+
+# CRITICAL: Set USE_JEMALLOC early so Folly headers use compile-time constant
+# This must be done BEFORE any compilation that includes Folly headers
+if(DWARFS_HAVE_THRIFT AND TARGET jemalloc::jemalloc)
+  target_compile_definitions(dwarfs_common PUBLIC USE_JEMALLOC=1)
 endif()
 
 target_include_directories(dwarfs_common PUBLIC
@@ -306,6 +342,12 @@ if(DWARFS_HAVE_FLATBUFFERS)
   )
 endif()
 
+# Add parallel-hashmap includes to dwarfs_reader (header-only, build-time only)
+# Use hardcoded _deps path to avoid any FetchContent target dependency
+target_include_directories(dwarfs_reader PRIVATE
+  ${CMAKE_BINARY_DIR}/_deps/parallel-hashmap-src
+)
+
 target_compile_definitions(
   dwarfs_common PRIVATE
   DWARFS_SYSTEM_ID="${CMAKE_SYSTEM_NAME} [${CMAKE_SYSTEM_PROCESSOR}]"
@@ -314,12 +356,13 @@ target_compile_definitions(
 
 # Add serialization format definitions with PUBLIC visibility
 # so they propagate to dependent targets
-if(DWARFS_HAVE_CEREAL)
-  target_compile_definitions(dwarfs_common PUBLIC DWARFS_HAVE_CEREAL)
+
+if(DWARFS_HAVE_THRIFT)
+  target_compile_definitions(dwarfs_common PUBLIC DWARFS_HAVE_THRIFT)
 endif()
 
-if(DWARFS_HAVE_BITSERY)
-  target_compile_definitions(dwarfs_common PUBLIC DWARFS_HAVE_BITSERY)
+if(DWARFS_HAVE_FLATBUFFERS)
+  target_compile_definitions(dwarfs_common PUBLIC DWARFS_HAVE_FLATBUFFERS)
 endif()
 
 if(DWARFS_HAVE_THRIFT)
@@ -333,25 +376,9 @@ if(ENABLE_RICEPP)
   target_link_libraries(dwarfs_common PRIVATE ${RICEPP_OBJECT_TARGETS})
 endif()
 
-# Link thrift_lite only if Thrift support is enabled
-if(DWARFS_HAVE_THRIFT AND TARGET dwarfs_thrift_lite)
-  target_link_libraries(dwarfs_common PRIVATE dwarfs_thrift_lite)
-endif()
-
-# Link serialization dependencies
-if(DWARFS_HAVE_CEREAL)
-  target_link_libraries(dwarfs_common PRIVATE cereal::cereal)
-endif()
-
-if(DWARFS_HAVE_BITSERY)
-  target_link_libraries(dwarfs_common PRIVATE bitsery)
-endif()
-
-# Link full folly library when Thrift support is enabled
-# (thrift headers pull in folly code requiring allocator symbols)
-# PUBLIC linkage needed because dwarfs_reader uses folly symbols
-if(DWARFS_HAVE_THRIFT)
-  target_link_libraries(dwarfs_common PUBLIC folly)
+# Link FBThrift from vcpkg when Thrift support is enabled
+if(DWARFS_HAVE_THRIFT AND TARGET FBThrift::thrift)
+  target_link_libraries(dwarfs_common PRIVATE FBThrift::thrift)
 endif()
 
 # Link to FlatBuffers if enabled (REQUIRED)
@@ -365,41 +392,10 @@ if(TARGET dwarfs_metadata_flatbuffers)
   )
 endif()
 
-# Select metadata backend implementation based on availability
-if(DWARFS_HAVE_THRIFT)
-  target_sources(dwarfs_reader PRIVATE
-    src/reader/internal/metadata_types_thrift.cpp
-    src/reader/internal/metadata_v2_thrift.cpp
-    src/reader/internal/time_resolution_handler.cpp)
-endif()
-
-# FlatBuffers backend compilation mode
-if(DWARFS_HAVE_FLATBUFFERS)
-  # Always compile types and views (needed for factory)
-  target_sources(dwarfs_reader PRIVATE
-    src/reader/internal/metadata_types_flatbuffers.cpp
-    src/reader/internal/flatbuffer_metadata_views.cpp)
-  
-  if(DWARFS_HAVE_THRIFT)
-    # Dual-format: compile minimal factory stub only (Thrift is primary backend)
-    target_sources(dwarfs_reader PRIVATE
-      src/reader/internal/metadata_v2_flatbuffers_factory.cpp)
-  else()
-    # FlatBuffers-only: compile full backend implementation
-    target_sources(dwarfs_reader PRIVATE
-      src/reader/internal/metadata_v2_flatbuffers.cpp
-      src/reader/internal/time_resolution_handler.cpp)
-  endif()
-
-  # Add dependency on generated FlatBuffers headers
-  add_dependencies(dwarfs_reader dwarfs_metadata_flatbuffers_generate)
-  target_include_directories(dwarfs_reader PRIVATE ${CMAKE_BINARY_DIR}/include)
-  # Note: FlatBuffers library linking is handled above in target_link_libraries()
-endif()
-
 # Ensure at least one backend is available
-if(NOT DWARFS_HAVE_THRIFT AND NOT DWARFS_HAVE_FLATBUFFERS)
-  message(FATAL_ERROR "No metadata implementation available (need THRIFT or FLATBUFFERS)")
+# Note: Legacy Thrift is always available (no external dependencies)
+if(NOT DWARFS_HAVE_THRIFT AND NOT DWARFS_HAVE_FLATBUFFERS AND NOT DWARFS_HAVE_LEGACY_THRIFT)
+  message(FATAL_ERROR "No metadata implementation available (need THRIFT or FLATBUFFERS or LEGACY_THRIFT)")
 endif()
 
 if(WIN32)
@@ -464,6 +460,11 @@ list(APPEND LIBDWARFS_TARGETS
   dwarfs_extractor
 )
 
+# Add legacy metadata library to exports (always available)
+if(TARGET dwarfs_metadata_legacy)
+  list(APPEND LIBDWARFS_TARGETS dwarfs_metadata_legacy)
+endif()
+
 if(DWARFS_HAVE_THRIFT)
   list(APPEND LIBDWARFS_TARGETS dwarfs_rewrite)
 endif()
@@ -472,13 +473,9 @@ list(APPEND LIBDWARFS_OBJECT_TARGETS
   dwarfs_fsst
 )
 
-# Add thrift/folly targets only if they exist
-if(TARGET dwarfs_folly_lite)
-  list(APPEND LIBDWARFS_OBJECT_TARGETS dwarfs_folly_lite)
-endif()
-if(TARGET dwarfs_thrift_lite)
-  list(APPEND LIBDWARFS_OBJECT_TARGETS dwarfs_thrift_lite)
-endif()
+# Folly and Thrift are now provided by vcpkg, not as object targets
+# They are linked directly via Folly::folly and FBThrift::thrift
+
 if(TARGET dwarfs_compression_thrift)
   list(APPEND LIBDWARFS_OBJECT_TARGETS
     dwarfs_compression_thrift
@@ -488,12 +485,25 @@ if(TARGET dwarfs_compression_thrift)
 endif()
 
 # Add serialization targets to exports if they exist
-if(TARGET bitsery)
-  list(APPEND LIBDWARFS_OBJECT_TARGETS bitsery)
-endif()
 
 if(TARGET dwarfs_metadata_flatbuffers)
   list(APPEND LIBDWARFS_OBJECT_TARGETS dwarfs_metadata_flatbuffers)
+endif()
+
+# Add phmap to exports if available (header-only library needed by dwarfs_reader)
+# Only add if it's not an IMPORTED or ALIAS target (those cannot be installed)
+if(TARGET phmap)
+  get_target_property(phmap_type phmap TYPE)
+  get_target_property(phmap_imported phmap IMPORTED)
+  get_target_property(phmap_aliased phmap ALIASED_TARGET)
+
+  # Only add to install list if it's a regular INTERFACE target (not IMPORTED or ALIAS)
+  if(phmap_type STREQUAL "INTERFACE_LIBRARY" AND NOT phmap_imported AND NOT phmap_aliased)
+    list(APPEND LIBDWARFS_OBJECT_TARGETS phmap)
+    message(STATUS "phmap will be installed (regular INTERFACE target)")
+  else()
+    message(STATUS "phmap will NOT be installed (IMPORTED=${phmap_imported}, ALIASED=${phmap_aliased})")
+  endif()
 endif()
 
 if(NOT STATIC_BUILD_DO_NOT_USE)
@@ -503,7 +513,10 @@ if(NOT STATIC_BUILD_DO_NOT_USE)
 
   include(CMakePackageConfigHelpers)
 
-  set(DWARFS_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/dwarfs CACHE STRING
+  # Vcpkg convention: use share/dwarfs for CMake configs
+  # Traditional CMake: use lib/cmake/dwarfs
+  # Default to vcpkg convention for better compatibility
+  set(DWARFS_CMAKE_INSTALL_DIR share/dwarfs CACHE STRING
       "CMake package config files install location")
 
   configure_package_config_file(
@@ -533,11 +546,20 @@ if(NOT STATIC_BUILD_DO_NOT_USE)
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
+  # Install ALL headers - public headers may depend on ANY other headers
+  # The complex pattern-based exclusion was causing missing headers (logger.h, detail/*.h, etc.)
+  # Following standard C++ library practice: install all headers for consumers
   install(
     DIRECTORY include/dwarfs
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    PATTERN include/dwarfs/internal EXCLUDE
-    PATTERN include/dwarfs/*/internal EXCLUDE
+    FILES_MATCHING PATTERN "*.h"
+    PATTERN "include/dwarfs/writer/internal" EXCLUDE
+  )
+
+  # Install tool support headers (needed for building tools separately)
+  install(
+    DIRECTORY tools/include/dwarfs
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
   if(DWARFS_GIT_BUILD)

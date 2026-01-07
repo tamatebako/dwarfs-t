@@ -1,0 +1,134 @@
+name: 'Installed Headers Test'
+
+# Test that all required headers are properly installed
+# This prevents regression of the header installation bug that blocked libtfs
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'cmake/libdwarfs.cmake'  # Header installation rules
+      - 'include/**/*.h'          # Any header changes
+      - 'example/vcpkg-consumer-test/**'  # Test itself
+  push:
+    branches:
+      - main
+    paths:
+      - 'cmake/libdwarfs.cmake'
+      - 'include/**/*.h'
+      - 'example/vcpkg-consumer-test/**'
+
+jobs:
+  test-installed-headers:
+    name: Header Installation Test - ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Test on primary platforms
+          - os: Ubuntu
+            runner: ubuntu-latest
+            install_prefix: /tmp/dwarfs-test-install
+
+          - os: macOS
+            runner: macos-latest
+            install_prefix: /tmp/dwarfs-test-install
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build cmake \
+            libboost-all-dev libssl-dev libevent-dev \
+            libdouble-conversion-dev libfmt-dev lz4-dev \
+            libzstd-dev libxxhash-dev libbz2-dev \
+            libarchive-dev libgtest-dev liblzma-dev
+
+      - name: Install Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja boost openssl libevent \
+            double-conversion fmt lz4 xz zstd xxhash \
+            bzip2 libarchive googletest
+
+      - name: Build and Install DwarFS
+        run: |
+          mkdir build-lib && cd build-lib
+          cmake .. \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=${{ matrix.install_prefix }} \
+            -DWITH_LIBDWARFS=ON \
+            -DWITH_TOOLS=OFF \
+            -DWITH_FUSE_DRIVER=OFF \
+            -DWITH_TESTS=OFF \
+            -DDWARFS_WITH_FLATBUFFERS=ON \
+            -DDWARFS_WITH_THRIFT=OFF
+          ninja
+          ninja install
+
+      - name: Verify Critical Headers Installed
+        run: |
+          echo "Checking critical headers..."
+
+          INSTALL_DIR="${{ matrix.install_prefix }}/include/dwarfs"
+
+          # Check each critical header
+          test -f "${INSTALL_DIR}/logger.h" || (echo "❌ logger.h missing" && exit 1)
+          echo "✅ logger.h found"
+
+          test -f "${INSTALL_DIR}/internal/packed_ptr.h" || (echo "❌ packed_ptr.h missing" && exit 1)
+          echo "✅ internal/packed_ptr.h found"
+
+          test -f "${INSTALL_DIR}/internal/string_table.h" || (echo "❌ string_table.h missing" && exit 1)
+          echo "✅ internal/string_table.h found"
+
+          test -f "${INSTALL_DIR}/detail/file_view_impl.h" || (echo "❌ file_view_impl.h missing" && exit 1)
+          echo "✅ detail/file_view_impl.h found"
+
+          test -f "${INSTALL_DIR}/detail/file_segment_impl.h" || (echo "❌ file_segment_impl.h missing" && exit 1)
+          echo "✅ detail/file_segment_impl.h found"
+
+          # Count total headers
+          HEADER_COUNT=$(find "${INSTALL_DIR}" -name "*.h" | wc -l | tr -d ' ')
+          echo ""
+          echo "Total headers installed: ${HEADER_COUNT}"
+
+          if [ ${HEADER_COUNT} -lt 100 ]; then
+            echo "❌ Too few headers installed (expected >100)"
+            exit 1
+          fi
+
+          echo "✅ Header count looks good"
+
+      - name: Build Header Test
+        run: |
+          cd example/vcpkg-consumer-test
+          mkdir build && cd build
+          cmake .. \
+            -GNinja \
+            -DCMAKE_PREFIX_PATH=${{ matrix.install_prefix }}
+          ninja
+
+      - name: Run Header Test
+        run: |
+          ./example/vcpkg-consumer-test/build/header_test
+
+      - name: Test Summary
+        if: success()
+        run: |
+          echo "✅ All header installation tests PASSED"
+          echo "✅ DwarFS installation is complete"
+          echo "✅ Consumer projects can use all required headers"

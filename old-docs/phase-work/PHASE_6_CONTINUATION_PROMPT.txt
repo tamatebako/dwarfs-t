@@ -1,0 +1,85 @@
+Continue DwarFS Phase 6: Fix Build System for FlatBuffers
+
+CRITICAL ISSUE: Build system broken - cannot compile libraries or tools
+
+CONTEXT:
+- Branch: feature/multi-format-serialization-fuse  
+- Phase 4: FlatBuffers integrated (64 files changed)
+- Phase 5 Part 2: Benchmark suite updated and committed ✅
+- Phase 5 Part 1.5: Memory bank updated and committed ✅
+- AppleClang 17 compatibility: Fixed (similarity_ordering.cpp:687) ✅
+
+BLOCKER:
+Build fails with missing headers:
+- fmt/format.h not found
+- dwarfs/tool/main_adapter.h not found
+- dwarfs/tool/manpage.h not found
+
+ROOT CAUSE: CMake dependency management needs fixing
+- fmt library not properly detected/fetched
+- Include paths misconfigured
+- Dependencies not resolved before compilation
+
+COMPLETED (Committed):
+✅ Benchmark suite: report_generator.py + README.md updated
+✅ Memory bank: tech.md + context.md reflect 2-format architecture
+✅ AppleClang 17: Lambda capture fix in similarity_ordering.cpp
+✅ Phase 5 execution plan: 879 lines
+✅ Phase 6 build fix plan: 242 lines
+
+BLOCKER DETAILS:
+- Build command: cmake -B build-bench-test -GNinja -DCMAKE_BUILD_TYPE=Release -DDWARFS_WITH_FLATBUFFERS=ON -DWITH_TOOLS=ON
+- Configuration succeeds
+- Compilation fails (missing fmt/format.h)
+- Impact: Cannot build ANYTHING (libraries, tools, tests)
+
+NEXT STEPS:
+1. Investigate CMake configuration for fmt library
+   - Check CMakeLists.txt for fmt handling
+   - Check if cmake/need_fmt.cmake exists
+   - Compare with working FlatBuffers pattern (cmake/metadata_serialization.cmake)
+
+2. Fix fmt detection/fetching
+   - Create cmake/need_fmt.cmake if missing
+   - Use FetchContent pattern (like FlatBuffers, jemalloc)
+   - Ensure fmt target available before library compilation
+
+3. Fix include paths
+   - Check cmake/libdwarfs.cmake target_include_directories
+   - Ensure ${CMAKE_SOURCE_DIR}/include in paths
+   - Ensure ${CMAKE_BINARY_DIR}/include in paths (generated headers)
+
+4. Verify dependency order
+   - All find_package/FetchContent BEFORE library definitions
+   - cmake/need_*.cmake included before cmake/libdwarfs.cmake
+   - Tool headers accessible when tools compile
+
+5. Test build
+   - Clean build directory
+   - Reconfigure CMake
+   - Build should succeed without header errors
+   - Verify mkdwarfs, dwarfsextract, dwarfs binaries created
+
+6. THEN continue with Part 3: Run benchmarks
+   - Download Perl 5.43.3 dataset
+   - Run FlatBuffers vs Thrift comparison  
+   - Generate performance report
+
+REFERENCE DOCS:
+- doc/PHASE_6_BUILD_SYSTEM_FIX_PLAN.md (detailed analysis)
+- doc/PHASE_5_DETAILED_EXECUTION_PLAN.md (benchmark procedures)
+- cmake/metadata_serialization.cmake (working FetchContent example)
+- cmake/need_jemalloc.cmake (working dependency pattern)
+
+CRITICAL: Build system must work BEFORE benchmarks can run. This blocks:
+- Local testing
+- CI/CD validation  
+- Performance comparison
+- Release preparation
+
+START HERE:
+1. Read doc/PHASE_6_BUILD_SYSTEM_FIX_PLAN.md
+2. Investigate fmt library detection in CMake
+3. Fix dependency management
+4. Verify build succeeds
+5. Then proceed to benchmarks (Phase 5 Part 3)

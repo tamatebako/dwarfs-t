@@ -1,0 +1,34 @@
+fix(vcpkg): add phmap alias target for parallel-hashmap compatibility
+
+Session 40 - parallel-hashmap vcpkg Integration Fix
+
+Problem:
+- vcpkg's parallel-hashmap 2.0.0 is header-only without CMake targets
+- cmake/vcpkg/phmap.cmake created 'parallel-hashmap' target
+- DwarFS code expected 'phmap' target
+- Build failed with "Target phmap not found"
+
+Solution:
+- Added phmap INTERFACE target in vcpkg mode
+- Added phmap ALIAS in system mode
+- Both point to same parallel-hashmap includes
+
+Result:
+- ✅ parallel-hashmap resolves successfully
+- ✅ phmap target exists and works
+- ✅ DwarFS configures without errors
+- ✅ Build progresses to 109/236 files (46%)
+
+Impact:
+- Unblocks DwarFS vcpkg builds after Session 39's jemalloc fix
+- Maintains compatibility with both target names
+
+Next Issue:
+- Missing utf8cpp dependency (Session 41)
+
+Files Modified:
+- cmake/vcpkg/phmap.cmake (+8 lines)
+
+Session: 40 of ongoing vcpkg integration
+Previous: Session 39 (jemalloc fix - COMPLETE)
+Next: Session 41 (utf8cpp dependency)

@@ -168,8 +168,8 @@ if(WITH_BENCHMARKS)
     target_link_libraries(ricepp_benchmark_fits PRIVATE ricepp benchmark::benchmark)
 
     if (JEMALLOC_FOUND)
-      target_link_libraries(ricepp_benchmark PRIVATE PkgConfig::JEMALLOC)
-      target_link_libraries(ricepp_benchmark_fits PRIVATE PkgConfig::JEMALLOC)
+      target_link_libraries(ricepp_benchmark PRIVATE jemalloc::jemalloc)
+      target_link_libraries(ricepp_benchmark_fits PRIVATE jemalloc::jemalloc)
     endif()
     if(mimalloc_FOUND)
       target_link_libraries(ricepp_benchmark PRIVATE mimalloc-static)
@@ -179,7 +179,7 @@ if(WITH_BENCHMARKS)
 endif()
 
 if(WITH_TESTS)
-  if(NOT TARGET gtest)
+  if(NOT TARGET GTest::gtest)
     message(STATUS "[ricepp] fetching googletest")
     FetchContent_Declare(
       googletest
@@ -188,6 +188,8 @@ if(WITH_TESTS)
       EXCLUDE_FROM_ALL
     )
     FetchContent_MakeAvailable(googletest)
+  else()
+    message(STATUS "[ricepp] using existing GoogleTest")
   endif()
 
   enable_testing()
@@ -199,10 +201,10 @@ if(WITH_TESTS)
     test/codec_test.cpp
   )
 
-  target_link_libraries(ricepp_test PRIVATE ricepp gtest gmock gtest_main)
+  target_link_libraries(ricepp_test PRIVATE ricepp GTest::gtest gmock GTest::gtest_main)
 
   if (JEMALLOC_FOUND)
-    target_link_libraries(ricepp_test PRIVATE PkgConfig::JEMALLOC)
+    target_link_libraries(ricepp_test PRIVATE jemalloc::jemalloc)
   endif()
   if (mimalloc_FOUND)
     target_link_libraries(ricepp_test PRIVATE mimalloc-static)

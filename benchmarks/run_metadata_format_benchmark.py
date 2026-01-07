@@ -222,9 +222,8 @@ class MetadataFormatBenchmark:
         """Benchmark filesystem compression"""
         print(f"  Compressing with {format_name}...")
 
-        # Note: --metadata-format option not yet available in v0.16.0
-        # Format is determined by build configuration (FlatBuffers default)
-        cmd = f"{self.mkdwarfs} -i {dataset_path} -o {output_path} --force"
+        # Use --format option to select metadata serialization format
+        cmd = f"{self.mkdwarfs} -i {dataset_path} -o {output_path} --format={format_name} --force"
 
         result = self.memory_tracker.measure_command(cmd)
 

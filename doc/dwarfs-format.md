@@ -252,13 +252,14 @@ structures are serialized using the same format as the main metadata:
 
 ### Metadata Serialization Formats
 
-DwarFS supports two different metadata serialization formats: `flatbuffers`
-(modern default) and `thrift` (legacy). The serialization format affects both
-the size of the metadata and the performance characteristics when reading it.
+DwarFS supports three different metadata serialization formats: `flatbuffers`
+(modern default), `modern-thrift` (optional, v0.17.0+), and `legacy-thrift`
+(backward compatibility). The serialization format affects both the size of the
+metadata and the performance characteristics when reading it.
 
 #### Core Domain Model
 
-Both serialization formats serialize the same core domain model defined in
+All serialization formats serialize the same core domain model defined in
 [`include/dwarfs/metadata/domain/metadata.h`](../include/dwarfs/metadata/domain/metadata.h).
 This ensures that filesystem semantics remain identical regardless of which
 format is chosen. The domain model includes all metadata structures such as
@@ -266,7 +267,7 @@ inodes, directory entries, chunks, symlinks, and devices.
 
 #### Format Definitions and Schema Handling
 
-The two formats differ in how they define their serialization schemas:
+The three formats differ in how they define their serialization schemas:
 
 * **`flatbuffers` format** (modern default, required): Uses the FlatBuffers schema
   language to define the metadata schema in
@@ -275,47 +276,79 @@ The two formats differ in how they define their serialization schemas:
   stored in a single `METADATA_V2` section. This is a header-only dependency with
   excellent cross-platform support.
 
-* **`thrift` format** (legacy, optional): Uses external IDL (Interface Definition
-  Language) files to define the metadata schema. The schema is defined in
-  [`thrift/metadata.thrift`](../thrift/metadata.thrift) and compiled at
-  filesystem creation time. The compiled schema is stored separately in the
-  `METADATA_V2_SCHEMA` section, and the serialized metadata is stored in the
-  `METADATA_V2` section. This two-section approach allows the Frozen2 layout to
-  use bit-packed, memory-mappable structures with field widths optimized for the
-  actual data.
+  **Magic bytes**: `"DFBF"` (0x44 0x46 0x42 0x46)
+  **Priority**: 120 (highest - default for creation)
+  **File extension**: `.dff` (recommended)
+
+* **`modern-thrift` format** (v0.17.0+, optional): Uses Apache Thrift CompactProtocol
+  with the fbthrift library. The schema is defined in
+  [`thrift/metadata_modern.thrift`](../thrift/metadata_modern.thrift) and compiled
+  at build time using the thrift1 compiler. All metadata is stored in a single
+  `METADATA_V2` section with magic bytes for format detection. Requires Folly,
+  fbthrift v2025.12.29.00, and custom jemalloc via vcpkg overlay ports.
+
+  **Magic bytes**: `{0x82, 0x21}` (CompactProtocol indicator)
+  **Priority**: 100 (medium-high)
+  **File extension**: `.dtc` (recommended - DwarFS Thrift Compact)
+  **Wire format**: `[2-byte magic][CompactProtocol data]`
+  **Test coverage**: 15/15 tests PASSED (validated 2026-01-06)
+  **Performance**: 0.07-1.41% smaller than FlatBuffers, similar extraction speed
+
+* **`legacy-thrift` format** (backward compatibility, always available): Uses hand-coded
+  Frozen2 implementation (~2,500 lines) ported from dwarfs-rs. The schema is defined
+  in [`thrift/metadata.thrift`](../thrift/metadata.thrift) but uses custom serialization
+  code. No external dependencies required. The compiled schema is stored separately in
+  the `METADATA_V2_SCHEMA` section, and the serialized metadata is stored in the
+  `METADATA_V2` section. This two-section approach allows the Frozen2 layout to use
+  bit-packed, memory-mappable structures with field widths optimized for the actual data.
+
+  **Magic bytes**: None (fallback detection when no magic found)
+  **Priority**: 50 (lowest - fallback)
+  **File extension**: `.dth` (recommended - DwarFS Thrift Hand-coded)
+  **Compatibility**: Byte-for-byte compatible with Homebrew DwarFS v0.14.1
 
 #### Format Selection Rationale
 
-These formats were chosen to provide flexibility on platform compatibility. The
-original `thrift` format depends on the Apache Thrift library, which in turn
-depends on Folly. These dependencies are complex and not compatible with all build
-environments (particularly static linking scenarios, Windows variants, and some
-architectures). The `flatbuffers` format is now the required default and provides
-excellent portability with minimal dependencies.
+These formats were chosen to provide flexibility on platform compatibility:
 
-DwarFS can read both formats (as long as the build dependencies are available on
-the build system), and they both have similar levels of performance and resource
-needs. The choice of format is thus based on platform compatibility and build
-requirements.
+* The **`flatbuffers`** format is now the required default and provides excellent
+  portability with minimal dependencies (header-only library). Works on all platforms
+  without complex build toolchains.
+
+* The **`modern-thrift`** format provides the smallest metadata size (baseline 100%)
+  but requires the full Facebook technology stack (Folly, fbthrift, jemalloc). Only
+  recommended if you already have these dependencies or need absolute minimum size.
+
+* The **`legacy-thrift`** format provides backward compatibility with v0.14.1 without
+  requiring fbthrift dependencies. Always available as fallback.
+
+DwarFS can read all three formats (as long as the build dependencies are available),
+and they all have similar levels of performance and resource needs. The choice of
+format is thus based on platform compatibility, build requirements, and size priorities.
 
 #### Technical Characteristics
 
 * The **`flatbuffers`** format provides memory-mappable, zero-copy access with a
   self-describing binary format. It works on all platforms, requires only header
-  files, and is excellent for forward/backward compatibility. Size is slightly
-  larger than Thrift (~5-10%), but portability is substantially better.
+  files, and is excellent for forward/backward compatibility. Size is ~1.41%
+  larger than Modern Thrift, but portability is substantially better.
 
-* The **`thrift`** format uses Apache Thrift's Compact Protocol with Facebook's
-  Frozen2 layout for bit-packed, memory-mappable structures. Field widths are
-  optimized based on actual data values, resulting in extremely compact
-  representation. However, it requires complex dependencies (Folly + fbthrift)
-  that are difficult to build on some platforms.
+* The **`modern-thrift`** format uses Apache Thrift's CompactProtocol with efficient
+  bit-packing and variable-length integer encoding. Magic bytes enable fast format
+  detection. Memory-mappable with zero-copy access. Requires complex dependencies
+  (Folly + fbthrift v2025.12.29.00) that are difficult to build on some platforms.
 
-When mounting or extracting a filesystem, the format is automatically detected,
+* The **`legacy-thrift`** format uses hand-coded Frozen2 layout for bit-packed,
+  memory-mappable structures. Field widths are optimized based on actual data values,
+  resulting in compact representation. No magic bytes (uses fallback detection).
+  No external dependencies required.
+
+When mounting or extracting a filesystem, the format is automatically detected
+via magic bytes (FlatBuffers, Modern Thrift) or fallback logic (Legacy Thrift),
 so no special options are needed.
 
 * To select a format when creating a filesystem, use the `--metadata-format`
-  option with `mkdwarfs`. Note that FlatBuffers is now the default.
+  option with `mkdwarfs`.
 
 * To convert between formats, use
   `mkdwarfs --recompress=metadata --rebuild-metadata` with the desired
@@ -323,7 +356,8 @@ so no special options are needed.
   data blocks remain unchanged unless `--recompress=all` is used.
 
 For detailed performance comparisons and benchmarking methodology, see
-[benchmark-metadata(7)](benchmark-metadata.md).
+[DWARFS_METADATA_FORMAT_PERFORMANCE.md](DWARFS_METADATA_FORMAT_PERFORMANCE.md)
+and [MODERN_THRIFT_GUIDE.md](MODERN_THRIFT_GUIDE.md).
 
 ## METADATA FORMAT
 

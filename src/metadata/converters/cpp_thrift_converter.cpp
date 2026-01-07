@@ -8,7 +8,7 @@
  * This file implements the adapter pattern for seamless conversion between
  * Apache Thrift metadata structures and plain C++ equivalents, enabling
  * backward compatibility with existing frozen format images while supporting
- * new serialization backends (Cereal, Bitsery).
+ * a modern serialization backend (FlatBuffers).
  *
  * \author Ribose
  * \date 2025-11-12
@@ -524,7 +524,11 @@ thrift::metadata::string_table to_thrift(const string_table& st) {
   // Required fields
   t.buffer() = st.buffer;
   t.packed_index() = st.packed_index;
-  t.index() = st.index;
+
+  // Index vector: only set if non-empty to preserve optional semantics
+  if (!st.index.empty()) {
+    t.index() = st.index;
+  }
 
   // Optional FSST symbol table
   if (st.symtab.has_value()) {

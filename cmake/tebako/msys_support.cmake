@@ -11,7 +11,6 @@
 # Configures Windows/MSYS-specific settings for tebako builds
 # Handles winsock2, utfcpp, brotli, and other MSYS-specific requirements
 
-cmake_minimum_required(VERSION 3.24.0)
 
 message(STATUS "Configuring MSYS-specific settings")
 

@@ -5,10 +5,19 @@ Performance testing tools for DwarFS filesystem operations.
 ## SYNOPSIS
 
 ```bash
-# Download test datasets
+# Quick Start - Run ALL benchmarks
+./benchmarks/run_all_benchmarks.sh
+
+# Or run comprehensive benchmark only (2-3 hours)
+./benchmarks/run_comprehensive_benchmark.sh
+
+# Or quick validation test (5 min)
+./benchmarks/run_quick_comprehensive_test.sh
+
+# Download test datasets first
 python3 benchmarks/download_datasets.py --download perl
 
-# Run metadata format benchmarks
+# Run metadata format benchmarks (legacy)
 python3 benchmarks/run_metadata_format_benchmark.py \
   --mkdwarfs ./mkdwarfs \
   --dwarfsextract ./dwarfsextract \
@@ -21,6 +30,204 @@ python3 benchmarks/generate_metadata_report.py \
   benchmarks/results/metadata_results.json \
   METADATA_BENCHMARK_REPORT.md
 ```
+
+## BENCHMARK SYSTEMS
+
+DwarFS provides **three benchmark systems** with increasing scope:
+
+### 1. Quick Validation Test (5 minutes)
+
+**Script**: [`run_quick_comprehensive_test.sh`](run_quick_comprehensive_test.sh)
+
+Fast validation using existing build directory:
+
+```bash
+./benchmarks/run_quick_comprehensive_test.sh
+```
+
+**Tests**:
+- libdwarfs API single file extraction
+- libdwarfs API full filesystem extraction
+- Both .dff and .dft formats (if available)
+
+**Use for**: Quick validation after code changes
+
+### 2. Comprehensive Benchmark (2-3 hours)
+
+**Script**: [`run_comprehensive_benchmark.sh`](run_comprehensive_benchmark.sh)
+
+Complete FUSE vs API comparison across all configurations:
+
+```bash
+./benchmarks/run_comprehensive_benchmark.sh
+```
+
+**Tests**:
+- 3 build configurations (FlatBuffers-only, Thrift-only, Both)
+- 2 image formats (.dff, .dft)
+- FUSE extraction benchmarks (4 combinations)
+- libdwarfs API benchmarks (8 combinations)
+
+**Output**: `results/comprehensive_YYYYMMDD_HHMMSS/COMPREHENSIVE_REPORT.md`
+
+**Use for**: Performance validation, format comparison, regression testing
+
+### 3. Master Benchmark Suite (3-5 hours)
+
+**Script**: [`run_all_benchmarks.sh`](run_all_benchmarks.sh)
+
+Runs ALL benchmark systems:
+
+```bash
+# Comprehensive only (default)
+./benchmarks/run_all_benchmarks.sh
+
+# With metadata format benchmarks
+./benchmarks/run_all_benchmarks.sh --metadata
+
+# With all optional benchmarks
+./benchmarks/run_all_benchmarks.sh --all
+```
+
+**Environment Variables**:
+```bash
+RUN_METADATA=true      # Enable metadata format benchmarks
+RUN_COMPRESSION=true   # Enable compression algorithm benchmarks
+SKIP_BUILD=true        # Use existing builds (faster)
+```
+
+**Output**: `results/master_YYYYMMDD_HHMMSS/`
+
+**Use for**: Complete performance analysis, release validation
+
+## COMPREHENSIVE BENCHMARK SYSTEM
+
+The comprehensive benchmark system provides end-to-end performance validation across build configurations and metadata formats.
+
+### System Architecture
+
+**Three-tier design**:
+
+```
+┌─────────────────────┐
+│  run_all_           │  Master orchestrator
+│  benchmarks.sh      │  (optional suites)
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  run_comprehensive_ │  Main orchestrator
+│  benchmark.sh       │  (FUSE + API)
+└──────────┬──────────┘
+           │
+     ┌─────┴─────┐
+     ▼           ▼
+┌─────────┐  ┌──────────┐
+│  FUSE   │  │libdwarfs │
+│  mount/ │  │C++ API   │
+│  extract│  │programs  │
+└─────────┘  └──────────┘
+```
+
+### Build Configurations Tested
+
+1. **FlatBuffers-only** (`build-fb-bench/`)
+   - Metadata: FlatBuffers only
+   - Creates: .dff images
+   - Best portability
+
+2. **Thrift-only** (`build-thrift-bench/`)
+   - Metadata: Thrift Compact only
+   - Creates: .dft images
+   - Smallest metadata (legacy)
+
+3. **Both formats** (`build-both-bench/`)
+   - Metadata: FlatBuffers + Thrift
+   - Creates: .dff, .dft images
+   - Maximum flexibility
+
+### Benchmark Combinations
+
+**Total**: 12 benchmark runs
+
+**FUSE Extraction** (4 runs):
+- fb-only build + .dff image
+- thrift-only build + .dft image
+- both build + .dff image
+- both build + .dft image
+
+**libdwarfs API** (8 runs):
+- Same 4 configurations × 2 operations:
+  - Single file extraction (latency test)
+  - Full filesystem extraction (throughput test)
+
+### Result Files
+
+**JSON Results** (structured data):
+- `fuse_{build}_{format}.json` - FUSE benchmarks
+- `api_single_{build}_{format}.json` - API single file
+- `api_full_{build}_{format}.json` - API full extraction
+
+**Markdown Report**:
+- `COMPREHENSIVE_REPORT.md` - Complete analysis with comparison tables
+
+**JSON Schema**: See [`schemas/README.md`](schemas/README.md) for format documentation
+
+### Performance Expectations
+
+**FUSE vs API**:
+- API typically 5-10% faster (no kernel overhead)
+- Both show similar throughput patterns
+
+**FlatBuffers vs Thrift**:
+- Compression: FlatBuffers 17-29% faster (levels 1-3)
+- Extraction: Nearly identical (±3%)
+- Size: Thrift 0.07-1.41% smaller
+
+## LIBDWARFS C++ API BENCHMARKS
+
+Direct C++ library performance testing without FUSE overhead.
+
+### Benchmark Programs
+
+Located in [`libdwarfs/`](libdwarfs/):
+
+1. **single_file_bench** - Single file extraction latency
+2. **full_extract_bench** - Full filesystem extraction throughput
+3. **multiple_files_bench** - Multi-file access patterns
+4. **random_access_bench** - Random read patterns
+
+### Running API Benchmarks
+
+**Standalone** (quick test):
+```bash
+./benchmarks/run_libdwarfs_benchmark.sh <image> <output_dir>
+```
+
+**Integrated** (comprehensive):
+```bash
+./benchmarks/run_comprehensive_benchmark.sh  # Includes API benchmarks
+```
+
+### Performance Data
+
+**Perl 5.43.3 Dataset** (96.5 MB, 6,816 files):
+
+**Single File** (48.45 KB):
+- Cold cache: 8.29 ms
+- Warm cache: 0.21 ms (median)
+- Throughput: 16.05 MB/s
+- Memory: 144 KiB peak
+- **Speedup**: 39× (cold → warm)
+
+**Full Extraction**:
+- Median time: 1.49 s (4 workers)
+- Mean time: 3.48 s
+- Throughput: 27.75 MB/s
+- Memory: 8.44 MiB peak
+- **Speedup**: 5× (cold → warm, 7.46s → 1.49s)
+
+**Documentation**: See [`../doc/LIBDWARFS_API_PERFORMANCE.md`](../doc/LIBDWARFS_API_PERFORMANCE.md) for complete performance guide
 
 ## DESCRIPTION
 
@@ -370,5 +577,18 @@ shasum -a 256 2025-10-01-raspios-trixie-arm64-lite.img.xz
 
 ## SEE ALSO
 
-[mkdwarfs(1)](../doc/mkdwarfs.md), [dwarfs(1)](../doc/dwarfs.md),
-[dwarfsextract(1)](../doc/dwarfsextract.md)
+**Manual Pages**:
+- [mkdwarfs(1)](../doc/mkdwarfs.md)
+- [dwarfs(1)](../doc/dwarfs.md)
+- [dwarfsextract(1)](../doc/dwarfsextract.md)
+
+**Architecture & Performance**:
+- [`../doc/BENCHMARKING_SYSTEM_ARCHITECTURE.md`](../doc/BENCHMARKING_SYSTEM_ARCHITECTURE.md) - Complete system architecture
+- [`../doc/LIBDWARFS_API_PERFORMANCE.md`](../doc/LIBDWARFS_API_PERFORMANCE.md) - C++ API performance guide
+- [`../doc/DWARFS_METADATA_FORMAT_PERFORMANCE.md`](../doc/DWARFS_METADATA_FORMAT_PERFORMANCE.md) - Format comparison
+- [`../doc/LIBDWARFS_INTEGRATION_GUIDE.md`](../doc/LIBDWARFS_INTEGRATION_GUIDE.md) - API integration guide
+
+**Schemas**:
+- [`schemas/README.md`](schemas/README.md) - JSON result schemas
+- [`schemas/fuse_benchmark.json`](schemas/fuse_benchmark.json) - FUSE benchmark schema
+- [`schemas/api_benchmark.json`](schemas/api_benchmark.json) - API benchmark schema

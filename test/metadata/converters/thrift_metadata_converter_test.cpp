@@ -115,7 +115,7 @@ thrift::metadata::metadata create_comprehensive_thrift_metadata() {
 
   // Optional v2.5+ fields
   t_meta.preferred_path_separator() = '/';
-  t_meta.features() = std::set<std::string>{"fsst", "bitsery"};
+  t_meta.features() = std::set<std::string>{"fsst", "flatbuffers"};
   t_meta.category_names() = std::vector<std::string>{"text", "binary"};
   t_meta.block_categories() = std::vector<uint32_t>{0, 1};
 
@@ -344,14 +344,14 @@ TEST(ThriftMetadataConverterTest, OptionalFeaturesSet) {
   ThriftMetadataConverter converter;
 
   thrift::metadata::metadata t_meta = create_minimal_thrift_metadata();
-  t_meta.features() = std::set<std::string>{"fsst", "bitsery", "sparse"};
+  t_meta.features() = std::set<std::string>{"fsst", "flatbuffers", "sparse"};
 
   auto d_meta = converter.to_domain(&t_meta);
 
   ASSERT_TRUE(d_meta.features.has_value());
   EXPECT_EQ(d_meta.features->size(), 3u);
   EXPECT_TRUE(d_meta.features->count("fsst"));
-  EXPECT_TRUE(d_meta.features->count("bitsery"));
+  EXPECT_TRUE(d_meta.features->count("flatbuffers"));
   EXPECT_TRUE(d_meta.features->count("sparse"));
 }
 

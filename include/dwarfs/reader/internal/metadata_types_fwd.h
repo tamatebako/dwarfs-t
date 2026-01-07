@@ -39,13 +39,19 @@ class dir_entry_view_impl;
 class global_metadata;
 } // namespace thrift_backend
 
+// Forward declarations for domain types
+class domain_chunk_range_impl;
+class domain_inode_view_impl;
+class domain_dir_entry_view_impl;
+class domain_global_metadata;
+
 // Type aliases based on build configuration
 #if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
-// FlatBuffers-only build: use concrete FlatBuffers types
-using chunk_range = flatbuffers_backend::chunk_range;
-using inode_view_impl = flatbuffers_backend::inode_view_impl;
-using dir_entry_view_impl = flatbuffers_backend::dir_entry_view_impl;
-using global_metadata = flatbuffers_backend::global_metadata;
+// FlatBuffers-only build: use domain types
+using chunk_range = domain_chunk_range_impl;
+using inode_view_impl = domain_inode_view_impl;
+using dir_entry_view_impl = domain_dir_entry_view_impl;
+using global_metadata = domain_global_metadata;
 
 #elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
 // Thrift-only build: use concrete Thrift types

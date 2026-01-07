@@ -17,11 +17,6 @@
 #
 
 # Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
-endif()
 
 try_run(
   PHMAP_RUN_RESULT

@@ -27,7 +27,7 @@
 #include <optional>
 #include <vector>
 
-#include <dwarfs/tool/mkdwarfs/options_parser.h>
+#include <dwarfs/tool/mkdwarfs/parsed_options.h>
 #include <dwarfs/tool/mkdwarfs/handler_interface.h>
 
 namespace dwarfs {

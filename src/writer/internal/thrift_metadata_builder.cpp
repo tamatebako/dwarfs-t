@@ -27,10 +27,12 @@
 #include <optional>
 #include <iostream>
 #include <cstdlib>
+#include <string>
 
 #include <thrift/lib/cpp2/protocol/DebugProtocol.h>
 #include <thrift/lib/cpp2/protocol/JSONProtocol.h>
 #include <thrift/lib/cpp2/protocol/SimpleJSONProtocol.h>
+#include <thrift/lib/cpp2/protocol/Serializer.h>
 
 #include <dwarfs/file_stat.h>
 #include <dwarfs/fstypes.h>
@@ -314,9 +316,12 @@ thrift::metadata::metadata const&
 thrift_metadata_builder<LoggerPolicy>::build_thrift_internal() {
   LOG_VERBOSE << "building metadata";
 
-  // WORKAROUND: Force plain tables for Thrift format - packed string tables cause issues with small datasets
-  bool use_plain_names = options_.plain_names_table || md_.names()->size() < 10;
-  bool use_plain_symlinks = options_.plain_symlinks_table || md_.symlinks()->size() < 10;
+  // FIX: Always use plain string tables for Thrift format to ensure backward
+  // compatibility with v0.14.1. Packed string tables use a serialization format
+  // that is incompatible with older readers.
+  // Trade-off: ~5-10% larger metadata, but guaranteed compatibility.
+  bool use_plain_names = true;
+  bool use_plain_symlinks = true;
 
   thrift::metadata::fs_options fsopts;
   fsopts.mtime_only() = !options_.keep_all_times;
@@ -472,6 +477,16 @@ thrift_metadata_builder<LoggerPolicy>::build() {
 
   // Convert to domain model
   return metadata::converters::from_thrift(thrift_md);
+}
+
+template <typename LoggerPolicy>
+std::string
+thrift_metadata_builder<LoggerPolicy>::serialize_thrift_direct() {
+  // Build Thrift metadata (existing logic)
+  thrift::metadata::metadata const& thrift_md = build_thrift_internal();
+
+  // Serialize directly using Thrift Compact protocol (no conversion)
+  return apache::thrift::CompactSerializer::serialize<std::string>(thrift_md);
 }
 
 template <typename LoggerPolicy>

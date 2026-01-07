@@ -106,20 +106,46 @@ void flatbuffers_packing_processor::pack_metadata() {
   }
 
   if (!options_.plain_names_table) {
-    md_.compact_names = string_table::pack_domain(
+    auto packed = string_table::pack_domain(
         md_.names,
         string_table::pack_options(
             options_.pack_names, options_.pack_names_index,
             options_.force_pack_string_tables));
-    md_.names.clear();
+
+    // Validate packed result before clearing source data
+    bool pack_valid =
+      !packed.buffer.empty() &&
+      packed.index.size() == md_.names.size() &&
+      packed.symtab.has_value();
+
+    if (pack_valid) {
+      md_.compact_names = std::move(packed);
+      md_.names.clear();
+    } else {
+      // Packing failed - keep plain names, don't set compact_names
+      // (compact_names stays as nullopt)
+    }
   }
 
   if (!options_.plain_symlinks_table) {
-    md_.compact_symlinks = string_table::pack_domain(
+    auto packed = string_table::pack_domain(
         md_.symlinks, string_table::pack_options(
                           options_.pack_symlinks, options_.pack_symlinks_index,
                           options_.force_pack_string_tables));
-    md_.symlinks.clear();
+
+    // Validate packed result before clearing source data
+    bool pack_valid =
+      !packed.buffer.empty() &&
+      packed.index.size() == md_.symlinks.size() &&
+      packed.symtab.has_value();
+
+    if (pack_valid) {
+      md_.compact_symlinks = std::move(packed);
+      md_.symlinks.clear();
+    } else {
+      // Packing failed - keep plain symlinks
+      // (compact_symlinks stays as nullopt)
+    }
   }
 
   if (options_.no_category_names) {

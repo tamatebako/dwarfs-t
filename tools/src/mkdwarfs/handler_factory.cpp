@@ -27,7 +27,7 @@
 #ifdef DWARFS_HAVE_THRIFT
 #include <dwarfs/tool/mkdwarfs/recompress_handler.h>
 #endif
-#include <dwarfs/tool/mkdwarfs/options_parser.h>
+#include <dwarfs/tool/mkdwarfs/parsed_options.h>
 
 #include <stdexcept>
 

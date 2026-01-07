@@ -40,18 +40,22 @@
 namespace dwarfs::reader::internal {
 
 // Forward declare factory functions from each backend
-// These are implemented in metadata_v2_thrift.cpp and metadata_v2_flatbuffers.cpp
-extern metadata_v2 make_metadata_v2_thrift(
+// These are implemented in the adapter files
+#ifdef DWARFS_HAVE_THRIFT
+metadata_v2 make_metadata_v2_thrift(
     logger& lgr, std::span<uint8_t const> schema,
     std::span<uint8_t const> data, metadata_options const& options,
     int inode_offset, bool force_consistency_check,
     std::shared_ptr<performance_monitor const> const& perfmon);
+#endif
 
-extern metadata_v2 make_metadata_v2_flatbuffers(
-    logger& lgr, std::span<uint8_t const> schema,
-    std::span<uint8_t const> data, metadata_options const& options,
-    int inode_offset, bool force_consistency_check,
+#ifdef DWARFS_HAVE_FLATBUFFERS
+metadata_v2 make_metadata_v2_flatbuffers(
+    logger& lgr, std::span<uint8_t const> data,
+    metadata_options const& options, int inode_offset,
+    bool force_consistency_check,
     std::shared_ptr<performance_monitor const> const& perfmon);
+#endif
 
 // Factory constructor - only compiled in dual-format builds
 metadata_v2::metadata_v2(
@@ -70,14 +74,26 @@ metadata_v2::metadata_v2(
   }
 
   // Dispatch to correct backend based on format
-  // In dual-format builds, the Thrift backend handles both formats:
-  // - Thrift: uses directly
-  // - FlatBuffers: converts to Thrift internally (lines 669-711 in metadata_v2_thrift.cpp)
-  if (*detected == metadata::serialization::SerializationFormat::THRIFT_COMPACT ||
-      *detected == metadata::serialization::SerializationFormat::FLATBUFFERS) {
+  if (*detected == metadata::serialization::SerializationFormat::FLATBUFFERS) {
+#ifdef DWARFS_HAVE_FLATBUFFERS
+    // Use FlatBuffers adapter (no schema needed - self-describing format)
+    *this = make_metadata_v2_flatbuffers(lgr, data, options,
+                                        inode_offset, force_consistency_check, perfmon);
+    return;
+#else
+    DWARFS_THROW(runtime_error, "FlatBuffers support not compiled in");
+#endif
+  }
+
+  if (*detected == metadata::serialization::SerializationFormat::MODERN_THRIFT) {
+#ifdef DWARFS_HAVE_THRIFT
+    // Use Thrift adapter (requires separate schema section)
     *this = make_metadata_v2_thrift(lgr, schema, data, options,
                                    inode_offset, force_consistency_check, perfmon);
     return;
+#else
+    DWARFS_THROW(runtime_error, "Thrift support not compiled in");
+#endif
   }
 
   DWARFS_THROW(runtime_error,

@@ -56,7 +56,12 @@ void index_map(MapT& map) {
 } // namespace
 
 global_entry_data::global_entry_data(metadata_options const& options)
-    : options_{options} {}
+    : options_{options} {
+  // CRITICAL: Pre-populate names with empty string for root directory
+  // When index() is called, empty string will sort first and get index 0
+  // This ensures all file/directory names get indices starting from 1
+  names_.emplace("", 0);
+}
 
 template <typename T, typename U>
 std::vector<T> global_entry_data::get_vector(map_type<T, U> const& map) const {

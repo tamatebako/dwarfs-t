@@ -17,11 +17,6 @@
 #
 
 # Conditional minimum version for tebako compatibility
-if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
-  cmake_minimum_required(VERSION 3.24.0)
-else()
-  cmake_minimum_required(VERSION 3.28.0)
-endif()
 
 # ============================================================================
 # Tool Targets (mkdwarfs, dwarfsck, dwarfsextract)
@@ -35,7 +30,7 @@ if(WITH_TOOLS)
     endif()
 
     add_library(${tgt}_main OBJECT tools/src/${tgt}_main.cpp)
-    target_link_libraries(${tgt}_main PRIVATE dwarfs_tool)
+    target_link_libraries(${tgt}_main PRIVATE dwarfs_tool dwarfs_tool_support)
     if(DWARFS_HAVE_THRIFT)
       target_link_libraries(${tgt}_main PRIVATE ${tgt}_secondary)
     endif()
@@ -63,22 +58,34 @@ if(WITH_TOOLS)
     endif()
   endforeach()
 
-  # Add mkdwarfs-specific source files
-  target_sources(mkdwarfs_main PRIVATE tools/src/mkdwarfs/options_parser.cpp)
-  target_sources(mkdwarfs_main PRIVATE tools/src/mkdwarfs/create_handler.cpp)
-  target_sources(mkdwarfs_main PRIVATE tools/src/mkdwarfs/handler_factory.cpp)
-
-  # Add recompress handler (requires Thrift support)
-  if(DWARFS_HAVE_THRIFT)
-    target_sources(mkdwarfs_main PRIVATE tools/src/mkdwarfs/recompress_handler.cpp)
-  endif()
+  # NOTE: mkdwarfs-specific sources (options_parser, handlers) are now in dwarfs_tool_support
+  # No need to add them here - they're compiled once in the library
 
   target_link_libraries(mkdwarfs_main PRIVATE dwarfs_writer dwarfs_reader)
   target_link_libraries(dwarfsck_main PRIVATE dwarfs_reader)
   target_link_libraries(dwarfsextract_main PRIVATE dwarfs_extractor)
 
+  # Executables also need the same libraries for final linking
+  target_link_libraries(mkdwarfs PRIVATE dwarfs_writer dwarfs_reader dwarfs_tool_support)
+  target_link_libraries(dwarfsck PRIVATE dwarfs_reader dwarfs_tool_support)
+  target_link_libraries(dwarfsextract PRIVATE dwarfs_extractor dwarfs_tool_support)
+
+  # Link jemalloc to executables (required by Folly in libraries)
+  if(USE_JEMALLOC)
+    if(TARGET jemalloc::jemalloc)
+      target_link_libraries(mkdwarfs PRIVATE jemalloc::jemalloc)
+      target_link_libraries(dwarfsck PRIVATE jemalloc::jemalloc)
+      target_link_libraries(dwarfsextract PRIVATE jemalloc::jemalloc)
+    elseif(TARGET PkgConfig::JEMALLOC)
+      target_link_libraries(mkdwarfs PRIVATE PkgConfig::JEMALLOC)
+      target_link_libraries(dwarfsck PRIVATE PkgConfig::JEMALLOC)
+      target_link_libraries(dwarfsextract PRIVATE PkgConfig::JEMALLOC)
+    endif()
+  endif()
+
   if(DWARFS_HAVE_THRIFT)
     target_link_libraries(mkdwarfs_main PRIVATE dwarfs_rewrite)
+    target_link_libraries(mkdwarfs PRIVATE dwarfs_rewrite)
   endif()
 
   if(WITH_UNIVERSAL_BINARY)
@@ -161,7 +168,7 @@ if(WITH_FUSE_DRIVER)
     elseif(WIN32 AND WINFSP)
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=32 DWARFS_FUSE_LOWLEVEL=0)
     endif()
-    
+
     # Link FUSE library to dwarfs_reader
     if(TARGET PkgConfig::FUSE_T)
       target_link_libraries(dwarfs_reader PRIVATE PkgConfig::FUSE_T)
@@ -178,9 +185,6 @@ if(WITH_FUSE_DRIVER)
 
   if(FUSE3_FOUND OR WINFSP OR APPLE)
     add_library(dwarfs_main OBJECT tools/src/dwarfs_main.cpp)
-    target_sources(dwarfs_main PRIVATE
-      tools/src/dwarfs/options_parser.cpp
-      tools/src/dwarfs/mount_handler.cpp)
     target_compile_definitions(dwarfs_main PRIVATE _FILE_OFFSET_BITS=64)
     if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t")
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=31 DWARFS_USE_FUSE_T)
@@ -190,7 +194,7 @@ if(WITH_FUSE_DRIVER)
     elseif(FUSE3_FOUND)
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=35)
     endif()
-    target_link_libraries(dwarfs_main PRIVATE dwarfs_tool dwarfs_reader)
+    target_link_libraries(dwarfs_main PRIVATE dwarfs_tool dwarfs_reader dwarfs_tool_support)
     if(APPLE AND FUSE_FOUND)
       target_link_libraries(dwarfs_main PRIVATE PkgConfig::FUSE)
     elseif(FUSE3_FOUND)
@@ -214,7 +218,7 @@ if(WITH_FUSE_DRIVER)
       endif()
       if(TARGET dwarfsfuseextract)
         target_link_libraries(dwarfsfuseextract PRIVATE delayimp.lib)
-        target_link_options(dwarfsextract_private PRIVATE /DELAYLOAD:winfsp-x64.dll)
+        target_link_options(dwarfsextract PRIVATE /DELAYLOAD:winfsp-x64.dll)
         target_compile_definitions(dwarfsfuseextract PRIVATE DWARFS_UNIVERSAL_FUSE_DRIVER)
       endif()
       if(WINFSP)
@@ -236,8 +240,9 @@ if(WITH_FUSE_DRIVER)
       endif()
       list(APPEND BINARY_TARGETS dwarfs-bin)
       list(APPEND MAIN_TARGETS dwarfs_main)
-      target_link_libraries(dwarfs_main PRIVATE dwarfs_reader)
-      target_link_libraries(dwarfs_main PRIVATE dwarfs_tool)
+      target_link_libraries(dwarfs_main PRIVATE dwarfs_reader
+                           PRIVATE dwarfs_tool
+                           PRIVATE dwarfs_tool_support)
     endif()
 
     if(FUSE_FOUND AND (NOT APPLE) AND (WITH_LEGACY_FUSE OR NOT FUSE3_FOUND))
@@ -274,7 +279,8 @@ if(WITH_FUSE_DRIVER)
                          SYMBOLIC)")
       list(APPEND BINARY_TARGETS dwarfs2-bin)
       list(APPEND MAIN_TARGETS dwarfs2_main)
-      target_link_libraries(dwarfs2_main PRIVATE dwarfs_tool)
+      target_link_libraries(dwarfs2_main PRIVATE dwarfs_tool
+                           PRIVATE dwarfs_tool_support)
     endif()
   endif()
 endif()

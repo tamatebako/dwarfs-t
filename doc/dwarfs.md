@@ -242,8 +242,31 @@ a DwarFS image:
 
 ## ENVIRONMENT VARIABLES
 
-See [dwarfs-env(7)](dwarfs-env.md) for environment variables that
-influence the behavior of `dwarfs`.
+All options can be configured via environment variables using the pattern:
+
+    DWARFS_DWARFS_<OPTION>=value
+
+For example:
+
+    export DWARFS_DWARFS_CACHE_SIZE=1g
+    dwarfs image.dff /mnt                   # Uses 1 GiB cache from ENV
+    dwarfs image.dff /mnt -o cachesize=2g   # Uses 2 GiB (CLI overrides ENV)
+
+Command-line arguments always take precedence over environment variables, which in turn
+take precedence over default values. This follows the MECE (Mutually Exclusive,
+Collectively Exhaustive) principle.
+
+Common environment variables:
+
+- `DWARFS_DWARFS_CACHE_SIZE`: Block cache size (e.g., `1g`, `512m`)
+- `DWARFS_DWARFS_NUM_WORKERS`: Number of decompression worker threads
+- `DWARFS_DWARFS_LOG_LEVEL`: Logging level (error|warn|info|verbose|debug|trace)
+
+For a complete reference of all supported environment variables, see
+[ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
+
+For runtime environment variables that affect filesystem operation, see
+[dwarfs-env(7)](dwarfs-env.md).
 
 ## FUSE IMPLEMENTATIONS
 

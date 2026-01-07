@@ -61,17 +61,17 @@ namespace dwarfs::writer::internal {
 
 /**
  * Thrift-specific metadata builder implementation.
- * 
+ *
  * This template class implements the Strategy pattern for Apache Thrift
  * Compact metadata format. This is the legacy format, maintained for
  * backward compatibility.
- * 
+ *
  * KEY DIFFERENCE: Works with Thrift types internally, converts to domain
  * model at the end via converters.
- * 
+ *
  * Template Parameters:
  * - LoggerPolicy: Logging policy (debug_logger_policy or prod_logger_policy)
- * 
+ *
  * @see flatbuffers_metadata_builder for the modern default format
  */
 template <typename LoggerPolicy>
@@ -82,7 +82,7 @@ class thrift_metadata_builder final : public metadata_builder::impl {
 
   /**
    * Constructor for creating new filesystem.
-   * 
+   *
    * @param lgr Logger instance
    * @param options Metadata options
    */
@@ -167,13 +167,24 @@ class thrift_metadata_builder final : public metadata_builder::impl {
 
   /**
    * Build final metadata.
-   * 
+   *
    * KEY DIFFERENCE: Builds Thrift metadata internally, then converts to
    * domain model before returning.
    *
    * @return Completed metadata domain model (converted from Thrift)
    */
   ::dwarfs::metadata::domain::metadata build() override;
+
+  /**
+   * Serialize Thrift metadata directly.
+   *
+   * BACKWARD COMPATIBILITY: This method serializes the internal Thrift
+   * metadata directly using Thrift CompactSerializer, bypassing domain
+   * model conversion. This ensures compatibility with v0.14.1 readers.
+   *
+   * @return Serialized Thrift metadata as binary string
+   */
+  std::string serialize_thrift_direct();
 
  private:
   // Type aliases for Thrift types
@@ -197,7 +208,7 @@ class thrift_metadata_builder final : public metadata_builder::impl {
   /**
    * Build Thrift metadata (internal helper).
    * Builds the Thrift representation before conversion to domain model.
-   * 
+   *
    * @return Reference to internal Thrift metadata
    */
   thrift::metadata::metadata const& build_thrift_internal();

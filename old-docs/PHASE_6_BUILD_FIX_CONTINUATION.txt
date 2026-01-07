@@ -1,0 +1,152 @@
+Continue DwarFS Phase 6: Complete Build System Fix
+
+CRITICAL PROGRESS:
+✅ Phase 5 Complete: Benchmark suite updated and committed
+✅ CMake fixes applied: include paths + fmt linkage + CEREAL/BITSERY removed
+✅ AppleClang 17 fix: similarity_ordering.cpp:687 lambda capture
+⚠️ Build still fails: Tools cannot find headers
+
+CURRENT BLOCKER:
+Tools fail to compile with:
+- fatal error: 'fmt/format.h' file not found (tools/src/dwarfs_main.cpp:47)
+- fatal error: 'dwarfs/tool/main_adapter.h' file not found (tools/src/dwarfs.cpp:29)
+
+ROOT CAUSE ANALYSIS:
+✅ dwarfs_common include paths FIXED (added CMAKE_SOURCE_DIR/include)
+✅ dwarfs_common fmt linkage FIXED (added ${DWARFS_FMT_LIB})
+❌ TOOLS don't inherit includes/linkage properly
+
+DIAGNOSIS:
+The tools (dwarfs_main, mkdwarfs_main, etc.) are separate targets that:
+1. Include fmt headers directly (fmt/format.h)
+2. Include tool-specific headers (dwarfs/tool/*.h)
+3. Must link to dwarfs_common to get dependencies
+
+Problem: Tool targets not configured to inherit from dwarfs_common
+
+COMPLETED FIXES (Uncommitted):
+1. cmake/libdwarfs.cmake:
+   - Line 237: Added CMAKE_SOURCE_DIR/include to target_include_directories
+   - Line 340: Added ${DWARFS_FMT_LIB} to target_link_libraries
+   - Lines 249-255: Removed DWARFS_HAVE_CEREAL/BITSERY compile definitions
+   - Lines 274-280: Removed cereal::cereal and bitsery linkage
+   - Lines 391-393: Removed bitsery from LIBDWARFS_OBJECT_TARGETS
+
+2. src/writer/internal/similarity_ordering.cpp:
+   - Line 687: Fixed lambda capture (rec → receiver_obj, idx → index_obj)
+
+NEXT INVESTIGATION:
+tools/ are defined separately. Need to check:
+
+1. Where are tool targets defined?
+   - Likely in CMakeLists.txt (main)
+   - Or in tools/CMakeLists.txt
+   - Search: grep -n "add_executable.*dwarfs" CMakeLists.txt
+
+2. Do tools link to libraries properly?
+   - Tools should link: dwarfs_reader, dwarfs_writer, dwarfs_extractor
+   - These should transitively provide fmt and includes
+   - Check: target_link_libraries for tool targets
+
+3. Do tools have explicit include directories?
+   - May need: target_include_directories for each tool
+   - Should inherit from dwarfs_common via PUBLIC linkage
+   - Check: Are library linkages PUBLIC or PRIVATE?
+
+LIKELY FIX:
+Tools need to explicitly link against dwarfs_common and/or fmt:
+
+```cmake
+# For mkdwarfs
+target_link_libraries(mkdwarfs PRIVATE 
+  dwarfs_writer 
+  dwarfs_reader
+  ${DWARFS_FMT_LIB}  # May need explicit fmt
+)
+
+# For dwarfs (FUSE driver)
+target_link_libraries(dwarfs-bin PRIVATE
+  dwarfs_reader
+  ${DWARFS_FMT_LIB}  # May need explicit fmt
+)
+```
+
+OR make fmt linkage PUBLIC in dwarfs_common (already done, but verify):
+```cmake
+target_link_libraries(dwarfs_common
+  PUBLIC ${DWARFS_FMT_LIB}  # Should propagate to tools
+)
+```
+
+SUGGESTED APPROACH:
+1. Find tool target definitions (CMakeLists.txt or tools/CMakeLists.txt)
+2. Check their target_link_libraries
+3. Verify they link to libraries that link to dwarfs_common
+4. If linkage is PRIVATE, change to PUBLIC
+5. If no linkage, add explicit ${DWARFS_FMT_LIB}
+
+FILES TO CHECK:
+- CMakeLists.txt (main build file, ~1473 lines)
+- tools/CMakeLists.txt (if exists)
+- Look for: add_executable(mkdwarfs ...) or add_executable(dwarfs-bin ...)
+
+SEARCH COMMANDS:
+```bash
+# Find tool definitions
+grep -n "add_executable" CMakeLists.txt | grep -E "(mkdwarfs|dwarfs|dwarfsck|dwarfsextract)"
+
+# Check if tools/ has CMakeLists
+ls tools/CMakeLists.txt
+
+# Find tool linkage
+grep -n "target_link_libraries.*mkdwarfs" CMakeLists.txt
+grep -n "target_link_libraries.*dwarfs" CMakeLists.txt
+```
+
+QUICK FIX IF NEEDED:
+tools/ probably needs to inhert includes from dwarfs_common. Check if tools link to dwarfs_common or only to higher-level libraries.
+
+Inheritance chain should be:
+dwarfs_common (has fmt, includes) 
+  → dwarfs_reader/writer (inherit PUBLIC)
+    → mkdwarfs/dwarfs tools (inherit PUBLIC)
+
+If chain broken (PRIVATE linkage), fmt doesn't propagate.
+
+COMMITS READY:
+Once build works, commit:
+```bash
+git add cmake/libdwarfs.cmake src/writer/internal/similarity_ordering.cpp
+git commit -m "fix(build): resolve CMake dependencies and AppleClang 17
+
+Critical Build Fixes:
+- Add CMAKE_SOURCE_DIR/include to dwarfs_common include paths
+- Add ${DWARFS_FMT_LIB} to dwarfs_common PUBLIC linkage
+- Remove obsolete CEREAL/BITSERY CMake references
+- Fix AppleClang 17 lambda capture in similarity_ordering.cpp:687
+
+Resolves:
+- 'fmt/format.h' not found
+- 'dwarfs/tool/*.h' not found
+- AppleClang 17 compatibility
+
+After tools linkage fixed, this enables:
+- Local builds on macOS ARM64
+- Benchmark execution
+- Performance testing"
+```
+
+AFTER BUILD WORKS:
+Continue with Phase 5 Part 3 (benchmarks):
+1. Download Perl 5.43.3 dataset
+2. Run FlatBuffers comparison (initially FlatBuffers-only)
+3. Generate performance report
+4. Document results
+
+DOCUMENTATION CREATED:
+- doc/PHASE_6_BUILD_SYSTEM_FIX_PLAN.md (242 lines)
+- doc/CMAKE_MODULARIZATION_PLAN.md (405 lines)
+- doc/PHASE_6_CONTINUATION_PROMPT.txt (85 lines)
+
+REFERENCE:
+See CMAKE_MODULARIZATION_PLAN.md for long-term MECE refactoring strategy.

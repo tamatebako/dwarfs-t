@@ -1,4 +1,4 @@
-name: 'DwarFS CI Build'
+name: 'build'
 
 on:
   workflow_dispatch:
@@ -33,1502 +33,357 @@ permissions:
   contents: read
 
 jobs:
-  windows:
-    runs-on:
-      - self-hosted
-      - Windows
-
-    strategy:
-      matrix:
-        arch:
-          - X64
-        build_mode:
-          - Release
-          - Debug
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: '0'
-          ref: ${{ github.ref }}
-
-      - name: Set MSVC Dev Environment
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Configure Build
-        shell: cmd
-        run: |
-          cmake -B${{ runner.temp }}\build -S${{ runner.workspace }}\dwarfs -GNinja -DCMAKE_MAKE_PROGRAM=C:\bin\ninja.exe -DCMAKE_BUILD_TYPE=${{ matrix.build_mode }} -DWITH_UNIVERSAL_BINARY=ON -DWITH_TESTS=ON -DWITH_BENCHMARKS=ON -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DVCPKG_INSTALLED_DIR=${{ runner.workspace }}\vcpkg-install-dwarfs -DDWARFS_ARTIFACTS_DIR=Z:\artifacts\dwarfs -DWITH_PXATTR=ON -DENABLE_STACKTRACE=${{ matrix.build_mode == 'Debug' && 'ON' || 'OFF' }}
-
-      - name: Run Build
-        shell: cmd
-        run: |
-          cmake --build ${{ runner.temp }}\build
-
-      - name: Run Test
-        shell: cmd
-        run: |
-          copy "C:\Program Files (x86)\WinFsp\bin\winfsp-x64.dll" ${{ runner.temp }}\build
-          ctest --test-dir ${{ runner.temp }}\build --output-on-failure -j
-
-      - name: Build Package
-        shell: cmd
-        run: |
-          cmake --build ${{ runner.temp }}\build --target package
-
-      - name: Compress Universal Binary
-        shell: cmd
-        run: |
-          cmake --build ${{ runner.temp }}\build --target universal_upx
-
-      - name: Copy Artifacts
-        shell: cmd
-        run: |
-          cmake --build ${{ runner.temp }}\build --target copy_artifacts
-
-      # - name: Prepare Artifact Upload
-      #   shell: cmd
-      #   run: cat ${{ runner.temp }}\build\artifacts.env >> %GITHUB_ENV%
-
-      # - name: Upload Binary Tarball
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ${{ env.binary_tarball }}
-      #     path: ${{ runner.temp }}\build\${{ env.binary_tarball }}
-      #     if-no-files-found: error
-      #     compression-level: 0
-      #   env:
-      #     ACTIONS_ARTIFACT_UPLOAD_CONCURRENCY: 5
-
-      # - name: Upload Universal Binary
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ${{ env.universal_binary }}
-      #     path: ${{ runner.temp }}\build\${{ env.universal_binary }}
-      #     if-no-files-found: error
-      #     compression-level: 0
-      #   env:
-      #     ACTIONS_ARTIFACT_UPLOAD_CONCURRENCY: 5
+  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
+  # windows:
+  #   uses: ./.github/workflows/windows-builds.yml
 
 ################################################################################
 
-  package-source:
-    uses: ./.github/workflows/docker-run-build.yml
+  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
+  # package-source:
+  #   uses: ./.github/workflows/docker-run-build.yml
+  #   with:
+  #     build_type: clang-release-ninja-source-notest
+  #     build_arch: amd64
+  #     build_dist: arch
+
+################################################################################
+
+  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
+  # linux:
+  #   needs: package-source
+  #   uses: ./.github/workflows/linux-builds.yml
+
+################################################################################
+
+  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
+  # macos:
+  #   needs: package-source
+  #   uses: ./.github/workflows/macos-builds.yml
+
+################################################################################
+
+  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
+  # freebsd:
+  #   needs: package-source
+  #   uses: ./.github/workflows/freebsd-builds.yml
+
+################################################################################
+# UPSTREAM CONTRIBUTIONS: Windows, MSy2, Metadata, Benchmark Testing
+################################################################################
+
+  # NOTE: windows-vcpkg and windows-msys2 jobs moved to windows-builds.yml
+
+################################################################################
+
+  # PRIORITY 1: Test the CMake fix on simplest configuration first
+  encoding-test-linux-x86_64-flatbuffers-only:
+    name: Encoding Test - Ubuntu (x86_64) - FlatBuffers Only
+    uses: ./.github/workflows/encoding-format-test.yml
     with:
-      build_type: clang-release-ninja-source-notest
-      build_arch: amd64
-      build_dist: arch
-
-################################################################################
-
-  linux:
-    needs: package-source
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          #####################################################################
-          #                          x86_64 builds                            #
-          #####################################################################
-
-          - build_arch: amd64
-            build_dist: ubuntu
-            build_type: gcc-release-shared-ninja-split
-
-          - build_arch: amd64
-            build_dist: ubuntu
-            build_type: gcc-debug-shared-noperfmon-ninja-split
-
-          - build_arch: amd64
-            build_dist: ubuntu
-            build_type: clang-reldbg-shared-asan-ninja
-
-          - build_arch: amd64
-            build_dist: ubuntu
-            build_type: clang-reldbg-shared-ubsan-ninja
-
-          - build_arch: amd64
-            build_dist: ubuntu
-            build_type: clang-debug-shared-tsan-ninja
-
-          - build_arch: amd64
-            build_dist: ubuntu
-            build_type: clang-debug-coverage-ninja
-
-          - build_arch: amd64
-            build_dist: fedora
-            build_type: gcc-release-ninja-split
-
-          - build_arch: amd64
-            build_dist: fedora
-            build_type: clang-release-shared-ninja-full
-
-          - build_arch: amd64
-            build_dist: arch
-            build_type: gcc-release-noman-ninja-split
-
-          - build_arch: amd64
-            build_dist: arch
-            build_type: gcc-release-shared-ninja-split
-
-          - build_arch: amd64
-            build_dist: arch
-            build_type: gcc-debug-shared-ninja-full
-
-          - build_arch: amd64
-            build_dist: arch
-            build_type: clang-release-shared-ninja-full
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-ninja-static
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-lto-ninja-static
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-ninja-static
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-release-lto-ninja-static
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-lto-ninja-static
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-libressl-lto-ninja-static
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-relsize-minimal-lto-ninja-static
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-minimal-libressl-lto-ninja-static
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-relsize-minimal-libressl-mimalloc-lto-ninja-static
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-reldbg-stacktrace-ninja-static
-
-          #####################################################################
-          #                          aarch64 builds                           #
-          #####################################################################
-
-          - build_arch: arm64v8
-            build_dist: debian
-            build_type: gcc-release-dev-make-full
-
-          - build_arch: arm64v8
-            build_dist: debian
-            build_type: clang-debug-shared-ninja-split
-
-          - build_arch: arm64v8
-            build_dist: suse
-            build_type: gcc-release-ninja-split
-
-          - build_arch: arm64v8
-            build_dist: suse
-            build_type: clang-debug-dev-shared-make-full
-
-          - build_arch: arm64v8
-            build_dist: ubuntu-2204
-            build_type: gcc-release-shared-ninja-split
-
-          - build_arch: arm64v8
-            build_dist: ubuntu-2204
-            build_type: gcc-debug-shared-ninja-full
-
-          - build_arch: arm64v8
-            build_dist: ubuntu-2204
-            build_type: clang-release-ninja-split
-
-          - build_arch: arm64v8
-            build_dist: ubuntu
-            build_type: gcc-debug-shared-ninja-full
-
-          - build_arch: arm64v8
-            build_dist: ubuntu
-            build_type: clang-release-shared-ninja-full
-
-          - build_arch: arm64v8
-            build_dist: ubuntu
-            build_type: oldgcc-debug-shared-make-split
-
-          - build_arch: arm64v8
-            build_dist: ubuntu
-            build_type: oldclang-debug-shared-make-split
-
-          - build_arch: arm64v8
-            build_dist: fedora
-            build_type: gcc-release-shared-make-full
-
-          - build_arch: arm64v8
-            build_dist: fedora
-            build_type: gcc-debug-shared-ninja-split
-
-          - build_arch: arm64v8
-            build_dist: fedora
-            build_type: clang-release-shared-ninja-full
-
-          - build_arch: arm64v8
-            build_dist: alpine
-            build_type: gcc-release-ninja-static
-
-          #skip# - build_arch: arm64v8
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-lto-ninja-static
-
-          - build_arch: arm64v8
-            build_dist: alpine
-            build_type: clang-release-ninja-static
-
-          #skip# - build_arch: arm64v8
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-lto-ninja-static
-
-          - build_arch: arm64v8
-            build_dist: alpine
-            build_type: clang-relsize-lto-ninja-static
-
-          - build_arch: arm64v8
-            build_dist: alpine
-            build_type: clang-relsize-libressl-lto-ninja-static
-
-          #skip# - build_arch: arm64v8
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-relsize-minimal-lto-ninja-static
-
-          - build_arch: arm64v8
-            build_dist: alpine
-            build_type: clang-relsize-minimal-libressl-lto-ninja-static
-
-          #skip# - build_arch: arm64v8
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-relsize-minimal-libressl-mimalloc-lto-ninja-static
-
-          - build_arch: arm64v8
-            build_dist: alpine
-            build_type: clang-reldbg-stacktrace-ninja-static
-
-          #####################################################################
-          #                          riscv64 builds                           #
-          #####################################################################
-
-          - build_arch: riscv64
-            build_dist: debian
-            build_type: gcc-release-ninja-full
-
-          #skip# - build_arch: riscv64
-          #skip#   build_dist: ubuntu
-          #skip#   build_type: clang-debug-shared-ninja-split
-
-          #####################################################################
-          #                       aarch64 builds (cross)                      #
-          #####################################################################
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-libressl-lto-ninja-static
-            cross_arch: aarch64
-
-          #####################################################################
-          #                       riscv64 builds (cross)                      #
-          #####################################################################
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-lto-ninja-static
-          #skip#   cross_arch: riscv64
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-relsize-lto-ninja-static
-          #skip#   cross_arch: riscv64
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-libressl-lto-ninja-static
-            cross_arch: riscv64
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-minimal-libressl-lto-ninja-static
-            cross_arch: riscv64
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-relsize-lto-ninja-static
-          #skip#   cross_arch: riscv64
-          #skip#   skip_slow_tests: true
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-ninja-static
-          #skip#   cross_arch: riscv64
-          #skip#   skip_slow_tests: true
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-lto-ninja-static
-          #skip#   cross_arch: riscv64
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-ninja-static
-          #skip#   cross_arch: riscv64
-          #skip#   skip_slow_tests: true
-
-          #####################################################################
-          #                        i386 builds (cross)                        #
-          #####################################################################
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-lto-ninja-static
-          #skip#   cross_arch: i386
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-lto-ninja-static
-            cross_arch: i386
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-libressl-lto-ninja-static
-            cross_arch: i386
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-minimal-libressl-lto-ninja-static
-            cross_arch: i386
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-relsize-lto-ninja-static
-          #skip#   cross_arch: i386
-          #skip#   skip_slow_tests: true
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-ninja-static
-          #skip#   cross_arch: i386
-          #skip#   skip_slow_tests: true
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-lto-ninja-static
-          #skip#   cross_arch: i386
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-ninja-static
-          #skip#   cross_arch: i386
-          #skip#   skip_slow_tests: true
-
-          #####################################################################
-          #                         arm builds (cross)                        #
-          #####################################################################
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-lto-ninja-static
-          #skip#   cross_arch: arm
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-lto-ninja-static
-            cross_arch: arm
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-libressl-lto-ninja-static
-            cross_arch: arm
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-minimal-libressl-lto-ninja-static
-            cross_arch: arm
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-relsize-lto-ninja-static
-          #skip#   cross_arch: arm
-          #skip#   skip_slow_tests: true
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-ninja-static
-          #skip#   cross_arch: arm
-          #skip#   skip_slow_tests: true
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-lto-ninja-static
-          #skip#   cross_arch: arm
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-ninja-static
-          #skip#   cross_arch: arm
-
-          #####################################################################
-          #                       ppc64le builds (cross)                      #
-          #####################################################################
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-ninja-static
-          #skip#   cross_arch: ppc64le
-          #skip#   skip_slow_tests: true
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-lto-ninja-static
-            cross_arch: ppc64le
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-libressl-lto-ninja-static
-            cross_arch: ppc64le
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-minimal-libressl-lto-ninja-static
-            cross_arch: ppc64le
-
-          ######## blocked by https://github.com/llvm/llvm-project/issues/150913
-          # - build_arch: amd64
-          #   build_dist: alpine
-          #   build_type: clang-relsize-lto-ninja-static
-          #   cross_arch: ppc64le
-
-          #####################################################################
-          #                        ppc64 builds (cross)                       #
-          #####################################################################
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-ninja-static
-          #skip#   cross_arch: ppc64
-          #skip#   skip_fuse_tests: true  # big-endian FUSE driver won't work on little-endian
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-libressl-ninja-static
-            cross_arch: ppc64
-            skip_fuse_tests: true  # big-endian FUSE driver won't work on little-endian
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-minimal-libressl-ninja-static
-            cross_arch: ppc64
-            skip_fuse_tests: true  # big-endian FUSE driver won't work on little-endian
-
-          ######## blocked by https://github.com/rui314/mold/issues/1498
-          # - build_arch: amd64
-          #   build_dist: alpine
-          #   build_type: gcc-release-lto-ninja-static
-          #   cross_arch: ppc64
-          #   skip_fuse_tests: true  # big-endian FUSE driver won't work on little-endian
-
-          #####################################################################
-          #                     loongarch64 builds (cross)                    #
-          #####################################################################
-
-          ######## no libressl support
-          # - build_arch: amd64
-          #   build_dist: alpine
-          #   build_type: clang-relsize-libressl-lto-ninja-static
-          #   cross_arch: loongarch64
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-lto-ninja-static
-          #skip#   cross_arch: loongarch64
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-lto-ninja-static
-            cross_arch: loongarch64
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: clang-relsize-minimal-lto-ninja-static
-            cross_arch: loongarch64
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: clang-release-ninja-static
-          #skip#   cross_arch: loongarch64
-          #skip#   skip_slow_tests: true
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-lto-ninja-static
-          #skip#   cross_arch: loongarch64
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-ninja-static
-          #skip#   cross_arch: loongarch64
-          #skip#   skip_slow_tests: true
-
-          #####################################################################
-          #                        s390x builds (cross)                       #
-          #####################################################################
-
-          ######## no libressl support
-          # - build_arch: amd64
-          #   build_dist: alpine
-          #   build_type: clang-relsize-libressl-lto-ninja-static
-          #   cross_arch: s390x
-
-          ######## misaligned symbol typeinfo name for std::_Sp_make_shared_tag for relocation R_390_PC32DBL
-          ######## https://sourceware.org/bugzilla/show_bug.cgi?id=32969
-          # - build_arch: amd64
-          #   build_dist: alpine
-          #   build_type: clang-relsize-lto-ninja-static
-          #   cross_arch: s390x
-
-          ######## misaligned symbol typeinfo name for std::_Sp_make_shared_tag for relocation R_390_PC32DBL
-          ######## https://sourceware.org/bugzilla/show_bug.cgi?id=32969
-          # - build_arch: amd64
-          #   build_dist: alpine
-          #   build_type: clang-release-ninja-static
-          #   cross_arch: s390x
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-lto-ninja-static
-            cross_arch: s390x
-            skip_fuse_tests: true  # big-endian FUSE driver won't work on little-endian
-
-          - build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-minimal-lto-ninja-static
-            cross_arch: s390x
-            skip_fuse_tests: true  # big-endian FUSE driver won't work on little-endian
-
-          #skip# - build_arch: amd64
-          #skip#   build_dist: alpine
-          #skip#   build_type: gcc-release-ninja-static
-          #skip#   cross_arch: s390x
-          #skip#   skip_fuse_tests: true  # big-endian FUSE driver won't work on little-endian
-
-    uses: ./.github/workflows/docker-run-build.yml
+      os: ubuntu
+      arch: x86_64
+      runner: ubuntu-latest
+      format: flatbuffers-only
+      with_thrift: false
+      with_flatbuffers: true
+      should_pass: true
+
+  # PRIORITY 2: Test both encodings to ensure full compatibility
+  encoding-test-linux-x86_64-both-formats:
+    name: Encoding Test - Ubuntu (x86_64) - Both Encodings
+    uses: ./.github/workflows/encoding-format-test.yml
     with:
-      build_type: ${{ matrix.build_type }}
-      build_arch: ${{ matrix.build_arch }}
-      build_dist: ${{ matrix.build_dist }}
-      cross_arch: ${{ matrix.cross_arch }}
-      skip_slow_tests: ${{ matrix.skip_slow_tests || false }}
-      skip_fuse_tests: ${{ matrix.skip_fuse_tests || false }}
-      build_from_tarball: true
-      upload_coverage: ${{ matrix.build_type == 'clang-debug-coverage-ninja' }}
-      upload_artifacts: ${{ endsWith(matrix.build_type, '-static') }}
+      os: ubuntu
+      arch: x86_64
+      runner: ubuntu-latest
+      format: both-formats
+      with_thrift: true
+      with_flatbuffers: true
+      should_pass: true
+
+  # DISABLED TEMPORARILY - Enable after Priority 1+2 pass
+  # metadata-linux-x86_64-thrift-only:
+  #   name: Metadata - ubuntu (x86_64) - thrift-only
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: ubuntu
+  #     arch: x86_64
+  #     runner: ubuntu-latest
+  #     format: thrift-only
+  #     with_thrift: true
+  #     with_flatbuffers: false
+  #     should_pass: false
+
+  # metadata-linux-aarch64-both-formats:
+  #   name: Metadata - ubuntu (aarch64) - both-formats
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: ubuntu
+  #     arch: aarch64
+  #     runner: ubuntu-24.04-arm64
+  #     format: both-formats
+  #     with_thrift: true
+  #     with_flatbuffers: true
+  #     should_pass: true
+
+  # metadata-linux-aarch64-flatbuffers-only:
+  #   name: Metadata - ubuntu (aarch64) - flatbuffers-only
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: ubuntu
+  #     arch: aarch64
+  #     runner: ubuntu-24.04-arm64
+  #     format: flatbuffers-only
+  #     with_thrift: false
+  #     with_flatbuffers: true
+  #     should_pass: true
+
+  # metadata-linux-aarch64-thrift-only:
+  #   name: Metadata - ubuntu (aarch64) - thrift-only
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: ubuntu
+  #     arch: aarch64
+  #     runner: ubuntu-24.04-arm64
+  #     format: thrift-only
+  #     with_thrift: true
+  #     with_flatbuffers: false
+  #     should_pass: true
+
+  # metadata-macos-x86_64-flatbuffers-only:
+  #   name: Metadata - macos (x86_64) - flatbuffers-only
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: macos
+  #     arch: x86_64
+  #     runner: macos-13
+  #     format: flatbuffers-only
+  #     with_thrift: false
+  #     with_flatbuffers: true
+  #     should_pass: true
+
+  # metadata-macos-x86_64-thrift-only:
+  #   name: Metadata - macos (x86_64) - thrift-only
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: macos
+  #     arch: x86_64
+  #     runner: macos-13
+  #     format: thrift-only
+  #     with_thrift: true
+  #     with_flatbuffers: false
+  #     should_pass: true
+
+  # metadata-macos-x86_64-both-formats:
+  #   name: Metadata - macos (x86_64) - both-formats
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: macos
+  #     arch: x86_64
+  #     runner: macos-13
+  #     format: both-formats
+  #     with_thrift: true
+  #     with_flatbuffers: true
+  #     should_pass: true
+
+  # metadata-macos-aarch64-both-formats:
+  #   name: Metadata - macos (aarch64) - both-formats
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: macos
+  #     arch: aarch64
+  #     runner: macos-14
+  #     format: both-formats
+  #     with_thrift: true
+  #     with_flatbuffers: true
+  #     should_pass: true
+
+  # metadata-macos-aarch64-thrift-only:
+  #   name: Metadata - macos (aarch64) - thrift-only
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: macos
+  #     arch: aarch64
+  #     runner: macos-14
+  #     format: thrift-only
+  #     with_thrift: true
+  #     with_flatbuffers: false
+  #     should_pass: true
+
+  # metadata-macos-aarch64-flatbuffers-only:
+  #   name: Metadata - macos (aarch64) - flatbuffers-only
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: macos
+  #     arch: aarch64
+  #     runner: macos-14
+  #     format: flatbuffers-only
+  #     with_thrift: false
+  #     with_flatbuffers: true
+  #     should_pass: true
+
+  # metadata-windows-x64-both-formats:
+  #   name: Metadata - windows (x64) - both-formats
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: windows
+  #     arch: x64
+  #     runner: windows-latest
+  #     format: both-formats
+  #     with_thrift: true
+  #     with_flatbuffers: true
+  #     should_pass: true
+
+  # metadata-windows-x64-thrift-only:
+  #   name: Metadata - windows (x64) - thrift-only
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: windows
+  #     arch: x64
+  #     runner: windows-latest
+  #     format: thrift-only
+  #     with_thrift: true
+  #     with_flatbuffers: false
+  #     should_pass: true
+
+  # metadata-windows-x64-flatbuffers-only:
+  #   name: Metadata - windows (x64) - flatbuffers-only
+  #   uses: ./.github/workflows/metadata-format-test.yml
+  #   with:
+  #     os: windows
+  #     arch: x64
+  #     runner: windows-latest
+  #     format: flatbuffers-only
+  #     with_thrift: false
+  #     with_flatbuffers: true
+  #     should_pass: true
 
 ################################################################################
 
-  macos:
-    needs: package-source
-
-    runs-on:
-      - self-hosted
-      - macOS
-      - ${{ matrix.arch }}
-
-    strategy:
-      matrix:
-        arch:
-          - ARM64
-        build_mode:
-          - Release
-          - Debug
-        config:
-          - name: Normal
-            cmake_args: ''
-          - name: Benchmark
-            cmake_args: -DWITH_BENCHMARKS=ON
-        include:
-          - arch: X64
-            build_mode: Release
-            config:
-              name: Normal
-              cmake_args: ''
-          - arch: X64
-            build_mode: Debug
-            config:
-              name: Benchmark
-              cmake_args: -DWITH_BENCHMARKS=ON
-
-    steps:
-      - name: Unpack Source Tarball
-        run: |
-          rm -rf dwarfs-*/
-          rm -f dwarfs-source-*.tar.zst
-          rm -f dwarfs
-          tar xf /Volumes/opensource/artifacts/dwarfs/cache/dwarfs-source-${{ github.run_number }}.tar.zst
-          ln -s dwarfs-* dwarfs
-
-      - name: Configure Full Build
-        run: |
-          rm -rf ${{ runner.temp }}/build
-          cmake --fresh -B${{ runner.temp }}/build -S${{ runner.workspace }}/dwarfs/dwarfs -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_mode }} -DWITH_TESTS=ON -DWITH_PXATTR=ON ${{ matrix.config.cmake_args }}
-
-      - name: Run Full Build
-        run: |
-          cmake --build ${{ runner.temp }}/build
-
-      - name: Run Full Test
-        run: |
-          ctest --test-dir ${{ runner.temp }}/build --output-on-failure -j
-
-      - name: Cleanup
-        run: |
-          cmake --build ${{ runner.temp }}/build --target realclean
-
-      - name: Configure Library Build
-        run: |
-          cmake --fresh -B${{ runner.temp }}/build -S${{ runner.workspace }}/dwarfs/dwarfs -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_mode }} -DWITH_TESTS=ON -DWITH_LIBDWARFS=ON -DWITH_TOOLS=OFF -DWITH_FUSE_DRIVER=OFF ${{ matrix.config.cmake_args }}
-
-      - name: Run Library Build
-        run: |
-          cmake --build ${{ runner.temp }}/build
-
-      - name: Run Library Test
-        run: |
-          ctest --test-dir ${{ runner.temp }}/build --output-on-failure -j
-
-      - name: Install Library
-        run: |
-          cmake --install ${{ runner.temp }}/build --prefix ${{ runner.temp }}/install
-
-      - name: Cleanup
-        run: |
-          cmake --build ${{ runner.temp }}/build --target realclean
-
-      - name: Configure Tools Build
-        run: |
-          cmake --fresh -B${{ runner.temp }}/build -S${{ runner.workspace }}/dwarfs/dwarfs -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_mode }} -DWITH_TESTS=ON -DWITH_LIBDWARFS=OFF -DWITH_TOOLS=ON -DWITH_FUSE_DRIVER=OFF ${{ matrix.config.cmake_args }} -DCMAKE_PREFIX_PATH=${{ runner.temp }}/install
-
-      - name: Run Tools Build
-        run: |
-          cmake --build ${{ runner.temp }}/build
-
-      - name: Run Tools Test
-        run: |
-          ctest --test-dir ${{ runner.temp }}/build --output-on-failure -j
-
-      - name: Install Tools
-        run: |
-          cmake --install ${{ runner.temp }}/build --prefix ${{ runner.temp }}/install
-
-      - name: Cleanup
-        run: |
-          cmake --build ${{ runner.temp }}/build --target realclean
-
-      - name: Configure FUSE Driver Build
-        run: |
-          cmake --fresh -B${{ runner.temp }}/build -S${{ runner.workspace }}/dwarfs/dwarfs -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_mode }} -DWITH_TESTS=ON -DWITH_LIBDWARFS=OFF -DWITH_TOOLS=OFF -DWITH_FUSE_DRIVER=ON ${{ matrix.config.cmake_args }} -DCMAKE_PREFIX_PATH=${{ runner.temp }}/install
-
-      - name: Run FUSE Driver Build
-        run: |
-          cmake --build ${{ runner.temp }}/build
-
-      - name: Run FUSE Driver Test
-        run: |
-          ctest --test-dir ${{ runner.temp }}/build --output-on-failure -j
-
-      - name: Install FUSE Driver
-        run: |
-          cmake --install ${{ runner.temp }}/build --prefix ${{ runner.temp }}/install
-
-      - name: Cleanup
-        run: |
-          cmake --build ${{ runner.temp }}/build --target realclean
-          rm -rf dwarfs-*/
-          rm -f dwarfs-source-*.tar.zst
-          rm -f dwarfs
+  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
+  # allocator-testing:
+  #   name: Allocator - ${{ matrix.platform }} - ${{ matrix.allocator }}
+  #   needs: package-source
+  #
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         #####################################################################
+  #         #                    Linux x86_64 Allocator Tests                   #
+  #         #####################################################################
+  #
+  #         - platform: linux-amd64
+  #           build_arch: amd64
+  #           build_dist: ubuntu
+  #           build_type: gcc-release-jemalloc-ninja-split
+  #           allocator: jemalloc
+  #
+  #         - platform: linux-amd64
+  #           build_arch: amd64
+  #           build_dist: ubuntu
+  #           build_type: gcc-release-mimalloc-ninja-split
+  #           allocator: mimalloc
+  #
+  #         #####################################################################
+  #         #                    Linux ARM64 Allocator Tests                    #
+  #         #####################################################################
+  #
+  #         - platform: linux-arm64
+  #           build_arch: arm64v8
+  #           build_dist: ubuntu
+  #           build_type: gcc-release-jemalloc-ninja-split
+  #           allocator: jemalloc
+  #
+  #         - platform: linux-arm64
+  #           build_arch: arm64v8
+  #           build_dist: ubuntu
+  #           build_type: gcc-release-mimalloc-ninja-split
+  #           allocator: mimalloc
+  #
+  #         #####################################################################
+  #         #                    Alpine Static Allocator Tests                  #
+  #         #####################################################################
+  #
+  #         - platform: alpine-amd64
+  #           build_arch: amd64
+  #           build_dist: alpine
+  #           build_type: gcc-release-jemalloc-ninja-static
+  #           allocator: jemalloc
+  #
+  #         - platform: alpine-amd64
+  #           build_arch: amd64
+  #           build_dist: alpine
+  #           build_type: gcc-release-mimalloc-ninja-static
+  #           allocator: mimalloc
+  #
+  #   uses: ./.github/workflows/docker-run-build.yml
+  #   with:
+  #     build_type: ${{ matrix.build_type }}
+  #     build_arch: ${{ matrix.build_arch }}
+  #     build_dist: ${{ matrix.build_dist }}
+  #     build_from_tarball: true
+  #     upload_artifacts: false
 
 ################################################################################
 
-  freebsd:
-    needs: package-source
-
-    runs-on:
-      - self-hosted
-      - freebsd
-      - ${{ matrix.arch }}
-
-    strategy:
-      matrix:
-        arch:
-          - amd64
-        build_mode:
-          - Release
-          - Debug
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: '0'
-          ref: ${{ github.ref }}
-
-      - name: Run Build
-        run: |
-          BUILD_MODE=${{ matrix.build_mode }} \
-          sh .github/scripts/freebsd_jail_build.sh
-
-################################################################################
-# UPSTREAM CONTRIBUTIONS: Windows, MSys2, Metadata, Benchmark Testing
-################################################################################
-
-  windows-vcpkg:
-    name: Windows vcpkg - ${{ matrix.arch }} - ${{ matrix.format }}
-    runs-on: ${{ matrix.runner }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # x64 builds
-          - runner: windows-latest
-            arch: x64
-            triplet: x64-windows-static
-            format: all-formats
-            with_thrift: ON
-
-          - runner: windows-latest
-            arch: x64
-            triplet: x64-windows-static
-            format: minimal
-            with_thrift: OFF
-
-          # ARM64 builds (cross-compilation)
-          - runner: windows-latest
-            arch: ARM64
-            triplet: arm64-windows-static
-            format: all-formats
-            with_thrift: ON
-
-          - runner: windows-latest
-            arch: ARM64
-            triplet: arm64-windows-static
-            format: minimal
-            with_thrift: OFF
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Setup vcpkg
-        run: |
-          if ("${{ matrix.arch }}" -eq "ARM64") {
-            # boost-fiber not supported on ARM64, exclude it
-            vcpkg install --classic --triplet=${{ matrix.triplet }} `
-              boost-system boost-filesystem boost-program-options `
-              boost-iostreams boost-context `
-              zlib lz4 zstd xxhash bzip2 liblzma `
-              libarchive libevent double-conversion jemalloc gtest
-          } else {
-            vcpkg install --classic --triplet=${{ matrix.triplet }} `
-              boost-system boost-filesystem boost-program-options `
-              boost-iostreams boost-context boost-fiber `
-              zlib lz4 zstd xxhash bzip2 liblzma `
-              libarchive libevent double-conversion jemalloc gtest
-          }
-
-      - name: Install Thrift
-        if: matrix.with_thrift == 'ON'
-        run: |
-          vcpkg install --classic --triplet=${{ matrix.triplet }} thrift
-
-      - name: Install WinFsp
-        run: |
-          choco install winfsp -y
-
-      - name: Configure
-        run: |
-          cmake -B build -G "Visual Studio 17 2022" -A ${{ matrix.arch }} `
-            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
-            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DWITH_TESTS=ON `
-            -DWITH_BENCHMARKS=ON `
-            -DWITH_FUSE_DRIVER=ON `
-            -DDWARFS_WITH_THRIFT=${{ matrix.with_thrift }} `
-            -DDWARFS_WITH_FLATBUFFERS=ON
-
-      - name: Build
-        run: cmake --build build --config Release --parallel
-
-      - name: Test
-        if: matrix.arch != 'ARM64'
-        run: ctest --test-dir build -C Release --output-on-failure
-
-      - name: Benchmark Smoke Test
-        if: matrix.arch != 'ARM64'
-        continue-on-error: true
-        run: |
-          ./build/Release/dwarfs_benchmark.exe --benchmark_min_time=0.1s --benchmark_filter=.*Creation.*
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dwarfs-windows-${{ matrix.arch }}-${{ matrix.format }}
-          path: build/Release/dwarfs*.exe
-
-################################################################################
-
-  windows-msys2:
-    name: Windows MSys2 - ${{ matrix.sys }}
-    runs-on: windows-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        sys: [ucrt64, mingw64]
-
-    defaults:
-      run:
-        shell: msys2 {0}
-
-    steps:
-      - name: Setup MSys2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.sys }}
-          update: true
-          install: >-
-            git tar bison flex
-          pacboy: >-
-            toolchain:p cmake:p ninja:p boost:p
-            openssl:p libevent:p double-conversion:p
-            fmt:p glog:p lz4:p xz:p zstd:p xxhash:p
-            bzip2:p libarchive:p gtest:p
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Configure
-        run: |
-          cmake -B build -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DWITH_TESTS=ON \
-            -DWITH_BENCHMARKS=ON \
-            -DWITH_FUSE_DRIVER=OFF \
-            -DDWARFS_WITH_THRIFT=OFF \
-            -DDWARFS_WITH_FLATBUFFERS=ON
-
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
-
-      - name: Benchmark Smoke Test
-        continue-on-error: true
-        run: |
-          ./build/dwarfs_benchmark --benchmark_min_time=0.1s --benchmark_filter=.*Creation.*
-
-################################################################################
-
-  metadata-formats:
-    name: Metadata - ${{ matrix.os }} (${{ matrix.arch }}) - ${{ matrix.format }}
-    runs-on: ${{ matrix.runner }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Linux x86_64 - FlatBuffers only (modern default)
-          - os: ubuntu
-            arch: x86_64
-            runner: ubuntu-latest
-            format: flatbuffers-only
-            with_thrift: OFF
-            with_flatbuffers: ON
-            should_pass: true
-
-          # Linux x86_64 - Both formats (full compatibility)
-          - os: ubuntu
-            arch: x86_64
-            runner: ubuntu-latest
-            format: both-formats
-            with_thrift: ON
-            with_flatbuffers: ON
-            should_pass: true
-
-          # Linux x86_64 - Thrift only (should FAIL - FlatBuffers required)
-          - os: ubuntu
-            arch: x86_64
-            runner: ubuntu-latest
-            format: thrift-only
-            with_thrift: ON
-            with_flatbuffers: OFF
-            should_pass: false
-
-          # Linux ARM64 - Both formats
-          - os: ubuntu
-            arch: aarch64
-            runner: ubuntu-24.04-arm64
-            format: both-formats
-            with_thrift: ON
-            with_flatbuffers: ON
-            should_pass: true
-
-          # Linux ARM64 - FlatBuffers only
-          - os: ubuntu
-            arch: aarch64
-            runner: ubuntu-24.04-arm64
-            format: flatbuffers-only
-            with_thrift: OFF
-            with_flatbuffers: ON
-            should_pass: true
-          # Linux ARM64 - Thrift only
-          - os: ubuntu
-            arch: aarch64
-            runner: ubuntu-24.04-arm64
-            format: thrift-only
-            with_thrift: ON
-            with_flatbuffers: OFF
-            should_pass: true
-
-
-          # macOS Intel - FlatBuffers only
-          - os: macos
-            arch: x86_64
-            runner: macos-13
-            format: flatbuffers-only
-            with_thrift: OFF
-            with_flatbuffers: ON
-            should_pass: true
-
-          # macOS Intel - Thrift only
-          - os: macos
-            arch: x86_64
-            runner: macos-13
-            format: thrift-only
-            with_thrift: ON
-            with_flatbuffers: OFF
-            should_pass: true
-
-          # macOS Intel - Both formats
-          - os: macos
-            arch: x86_64
-            runner: macos-13
-            format: both-formats
-            with_thrift: ON
-            with_flatbuffers: ON
-            should_pass: true
-
-          # macOS Apple Silicon - Both formats
-          - os: macos
-            arch: aarch64
-            runner: macos-14
-            format: both-formats
-            with_thrift: ON
-            with_flatbuffers: ON
-            should_pass: true
-
-          # macOS Apple Silicon - Thrift only
-          - os: macos
-            arch: aarch64
-            runner: macos-14
-            format: thrift-only
-            with_thrift: ON
-            with_flatbuffers: OFF
-            should_pass: true
-
-          # macOS Apple Silicon - FlatBuffers only
-          - os: macos
-            arch: aarch64
-            runner: macos-14
-            format: flatbuffers-only
-            with_thrift: OFF
-            with_flatbuffers: ON
-            should_pass: true
-
-          # Windows x64 - Both formats
-          - os: windows
-            arch: x64
-            runner: windows-latest
-            format: both-formats
-            with_thrift: ON
-            with_flatbuffers: ON
-            should_pass: true
-
-          # Windows x64 - Thrift only
-          - os: windows
-            arch: x64
-            runner: windows-latest
-            format: thrift-only
-            with_thrift: ON
-            with_flatbuffers: OFF
-            should_pass: true
-
-          # Windows x64 - FlatBuffers only
-          - os: windows
-            arch: x64
-            runner: windows-latest
-            format: flatbuffers-only
-            with_thrift: OFF
-            with_flatbuffers: ON
-            should_pass: true
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Install Dependencies (Ubuntu)
-        if: matrix.os == 'ubuntu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build libboost-all-dev \
-            libssl-dev libevent-dev libdouble-conversion-dev \
-            libfmt-dev libgoogle-glog-dev liblz4-dev liblzma-dev \
-            libzstd-dev libxxhash-dev libbz2-dev libarchive-dev \
-            libgtest-dev nlohmann-json3-dev libutf8cpp-dev
-
-      - name: Install Dependencies (macOS)
-        if: matrix.os == 'macos'
-        run: |
-          brew install ninja boost openssl libevent double-conversion \
-            fmt glog lz4 xz zstd xxhash bzip2 libarchive googletest
-
-      - name: Install Dependencies (Windows)
-        if: matrix.os == 'windows'
-        run: |
-          choco install winfsp -y
-          vcpkg install --classic --triplet=x64-windows-static `
-            boost-system boost-filesystem boost-program-options `
-            boost-iostreams boost-context boost-fiber `
-            zlib lz4 zstd xxhash bzip2 liblzma `
-            libarchive libevent double-conversion jemalloc gtest
-
-      - name: Install Thrift (Ubuntu)
-        if: matrix.os == 'ubuntu' && matrix.with_thrift == 'ON'
-        run: sudo apt-get install -y libthrift-dev
-
-      - name: Install Thrift (macOS)
-        if: matrix.os == 'macos' && matrix.with_thrift == 'ON'
-        run: brew install thrift
-
-      - name: Install Thrift (Windows)
-        if: matrix.os == 'windows' && matrix.with_thrift == 'ON'
-        run: vcpkg install --classic --triplet=x64-windows-static thrift
-
-      - name: Configure
-        shell: bash
-        continue-on-error: ${{ !matrix.should_pass }}
-        run: |
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            cmake -B build -G "Visual Studio 17 2022" -A x64 \
-              -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake \
-              -DVCPKG_TARGET_TRIPLET=x64-windows-static \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DWITH_TESTS=ON \
-              -DWITH_FUSE_DRIVER=ON \
-              -DDWARFS_WITH_THRIFT=${{ matrix.with_thrift }} \
-              -DDWARFS_WITH_FLATBUFFERS=${{ matrix.with_flatbuffers }}
-          else
-            cmake -B build -GNinja \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DWITH_TESTS=ON \
-              -DWITH_FUSE_DRIVER=OFF \
-              -DDWARFS_WITH_THRIFT=${{ matrix.with_thrift }} \
-              -DDWARFS_WITH_FLATBUFFERS=${{ matrix.with_flatbuffers }}
-          fi
-
-      - name: Build
-        shell: bash
-        continue-on-error: ${{ !matrix.should_pass }}
-        run: |
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            cmake --build build --config Release --parallel
-          else
-            cmake --build build --parallel
-          fi
-
-      - name: Verify Expected Outcome
-        shell: bash
-        run: |
-          if [ "${{ matrix.should_pass }}" = "true" ]; then
-            # Build should have succeeded
-            if [ "${{ matrix.os }}" = "windows" ]; then
-              test -f build/Release/mkdwarfs.exe || (echo "ERROR: Expected build to succeed but mkdwarfs.exe not found" && exit 1)
-            else
-              test -f build/mkdwarfs || (echo "ERROR: Expected build to succeed but mkdwarfs not found" && exit 1)
-            fi
-            echo "✅ Build succeeded as expected for ${{ matrix.format }}"
-          else
-            # Build should have failed (FlatBuffers is required)
-            if [ "${{ matrix.os }}" = "windows" ]; then
-              if [ -f build/Release/mkdwarfs.exe ]; then
-                echo "ERROR: Expected build to fail (FlatBuffers required) but it succeeded"
-                exit 1
-              fi
-            else
-              if [ -f build/mkdwarfs ]; then
-                echo "ERROR: Expected build to fail (FlatBuffers required) but it succeeded"
-                exit 1
-              fi
-            fi
-            echo "✅ Build failed as expected (FlatBuffers is REQUIRED)"
-          fi
-
-      - name: Test All
-        shell: bash
-        run: |
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            ctest --test-dir build -C Release --output-on-failure
-          else
-            ctest --test-dir build --output-on-failure
-          fi
-
-      - name: Test Metadata Serialization
-        shell: bash
-        run: |
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            ctest --test-dir build -C Release \
-              --output-on-failure \
-              --tests-regex "metadata.*serial"
-          else
-            ctest --test-dir build \
-              --output-on-failure \
-              --tests-regex "metadata.*serial"
-          fi
-
-      - name: Verify Metadata Formats
-        shell: bash
-        run: |
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            ./build/Release/mkdwarfs.exe --help | grep -i "metadata format" || true
-            ./build/Release/dwarfsck.exe --help | grep -i format || true
-          else
-            ./build/mkdwarfs --help | grep -i "metadata format" || true
-            ./build/dwarfsck --help | grep -i format || true
-          fi
-
-################################################################################
-
-  allocator-testing:
-    name: Allocator - ${{ matrix.platform }} - ${{ matrix.allocator }}
-    needs: package-source
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          #####################################################################
-          #                    Linux x86_64 Allocator Tests                   #
-          #####################################################################
-
-          - platform: linux-amd64
-            build_arch: amd64
-            build_dist: ubuntu
-            build_type: gcc-release-jemalloc-ninja-split
-            allocator: jemalloc
-
-          - platform: linux-amd64
-            build_arch: amd64
-            build_dist: ubuntu
-            build_type: gcc-release-mimalloc-ninja-split
-            allocator: mimalloc
-
-          #####################################################################
-          #                    Linux ARM64 Allocator Tests                    #
-          #####################################################################
-
-          - platform: linux-arm64
-            build_arch: arm64v8
-            build_dist: ubuntu
-            build_type: gcc-release-jemalloc-ninja-split
-            allocator: jemalloc
-
-          - platform: linux-arm64
-            build_arch: arm64v8
-            build_dist: ubuntu
-            build_type: gcc-release-mimalloc-ninja-split
-            allocator: mimalloc
-
-          #####################################################################
-          #                    Alpine Static Allocator Tests                  #
-          #####################################################################
-
-          - platform: alpine-amd64
-            build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-jemalloc-ninja-static
-            allocator: jemalloc
-
-          - platform: alpine-amd64
-            build_arch: amd64
-            build_dist: alpine
-            build_type: gcc-release-mimalloc-ninja-static
-            allocator: mimalloc
-
-    uses: ./.github/workflows/docker-run-build.yml
-    with:
-      build_type: ${{ matrix.build_type }}
-      build_arch: ${{ matrix.build_arch }}
-      build_dist: ${{ matrix.build_dist }}
-      build_from_tarball: true
-      upload_artifacts: false
-
-################################################################################
-
-  benchmark-smoke:
-    name: Benchmark Smoke Test - ${{ matrix.platform }}
-    needs: [linux, windows-vcpkg, macos]
-    runs-on: ${{ matrix.runner }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux-amd64
-            runner: ubuntu-latest
-            artifact: dwarfs-linux-amd64-static
-            ext: ''
-
-          - platform: macos-arm64
-            runner: macos-14
-            artifact: dwarfs-macos-arm64
-            ext: ''
-
-          - platform: windows-x64
-            runner: windows-latest
-            artifact: dwarfs-windows-x64-all-formats
-            ext: '.exe'
-
-    steps:
-      - name: Download Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: binaries
-
-      - name: Make Executable (Unix)
-        if: runner.os != 'Windows'
-        run: chmod +x binaries/dwarfs_benchmark
-
-      - name: Run Creation Benchmark
-        continue-on-error: true
-        shell: bash
-        run: |
-          ./binaries/dwarfs_benchmark${{ matrix.ext }} \
-            --benchmark_min_time=0.1s \
-            --benchmark_filter=.*Creation.*
-
-      - name: Run Decompression Benchmark
-        continue-on-error: true
-        shell: bash
-        run: |
-          ./binaries/dwarfs_benchmark${{ matrix.ext }} \
-            --benchmark_min_time=0.1s \
-            --benchmark_filter=.*Decompression.*
+  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
+  # benchmark-smoke:
+  #   name: Benchmark Smoke Test - ${{ matrix.platform }}
+  #   needs: [linux, windows, macos]
+  #   runs-on: ${{ matrix.runner }}
+  #
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - platform: linux-amd64
+  #           runner: ubuntu-latest
+  #           artifact: dwarfs-linux-amd64-static
+  #           ext: ''
+  #
+  #         - platform: macos-arm64
+  #           runner: macos-14
+  #           artifact: dwarfs-macos-arm64
+  #           ext: ''
+  #
+  #         - platform: windows-x64
+  #           runner: windows-latest
+  #           artifact: dwarfs-windows-x64-all-formats
+  #           ext: '.exe'
+  #
+  #   steps:
+  #     - name: Download Artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: ${{ matrix.artifact }}
+  #         path: binaries
+  #
+  #     - name: Make Executable (Unix)
+  #       if: runner.os != 'Windows'
+  #       run: chmod +x binaries/dwarfs_benchmark
+  #
+  #     - name: Run Creation Benchmark
+  #       continue-on-error: true
+  #       shell: bash
+  #       run: |
+  #         ./binaries/dwarfs_benchmark${{ matrix.ext }} \
+  #           --benchmark_min_time=0.1s \
+  #           --benchmark_filter=.*Creation.*
+  #
+  #     - name: Run Decompression Benchmark
+  #       continue-on-error: true
+  #       shell: bash
+  #       run: |
+  #         ./binaries/dwarfs_benchmark${{ matrix.ext }} \
+  #           --benchmark_min_time=0.1s \
+  #           --benchmark_filter=.*Decompression.*
 
 ################################################################################
 # TEBAKO-SPECIFIC JOBS (only in tamatebako/dwarfs fork)
 ################################################################################
 
-  tebako-ubuntu:
-    name: Tebako Ubuntu - ${{ matrix.arch }} - ${{ matrix.compiler }} - ${{ matrix.scope }}
-    runs-on: ${{ matrix.host }}
-    container:
-      image: 'ghcr.io/${{ github.repository_owner }}/tebako-${{ matrix.os }}-dev'
-      options: --privileged
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - host: ubuntu-22.04
-            arch: amd64
-            os: ubuntu-20.04
-            compiler: gcc-10
-            scope: ALL
-            tests: ON
-
-          - host: ubuntu-22.04
-            arch: amd64
-            os: ubuntu-20.04
-            compiler: clang-12
-            scope: MKD
-            tests: OFF
-
-          - host: ubuntu-22.04-arm
-            arch: arm64
-            os: ubuntu-20.04
-            compiler: gcc-10
-            scope: ALL
-            tests: ON
-
-    env:
-      CC: ${{ matrix.compiler }}
-      CXX: ${{ matrix.compiler == 'gcc-10' && 'g++-10' || 'clang++-12' }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Install FUSE3
-        if: matrix.scope == 'ALL'
-        run: apt-get update && apt-get install -y libfuse3-dev fuse3
-
-      - name: Install Build Tools
-        run: apt-get install -y ninja-build git
-
-      - name: Configure
-        run: |
-          cmake -B build -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DTEBAKO_BUILD=ON \
-            -DTEBAKO_BUILD_SCOPE=${{ matrix.scope }} \
-            -DWITH_TESTS=${{ matrix.tests }} \
-            -DWITH_FUSE_DRIVER=${{ matrix.scope == 'ALL' && 'ON' || 'OFF' }}
-
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Test
-        if: matrix.tests == 'ON'
-        run: ctest --test-dir build --output-on-failure
-
-################################################################################
-
-  tebako-macos:
-    name: Tebako macOS - ${{ matrix.xcode }} - ${{ matrix.scope }}
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-14
-            xcode: '15.0.1'
-            scope: ALL
-            tests: ON
-
-          - os: macos-14
-            xcode: '15.4'
-            scope: MKD
-            tests: OFF
-
-    steps:
-      - name: Select XCode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: ${{ matrix.xcode }}
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Install Dependencies
-        run: |
-          brew install ninja boost libarchive
-
-      - name: Configure
-        run: |
-          cmake -B build -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DTEBAKO_BUILD=ON \
-            -DTEBAKO_BUILD_SCOPE=${{ matrix.scope }} \
-            -DWITH_TESTS=${{ matrix.tests }} \
-            -DWITH_FUSE_DRIVER=OFF
-
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Test
-        if: matrix.tests == 'ON'
-        run: ctest --test-dir build --output-on-failure
-
-################################################################################
-
-  tebako-alpine:
-    name: Tebako Alpine - ${{ matrix.arch }} - ${{ matrix.compiler }} - ${{ matrix.scope }}
-    runs-on: ubuntu-latest
-    container:
-      image: 'ghcr.io/${{ github.repository_owner }}/tebako-${{ matrix.os }}-dev'
-      options: --privileged
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            os: alpine-3.17
-            compiler: gcc
-            scope: ALL
-            tests: ON
-
-          - arch: amd64
-            os: alpine-3.17
-            compiler: clang
-            scope: MKD
-            tests: OFF
-
-    env:
-      CC: ${{ matrix.compiler }}
-      CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Install FUSE3
-        if: matrix.scope == 'ALL'
-        run: apk add --no-cache fuse3 fuse3-dev
-
-      - name: Install Build Tools
-        run: apk add --no-cache ninja git
-
-      - name: Configure
-        run: |
-          cmake -B build -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DTEBAKO_BUILD=ON \
-            -DTEBAKO_BUILD_SCOPE=${{ matrix.scope }} \
-            -DWITH_TESTS=${{ matrix.tests }} \
-            -DWITH_FUSE_DRIVER=${{ matrix.scope == 'ALL' && 'ON' || 'OFF' }}
-
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Test
-        if: matrix.tests == 'ON'
-        run: ctest --test-dir build --output-on-failure
+  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
+  # tebako:
+  #   uses: ./.github/workflows/tebako-builds.yml

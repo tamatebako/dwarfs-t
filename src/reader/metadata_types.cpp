@@ -48,14 +48,6 @@
 
 // DO NOT include legacy internal/metadata_types.h - it conflicts with type aliases
 // Include appropriate backend headers based on what's available
-#ifdef DWARFS_HAVE_THRIFT
-#include <dwarfs/reader/internal/metadata_types_thrift.h>
-#endif
-
-#ifdef DWARFS_HAVE_FLATBUFFERS
-#include <dwarfs/reader/internal/metadata_types_flatbuffers.h>
-#endif
-
 // No need for using declarations - types are properly namespaced now
 // metadata_types_fwd.h handles type aliases for single-format builds
 
@@ -220,11 +212,12 @@ uint32_t directory_view::parent_inode() const {
 }
 
 dir_entry_view directory_view::self_entry_view() const {
+  auto self_idx = g_->self_dir_entry(inode_);
 #if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
-  return {g_->make_dir_entry_view(g_->self_dir_entry(inode_))};
+  return {g_->make_dir_entry_view(self_idx, self_idx)};
 #else
   return {std::static_pointer_cast<internal::dir_entry_view_impl const>(
-      g_->make_dir_entry_view(g_->self_dir_entry(inode_)))};
+      g_->make_dir_entry_view(self_idx, self_idx))};
 #endif
 }
 

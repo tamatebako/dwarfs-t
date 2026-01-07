@@ -28,10 +28,97 @@
 
 #include <dwarfs/reader/internal/metadata_v2.h>
 
+#include <dwarfs/error.h>
+#include <dwarfs/logger.h>
+#include <dwarfs/reader/metadata_options.h>
+#include <dwarfs/reader/internal/domain_metadata_impl.h>
+#include <dwarfs/reader/internal/metadata_factory.h>
+
+#ifdef DWARFS_HAVE_THRIFT
+#include <dwarfs/gen-cpp2/metadata_types.h>
+#endif
+
 namespace dwarfs::reader::internal {
+
+namespace {
+
+} // anonymous namespace
+
+// Implement public constructor with new architecture
+metadata_v2::metadata_v2(
+    logger& lgr, std::span<uint8_t const> schema,
+    std::span<uint8_t const> data, metadata_options const& options,
+    int inode_offset, bool force_consistency_check,
+    std::shared_ptr<performance_monitor const> const& perfmon) {
+
+  // Use metadata_factory to load domain::metadata
+  auto domain_meta = metadata_factory::load_metadata(lgr, data);
+
+  // Create domain_metadata_impl
+  impl_ = std::make_unique<domain_metadata_impl>(
+      std::move(domain_meta), options, inode_offset);
+
+  // Perform consistency check if requested
+  if (force_consistency_check || options.check_consistency) {
+    impl_->check_consistency();
+  }
+}
 
 chunk_range metadata_v2::get_chunks(int inode, std::error_code& ec) const {
   return impl_->get_chunks(inode, ec);
 }
+
+// ========== metadata_v2_utils implementation ==========
+
+metadata_v2_utils::metadata_v2_utils(metadata_v2 const& meta)
+  : impl_(*meta.impl_) {}
+
+void metadata_v2_utils::dump(
+    std::ostream& os, fsinfo_options const& opts,
+    filesystem_info const* fsinfo,
+    std::function<void(std::string const&, uint32_t)> const& icb) const {
+  impl_.dump(os, opts, fsinfo, icb);
+}
+
+nlohmann::json metadata_v2_utils::info_as_json(
+    fsinfo_options const& opts, filesystem_info const* fsinfo) const {
+  return impl_.info_as_json(opts, fsinfo);
+}
+
+nlohmann::json metadata_v2_utils::as_json() const {
+  return impl_.as_json();
+}
+
+std::string metadata_v2_utils::serialize_as_json(bool simple) const {
+  return impl_.serialize_as_json(simple);
+}
+
+#ifdef DWARFS_HAVE_THRIFT
+std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::thaw() const {
+  return impl_.thaw();
+}
+
+std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::unpack() const {
+  return impl_.unpack();
+}
+
+std::unique_ptr<thrift::metadata::fs_options>
+metadata_v2_utils::thaw_fs_options() const {
+  return impl_.thaw_fs_options();
+}
+#else
+std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::thaw() const {
+  DWARFS_THROW(runtime_error, "Thrift support not compiled in");
+}
+
+std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::unpack() const {
+  DWARFS_THROW(runtime_error, "Thrift support not compiled in");
+}
+
+std::unique_ptr<thrift::metadata::fs_options>
+metadata_v2_utils::thaw_fs_options() const {
+  DWARFS_THROW(runtime_error, "Thrift support not compiled in");
+}
+#endif
 
 } // namespace dwarfs::reader::internal

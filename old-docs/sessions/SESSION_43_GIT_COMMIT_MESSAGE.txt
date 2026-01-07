@@ -1,0 +1,39 @@
+feat(tools): add dwarfs_tool_support library foundation
+
+Session 43 Progress: Tool support library architecture defined but not yet
+building. This commit establishes the foundation for separating CLI tool
+utilities into a reusable library that can be installed via vcpkg.
+
+Changes:
+- Added dwarfs_tool_support library target in cmake/libdwarfs.cmake
+- Included 8 core tool utilities (main_adapter, iolayer, sys_char, etc.)
+- Included tool-specific handlers (mkdwarfs, dwarfs)
+- Added to LIBDWARFS_TARGETS for automatic export
+- Configured header installation for tools/include/dwarfs/tool/
+- Updated tools/CMakeLists.txt to link dwarfs::dwarfs_tool_support
+
+Architecture:
+- Library contains ~16 source files from tools/src/
+- Dependencies: dwarfs_common, dwarfs_reader, dwarfs_writer, Boost
+- Conditional: FUSE handlers, Thrift recompress handler
+- Export: dwarfs::dwarfs_tool_support namespace
+
+Known Issue:
+Library target is defined and appears in CMake targets list, but the
+actual libdwarfs_tool_support.a file is NOT being built during compilation.
+This indicates a build system integration issue that needs resolution.
+
+Next Session (44):
+- Extract to modular cmake/tool_support.cmake
+- Use absolute paths: ${CMAKE_SOURCE_DIR}/tools/src/...
+- Fix vcpkg build integration
+- Verify reproducible builds
+
+Files Modified:
+- cmake/libdwarfs.cmake (+50 lines)
+- tools/CMakeLists.txt (-15 lines, simplified linking)
+
+Status: INCOMPLETE - Library defined but not compiling
+Blocker: Needs modular CMake refactoring for proper build integration
+
+Related: Session 42 (discovered blocker), Session 44 (continuation)

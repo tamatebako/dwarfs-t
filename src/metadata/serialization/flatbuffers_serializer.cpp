@@ -28,9 +28,9 @@
 #include "dwarfs/metadata/domain/metadata.h"
 
 #include <flatbuffers/flatbuffers.h>
-#include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace dwarfs::metadata::serialization {
 
@@ -365,15 +365,6 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
   // Get the metadata root (from size-prefixed buffer)
   auto* fb_meta = ::flatbuffers::GetSizePrefixedRoot<dwarfs::flatbuffers::Metadata>(data.data());
 
-  // DEBUG: Log what fields are present
-  std::cerr << "DEBUG FlatBuffers deserialize:\n"
-            << "  names: " << (fb_meta->names() ? fb_meta->names()->size() : 0) << "\n"
-            << "  compact_names: " << (fb_meta->compact_names() ? "YES" : "NO") << "\n"
-            << "  symlinks: " << (fb_meta->symlinks() ? fb_meta->symlinks()->size() : 0) << "\n"
-            << "  compact_symlinks: " << (fb_meta->compact_symlinks() ? "YES" : "NO") << "\n"
-            << "  dir_entries: " << (fb_meta->dir_entries() ? fb_meta->dir_entries()->size() : 0) << "\n"
-            << std::flush;
-
   // Convert to domain model
   auto domain_meta = std::make_unique<domain::metadata>();
 
@@ -599,7 +590,7 @@ void register_flatbuffers_serializer() {
   static SerializerRegistration<FlatBuffersSerializer> registration{
     "FlatBuffers",
     {'D', 'F', 'B', 'F'},  // Magic bytes: "DFBF" file identifier
-    120,  // Priority (higher than Cereal/Bitsery)
+    120,  // Highest priority (modern default format)
     SerializationFormat::FLATBUFFERS
   };
 }

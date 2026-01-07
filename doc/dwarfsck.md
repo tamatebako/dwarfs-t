@@ -131,8 +131,31 @@ For performance comparisons between formats, see [benchmark-metadata(7)](benchma
 
 ## ENVIRONMENT VARIABLES
 
-See [dwarfs-env(7)](dwarfs-env.md) for environment variables that
-influence the behavior of `dwarfsck`.
+All options can be configured via environment variables using the pattern:
+
+    DWARFS_DWARFSCK_<OPTION>=value
+
+For example:
+
+    export DWARFS_DWARFSCK_NUM_WORKERS=4
+    dwarfsck image.dff --check-integrity     # Uses 4 workers from ENV
+    dwarfsck image.dff -n 8 --check-integrity # Uses 8 (CLI overrides ENV)
+
+Command-line arguments always take precedence over environment variables, which in turn
+take precedence over default values. This follows the MECE (Mutually Exclusive,
+Collectively Exhaustive) principle.
+
+Common environment variables:
+
+- `DWARFS_DWARFSCK_NUM_WORKERS`: Number of worker threads for parallel operations
+- `DWARFS_DWARFSCK_CACHE_SIZE`: Block cache size (e.g., `512m`, `1g`)
+- `DWARFS_DWARFSCK_LOG_LEVEL`: Logging level (error|warn|info|verbose|debug|trace)
+
+For a complete reference of all supported environment variables, see
+[ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
+
+For runtime environment variables that affect filesystem operation, see
+[dwarfs-env(7)](dwarfs-env.md).
 
 ## AUTHOR
 

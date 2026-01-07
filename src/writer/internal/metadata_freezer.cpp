@@ -93,7 +93,7 @@ class metadata_freezer_ : public metadata_freezer::impl {
     using namespace metadata::serialization;
 
     // For Thrift format: Convert domain → Thrift, then freeze
-    if (format_ == SerializationFormat::THRIFT_COMPACT) {
+    if (format_ == SerializationFormat::MODERN_THRIFT) {
 #ifdef DWARFS_HAVE_THRIFT
       // Convert domain model to Thrift
       auto thrift_data = metadata::converters::to_thrift(data);
@@ -105,6 +105,33 @@ class metadata_freezer_ : public metadata_freezer::impl {
 #else
       throw std::runtime_error(
           "Thrift format not available (build without Thrift support)");
+#endif
+    }
+
+    // For Legacy Thrift format: Use facade directly with domain model
+    if (format_ == SerializationFormat::LEGACY_THRIFT) {
+#ifdef DWARFS_HAVE_LEGACY_THRIFT
+      // Create facade for Legacy Thrift
+      auto facade = FacadeFactory::create(format_);
+
+      // Serialize domain model to Legacy Thrift CompactProtocol
+      auto serialized_data = facade->serialize(data);
+
+      // Legacy Thrift uses same two-section structure as Modern Thrift
+      // Schema section contains serialization metadata
+      // For now, use minimal schema (will be improved if needed)
+      std::vector<uint8_t> schema_data = {0, 0, 0, 0};
+      auto schema_buffer = malloc_byte_buffer::create(schema_data);
+
+      // Data section contains the Thrift CompactProtocol serialized metadata
+      auto data_buffer = malloc_byte_buffer::create(serialized_data);
+
+      ti << "freezing metadata (Legacy Thrift) to " << data_buffer.size() << " bytes...";
+
+      return {schema_buffer.share(), data_buffer.share()};
+#else
+      throw std::runtime_error(
+          "Legacy Thrift format not available");
 #endif
     }
 

@@ -81,7 +81,7 @@ class string_table {
   string_table(LegacyTableView v);
   string_table(std::span<std::string const> v);
 #endif
-  
+
 #ifdef DWARFS_HAVE_FLATBUFFERS
   // Domain model constructor - available when FlatBuffers is enabled
   string_table(logger& lgr, std::string_view name,
@@ -90,6 +90,8 @@ class string_table {
 
 #if !defined(DWARFS_HAVE_THRIFT) && defined(DWARFS_HAVE_FLATBUFFERS)
   string_table(std::span<std::string const> v);
+  // NEW: Constructor that owns the vector data (avoids use-after-free)
+  explicit string_table(std::vector<std::string> v);
 #endif
 
   std::string operator[](size_t index) const { return impl_->lookup(index); }

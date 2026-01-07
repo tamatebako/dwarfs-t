@@ -78,9 +78,10 @@ int fuse_parse_cmdline(struct fuse_args *args, struct fuse_cmdline_opts *opts);
 #include <dwarfs/reader/filesystem_loader.h>
 #include <dwarfs/reader/filesystem_v2.h>
 #include <dwarfs/reader/fuse_driver.h>
+#include <dwarfs/reader/mlock_mode.h>
 #include <dwarfs/scope_exit.h>
 #include <dwarfs/string.h>
-#include <dwarfs/tool/dwarfs/options_parser.h>
+#include <dwarfs/tool/dwarfs/parsed_options.h>
 #include <dwarfs/tool/iolayer.h>
 #include <dwarfs/util.h>
 
@@ -266,7 +267,7 @@ int run_fuse_session(fuse_args& args, std::string const& mountpoint, int mt,
 } // namespace
 
 struct mount_handler::impl {
-  parsed_options& opts;
+  dwarfs::parsed_options& opts;
   fuse_args& args;
   iolayer const& iol;
   std::filesystem::path const& progname;
@@ -275,7 +276,7 @@ struct mount_handler::impl {
   auto_mountpoint_guard auto_mp;
 #endif
 
-  impl(parsed_options& opts_, fuse_args& args_, iolayer const& iol_,
+  impl(dwarfs::parsed_options& opts_, fuse_args& args_, iolayer const& iol_,
        std::filesystem::path const& progname_)
       : opts{opts_}
       , args{args_}
@@ -292,25 +293,20 @@ struct mount_handler::impl {
         LOG_WARN << "`enable_nlink` is obsolete and has no effect";
       }
 
-      if (opts.cache_image == 1) {
-        LOG_WARN << "`cache_image` is obsolete and has no effect";
-      }
-
-      if (opts.cache_image == 2) {
-        LOG_WARN << "`no_cache_image` is obsolete and has no effect";
+      if (!opts.cache_image.empty()) {
+        LOG_WARN << "`cache_image`/`no_cache_image` is obsolete and has no effect";
       }
 
       // 1. Create performance monitor if enabled
       std::shared_ptr<performance_monitor> perfmon;
 #if DWARFS_PERFMON_ENABLED
-      if (opts.perfmon_enabled_str) {
+      if (!opts.perfmon.empty()) {
         std::unordered_set<std::string> perfmon_enabled;
-        split_to(opts.perfmon_enabled_str, '+', perfmon_enabled);
+        split_to(opts.perfmon, '+', perfmon_enabled);
 
         std::optional<std::filesystem::path> perfmon_trace_file;
-        if (opts.perfmon_trace_file_str) {
-          perfmon_trace_file = iol.os->canonical(std::filesystem::path(
-              reinterpret_cast<char8_t const*>(opts.perfmon_trace_file_str)));
+        if (!opts.perfmon_trace_file.empty()) {
+          perfmon_trace_file = iol.os->canonical(std::filesystem::path(opts.perfmon_trace_file));
         }
 
         perfmon = performance_monitor::create(perfmon_enabled, iol.file,
@@ -320,18 +316,19 @@ struct mount_handler::impl {
 
       // 2. Load filesystem using library
       reader::filesystem_load_config load_config;
-      load_config.image_path = iol.os->canonical(std::filesystem::path(
-          reinterpret_cast<char8_t const*>(opts.fsimage->data())));
-      load_config.cache_size = opts.cachesize;
-      load_config.block_size = opts.blocksize;
-      load_config.readahead = opts.readahead;
-      load_config.num_workers = opts.workers;
-      load_config.lock_mode = opts.lock_mode;
-      load_config.decompress_ratio = opts.decompress_ratio;
-      load_config.seq_detector_threshold = opts.seq_detector_threshold;
-      load_config.block_allocator = opts.block_allocator;
-      load_config.readonly = bool(opts.readonly);
-      load_config.case_insensitive = bool(opts.case_insensitive);
+      load_config.image_path = iol.os->canonical(std::filesystem::path(opts.image));
+      load_config.cache_size = parse_size_with_unit(opts.cache_size);
+      load_config.block_size = parse_size_with_unit(opts.block_size);
+      load_config.readahead = parse_size_with_unit(opts.readahead);
+      load_config.num_workers = opts.num_workers;
+      load_config.lock_mode = reader::parse_mlock_mode(opts.mlock_mode);
+      load_config.decompress_ratio = to<double>(opts.decompress_ratio);
+      load_config.seq_detector_threshold = to<size_t>(opts.seq_detector);
+      load_config.block_allocator = (opts.block_allocator == "mmap")
+          ? reader::block_cache_allocation_mode::MMAP
+          : reader::block_cache_allocation_mode::MALLOC;
+      load_config.readonly = opts.readonly;
+      load_config.case_insensitive = opts.case_insensitive;
 #ifdef DWARFS_FUSE_HAS_LSEEK
       load_config.enable_sparse_files = true;
 #else
@@ -339,8 +336,12 @@ struct mount_handler::impl {
 #endif
 
 #ifndef _WIN32
-      load_config.fs_uid = opts.fs_uid;
-      load_config.fs_gid = opts.fs_gid;
+      if (!opts.uid.empty()) {
+        load_config.fs_uid = to<file_stat::uid_type>(opts.uid);
+      }
+      if (!opts.gid.empty()) {
+        load_config.fs_gid = to<file_stat::gid_type>(opts.gid);
+      }
 #endif
 
 #ifdef FUSE_ROOT_ID
@@ -349,23 +350,21 @@ struct mount_handler::impl {
       load_config.inode_offset = 0;
 #endif
 
-      if (opts.image_offset_str) {
-        load_config.image_offset =
-            reader::parse_image_offset(opts.image_offset_str);
+      if (!opts.image_offset.empty()) {
+        load_config.image_offset = reader::parse_image_offset(opts.image_offset);
       }
 
-      if (opts.image_size_str) {
-        load_config.image_size = to<file_off_t>(opts.image_size_str);
+      if (!opts.image_size.empty()) {
+        load_config.image_size = to<file_off_t>(opts.image_size);
       }
 
 #if DWARFS_PERFMON_ENABLED
-      if (opts.perfmon_enabled_str) {
-        split_to(opts.perfmon_enabled_str, '+', load_config.perfmon_enabled);
+      if (!opts.perfmon.empty()) {
+        split_to(opts.perfmon, '+', load_config.perfmon_enabled);
       }
-      if (opts.perfmon_trace_file_str) {
+      if (!opts.perfmon_trace_file.empty()) {
         load_config.perfmon_trace_file = iol.os->canonical(
-            std::filesystem::path(reinterpret_cast<char8_t const*>(
-                opts.perfmon_trace_file_str)));
+            std::filesystem::path(opts.perfmon_trace_file));
       }
 #endif
 
@@ -379,28 +378,33 @@ struct mount_handler::impl {
 
       // 3. Setup FUSE driver using library
       reader::fuse_driver_config fuse_config;
-      fuse_config.num_workers = opts.workers;
-      fuse_config.cache_files = bool(opts.cache_files);
+      fuse_config.num_workers = opts.num_workers;
+      fuse_config.cache_files = opts.cache_files;
 #ifdef DWARFS_FUSE_HAS_LSEEK
-      fuse_config.cache_sparse = bool(opts.cache_sparse);
+      fuse_config.cache_sparse = opts.cache_sparse;
 #endif
-      fuse_config.log_threshold = opts.logopts.threshold;
+      fuse_config.log_threshold = logger::parse_level("info"); // Default level
 
       // Cache tidying
-      fuse_config.tidy.strategy = opts.block_cache_tidy_strategy;
-      fuse_config.tidy.interval = opts.block_cache_tidy_interval;
-      fuse_config.tidy.expiry_time = opts.block_cache_tidy_max_age;
+      if (opts.tidy_strategy == "time") {
+        fuse_config.tidy.strategy = reader::cache_tidy_strategy::EXPIRY_TIME;
+      } else if (opts.tidy_strategy == "swap") {
+        fuse_config.tidy.strategy = reader::cache_tidy_strategy::BLOCK_SWAPPED_OUT;
+      } else {
+        fuse_config.tidy.strategy = reader::cache_tidy_strategy::NONE;
+      }
+      fuse_config.tidy.interval = parse_time_with_unit(opts.tidy_interval);
+      fuse_config.tidy.expiry_time = parse_time_with_unit(opts.tidy_max_age);
 
       // Preloading
-      if (opts.preload_category_str) {
-        fuse_config.preload_category = opts.preload_category_str;
+      if (!opts.preload_category.empty()) {
+        fuse_config.preload_category = opts.preload_category;
       }
-      fuse_config.preload_all = bool(opts.preload_all);
+      fuse_config.preload_all = opts.preload_all;
 
       // Analysis
-      if (opts.analysis_file_str) {
-        fuse_config.analysis_file = iol.os->canonical(std::filesystem::path(
-            reinterpret_cast<char8_t const*>(opts.analysis_file_str)));
+      if (!opts.analysis_file.empty()) {
+        fuse_config.analysis_file = iol.os->canonical(std::filesystem::path(opts.analysis_file));
       }
 
       fuse_config.perfmon = perfmon;
@@ -448,7 +452,7 @@ struct mount_handler::impl {
   }
 };
 
-mount_handler::mount_handler(parsed_options& opts, fuse_args& args,
+mount_handler::mount_handler(dwarfs::parsed_options& opts, fuse_args& args,
                              iolayer const& iol,
                              std::filesystem::path const& progname)
     : impl_{std::make_unique<impl>(opts, args, iol, progname)} {}
