@@ -39,6 +39,7 @@ Modern Thrift is the third metadata serialization format in DwarFS v0.17.0, usin
 - ✅ Automatic schema evolution
 - ✅ Same size as Legacy Thrift
 - ❌ Complex dependencies (Folly + fbthrift + jemalloc)
+- ❌ Not compatible with legacy DwarFS v0.14.1
 
 **Use Case**: Users with existing Folly/fbthrift infrastructure can use Modern Thrift for smallest size + modern tooling, while others can fall back to Legacy Thrift or use FlatBuffers.
 
@@ -74,7 +75,7 @@ Modern Thrift follows the same Strategy Pattern as FlatBuffers and Legacy Thrift
 │  + get_format() → SerializationFormat               │
 │  + can_write() → bool                               │
 │  + can_read() → bool                                │
-│  + get_magic_bytes() → vector<uint8_t>             │
+│  + get_magic_bytes() → vector<uint8_t>              │
 └──────────────────┬──────────────────────────────────┘
                    │
       ┌────────────┴────────────┬────────────────┐
