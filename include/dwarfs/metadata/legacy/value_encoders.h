@@ -70,4 +70,20 @@ public:
     void const* value) const override;
 };
 
+/**
+ * Vector encoder for sequence types
+ *
+ * Handles encoding of std::vector<T> sequences. Vectors are encoded with:
+ * - Field 1: distance (offset to element data in storage section)
+ * - Field 2: length (number of elements)
+ * - Element data stored in storage section
+ */
+class VectorEncoder : public ValueEncoder {
+public:
+  uint32_t encode(
+    FrozenWriter& writer,
+    SchemaLayout const& layout,
+    void const* value) const override;
+};
+
 } // namespace dwarfs::metadata::legacy

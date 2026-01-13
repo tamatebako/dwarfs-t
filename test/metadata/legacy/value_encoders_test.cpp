@@ -342,3 +342,98 @@ TEST(ValueEncoderTest, FrozenWriter_ThrowsOnBufferOverflow) {
     std::runtime_error
   );
 }
+
+// === VectorEncoder tests ===
+
+TEST(ValueEncoderTest, VectorEncoder_EncodesU32Vector) {
+  std::vector<uint8_t> buffer(256, 0);
+  FrozenWriter writer(buffer);
+
+  // Vector layout with fields:
+  // Field 1: distance (offset to element data)
+  // Field 2: length (number of elements)
+  SchemaLayout vector_layout;
+  vector_layout.bits = 64; // 2 fields of 32 bits each
+
+  std::vector<uint32_t> values = {10, 20, 30, 40};
+
+  VectorEncoder encoder;
+  uint32_t bits_written = encoder.encode(writer, vector_layout, &values);
+
+  // Verify compact data was written
+  // Field 1 (distance) should be at bit 0
+  // Note: storage offset 0 is valid for the first allocation
+  uint32_t distance = frozen_bits::load_bits(buffer, 0, 32);
+  EXPECT_EQ(0, distance); // First storage allocation at offset 0
+
+  // Field 2 (length) should be at bit 32
+  uint32_t length = frozen_bits::load_bits(buffer, 32, 32);
+  EXPECT_EQ(4, length);
+
+  // Verify bits written
+  EXPECT_EQ(64, bits_written);
+}
+
+TEST(ValueEncoderTest, VectorEncoder_EmptyVector) {
+  std::vector<uint8_t> buffer(256, 0);
+  FrozenWriter writer(buffer);
+
+  SchemaLayout vector_layout;
+  vector_layout.bits = 64;
+
+  std::vector<uint32_t> values; // Empty vector
+
+  VectorEncoder encoder;
+  encoder.encode(writer, vector_layout, &values);
+
+  // Field 2 (length) should be 0
+  uint32_t length = frozen_bits::load_bits(buffer, 32, 32);
+  EXPECT_EQ(0, length);
+}
+
+TEST(ValueEncoderTest, VectorEncoder_LargeVector) {
+  std::vector<uint8_t> buffer(8192, 0);
+  FrozenWriter writer(buffer);
+
+  SchemaLayout vector_layout;
+  vector_layout.bits = 64;
+
+  std::vector<uint32_t> values(1000, 42); // 1000 elements
+
+  VectorEncoder encoder;
+  encoder.encode(writer, vector_layout, &values);
+
+  // Field 2 (length) should be 1000
+  uint32_t length = frozen_bits::load_bits(buffer, 32, 32);
+  EXPECT_EQ(1000, length);
+}
+
+TEST(ValueEncoderTest, VectorEncoder_ThrowsOnNull) {
+  std::vector<uint8_t> buffer(256, 0);
+  FrozenWriter writer(buffer);
+
+  SchemaLayout vector_layout;
+  vector_layout.bits = 64;
+
+  VectorEncoder encoder;
+  EXPECT_THROW(
+    encoder.encode(writer, vector_layout, nullptr),
+    std::invalid_argument
+  );
+}
+
+TEST(ValueEncoderTest, VectorEncoder_ThrowsOnInvalidLayout) {
+  std::vector<uint8_t> buffer(256, 0);
+  FrozenWriter writer(buffer);
+
+  SchemaLayout vector_layout;
+  vector_layout.bits = 96; // Wrong! Should be 64
+
+  std::vector<uint32_t> values = {1, 2, 3};
+
+  VectorEncoder encoder;
+  EXPECT_THROW(
+    encoder.encode(writer, vector_layout, &values),
+    std::invalid_argument
+  );
+}

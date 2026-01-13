@@ -28,6 +28,7 @@
 #include <fmt/core.h>
 #include <stdexcept>
 #include <span>
+#include <vector>
 
 namespace dwarfs::metadata::legacy {
 
@@ -82,6 +83,54 @@ uint32_t ScalarEncoder::encode(
 
   writer.write_scalar(u64_value, bits);
   return bits;
+}
+
+uint32_t VectorEncoder::encode(
+  FrozenWriter& writer,
+  SchemaLayout const& layout,
+  void const* value) const {
+
+  // Validate: null pointer check
+  if (!value) {
+    throw std::invalid_argument("VectorEncoder::encode: value pointer is null");
+  }
+
+  // Validate: layout.bits must be 64 (2 fields of 32 bits each)
+  if (layout.bits != 64) {
+    throw std::invalid_argument(
+        fmt::format("VectorEncoder expects layout.bits=64, got {}", layout.bits));
+  }
+
+  // TEMPORARY: Hardcoded for std::vector<uint32_t>
+  // TODO: Generalize to support any element type via layout.type
+  // This is a transitional implementation per the Frozen2 serializer plan
+  auto* vec = static_cast<const std::vector<uint32_t>*>(value);
+
+  // Overflow protection: check size * elem_size won't overflow uint32_t
+  uint32_t elem_size = sizeof(uint32_t);
+  if (vec->size() > std::numeric_limits<uint32_t>::max() / elem_size) {
+    throw std::length_error(
+        fmt::format("VectorEncoder: size overflow ({} elements)", vec->size()));
+  }
+
+  // Reserve storage for elements
+  uint32_t storage_offset = writer.reserve_storage(vec->size() * elem_size);
+
+  // Write field 1: distance (offset to element data in bytes)
+  writer.write_scalar(storage_offset, 32);
+
+  // Write field 2: length (number of elements)
+  writer.write_scalar(static_cast<uint32_t>(vec->size()), 32);
+
+  // Write element data to storage (all at once for efficiency)
+  if (!vec->empty()) {
+    std::span<uint8_t const> all_data(
+        reinterpret_cast<uint8_t const*>(vec->data()),
+        vec->size() * elem_size);
+    writer.write_storage(storage_offset, all_data);
+  }
+
+  return 64; // 2 fields of 32 bits each
 }
 
 } // namespace dwarfs::metadata::legacy
