@@ -91,3 +91,32 @@ TEST(SchemaBuilderTest, ChunkLayoutHasCorrectOffsets) {
   EXPECT_EQ(32, field2_chunk->offset);
   EXPECT_EQ(64, field3_chunk->offset);
 }
+
+TEST(SchemaBuilderTest, GeneratesCompleteSchema) {
+  metadata meta;
+  meta.chunks = {{0, 0, 4096}};
+  meta.directories = {{0, 0, 0}};
+
+  inode_data inode;
+  inode.mode_index = 1;
+  meta.inodes.push_back(inode);
+
+  meta.names = {"test.txt"};
+  meta.block_size = 65536;
+
+  SchemaBuilder builder;
+  Schema schema = builder.build_from(meta);
+
+  // Verify all required layouts exist
+  EXPECT_GT(schema.layouts.size(), 5);
+
+  // Verify root layout has all fields
+  auto* root = schema.layouts.get(schema.root_layout);
+  ASSERT_NE(root, nullptr);
+
+  EXPECT_NE(root->fields.get(1), nullptr); // chunks
+  EXPECT_NE(root->fields.get(2), nullptr); // directories
+  EXPECT_NE(root->fields.get(3), nullptr); // inodes
+  EXPECT_NE(root->fields.get(10), nullptr); // names
+  EXPECT_NE(root->fields.get(15), nullptr); // block_size
+}
