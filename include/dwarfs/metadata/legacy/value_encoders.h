@@ -29,28 +29,8 @@
 
 namespace dwarfs::metadata::legacy {
 
-// Forward declaration - actual class is in frozen_bits.h
-class frozen_bits;
-
-/**
- * Minimal FrozenWriter implementation for Task 1
- *
- * This is a simple writer that wraps a buffer and tracks bit offset.
- * Task 2 will extract this into a separate file with more functionality.
- */
-class FrozenWriter {
-public:
-  explicit FrozenWriter(std::span<uint8_t> buffer)
-    : buffer_(buffer), bit_offset_(0) {}
-
-  void write_bits(uint64_t value, uint16_t bits);
-
-  uint32_t bit_offset() const { return bit_offset_; }
-
-private:
-  std::span<uint8_t> buffer_;
-  uint32_t bit_offset_;
-};
+// Forward declaration
+class FrozenWriter;
 
 /**
  * Base class for value encoders

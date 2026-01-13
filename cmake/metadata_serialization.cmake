@@ -143,8 +143,9 @@ set(LEGACY_THRIFT_SOURCES
   src/metadata/legacy/frozen2_schema_converter.cpp
   src/metadata/legacy/frozen2_value_serializer.cpp
 
-  # Frozen2 Value Encoder hierarchy (Task 1 of Frozen2 Serializer Implementation)
+  # Frozen2 Value Encoder hierarchy (Task 1-2 of Frozen2 Serializer Implementation)
   src/metadata/legacy/value_encoders.cpp
+  src/metadata/legacy/frozen_writer.cpp
 
   # FSST decompression support (Session 84)
   src/metadata/legacy/fsst.cpp
@@ -419,6 +420,28 @@ if(WITH_TESTS)
 
   set_tests_properties(value_encoders_tests
     PROPERTIES LABELS "legacy;metadata;frozen2;encoder"
+  )
+
+  # FrozenWriter tests (Task 2 of Frozen2 Serializer Implementation)
+  add_executable(frozen_writer_tests
+    test/metadata/legacy/frozen_writer_test.cpp
+  )
+
+  target_link_libraries(frozen_writer_tests
+    PRIVATE
+      dwarfs_metadata_legacy
+      GTest::gtest_main
+      GTest::gmock
+  )
+
+  add_test(
+    NAME frozen_writer_tests
+    COMMAND frozen_writer_tests
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  set_tests_properties(frozen_writer_tests
+    PROPERTIES LABELS "legacy;metadata;frozen2;writer"
   )
 
   # Modern Thrift Compact serializer tests (if Thrift available)

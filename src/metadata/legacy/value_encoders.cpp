@@ -20,7 +20,7 @@
  */
 
 #include "dwarfs/metadata/legacy/value_encoders.h"
-#include "dwarfs/metadata/legacy/frozen_bits.h"
+#include "dwarfs/metadata/legacy/frozen_writer.h"
 
 #include <cassert>
 #include <cstdint>
@@ -30,25 +30,6 @@
 #include <span>
 
 namespace dwarfs::metadata::legacy {
-
-void FrozenWriter::write_bits(uint64_t value, uint16_t bits) {
-  // Validate: bits must be 1-64
-  if (bits == 0 || bits > 64) {
-    throw std::invalid_argument(
-        fmt::format("write_bits: bits must be 1-64, got {}", bits));
-  }
-
-  // Validate: check buffer bounds
-  uint32_t required_bytes = (bit_offset_ + bits + 7) / 8;
-  if (required_bytes > buffer_.size()) {
-    throw std::runtime_error(
-        fmt::format("write_bits: buffer overflow (need {} bytes, have {})",
-                    required_bytes, buffer_.size()));
-  }
-
-  frozen_bits::store_bits(buffer_, bit_offset_, bits, value);
-  bit_offset_ += bits;
-}
 
 uint32_t ScalarEncoder::encode(
   FrozenWriter& writer,
@@ -99,7 +80,7 @@ uint32_t ScalarEncoder::encode(
     u64_value = temp;
   }
 
-  writer.write_bits(u64_value, bits);
+  writer.write_scalar(u64_value, bits);
   return bits;
 }
 

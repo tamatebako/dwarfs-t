@@ -22,6 +22,7 @@
 #include <gtest/gtest.h>
 
 #include "dwarfs/metadata/legacy/value_encoders.h"
+#include "dwarfs/metadata/legacy/frozen_writer.h"
 #include "dwarfs/metadata/legacy/frozen_schema.h"
 #include "dwarfs/metadata/legacy/frozen_bits.h"
 
@@ -55,7 +56,7 @@ TEST(ValueEncoderTest, ScalarEncoder_EncodesU32) {
 }
 
 TEST(ValueEncoderTest, ScalarEncoder_EncodesU16) {
-  std::vector<uint8_t> buffer(8, 0);
+  std::vector<uint8_t> buffer(16, 0);
   FrozenWriter writer(buffer);
 
   SchemaLayout layout;
@@ -71,7 +72,7 @@ TEST(ValueEncoderTest, ScalarEncoder_EncodesU16) {
 }
 
 TEST(ValueEncoderTest, ScalarEncoder_EncodesU8) {
-  std::vector<uint8_t> buffer(8, 0);
+  std::vector<uint8_t> buffer(16, 0);
   FrozenWriter writer(buffer);
 
   SchemaLayout layout;
@@ -87,7 +88,7 @@ TEST(ValueEncoderTest, ScalarEncoder_EncodesU8) {
 }
 
 TEST(ValueEncoderTest, ScalarEncoder_EncodesBool) {
-  std::vector<uint8_t> buffer(8, 0);
+  std::vector<uint8_t> buffer(16, 0);
   FrozenWriter writer(buffer);
 
   SchemaLayout layout;
@@ -103,7 +104,7 @@ TEST(ValueEncoderTest, ScalarEncoder_EncodesBool) {
 }
 
 TEST(ValueEncoderTest, ScalarEncoder_EncodesBoolFalse) {
-  std::vector<uint8_t> buffer(8, 0);
+  std::vector<uint8_t> buffer(16, 0);
   FrozenWriter writer(buffer);
 
   SchemaLayout layout;
@@ -137,7 +138,7 @@ TEST(ValueEncoderTest, ScalarEncoder_EncodesU64) {
 }
 
 TEST(ValueEncoderTest, ScalarEncoder_EncodesU32AllBitsSet) {
-  std::vector<uint8_t> buffer(8, 0);
+  std::vector<uint8_t> buffer(16, 0);
   FrozenWriter writer(buffer);
 
   SchemaLayout layout;
@@ -153,7 +154,7 @@ TEST(ValueEncoderTest, ScalarEncoder_EncodesU32AllBitsSet) {
 }
 
 TEST(ValueEncoderTest, ScalarEncoder_EncodesU16AllBitsSet) {
-  std::vector<uint8_t> buffer(8, 0);
+  std::vector<uint8_t> buffer(16, 0);
   FrozenWriter writer(buffer);
 
   SchemaLayout layout;
@@ -169,7 +170,7 @@ TEST(ValueEncoderTest, ScalarEncoder_EncodesU16AllBitsSet) {
 }
 
 TEST(ValueEncoderTest, ScalarEncoder_EncodesU8AllBitsSet) {
-  std::vector<uint8_t> buffer(8, 0);
+  std::vector<uint8_t> buffer(16, 0);
   FrozenWriter writer(buffer);
 
   SchemaLayout layout;
@@ -189,7 +190,7 @@ TEST(ValueEncoderTest, ScalarEncoder_EncodesAtBitOffset) {
   FrozenWriter writer(buffer);
 
   // Write 4 bits first to create offset
-  writer.write_bits(0xA, 4);
+  writer.write_scalar(0xA, 4);
 
   SchemaLayout layout;
   layout.bits = 16;
@@ -303,7 +304,7 @@ TEST(ValueEncoderTest, FrozenWriter_ThrowsOnZeroBits) {
   FrozenWriter writer(buffer);
 
   EXPECT_THROW(
-    writer.write_bits(0xFF, 0),
+    writer.write_scalar(0xFF, 0),
     std::invalid_argument
   );
 }
@@ -313,23 +314,29 @@ TEST(ValueEncoderTest, FrozenWriter_ThrowsOnBitsGreaterThan64) {
   FrozenWriter writer(buffer);
 
   EXPECT_THROW(
-    writer.write_bits(0xFF, 65),
+    writer.write_scalar(0xFF, 65),
     std::invalid_argument
   );
 }
 
 TEST(ValueEncoderTest, FrozenWriter_ThrowsOnBufferOverflow) {
-  // Tiny buffer that will overflow
-  std::vector<uint8_t> buffer(1, 0);
+  // Small buffer (16 bytes minimum) that will overflow
+  std::vector<uint8_t> buffer(16, 0);
   FrozenWriter writer(buffer);
 
   SchemaLayout layout;
-  layout.bits = 32;
+  layout.bits = 64; // Valid bit width, but write enough to overflow
 
-  uint32_t value = 0xDEADBEEF;
+  uint64_t value = 0xDEADBEEF;
 
   ScalarEncoder encoder;
 
+  // Fill the buffer to near capacity first
+  for (int i = 0; i < 2; ++i) {
+    encoder.encode(writer, layout, &value);
+  }
+
+  // This should overflow
   EXPECT_THROW(
     encoder.encode(writer, layout, &value),
     std::runtime_error
