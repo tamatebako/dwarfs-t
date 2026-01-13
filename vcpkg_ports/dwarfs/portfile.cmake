@@ -1,5 +1,6 @@
 # vcpkg portfile for dwarfs
 # DwarFS - A fast high-compression read-only file system
+# Version: 0.16.0.5 - Force rebuild with walk function fix
 
 vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 
@@ -59,6 +60,29 @@ foreach(HEADER ${GEN_FB_HEADERS})
 endforeach()
 
 vcpkg_fixup_pkgconfig()
+
+# Create phmap config for header-only parallel-hashmap
+# This is needed because dwarfs targets reference phmap
+file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/share/phmap")
+file(WRITE "${CURRENT_PACKAGES_DIR}/share/phmap/phmap-config.cmake" "
+include(CMakeFindDependencyMacro)
+find_dependency(Threads REQUIRED)
+
+add_library(phmap INTERFACE IMPORTED)
+set_target_properties(phmap PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES \"\${PACKAGE_PREFIX_DIR}/include\"
+)
+")
+
+# Update dwarfs-config.cmake to find phmap before including targets
+file(READ "${CURRENT_PACKAGES_DIR}/share/dwarfs/dwarfs-config.cmake" CONFIG_CONTENT)
+# Add phmap find_dependency after Threads
+string(REPLACE
+    "find_dependency(Threads REQUIRED)"
+    "find_dependency(Threads REQUIRED)\nfind_dependency(phmap CONFIG)"
+    CONFIG_CONTENT
+    "${CONFIG_CONTENT}")
+file(WRITE "${CURRENT_PACKAGES_DIR}/share/dwarfs/dwarfs-config.cmake" "${CONFIG_CONTENT}")
 
 # Install license using proper vcpkg function
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE.GPL-3.0")

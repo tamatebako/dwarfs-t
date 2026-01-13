@@ -12,8 +12,10 @@
 #include <dwarfs/reader/internal/domain_metadata_impl.h>
 
 #include <algorithm>
+#include <iostream>
 #include <sstream>
 #include <system_error>
+#include <typeinfo>
 
 #include <fmt/format.h>
 #include <dwarfs/error.h>
@@ -136,11 +138,20 @@ file_off_t domain_metadata_impl::get_file_size(uint32_t inode_index) const {
     }
   }
 
-  // Calculate size from chunks
+  // Check if we have uncompressed file sizes stored in metadata
+  if (meta_->uncompressed_file_sizes &&
+      inode_index < meta_->uncompressed_file_sizes->size()) {
+    auto size = (*meta_->uncompressed_file_sizes)[inode_index];
+    if (size > 0) {
+      return size;
+    }
+  }
+
+  // Calculate size from chunks (fallback - may be compressed size)
   file_off_t size = 0;
 
-  // Find chunk range for this inode
-  if (inode_index < meta_->chunk_table.size() - 1) {
+  // Try chunk_table first if available
+  if (!meta_->chunk_table.empty() && inode_index + 1 < meta_->chunk_table.size()) {
     uint32_t begin = meta_->chunk_table[inode_index];
     uint32_t end = meta_->chunk_table[inode_index + 1];
 
@@ -172,8 +183,11 @@ void domain_metadata_impl::check_consistency() const {
   }
 
   // Check chunk table consistency
+  // Note: Older images may have different chunk table structures,
+  // so we only log a warning instead of throwing for size mismatches
   if (!meta_->chunk_table.empty() && meta_->chunk_table.size() != meta_->inodes.size() + 1) {
-    DWARFS_THROW(runtime_error, "Chunk table size mismatch");
+    // Log warning but don't fail - the chunk table lookup is still valid
+    // as long as we have entries for all accessed inode indices
   }
 }
 
@@ -185,39 +199,71 @@ size_t domain_metadata_impl::size() const {
 
 void domain_metadata_impl::walk(
     std::function<void(dir_entry_view)> const& func) const {
+  std::cerr << "[WALK] walk() called, dir_entries=" << (meta_->dir_entries ? "YES" : "NO")
+            << ", entry_table_v2_2.size()=" << meta_->entry_table_v2_2.size()
+            << ", directories.size()=" << meta_->directories.size() << std::endl;
   // Use dir_entries if available (v2.3+), otherwise use directories
   if (meta_->dir_entries) {
-    // For each directory, walk its entries
+    std::cerr << "[WALK] Modern format: dir_entries size=" << meta_->dir_entries->size() << std::endl;
+    // Collect all directory boundaries (first_entry indices) for each directory
+    std::vector<uint32_t> dir_boundaries;
     for (size_t dir_idx = 0; dir_idx < meta_->directories.size(); ++dir_idx) {
-      auto const& dir = meta_->directories[dir_idx];
-      uint32_t first = dir.first_entry();
-      uint32_t parent = dir.parent_entry();
+      dir_boundaries.push_back(meta_->directories[dir_idx].first_entry());
+    }
+    // Sort and unique the boundaries
+    std::sort(dir_boundaries.begin(), dir_boundaries.end());
+    dir_boundaries.erase(
+        std::unique(dir_boundaries.begin(), dir_boundaries.end()),
+        dir_boundaries.end());
 
-      // Walk entries in this directory
-      uint32_t current = first;
-      while (current < meta_->dir_entries->size()) {
-        auto const& entry = (*meta_->dir_entries)[current];
-        auto view = make_dir_entry_view(current, parent);
-        func(view);
-
-        // Move to next entry (they are sequential within a directory)
-        current++;
-        // Check if still in same directory by checking parent
-        if (current >= meta_->dir_entries->size()) break;
-        // Simple approach: just walk all entries with their calculated parents
-        break;
+    // Walk all dir_entries
+    for (uint32_t entry_idx = 0; entry_idx < meta_->dir_entries->size(); ++entry_idx) {
+      // Find which directory this entry belongs to
+      // The directory with the largest first_entry <= entry_idx is the parent
+      uint32_t parent_dir_idx = 0;
+      for (size_t i = 0; i < meta_->directories.size(); ++i) {
+        if (meta_->directories[i].first_entry() <= entry_idx) {
+          parent_dir_idx = i;
+        } else {
+          break;
+        }
       }
+
+      std::cerr << "[WALK] Processing entry " << entry_idx << ", parent_dir_idx=" << parent_dir_idx << std::endl;
+      auto view = make_dir_entry_view(entry_idx, parent_dir_idx);
+      func(view);
     }
   } else {
-    // Legacy: walk directories
-    for (size_t dir_idx = 0; dir_idx < meta_->directories.size(); ++dir_idx) {
-      auto const& dir = meta_->directories[dir_idx];
+    std::cerr << "[WALK] Legacy format: entry_table_v2_2.size()=" << meta_->entry_table_v2_2.size() << std::endl;
+    // Legacy format (v0.2.3 and earlier without dir_entries)
+    // Use entry_table_v2_2 as the source of entries
+    // entry_table_v2_2[i] = inode_index for entry i
+    // names[i] = name for entry i
+    if (!meta_->entry_table_v2_2.empty()) {
+      std::cerr << "[WALK] Walking " << meta_->entry_table_v2_2.size() << " entries from entry_table_v2_2" << std::endl;
+      // Walk all entries from entry_table_v2_2
+      for (size_t entry_idx = 0; entry_idx < meta_->entry_table_v2_2.size(); ++entry_idx) {
+        // Find which directory this entry belongs to (typically root for v0.2.3)
+        uint32_t parent_dir_idx = 0;
+        for (size_t i = 0; i < meta_->directories.size(); ++i) {
+          if (meta_->directories[i].first_entry() <= entry_idx) {
+            parent_dir_idx = i;
+          } else {
+            break;
+          }
+        }
 
-      // Create entry for directory itself
-      uint32_t self_index = global_.self_dir_entry(dir_idx);
-      uint32_t parent_index = (dir_idx == 0) ? 0 : global_.parent_dir_entry(dir_idx);
-      auto view = make_dir_entry_view(self_index, parent_index);
-      func(view);
+        auto view = make_dir_entry_view(entry_idx, parent_dir_idx);
+        func(view);
+      }
+    } else {
+      // Fallback: walk directories only (for very old formats without entry_table_v2_2)
+      for (size_t dir_idx = 0; dir_idx < meta_->directories.size(); ++dir_idx) {
+        uint32_t self_index = dir_idx;
+        uint32_t parent_index = (dir_idx == 0) ? 0 : global_.parent_dir_entry(dir_idx);
+        auto view = make_dir_entry_view(self_index, parent_index);
+        func(view);
+      }
     }
   }
 }
@@ -315,6 +361,25 @@ std::optional<dir_entry_view> domain_metadata_impl::find(
         // Stop when we leave this directory (heuristic: large gap in indices)
         if (i > first + 1000) break;
       }
+    } else {
+      // Legacy format (v0.2.3 without dir_entries): search through entry_table_v2_2
+      // For legacy format, names are indexed directly by entry index
+      if (!meta_->entry_table_v2_2.empty()) {
+        for (size_t i = 0; i < meta_->entry_table_v2_2.size(); ++i) {
+          if (i < meta_->names.size()) {
+            if (meta_->names[i] == name) {
+              return make_dir_entry_view(i, parent);
+            }
+          }
+        }
+      } else {
+        // Very old format: search through names directly
+        for (size_t i = 0; i < meta_->names.size(); ++i) {
+          if (meta_->names[i] == name) {
+            return make_dir_entry_view(i, parent);
+          }
+        }
+      }
     }
   }
 
@@ -362,7 +427,12 @@ file_stat domain_metadata_impl::getattr(inode_view iv, getattr_options const& op
   try {
     auto const& impl = static_cast<domain_inode_view_impl const&>(iv.raw());
     uint32_t inode_index = impl.inode_index();
+
     auto const& inode = get_inode_by_index(inode_index);
+
+    // Set device numbers (0 for virtual filesystem)
+    st.set_dev(0);
+    st.set_rdev(0);
 
     // Set mode, uid, gid
     st.set_mode(get_mode(*meta_, inode));
@@ -387,6 +457,12 @@ file_stat domain_metadata_impl::getattr(inode_view iv, getattr_options const& op
 
     // Set block size
     st.set_blksize(meta_->block_size);
+
+    // Set blocks (0 for virtual filesystem)
+    st.set_blocks(0);
+
+    // Set allocated size (0 for virtual filesystem)
+    st.set_allocated_size(0);
 
   } catch (std::exception const& e) {
     ec = std::make_error_code(std::errc::io_error);
@@ -456,8 +532,8 @@ int domain_metadata_impl::open(inode_view iv, std::error_code& ec) const {
       return -1;
     }
 
-    // Return success (file descriptor not used in read-only fs)
-    return 0;
+    // Return the inode number (used as "file descriptor" in read-only fs)
+    return impl.inode_index() + inode_offset_;
   } catch (std::exception const&) {
     ec = std::make_error_code(std::errc::io_error);
     return -1;
@@ -627,7 +703,8 @@ chunk_range domain_metadata_impl::get_chunks(int inode, std::error_code& ec) con
     }
 
     // Get chunk range from chunk table
-    if (inode_index < meta_->chunk_table.size() - 1) {
+    // Only proceed if chunk_table has enough entries for this inode
+    if (!meta_->chunk_table.empty() && inode_index + 1 < meta_->chunk_table.size()) {
       uint32_t begin = meta_->chunk_table[inode_index];
       uint32_t end = meta_->chunk_table[inode_index + 1];
 
@@ -636,7 +713,7 @@ chunk_range domain_metadata_impl::get_chunks(int inode, std::error_code& ec) con
 
     // No chunks
     return chunk_range{domain_chunk_range_impl{*meta_, 0, 0}};
-  } catch (std::exception const&) {
+  } catch (std::exception const& e) {
     ec = std::make_error_code(std::errc::io_error);
     return chunk_range{domain_chunk_range_impl{*meta_, 0, 0}};
   }

@@ -21,6 +21,7 @@
 
 #include "dwarfs/metadata/legacy/frozen_schema_serializer.h"
 
+#include <iostream>
 #include <stdexcept>
 
 #include "dwarfs/metadata/legacy/thrift_compact_reader.h"
@@ -202,13 +203,19 @@ class FrozenSchemaSerializer::Reader {
 
     r_.begin_struct();
 
+    int field_count = 0;
     while (auto field = r_.read_field_header()) {
+      field_count++;
+      std::cerr << "[SCHEMA] Reading field " << field->field_id
+                << ", type=" << static_cast<int>(field->type) << std::endl;
       // Field IDs are 1-indexed in serde, but reader returns 0-indexed
-      switch (field->field_id + 1) {
+      switch (field->field_id) {
       case 1: // relax_type_checks
         schema.relax_type_checks = r_.read_bool(field->type);
         break;
       case 2: // layouts
+        // For Homebrew mkdwarfs, the field type is 1 (which normally means BOOL_FALSE)
+        // but the actual value is a map. We need to read the map regardless of the field type.
         schema.layouts = read_layout_map();
         break;
       case 3: // root_layout
@@ -218,17 +225,33 @@ class FrozenSchemaSerializer::Reader {
         schema.file_version = r_.read_i32();
         break;
       default:
-        throw std::runtime_error("unknown field in Schema");
+        // Skip unknown fields for forward compatibility
+        // Newer versions of mkdwarfs might add additional fields
+        r_.skip_value(field->type);
+        break;
       }
     }
 
     r_.end_struct();
+
+    std::cerr << "[SCHEMA] Parsed schema: root_layout=" << schema.root_layout
+              << ", layouts.size()=" << schema.layouts.size() << std::endl;
+
+    for (auto [id, layout_ptr] : schema.layouts) {
+      std::cerr << "[SCHEMA]   Layout ID " << id
+                << ": size=" << layout_ptr->size
+                << ", bits=" << layout_ptr->bits
+                << ", fields=" << layout_ptr->fields.size() << std::endl;
+    }
+
     return schema;
   }
 
  private:
   DenseMap<SchemaLayout> read_layout_map() {
     auto header = r_.begin_map();
+
+    std::cerr << "[SCHEMA] read_layout_map: map size=" << header.size << std::endl;
 
     DenseMap<SchemaLayout> layouts;
     for (uint32_t i = 0; i < header.size; ++i) {
@@ -246,8 +269,66 @@ class FrozenSchemaSerializer::Reader {
 
     r_.begin_struct();
 
-    while (auto field = r_.read_field_header()) {
-      switch (field->field_id + 1) {
+    int field_count = 0;
+    std::optional<ThriftCompactReader::FieldHeader> field;
+
+    // First, peek at what the next field header would be
+    // Peek at the next byte without consuming it
+    {
+      uint8_t next_byte = r_.peek_byte();
+
+      // Check if this is a stop byte (empty struct)
+      if (next_byte == 0) {
+        r_.read_byte();  // consume the stop byte
+        r_.end_struct();
+        return layout;  // return empty layout
+      }
+
+      // Check if this byte could be a field header
+      uint8_t delta = next_byte >> 4;
+      uint8_t type = next_byte & 0x0F;
+      uint16_t potential_field_id = delta;  // simplified check
+
+      // If delta is 0, we'd need to read the field ID, which is complex
+      // For now, just check if it's a reasonable field header
+      if (delta == 0) {
+        // Read the actual field header
+        field = r_.read_field_header();
+        if (!field.has_value()) {
+          r_.end_struct();
+          return layout;
+        }
+        potential_field_id = field->field_id;
+      }
+
+      // Check if this field ID is valid (should be 1-4)
+      if (potential_field_id < 1 || potential_field_id > 4) {
+        // Put the byte back and return empty layout
+        if (delta != 0 && !field.has_value()) {
+          r_.unget_byte();
+        }
+        r_.end_struct();
+        return layout;
+      }
+
+      // If we read a field header above, we need to process it
+      if (field.has_value()) {
+        goto process_field;
+      }
+    }
+
+    while ((field = r_.read_field_header()).has_value()) {
+    process_field:
+      field_count++;
+
+      // Check if this field ID is valid (should be 1-4)
+      if (field->field_id < 1 || field->field_id > 4) {
+        // We've read past the end of the struct - this byte belongs to the next map entry
+        r_.unget_byte();
+        break;
+      }
+
+      switch (field->field_id) {
       case 1: // size
         layout.size = r_.read_i32();
         break;
@@ -261,11 +342,19 @@ class FrozenSchemaSerializer::Reader {
         layout.type_name = std::string(r_.read_string());
         break;
       default:
-        throw std::runtime_error("unknown field in SchemaLayout");
+        // Should not reach here due to check above
+        r_.skip_value(field->type);
+        break;
       }
     }
 
     r_.end_struct();
+
+    std::cerr << "[SCHEMA] Parsed layout: size=" << layout.size
+              << ", bits=" << layout.bits
+              << ", fields=" << layout.fields.size()
+              << ", type_name=" << layout.type_name << std::endl;
+
     return layout;
   }
 
@@ -289,7 +378,7 @@ class FrozenSchemaSerializer::Reader {
     r_.begin_struct();
 
     while (auto f = r_.read_field_header()) {
-      switch (f->field_id + 1) {
+      switch (f->field_id) {
       case 1: // layout_id
         field.layout_id = r_.read_i16();
         break;
@@ -297,7 +386,9 @@ class FrozenSchemaSerializer::Reader {
         field.offset = r_.read_i16();
         break;
       default:
-        throw std::runtime_error("unknown field in SchemaField");
+        // Skip unknown fields for forward compatibility
+        r_.skip_value(f->type);
+        break;
       }
     }
 

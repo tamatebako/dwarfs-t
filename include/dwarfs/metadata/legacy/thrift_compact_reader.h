@@ -128,6 +128,26 @@ public:
    */
   uint8_t read_byte();
 
+  /**
+   * Peek at next byte without consuming it
+   */
+  uint8_t peek_byte() const {
+    if (pos_ >= data_.size()) {
+      throw std::runtime_error("ThriftCompactReader: unexpected end of data");
+    }
+    return data_[pos_];
+  }
+
+  /**
+   * Unget last byte (move position back by 1)
+   * Used when we read a byte that belongs to the next structure
+   */
+  void unget_byte() {
+    if (pos_ > 0) {
+      --pos_;
+    }
+  }
+
   // Struct support
   /**
    * Begin struct decoding
@@ -162,6 +182,15 @@ public:
   void end_map();
 
   /**
+   * Skip a value of the given type
+   *
+   * Used for skipping unknown fields during deserialization
+   *
+   * @param type Tag type of the value to skip
+   */
+  void skip_value(Tag type);
+
+  /**
    * Check if at end of data
    */
   bool at_end() const { return pos_ >= data_.size(); }
@@ -175,6 +204,7 @@ private:
   std::span<uint8_t const> data_;
   size_t pos_{0};
   int16_t last_field_id_{0}; // Last read field ID
+  std::vector<int16_t> last_field_id_stack_; // Stack for nested structs
 };
 
 } // namespace dwarfs::metadata::legacy

@@ -59,6 +59,23 @@ class metadata_factory {
    */
   static std::unique_ptr<dwarfs::metadata::domain::metadata>
   load_metadata(logger& lgr, std::span<uint8_t const> data);
+
+  /**
+   * Load metadata from schema and frozen data (Legacy Thrift format)
+   *
+   * For Legacy Thrift (Frozen2) format, the schema is stored in a separate
+   * section from the frozen metadata. This overload handles that case.
+   *
+   * @param lgr Logger for diagnostics
+   * @param schema Raw schema section data (METADATA_V2_SCHEMA)
+   * @param data Raw frozen metadata section data (METADATA_V2)
+   * @return Unique pointer to domain::metadata
+   * @throws runtime_error if deserialization fails
+   */
+  static std::unique_ptr<dwarfs::metadata::domain::metadata>
+  load_metadata_legacy(logger& lgr,
+                      std::span<uint8_t const> schema,
+                      std::span<uint8_t const> data);
 };
 
 } // namespace dwarfs::reader::internal

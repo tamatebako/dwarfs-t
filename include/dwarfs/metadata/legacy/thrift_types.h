@@ -34,7 +34,7 @@ namespace dwarfs::metadata::legacy {
 enum class Tag : uint8_t {
   UNKNOWN_BOOL = 0, // For non-inline bool (separate byte)
   BOOL_TRUE = 1,    // Inline true in field header
-  BOOL_FALSE = 2,   // Inline false in field header
+  BOOL_FALSE = 2,   // Inline false in field header (or I16 in map keys for Homebrew)
   I16 = 4,          // 16-bit signed integer (zigzag encoded)
   I32 = 5,          // 32-bit signed integer (zigzag encoded)
   I64 = 6,          // 64-bit signed integer (zigzag encoded)
@@ -42,6 +42,7 @@ enum class Tag : uint8_t {
   LIST = 9,         // List container
   MAP = 11,         // Map container
   STRUCT = 12,      // Struct container
+  STRUCT_HOMEBREW = 13, // Homebrew mkdwarfs uses type code 13 for STRUCT
   INVALID = 15,     // Invalid/unknown tag
 };
 

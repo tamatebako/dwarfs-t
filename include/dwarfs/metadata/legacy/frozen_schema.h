@@ -45,20 +45,40 @@ class DenseMap {
 
   // Insert key-value pair
   void insert(int16_t key, T value) {
+    if (key < 0) {
+      throw std::runtime_error("DenseMap::insert: negative key not allowed: " +
+                               std::to_string(key));
+    }
     auto idx = static_cast<size_t>(key);
     if (idx >= data_.size()) {
+      // Sanity check to prevent vector length errors
+      if (idx > 10000) {
+        throw std::runtime_error("DenseMap::insert: key too large: " +
+                                 std::to_string(key) + " (max allowed: 10000)");
+      }
       data_.resize(idx + 1);
     }
     data_[idx] = std::move(value);
   }
 
   // Get value by key
-  std::optional<T> get(int16_t key) const {
+  // Returns pointer to value in vector, or nullptr if not found
+  // Note: The pointer is valid as long as the DenseMap is not modified
+  T* get(int16_t key) {
     auto idx = static_cast<size_t>(key);
-    if (idx >= data_.size()) {
-      return std::nullopt;
+    if (idx >= data_.size() || !data_[idx].has_value()) {
+      return nullptr;
     }
-    return data_[idx];
+    return &(*data_[idx]);
+  }
+
+  // Const version
+  T const* get(int16_t key) const {
+    auto idx = static_cast<size_t>(key);
+    if (idx >= data_.size() || !data_[idx].has_value()) {
+      return nullptr;
+    }
+    return &(*data_[idx]);
   }
 
   // Check if empty

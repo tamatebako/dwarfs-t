@@ -85,6 +85,10 @@ public:
   // Performance caches (v2.5+)
   std::optional<inode_size_cache> reg_file_size_cache;
 
+  // Uncompressed file sizes (direct lookup for readers)
+  // Maps inode index to uncompressed file size, populated during write
+  std::optional<std::vector<uint64_t>> uncompressed_file_sizes;
+
   // Category metadata (v2.5+)
   std::optional<std::vector<std::string>> category_metadata_json;
   std::optional<std::map<uint32_t, uint32_t>> block_category_metadata;
@@ -132,6 +136,7 @@ public:
         && category_names == other.category_names
         && block_categories == other.block_categories
         && reg_file_size_cache == other.reg_file_size_cache
+        && uncompressed_file_sizes == other.uncompressed_file_sizes
         && category_metadata_json == other.category_metadata_json
         && block_category_metadata == other.block_category_metadata
         && metadata_version_history == other.metadata_version_history

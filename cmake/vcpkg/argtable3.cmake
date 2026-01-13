@@ -5,17 +5,33 @@ include_guard(GLOBAL)
 
 set(ARGTABLE3_REQUIRED_VERSION 3.2.0)
 
-if(DEFINED VCPKG_BUILD AND VCPKG_BUILD)
-  # vcpkg mode: use find_package with CONFIG
+# Check if we're in vcpkg manifest mode (using vcpkg_installed)
+# VCPKG_MANIFEST_INSTALL is set when using manifest-based vcpkg
+if(DEFINED VCPKG_MANIFEST_INSTALL AND VCPKG_MANIFEST_INSTALL)
+  # vcpkg manifest mode: use find_package without version constraint
+  # vcpkg will have installed the correct version
+  find_package(argtable3 CONFIG)
+  if(TARGET argtable3::argtable3)
+    set(ARGTABLE3_FOUND TRUE)
+    message(STATUS "Using argtable3 from vcpkg manifest")
+  else()
+    # Fallback to any version found
+    find_package(argtable3 CONFIG)
+    if(TARGET argtable3::argtable3)
+      set(ARGTABLE3_FOUND TRUE)
+      message(STATUS "Using argtable3 from vcpkg (fallback)")
+    else()
+      message(STATUS "argtable3 not found in vcpkg, installed will be as dependency")
+    endif()
+  endif()
+elseif(DEFINED VCPKG_BUILD AND VCPKG_BUILD)
+  # vcpkg port build mode
   find_package(argtable3 ${ARGTABLE3_REQUIRED_VERSION} REQUIRED CONFIG)
-
-  # Create alias to match expected target name
   if(NOT TARGET argtable3::argtable3)
     add_library(argtable3::argtable3 ALIAS argtable3)
   endif()
-
   set(ARGTABLE3_FOUND TRUE)
-  message(STATUS "Using argtable3 from vcpkg: ${argtable3_VERSION}")
+  message(STATUS "Using argtable3 from vcpkg port build: ${argtable3_VERSION}")
 else()
   # Try pkg-config first (non-vcpkg builds)
   pkg_check_modules(argtable3 argtable3>=${ARGTABLE3_REQUIRED_VERSION})

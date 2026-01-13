@@ -23,8 +23,12 @@
 #include "dwarfs/metadata/serialization/serializer_registry.h"
 #include "dwarfs/metadata/domain/metadata.h"
 #include "dwarfs/metadata/legacy/legacy_metadata_serializer.h"
+#include "dwarfs/metadata/legacy/frozen2_deserializer.h"
+#include "dwarfs/metadata/legacy/frozen_schema_serializer.h"
 
 #include <stdexcept>
+#include <cstring>
+#include <iostream>
 
 namespace dwarfs::metadata::serialization {
 
@@ -50,9 +54,54 @@ std::unique_ptr<void, void(*)(void*)> LegacyThriftSerializer::deserialize(
     throw std::invalid_argument("Cannot deserialize empty data");
   }
 
-  auto domain_meta = std::make_unique<domain::metadata>();
+  /**
+   * DwarFS v0.14.1 Legacy Thrift Format (Homebrew):
+   *
+   * Structure:
+   *   [8 bytes]  Size prefix (little-endian uint64)
+   *   [N bytes]  Schema section (Thrift Compact Protocol)
+   *   [M bytes]  Metadata section (Frozen2 bit-packed)
+   *
+   * We need to:
+   *   1. Skip size prefix (first 8 bytes)
+   *   2. Deserialize schema using FrozenSchemaSerializer
+   *   3. Find where frozen data starts (after schema)
+   *   4. Deserialize metadata using Frozen2Deserializer
+   */
 
-  legacy::LegacyMetadataSerializer::deserialize(data, *domain_meta);
+  // Check minimum size (8-byte prefix + some schema/data)
+  if (data.size() < 16) {
+    throw std::runtime_error("Legacy Thrift data too small (< 16 bytes)");
+  }
+
+  // Skip 8-byte size prefix
+  std::span<uint8_t const> metadata_bytes(data.data() + 8, data.size() - 8);
+
+  // Step 1: Deserialize schema (Thrift Compact)
+  // The schema tells us how to interpret the bit-packed frozen data
+  auto schema = legacy::FrozenSchemaSerializer::deserialize(metadata_bytes);
+
+  // Step 2: Calculate where frozen data starts
+  // We need to know the schema's serialized size
+  // Inefficient but correct: re-serialize schema to get its size
+  auto schema_bytes = legacy::FrozenSchemaSerializer::serialize(schema);
+  size_t schema_size = schema_bytes.size();
+
+  if (metadata_bytes.size() <= schema_size) {
+    throw std::runtime_error(
+        "No frozen data after schema (data size: " +
+        std::to_string(metadata_bytes.size()) +
+        ", schema size: " + std::to_string(schema_size) + ")");
+  }
+
+  // Step 3: Extract frozen bytes (after schema)
+  std::span<uint8_t const> frozen_bytes(
+      metadata_bytes.data() + schema_size,
+      metadata_bytes.size() - schema_size);
+
+  // Step 4: Deserialize using Frozen2 format
+  auto domain_meta = std::make_unique<domain::metadata>(
+      legacy::Frozen2Deserializer::deserialize(schema, frozen_bytes));
 
   // Return with custom deleter
   return std::unique_ptr<void, void(*)(void*)>(

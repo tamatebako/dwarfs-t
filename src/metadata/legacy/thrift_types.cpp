@@ -43,6 +43,8 @@ const char* tag_name(Tag t) {
     return "MAP";
   case Tag::STRUCT:
     return "STRUCT";
+  case Tag::STRUCT_HOMEBREW:
+    return "STRUCT_HOMEBREW";
   case Tag::UNKNOWN_BOOL:
     return "UNKNOWN_BOOL";
   case Tag::INVALID:

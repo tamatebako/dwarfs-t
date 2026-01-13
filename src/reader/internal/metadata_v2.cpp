@@ -28,6 +28,7 @@
 
 #include <dwarfs/reader/internal/metadata_v2.h>
 
+#include <iostream>
 #include <dwarfs/error.h>
 #include <dwarfs/logger.h>
 #include <dwarfs/reader/metadata_options.h>
@@ -52,7 +53,31 @@ metadata_v2::metadata_v2(
     std::shared_ptr<performance_monitor const> const& perfmon) {
 
   // Use metadata_factory to load domain::metadata
-  auto domain_meta = metadata_factory::load_metadata(lgr, data);
+  // For Legacy Thrift format, we need both schema and frozen data
+  // Check if data starts with FlatBuffers magic to detect format
+  std::unique_ptr<dwarfs::metadata::domain::metadata> domain_meta;
+
+  // FlatBuffers format uses size-prefixed format with file_identifier "DFBF"
+  // The first 4 bytes are the size prefix, next 4 bytes are "DFBF"
+  bool is_flatbuffers = false;
+  if (data.size() >= 8) {
+    // Check for FlatBuffers magic after size prefix
+    // data[0:4] = size prefix (little endian)
+    // data[4:8] should be "DFBF"
+    is_flatbuffers = (data[4] == uint8_t('D') && data[5] == uint8_t('F') &&
+                      data[6] == uint8_t('B') && data[7] == uint8_t('F'));
+  }
+
+  if (is_flatbuffers) {
+    // FlatBuffers format: metadata is self-contained with magic bytes
+    domain_meta = metadata_factory::load_metadata(lgr, data);
+  } else if (!schema.empty()) {
+    // Legacy Thrift format: schema is in a separate section
+    domain_meta = metadata_factory::load_metadata_legacy(lgr, schema, data);
+  } else {
+    // Unknown format - try auto-detection
+    domain_meta = metadata_factory::load_metadata(lgr, data);
+  }
 
   // Create domain_metadata_impl
   impl_ = std::make_unique<domain_metadata_impl>(

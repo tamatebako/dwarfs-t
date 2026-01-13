@@ -84,12 +84,14 @@ std::string dir_entry_view::name() const { return impl_->name(); }
 inode_view dir_entry_view::inode() const {
 #if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
   // Dual-format: use interface method directly
-  return inode_view{impl_->inode_shared()};
+  auto result = impl_->inode_shared();
+  return inode_view{result};
 #else
   // Single-format: downcast interface → concrete type
+  auto result = impl_->inode_shared();
   return inode_view{
       std::static_pointer_cast<internal::inode_view_impl const>(
-          impl_->inode_shared())};
+          result)};
 #endif
 }
 

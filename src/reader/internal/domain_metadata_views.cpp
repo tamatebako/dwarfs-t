@@ -6,6 +6,8 @@
 #include <dwarfs/reader/internal/domain_metadata_views.h>
 #include <dwarfs/file_stat.h>
 
+#include <iostream>
+
 namespace dwarfs::reader::internal {
 
 // ========== domain_global_metadata ==========
@@ -30,6 +32,18 @@ uint32_t domain_global_metadata::parent_dir_entry(uint32_t dir_inode) const {
   if (dir_inode >= meta_.directories.size()) {
     return 0;
   }
+
+  // For legacy format (no dir_entries), return the parent_entry field directly
+  // if it's within bounds, otherwise return the directory index itself as fallback
+  if (!meta_.dir_entries) {
+    uint32_t parent_entry = meta_.directories[dir_inode].parent_entry();
+    // If parent_entry is 0 or equals dir_inode, it's the root or self-referential
+    if (parent_entry == 0 || parent_entry >= meta_.directories.size()) {
+      return (dir_inode == 0) ? 0 : dir_inode - 1;  // Return previous directory or root
+    }
+    return parent_entry;
+  }
+
   return meta_.directories[dir_inode].parent_entry();
 }
 #endif
@@ -42,6 +56,13 @@ uint32_t domain_global_metadata::self_dir_entry(uint32_t dir_inode) const {
   if (dir_inode >= meta_.directories.size()) {
     return 0;  // Invalid inode, return root
   }
+
+  // For legacy format (no dir_entries), return the directory index itself
+  // instead of the self_entry field (which is meaningless without dir_entries)
+  if (!meta_.dir_entries) {
+    return dir_inode;  // Use directory index as the entry index
+  }
+
   return meta_.directories[dir_inode].self_entry();
 }
 
@@ -119,7 +140,8 @@ domain_global_metadata::make_dir_entry_view(uint32_t index) const {
 domain_inode_view_impl::domain_inode_view_impl(
     metadata::domain::metadata const& meta, uint32_t inode_index,
     uint32_t inode_num)
-    : meta_{meta}, inode_index_{inode_index}, inode_num_{inode_num} {}
+    : meta_{meta}, inode_index_{inode_index}, inode_num_{inode_num} {
+}
 
 auto domain_inode_view_impl::mode() const -> mode_type {
   if (inode_index_ >= meta_.inodes.size()) {
@@ -166,7 +188,7 @@ auto domain_inode_view_impl::getgid() const -> gid_type {
   return meta_.gids[inode.group_index];
 }
 
-uint32_t domain_inode_view_impl::inode_num() const { return inode_num_; }
+uint32_t domain_inode_view_impl::inode_num() const { return inode_index_; }
 
 bool domain_inode_view_impl::is_directory() const {
   return type() == posix_file_type::directory;
@@ -177,10 +199,19 @@ bool domain_inode_view_impl::is_directory() const {
 domain_dir_entry_view_impl::domain_dir_entry_view_impl(
     metadata::domain::metadata const& meta, uint32_t self_index,
     uint32_t parent_index)
-    : meta_{meta}, self_index_{self_index}, parent_index_{parent_index} {}
+    : meta_{meta}, self_index_{self_index}, parent_index_{parent_index} {
+}
 
 std::string domain_dir_entry_view_impl::name() const {
-  if (!meta_.dir_entries || self_index_ >= meta_.dir_entries->size()) {
+  // For legacy format (no dir_entries), names are indexed directly by entry index
+  if (!meta_.dir_entries) {
+    if (self_index_ >= meta_.names.size()) {
+      return {};
+    }
+    return meta_.names[self_index_];
+  }
+
+  if (self_index_ >= meta_.dir_entries->size()) {
     return {};
   }
   auto const& entry = (*meta_.dir_entries)[self_index_];
@@ -193,7 +224,31 @@ std::string domain_dir_entry_view_impl::name() const {
 
 std::shared_ptr<inode_view_interface>
 domain_dir_entry_view_impl::inode() const {
-  if (!meta_.dir_entries || self_index_ >= meta_.dir_entries->size()) {
+  // Handle legacy mode (no dir_entries)
+  if (!meta_.dir_entries.has_value()) {
+    uint32_t inode_index;
+    uint32_t inode_num;
+
+    // Check if we have entry_table_v2_2 (v0.2.3 format)
+    if (!meta_.entry_table_v2_2.empty()) {
+      // v0.2.3 format: entry_table_v2_2[entry_idx] = inode_index
+      if (self_index_ >= meta_.entry_table_v2_2.size()) {
+        return nullptr;
+      }
+      inode_index = meta_.entry_table_v2_2[self_index_];
+      inode_num = self_index_;  // In v0.2.3, inode_num = entry_idx
+    } else {
+      // Very old format: self_index_ is directly the inode index
+      if (self_index_ >= meta_.inodes.size()) {
+        return nullptr;
+      }
+      inode_index = self_index_;
+      inode_num = self_index_;
+    }
+    return std::make_shared<domain_inode_view_impl>(meta_, inode_index, inode_num);
+  }
+
+  if (self_index_ >= meta_.dir_entries->size()) {
     return nullptr;
   }
   auto const& entry = (*meta_.dir_entries)[self_index_];
@@ -204,6 +259,16 @@ domain_dir_entry_view_impl::inode() const {
   if (meta_.entry_table_v2_2.empty()) {
     // v2.3+ format: inode_num IS the inode index (direct mapping)
     inode_index = inode_num;
+
+    // WORKAROUND: Handle legacy images with incorrect inode numbers in dir_entries.
+    // The old writer bug caused dir_entry.inode_num to not match the actual inode position.
+    // If inode_num is significantly larger than self_index, it's using the legacy incorrect numbering.
+    // In this case, use the directory entry's position (self_index_) as the inode index.
+    // The threshold of 64 is arbitrary but effective since dir_entries are typically
+    // much smaller than inode numbers in legacy images.
+    if (inode_num > 64 && self_index_ < inode_num && self_index_ < meta_.inodes.size()) {
+      inode_index = self_index_;
+    }
   } else {
     // v2.2 format: use entry_table_v2_2 to map inode_num to inode_index
     if (inode_num >= meta_.entry_table_v2_2.size()) {
@@ -212,8 +277,9 @@ domain_dir_entry_view_impl::inode() const {
     inode_index = meta_.entry_table_v2_2[inode_num];
   }
 
-  return std::make_shared<domain_inode_view_impl>(meta_, inode_index,
-                                                   inode_num);
+  auto result = std::make_shared<domain_inode_view_impl>(meta_, inode_index,
+                                                         inode_num);
+  return result;
 }
 
 std::shared_ptr<inode_view_interface const>
@@ -232,6 +298,23 @@ bool domain_dir_entry_view_impl::is_root() const {
 }
 
 std::string domain_dir_entry_view_impl::path() const {
+  // For legacy format (no dir_entries), the filesystem is flat (all files in root)
+  // and names are indexed directly by entry index
+  if (!meta_.dir_entries) {
+    if (self_index_ == 0) {
+      return "/";  // Root directory
+    }
+    // Return /name for flat filesystem
+    if (self_index_ >= meta_.names.size()) {
+      return "/";
+    }
+    std::string name = meta_.names[self_index_];
+    if (name.empty()) {
+      return "/";
+    }
+    return "/" + name;
+  }
+
   // Build full path by traversing up the directory tree
   std::vector<std::string> components;
   uint32_t current = self_index_;
@@ -240,7 +323,7 @@ std::string domain_dir_entry_view_impl::path() const {
   // Traverse up to root, collecting names
   while (current != 0 || parent != 0) {
     // Get current entry's name
-    if (!meta_.dir_entries || current >= meta_.dir_entries->size()) {
+    if (current >= meta_.dir_entries->size()) {
       break;
     }
     auto const& entry = (*meta_.dir_entries)[current];

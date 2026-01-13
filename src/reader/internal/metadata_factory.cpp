@@ -11,18 +11,25 @@
 #include <dwarfs/reader/internal/metadata_factory.h>
 
 #include <fmt/format.h>
+#include <iostream>
 
 #include <dwarfs/error.h>
 #include <dwarfs/logger.h>
 #include <dwarfs/metadata/domain/metadata.h>
+#include <dwarfs/metadata/serialization/init_serializers.h>
 #include <dwarfs/metadata/serialization/serializer_registry.h>
 #include <dwarfs/metadata/serialization/serialization_format.h>
+#include <dwarfs/metadata/legacy/frozen2_deserializer.h>
+#include <dwarfs/metadata/legacy/frozen_schema_serializer.h>
 
 namespace dwarfs::reader::internal {
 
 std::unique_ptr<dwarfs::metadata::domain::metadata>
 metadata_factory::load_metadata(logger& lgr, std::span<uint8_t const> data) {
   using namespace dwarfs::metadata::serialization;
+
+  // Initialize serializers (must be called before using registry)
+  init_serializers();
 
   // Get singleton registry
   auto& registry = SerializerRegistry::instance();
@@ -59,6 +66,29 @@ metadata_factory::load_metadata(logger& lgr, std::span<uint8_t const> data) {
       metadata_ptr.release());
 
   return std::unique_ptr<dwarfs::metadata::domain::metadata>(raw_ptr);
+}
+
+std::unique_ptr<dwarfs::metadata::domain::metadata>
+metadata_factory::load_metadata_legacy(logger& lgr,
+                                      std::span<uint8_t const> schema,
+                                      std::span<uint8_t const> data) {
+  // Suppress unused parameter warning
+  (void)lgr;
+
+  try {
+    // Parse schema
+    auto parsed_schema = dwarfs::metadata::legacy::FrozenSchemaSerializer::deserialize(schema);
+
+    // Deserialize metadata
+    auto meta_value = dwarfs::metadata::legacy::Frozen2Deserializer::deserialize(parsed_schema, data);
+    auto domain_meta = std::unique_ptr<dwarfs::metadata::domain::metadata>(
+        new dwarfs::metadata::domain::metadata(std::move(meta_value)));
+
+    return domain_meta;
+  } catch (std::exception const& e) {
+    DWARFS_THROW(runtime_error,
+        fmt::format("Failed to load Legacy Thrift metadata: {}", e.what()));
+  }
 }
 
 } // namespace dwarfs::reader::internal

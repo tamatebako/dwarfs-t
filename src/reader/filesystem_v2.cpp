@@ -261,9 +261,10 @@ make_metadata(logger& lgr, file_view const& mm, section_map const& sections,
     }
   }
 
-  return {meta_buffer,
-          metadata_v2{lgr, schema_buffer.span(), meta_buffer.span(), options,
-                      inode_offset, force_consistency_check, perfmon}};
+  metadata_v2 meta{lgr, schema_buffer.span(), meta_buffer.span(), options,
+                    inode_offset, force_consistency_check, perfmon};
+
+  return {meta_buffer, std::move(meta)};
 }
 
 } // namespace
@@ -639,10 +640,12 @@ filesystem_<LoggerPolicy>::filesystem_(
       make_metadata(lgr, mm_, sections, options.metadata, options.inode_offset,
                     options.lock_mode, !parser.has_checksums(), perfmon);
 
+  auto block_size = meta_.block_size();
+
   LOG_DEBUG << "read " << cache.block_count() << " blocks and " << meta_.size()
             << " bytes of metadata";
 
-  cache.set_block_size(meta_.block_size());
+  cache.set_block_size(block_size);
 
   ir_ = inode_reader_v2(lgr, os_, std::move(cache), options.inode_reader,
                         perfmon);

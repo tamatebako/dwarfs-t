@@ -147,6 +147,9 @@ set(LEGACY_THRIFT_SOURCES
   src/metadata/legacy/value_encoders.cpp
   src/metadata/legacy/frozen_writer.cpp
 
+  # Frozen2 SchemaBuilder (Task 4 of Frozen2 Serializer Implementation)
+  src/metadata/legacy/frozen2_schema_builder.cpp
+
   # FSST decompression support (Session 84)
   src/metadata/legacy/fsst.cpp
 )
@@ -442,6 +445,28 @@ if(WITH_TESTS)
 
   set_tests_properties(frozen_writer_tests
     PROPERTIES LABELS "legacy;metadata;frozen2;writer"
+  )
+
+  # SchemaBuilder tests (Task 4 of Frozen2 Serializer Implementation)
+  add_executable(frozen2_schema_builder_tests
+    test/metadata/legacy/frozen2_schema_builder_test.cpp
+  )
+
+  target_link_libraries(frozen2_schema_builder_tests
+    PRIVATE
+      dwarfs_metadata_legacy
+      GTest::gtest_main
+      GTest::gmock
+  )
+
+  add_test(
+    NAME frozen2_schema_builder_tests
+    COMMAND frozen2_schema_builder_tests
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  set_tests_properties(frozen2_schema_builder_tests
+    PROPERTIES LABELS "legacy;metadata;frozen2;schema"
   )
 
   # Modern Thrift Compact serializer tests (if Thrift available)

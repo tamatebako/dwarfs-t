@@ -26,8 +26,11 @@
 #include "dwarfs/metadata/serialization/flatbuffers_serializer.h"
 #include "dwarfs/metadata/serialization/serializer_registry.h"
 #include "dwarfs/metadata/domain/metadata.h"
+#include "dwarfs/metadata/domain/inode_size_cache.h"
 
 #include <flatbuffers/flatbuffers.h>
+#include <iostream>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -406,9 +409,25 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
 
   // Simple vectors
   if (fb_meta->chunk_table()) {
-    domain_meta->chunk_table.assign(
-      fb_meta->chunk_table()->begin(),
-      fb_meta->chunk_table()->end());
+    bool is_packed = fb_meta->options() && fb_meta->options()->packed_chunk_table();
+    std::cerr << "DEBUG: chunk_table found, size=" << fb_meta->chunk_table()->size()
+              << ", is_packed=" << (is_packed ? "true" : "false") << std::endl;
+
+    if (is_packed) {
+      // Unpack delta-encoded chunk_table using prefix sum
+      std::vector<uint32_t> packed;
+      packed.reserve(fb_meta->chunk_table()->size());
+      for (auto val : *fb_meta->chunk_table()) {
+        packed.push_back(val);
+      }
+      domain_meta->chunk_table.reserve(packed.size());
+      std::partial_sum(packed.begin(), packed.end(),
+                       std::back_inserter(domain_meta->chunk_table));
+    } else {
+      domain_meta->chunk_table.assign(
+        fb_meta->chunk_table()->begin(),
+        fb_meta->chunk_table()->end());
+    }
   }
 
   if (fb_meta->entry_table_v2_2()) {
@@ -576,6 +595,39 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
 
   if (fb_meta->total_allocated_fs_size() > 0) {
     domain_meta->total_allocated_fs_size = fb_meta->total_allocated_fs_size();
+  }
+
+  // Deserialize InodeSizeCache (reg_file_size_cache)
+  if (fb_meta->reg_file_size_cache()) {
+    auto* fb_cache = fb_meta->reg_file_size_cache();
+    domain::inode_size_cache cache;
+
+    cache.min_chunk_count = fb_cache->min_chunk_count();
+
+    // Deserialize size_lookup: parallel arrays -> map
+    if (fb_cache->size_lookup_keys() && fb_cache->size_lookup_values()) {
+      auto* keys = fb_cache->size_lookup_keys();
+      auto* values = fb_cache->size_lookup_values();
+      size_t count = std::min(keys->size(), values->size());
+      for (size_t i = 0; i < count; ++i) {
+        cache.size_lookup[(*keys)[i]] = (*values)[i];
+      }
+    }
+
+    // Deserialize allocated_size_lookup: parallel arrays -> map
+    if (fb_cache->allocated_size_lookup_keys() && fb_cache->allocated_size_lookup_values()) {
+      auto* keys = fb_cache->allocated_size_lookup_keys();
+      auto* values = fb_cache->allocated_size_lookup_values();
+      size_t count = std::min(keys->size(), values->size());
+      for (size_t i = 0; i < count; ++i) {
+        cache.allocated_size_lookup[(*keys)[i]] = (*values)[i];
+      }
+    }
+
+    std::cerr << "DEBUG: reg_file_size_cache loaded with "
+              << cache.size_lookup.size() << " entries" << std::endl;
+
+    domain_meta->reg_file_size_cache = std::move(cache);
   }
 
   // Return with custom deleter

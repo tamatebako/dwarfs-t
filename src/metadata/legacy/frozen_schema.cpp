@@ -65,7 +65,7 @@ void Schema::validate() const {
   }
 
   // Check root_layout exists
-  if (!layouts.get(root_layout).has_value()) {
+  if (!layouts.get(root_layout)) {
     throw std::runtime_error("missing root_layout");
   }
 
@@ -85,13 +85,13 @@ void Schema::validate() const {
       auto const& field = *field_ptr;
 
       // Check field layout_id is valid
-      auto field_layout_opt = layouts.get(field.layout_id);
-      if (!field_layout_opt.has_value()) {
+      auto field_layout_ptr = layouts.get(field.layout_id);
+      if (!field_layout_ptr) {
         throw std::runtime_error(fmt::format(
             "field {} of layout {}: layout index out of range", field_id,
             layout_id));
       }
-      auto const& field_layout = field_layout_opt.value();
+      auto const& field_layout = *field_layout_ptr;
 
       // Check field_layout.bits is non-negative
       if (field_layout.bits < 0) {
