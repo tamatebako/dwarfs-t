@@ -26,6 +26,7 @@
 #include "dwarfs/metadata/legacy/frozen_schema.h"
 #include "dwarfs/metadata/legacy/frozen_bits.h"
 
+#include <string>
 #include <vector>
 #include <stdexcept>
 
@@ -436,4 +437,38 @@ TEST(ValueEncoderTest, VectorEncoder_ThrowsOnInvalidLayout) {
     encoder.encode(writer, vector_layout, &values),
     std::invalid_argument
   );
+}
+
+// === StringEncoder tests ===
+
+TEST(ValueEncoderTest, StringEncoder_EncodesString) {
+  std::vector<uint8_t> buffer(256);
+  FrozenWriter writer(buffer);
+
+  // String layout: distance + length fields
+  SchemaLayout string_layout;
+  string_layout.bits = 64;
+  DenseMap<SchemaField> fields;
+
+  SchemaField field1;
+  field1.layout_id = 1;
+  field1.offset = 0;
+  fields.insert(1, field1);
+
+  SchemaField field2;
+  field2.layout_id = 1;
+  field2.offset = 32;
+  fields.insert(2, field2);
+
+  string_layout.fields = fields;
+
+  std::string value = "Hello, World!";
+
+  StringEncoder encoder;
+  encoder.encode(writer, string_layout, &value);
+
+  // Verify
+  uint32_t distance = frozen_bits::load_bits(buffer, 0, 32);
+  uint32_t length = frozen_bits::load_bits(buffer, 32, 32);
+  EXPECT_EQ(13, length);
 }

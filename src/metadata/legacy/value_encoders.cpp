@@ -22,6 +22,8 @@
 #include "dwarfs/metadata/legacy/value_encoders.h"
 #include "dwarfs/metadata/legacy/frozen_writer.h"
 #include "dwarfs/metadata/domain/chunk.h"
+#include "dwarfs/metadata/domain/directory.h"
+#include "dwarfs/metadata/domain/inode_data.h"
 
 #include <cassert>
 #include <cstdint>
@@ -29,6 +31,7 @@
 #include <fmt/core.h>
 #include <stdexcept>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace dwarfs::metadata::legacy {
@@ -199,6 +202,220 @@ uint32_t VectorEncoder::encode_with_element_layout(
         reinterpret_cast<uint8_t const*>(&size_val), sizeof(uint32_t));
     writer.write_storage(current_offset, size_bytes);
     current_offset += sizeof(uint32_t);
+  }
+
+  return 64; // 2 fields of 32 bits each
+}
+
+uint32_t VectorEncoder::encode_directories(
+  FrozenWriter& writer,
+  SchemaLayout const& layout,
+  SchemaLayout const& element_layout,
+  void const* value) const {
+
+  // Validate: null pointer check
+  if (!value) {
+    throw std::invalid_argument("VectorEncoder::encode_directories: value pointer is null");
+  }
+
+  // Validate: layout.bits must be 64 (2 fields of 32 bits each)
+  if (layout.bits != 64) {
+    throw std::invalid_argument(
+        fmt::format("VectorEncoder expects layout.bits=64, got {}", layout.bits));
+  }
+
+  // Encode std::vector<domain::directory>
+  // where each directory has 3 uint32_t fields: parent_entry, first_entry, self_entry
+  auto* vec = static_cast<const std::vector<domain::directory>*>(value);
+
+  // Each directory is 3 x uint32_t = 12 bytes
+  uint32_t elem_size = 12;
+
+  // Overflow protection
+  if (vec->size() > std::numeric_limits<uint32_t>::max() / elem_size) {
+    throw std::length_error(
+        fmt::format("VectorEncoder: size overflow ({} elements)", vec->size()));
+  }
+
+  // Reserve storage for all elements
+  uint32_t storage_offset = writer.reserve_storage(
+      static_cast<uint32_t>(vec->size() * elem_size));
+
+  // Write field 1: distance (offset to element data in bytes)
+  writer.write_scalar(storage_offset, 32);
+
+  // Write field 2: length (number of elements)
+  writer.write_scalar(static_cast<uint32_t>(vec->size()), 32);
+
+  // Write each directory to storage using domain::directory accessor methods
+  uint32_t current_offset = storage_offset;
+  for (size_t i = 0; i < vec->size(); ++i) {
+    const domain::directory& d = (*vec)[i];
+
+    // Write parent_entry field (32 bits) using accessor
+    uint32_t parent_val = d.parent_entry();
+    std::span<uint8_t const> parent_bytes(
+        reinterpret_cast<uint8_t const*>(&parent_val), sizeof(uint32_t));
+    writer.write_storage(current_offset, parent_bytes);
+    current_offset += sizeof(uint32_t);
+
+    // Write first_entry field (32 bits) using accessor
+    uint32_t first_val = d.first_entry();
+    std::span<uint8_t const> first_bytes(
+        reinterpret_cast<uint8_t const*>(&first_val), sizeof(uint32_t));
+    writer.write_storage(current_offset, first_bytes);
+    current_offset += sizeof(uint32_t);
+
+    // Write self_entry field (32 bits) using accessor
+    uint32_t self_val = d.self_entry();
+    std::span<uint8_t const> self_bytes(
+        reinterpret_cast<uint8_t const*>(&self_val), sizeof(uint32_t));
+    writer.write_storage(current_offset, self_bytes);
+    current_offset += sizeof(uint32_t);
+  }
+
+  return 64; // 2 fields of 32 bits each
+}
+
+uint32_t VectorEncoder::encode_inodes(
+  FrozenWriter& writer,
+  SchemaLayout const& layout,
+  SchemaLayout const& element_layout,
+  void const* value) const {
+
+  // Validate: null pointer check
+  if (!value) {
+    throw std::invalid_argument("VectorEncoder::encode_inodes: value pointer is null");
+  }
+
+  // Validate: layout.bits must be 64 (2 fields of 32 bits each)
+  if (layout.bits != 64) {
+    throw std::invalid_argument(
+        fmt::format("VectorEncoder expects layout.bits=64, got {}", layout.bits));
+  }
+
+  // Encode std::vector<domain::inode_data>
+  // inode_data has: 3 u32 + 8 u64 + 1 u32 = 12 fields = 72 bytes
+  auto* vec = static_cast<const std::vector<domain::inode_data>*>(value);
+
+  // Each inode is 3 x uint32_t + 8 x uint64_t + 1 x uint32_t = 12 + 64 + 4 = 80 bytes
+  uint32_t elem_size = 80;
+
+  // Overflow protection
+  if (vec->size() > std::numeric_limits<uint32_t>::max() / elem_size) {
+    throw std::length_error(
+        fmt::format("VectorEncoder: size overflow ({} elements)", vec->size()));
+  }
+
+  // Reserve storage for all elements
+  uint32_t storage_offset = writer.reserve_storage(
+      static_cast<uint32_t>(vec->size() * elem_size));
+
+  // Write field 1: distance (offset to element data in bytes)
+  writer.write_scalar(storage_offset, 32);
+
+  // Write field 2: length (number of elements)
+  writer.write_scalar(static_cast<uint32_t>(vec->size()), 32);
+
+  // Write each inode to storage
+  uint32_t current_offset = storage_offset;
+  for (size_t i = 0; i < vec->size(); ++i) {
+    const domain::inode_data& inode = (*vec)[i];
+
+    // Write u32 fields
+    std::span<uint8_t const> mode_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.mode_index), sizeof(uint32_t));
+    writer.write_storage(current_offset, mode_bytes);
+    current_offset += sizeof(uint32_t);
+
+    std::span<uint8_t const> owner_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.owner_index), sizeof(uint32_t));
+    writer.write_storage(current_offset, owner_bytes);
+    current_offset += sizeof(uint32_t);
+
+    std::span<uint8_t const> group_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.group_index), sizeof(uint32_t));
+    writer.write_storage(current_offset, group_bytes);
+    current_offset += sizeof(uint32_t);
+
+    // Write u64 fields
+    std::span<uint8_t const> atime_off_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.atime_offset), sizeof(uint64_t));
+    writer.write_storage(current_offset, atime_off_bytes);
+    current_offset += sizeof(uint64_t);
+
+    std::span<uint8_t const> mtime_off_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.mtime_offset), sizeof(uint64_t));
+    writer.write_storage(current_offset, mtime_off_bytes);
+    current_offset += sizeof(uint64_t);
+
+    std::span<uint8_t const> ctime_off_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.ctime_offset), sizeof(uint64_t));
+    writer.write_storage(current_offset, ctime_off_bytes);
+    current_offset += sizeof(uint64_t);
+
+    std::span<uint8_t const> btime_off_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.btime_offset), sizeof(uint64_t));
+    writer.write_storage(current_offset, btime_off_bytes);
+    current_offset += sizeof(uint64_t);
+
+    std::span<uint8_t const> atime_sub_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.atime_subsec), sizeof(uint64_t));
+    writer.write_storage(current_offset, atime_sub_bytes);
+    current_offset += sizeof(uint64_t);
+
+    std::span<uint8_t const> mtime_sub_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.mtime_subsec), sizeof(uint64_t));
+    writer.write_storage(current_offset, mtime_sub_bytes);
+    current_offset += sizeof(uint64_t);
+
+    std::span<uint8_t const> ctime_sub_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.ctime_subsec), sizeof(uint64_t));
+    writer.write_storage(current_offset, ctime_sub_bytes);
+    current_offset += sizeof(uint64_t);
+
+    std::span<uint8_t const> btime_sub_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.btime_subsec), sizeof(uint64_t));
+    writer.write_storage(current_offset, btime_sub_bytes);
+    current_offset += sizeof(uint64_t);
+
+    // Write nlink_minus_one (u32)
+    std::span<uint8_t const> nlink_bytes(
+        reinterpret_cast<uint8_t const*>(&inode.nlink_minus_one), sizeof(uint32_t));
+    writer.write_storage(current_offset, nlink_bytes);
+    current_offset += sizeof(uint32_t);
+  }
+
+  return 64; // 2 fields of 32 bits each
+}
+
+uint32_t StringEncoder::encode(
+  FrozenWriter& writer,
+  SchemaLayout const& layout,
+  void const* value) const {
+
+  // Validate: null pointer check
+  if (!value) {
+    throw std::invalid_argument("StringEncoder::encode: value pointer is null");
+  }
+
+  auto* str = static_cast<const std::string*>(value);
+
+  // Reserve storage for string bytes
+  uint32_t storage_offset = writer.reserve_storage(str->size());
+
+  // Write field 1: distance (offset in storage)
+  writer.write_scalar(storage_offset, 32);
+
+  // Write field 2: length
+  writer.write_scalar(static_cast<uint32_t>(str->size()), 32);
+
+  // Write string bytes to storage
+  if (!str->empty()) {
+    std::span<uint8_t const> str_bytes(
+      reinterpret_cast<const uint8_t*>(str->data()),
+      str->size());
+    writer.write_storage(storage_offset, str_bytes);
   }
 
   return 64; // 2 fields of 32 bits each

@@ -101,6 +101,52 @@ public:
     SchemaLayout const& layout,
     SchemaLayout const& element_layout,
     void const* value) const;
+
+  /**
+   * Encode a vector of directories
+   *
+   * @param writer The writer to encode to
+   * @param layout The vector layout (distance + length fields)
+   * @param element_layout The directory layout (3 u32 fields)
+   * @param value Pointer to the std::vector<directory> to encode
+   * @return Number of bits written
+   */
+  uint32_t encode_directories(
+    FrozenWriter& writer,
+    SchemaLayout const& layout,
+    SchemaLayout const& element_layout,
+    void const* value) const;
+
+  /**
+   * Encode a vector of inodes
+   *
+   * @param writer The writer to encode to
+   * @param layout The vector layout (distance + length fields)
+   * @param element_layout The inode layout (12 fields)
+   * @param value Pointer to the std::vector<inode_data> to encode
+   * @return Number of bits written
+   */
+  uint32_t encode_inodes(
+    FrozenWriter& writer,
+    SchemaLayout const& layout,
+    SchemaLayout const& element_layout,
+    void const* value) const;
+};
+
+/**
+ * String encoder for std::string values
+ *
+ * Handles encoding of std::string values. Strings are encoded with:
+ * - Field 1: distance (offset to string data in storage section)
+ * - Field 2: length (number of bytes)
+ * - String bytes stored in storage section
+ */
+class StringEncoder : public ValueEncoder {
+public:
+  uint32_t encode(
+    FrozenWriter& writer,
+    SchemaLayout const& layout,
+    void const* value) const override;
 };
 
 } // namespace dwarfs::metadata::legacy
