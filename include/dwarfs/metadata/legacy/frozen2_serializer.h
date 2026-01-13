@@ -1,6 +1,6 @@
 /* vim:set ts=2 sw=2 sts=2 et: */
 /**
- * \author     Marcus Holland-Moritz (github@mhxnet.de)
+ * \author     DwarFS Implementation
  * \copyright  Copyright (c) Marcus Holland-Moritz
  *
  * This file is part of dwarfs.
@@ -21,52 +21,47 @@
 
 #pragma once
 
-#include <utility>
+#include <cstdint>
+#include <span>
 #include <vector>
+#include <memory>
 
-#include "dwarfs/metadata/domain/metadata.h"
-#include "dwarfs/metadata/legacy/frozen_schema.h"
+namespace dwarfs::metadata::domain {
+  struct metadata;
+}
 
 namespace dwarfs::metadata::legacy {
 
 /**
- * Frozen2 serializer - converts domain::metadata to bit-packed format
+ * Frozen2Serializer - Main orchestrator for Frozen2 serialization
  *
- * This is a complete port of dwarfs-rs's Frozen2 serialization system.
- * It performs two-phase serialization:
+ * This is the simplified API for serializing domain::metadata to the
+ * Homebrew-compatible Frozen2 format. It orchestrates:
+ * 1. SchemaBuilder - generates schema from metadata
+ * 2. FrozenSchemaSerializer - encodes schema to Thrift Compact Protocol
+ * 3. (Future Task 6) Metadata encoding - encodes values to bit-packed format
  *
- * Phase 1: Schema Generation
- *   - Analyzes metadata structure
- *   - Generates layout for each type (field offsets, bit widths)
- *   - Builds complete Schema
+ * Output format:
+ *   [8 bytes]  Size prefix (little-endian uint64)
+ *   [N bytes]  Schema section (Thrift Compact Protocol)
+ *   [M bytes]  Frozen metadata data (bit-packed, Task 6)
  *
- * Phase 2: Bit-Packing
- *   - Serializes metadata values using schema
- *   - Packs values at bit-level for maximum compression
- *   - Returns frozen byte array
- *
- * Ported from: dwarfs-rs/dwarfs/src/metadata/ser_frozen.rs
+ * Task 5: Implement main orchestrator
  */
 class Frozen2Serializer {
- public:
+public:
   /**
    * Serialize metadata to Frozen2 format
    *
-   * @param meta Domain metadata to serialize
-   * @return Pair of (Schema, frozen_bytes)
+   * @param metadata Pointer to domain metadata (void* for registry compatibility)
+   * @return Serialized bytes with size prefix
    *
-   * Ported from: metadata.rs:454-457 (to_schema_and_bytes)
-   * Implementation: ser_frozen.rs:28-55 (serialize_struct)
+   * Format:
+   *   [8 bytes]  Size prefix (little-endian uint64, size of data after prefix)
+   *   [N bytes]  Schema section (Thrift Compact Protocol)
+   *   [M bytes]  Frozen metadata data (bit-packed, Task 6 - currently empty)
    */
-  static std::pair<Schema, std::vector<uint8_t>>
-  serialize(domain::metadata const& meta);
-
- private:
-  // Phase 1: Layout computation
-  class LayoutBuilder;
-  
-  // Phase 2: Value serialization
-  class ValueSerializer;
+  std::vector<uint8_t> serialize(const void* metadata) const;
 };
 
 } // namespace dwarfs::metadata::legacy

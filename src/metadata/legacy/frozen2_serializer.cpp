@@ -1,6 +1,6 @@
 /* vim:set ts=2 sw=2 sts=2 et: */
 /**
- * \author     Marcus Holland-Moritz (github@mhxnet.de)
+ * \author     DwarFS Implementation
  * \copyright  Copyright (c) Marcus Holland-Moritz
  *
  * This file is part of dwarfs.
@@ -20,67 +20,60 @@
  */
 
 /**
- * Frozen2 Serializer - Entry Point
+ * Frozen2 Serializer - Main Orchestrator (Task 5)
  *
- * Ported from: dwarfs-rs/dwarfs/src/metadata/ser_frozen.rs
- *
- * Orchestrates modular components:
- * - Layout builders (frozen2_layout_builder)
- * - Schema converter (frozen2_schema_converter)
- * - Value serializer (frozen2_value_serializer)
+ * Simplified API for serializing domain::metadata to Frozen2 format.
+ * Uses:
+ * - SchemaBuilder (Task 4) to generate schema
+ * - FrozenSchemaSerializer to encode schema to Thrift
+ * - (Task 6) Metadata encoding to encode values
  */
 
 #include "dwarfs/metadata/legacy/frozen2_serializer.h"
+#include "dwarfs/metadata/legacy/frozen2_schema_builder.h"
+#include "dwarfs/metadata/legacy/frozen_schema_serializer.h"
+#include "dwarfs/metadata/domain/metadata.h"
 
+#include <cstring>
 #include <stdexcept>
-
-#include "dwarfs/metadata/legacy/frozen2_layout_builder.h"
-#include "dwarfs/metadata/legacy/frozen2_schema_converter.h"
-#include "dwarfs/metadata/legacy/frozen2_value_serializer.h"
 
 namespace dwarfs::metadata::legacy {
 
-std::pair<Schema, std::vector<uint8_t>>
-Frozen2Serializer::serialize(domain::metadata const& meta) {
-  // Build layout from domain metadata
-  auto layout = build_metadata(meta);
+std::vector<uint8_t> Frozen2Serializer::serialize(
+    const void* metadata) const {
 
-  // Finalize layout - this converts Collections to Structs
-  auto root_size = layout->finish();
-  if (!root_size) {
-    throw std::runtime_error("Root layout too large to serialize");
+  if (metadata == nullptr) {
+    throw std::invalid_argument("Frozen2Serializer::serialize: metadata is null");
   }
 
-  // Convert layout to schema layouts
-  std::vector<SchemaLayout> schema_layouts;
-  auto root_layout_id = cvt_layout(layout.get(), schema_layouts);
+  auto* domain_meta = static_cast<const domain::metadata*>(metadata);
 
-  if (!root_layout_id) {
-    throw std::runtime_error("Root layout is None");
-  }
+  // Step 1: Build Schema using SchemaBuilder
+  SchemaBuilder builder;
+  Schema schema = builder.build_from(*domain_meta);
 
-  // Set root layout's size field
-  schema_layouts[*root_layout_id].size = static_cast<int32_t>(*root_size);
+  // Step 2: Serialize Schema to Thrift Compact Protocol
+  std::vector<uint8_t> schema_bytes =
+    FrozenSchemaSerializer::serialize(schema);
 
-  // Build schema using DenseMap
-  Schema schema;
-  schema.file_version = 1;
-  schema.relax_type_checks = true;
-  schema.root_layout = *root_layout_id;
+  // Step 3: Create frozen metadata data
+  // For now (Task 5), just combine schema with empty frozen data
+  // Task 6 will add metadata encoding for chunks, scalars, etc.
+  std::vector<uint8_t> output;
+  output.reserve(8 + schema_bytes.size());
 
-  // Insert all schema layouts into DenseMap
-  for (size_t i = 0; i < schema_layouts.size(); ++i) {
-    schema.layouts.insert(static_cast<int16_t>(i), std::move(schema_layouts[i]));
-  }
+  // Size prefix (little-endian uint64, matches x86/x86_64)
+  uint64_t total_size = schema_bytes.size();
+  uint8_t size_bytes[8];
+  std::memcpy(size_bytes, &total_size, 8);
+  output.insert(output.end(), size_bytes, size_bytes + 8);
 
-  // Allocate buffer for serialized data
-  std::vector<uint8_t> buf(*root_size, 0);
+  // Schema section (Thrift Compact Protocol)
+  output.insert(output.end(), schema_bytes.begin(), schema_bytes.end());
 
-  // Serialize metadata to buffer
-  Serializer ser(layout.get(), buf, 0, 0);
-  ser.serialize_metadata(meta);
+  // Frozen metadata data will be added in Task 6
 
-  return {schema, buf};
+  return output;
 }
 
 } // namespace dwarfs::metadata::legacy

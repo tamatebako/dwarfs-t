@@ -115,18 +115,35 @@ class metadata_freezer_ : public metadata_freezer::impl {
       auto facade = FacadeFactory::create(format_);
 
       // Serialize domain model to Legacy Thrift CompactProtocol
+      // Format: [8 bytes] size_prefix + [N bytes] schema + [M bytes] frozen_data
       auto serialized_data = facade->serialize(data);
 
-      // Legacy Thrift uses same two-section structure as Modern Thrift
-      // Schema section contains serialization metadata
-      // For now, use minimal schema (will be improved if needed)
-      std::vector<uint8_t> schema_data = {0, 0, 0, 0};
+      // Extract schema from serialized data (skip 8-byte size prefix)
+      // Task 5: frozen_data is empty, Task 6 will add metadata encoding
+      if (serialized_data.size() < 8) {
+        throw std::runtime_error("Legacy Thrift serialization too small (< 8 bytes)");
+      }
+
+      // Read size prefix
+      uint64_t schema_size;
+      std::memcpy(&schema_size, serialized_data.data(), 8);
+
+      if (serialized_data.size() < 8 + schema_size) {
+        throw std::runtime_error("Legacy Thrift serialization incomplete");
+      }
+
+      // Schema section: Thrift Compact Protocol serialized schema
+      std::span<uint8_t const> schema_span(
+          serialized_data.data() + 8, schema_size);
+      std::vector<uint8_t> schema_data(schema_span.begin(), schema_span.end());
       auto schema_buffer = malloc_byte_buffer::create(schema_data);
 
-      // Data section contains the Thrift CompactProtocol serialized metadata
-      auto data_buffer = malloc_byte_buffer::create(serialized_data);
+      // Data section: Frozen metadata (Task 5: empty, Task 6: will have encoded values)
+      std::vector<uint8_t> frozen_data;
+      auto data_buffer = malloc_byte_buffer::create(frozen_data);
 
-      ti << "freezing metadata (Legacy Thrift) to " << data_buffer.size() << " bytes...";
+      ti << "freezing metadata (Legacy Thrift) to schema=" << schema_data.size()
+         << " bytes, data=" << frozen_data.size() << " bytes...";
 
       return {schema_buffer.share(), data_buffer.share()};
 #else

@@ -22,13 +22,12 @@
 #include "dwarfs/metadata/serialization/legacy_thrift_serializer.h"
 #include "dwarfs/metadata/serialization/serializer_registry.h"
 #include "dwarfs/metadata/domain/metadata.h"
-#include "dwarfs/metadata/legacy/legacy_metadata_serializer.h"
+#include "dwarfs/metadata/legacy/frozen2_serializer.h"
 #include "dwarfs/metadata/legacy/frozen2_deserializer.h"
 #include "dwarfs/metadata/legacy/frozen_schema_serializer.h"
 
 #include <stdexcept>
 #include <cstring>
-#include <iostream>
 
 namespace dwarfs::metadata::serialization {
 
@@ -39,12 +38,10 @@ std::vector<uint8_t> LegacyThriftSerializer::serialize(
     throw std::invalid_argument("Cannot serialize null metadata");
   }
 
-  auto* domain_meta = static_cast<const domain::metadata*>(metadata);
-
-  std::vector<uint8_t> output;
-  legacy::LegacyMetadataSerializer::serialize(*domain_meta, output);
-
-  return output;
+  // Use Frozen2Serializer for Homebrew compatibility
+  // (Task 5: Main orchestrator using SchemaBuilder + FrozenSchemaSerializer)
+  legacy::Frozen2Serializer frozen2;
+  return frozen2.serialize(metadata);
 }
 
 std::unique_ptr<void, void(*)(void*)> LegacyThriftSerializer::deserialize(
@@ -87,21 +84,34 @@ std::unique_ptr<void, void(*)(void*)> LegacyThriftSerializer::deserialize(
   auto schema_bytes = legacy::FrozenSchemaSerializer::serialize(schema);
   size_t schema_size = schema_bytes.size();
 
-  if (metadata_bytes.size() <= schema_size) {
+  if (metadata_bytes.size() < schema_size) {
     throw std::runtime_error(
-        "No frozen data after schema (data size: " +
+        "Incomplete schema (data size: " +
         std::to_string(metadata_bytes.size()) +
         ", schema size: " + std::to_string(schema_size) + ")");
   }
 
   // Step 3: Extract frozen bytes (after schema)
-  std::span<uint8_t const> frozen_bytes(
-      metadata_bytes.data() + schema_size,
-      metadata_bytes.size() - schema_size);
+  // Note: Task 5 only serializes schema, no frozen data yet
+  // Task 6 will add metadata encoding for chunks, scalars, etc.
+  std::span<uint8_t const> frozen_bytes;
+  if (metadata_bytes.size() > schema_size) {
+    frozen_bytes = std::span<uint8_t const>(
+        metadata_bytes.data() + schema_size,
+        metadata_bytes.size() - schema_size);
+  }
 
   // Step 4: Deserialize using Frozen2 format
-  auto domain_meta = std::make_unique<domain::metadata>(
-      legacy::Frozen2Deserializer::deserialize(schema, frozen_bytes));
+  // If no frozen data, create empty metadata (Task 5 limitation)
+  std::unique_ptr<domain::metadata> domain_meta;
+  if (frozen_bytes.empty()) {
+    // Task 5: No frozen data yet, return empty metadata
+    domain_meta = std::make_unique<domain::metadata>();
+  } else {
+    // Task 6+: Deserialize frozen data
+    domain_meta = std::make_unique<domain::metadata>(
+        legacy::Frozen2Deserializer::deserialize(schema, frozen_bytes));
+  }
 
   // Return with custom deleter
   return std::unique_ptr<void, void(*)(void*)>(
