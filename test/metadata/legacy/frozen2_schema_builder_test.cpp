@@ -55,13 +55,9 @@ TEST(SchemaBuilderTest, GeneratesChunkLayout) {
   Schema schema = builder.build_from(meta);
 
   // Verify chunk layout was created
-  auto* root_layout = schema.layouts.get(schema.root_layout);
-  ASSERT_NE(root_layout, nullptr);
-
-  auto* field1 = root_layout->fields.get(1); // chunks field
-  ASSERT_NE(field1, nullptr);
-
-  auto* chunk_layout = schema.layouts.get(field1->layout_id);
+  // Field 1 (chunks) points to vector layout, not chunk layout directly
+  // The chunk layout is accessible via SchemaBuilder::chunk_layout_id()
+  auto* chunk_layout = schema.layouts.get(builder.chunk_layout_id());
   ASSERT_NE(chunk_layout, nullptr);
 
   // Chunk should have 3 fields (block, offset, size)
@@ -79,13 +75,17 @@ TEST(SchemaBuilderTest, ChunkLayoutHasCorrectOffsets) {
   SchemaBuilder builder;
   Schema schema = builder.build_from(meta);
 
-  auto* root_layout = schema.layouts.get(schema.root_layout);
-  auto* field1 = root_layout->fields.get(1);
-  auto* chunk_layout = schema.layouts.get(field1->layout_id);
+  // Get chunk layout via builder (not via field1->layout_id which is vector layout)
+  auto* chunk_layout = schema.layouts.get(builder.chunk_layout_id());
+  ASSERT_NE(chunk_layout, nullptr);
 
   auto* field1_chunk = chunk_layout->fields.get(1);
   auto* field2_chunk = chunk_layout->fields.get(2);
   auto* field3_chunk = chunk_layout->fields.get(3);
+
+  ASSERT_NE(field1_chunk, nullptr);
+  ASSERT_NE(field2_chunk, nullptr);
+  ASSERT_NE(field3_chunk, nullptr);
 
   EXPECT_EQ(0, field1_chunk->offset);
   EXPECT_EQ(32, field2_chunk->offset);

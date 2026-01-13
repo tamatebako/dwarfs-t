@@ -21,6 +21,7 @@
 
 #include "dwarfs/metadata/legacy/value_encoders.h"
 #include "dwarfs/metadata/legacy/frozen_writer.h"
+#include "dwarfs/metadata/domain/chunk.h"
 
 #include <cassert>
 #include <cstdint>
@@ -128,6 +129,76 @@ uint32_t VectorEncoder::encode(
         reinterpret_cast<uint8_t const*>(vec->data()),
         vec->size() * elem_size);
     writer.write_storage(storage_offset, all_data);
+  }
+
+  return 64; // 2 fields of 32 bits each
+}
+
+uint32_t VectorEncoder::encode_with_element_layout(
+  FrozenWriter& writer,
+  SchemaLayout const& layout,
+  SchemaLayout const& element_layout,
+  void const* value) const {
+
+  // Validate: null pointer check
+  if (!value) {
+    throw std::invalid_argument("VectorEncoder::encode_with_element_layout: value pointer is null");
+  }
+
+  // Validate: layout.bits must be 64 (2 fields of 32 bits each)
+  if (layout.bits != 64) {
+    throw std::invalid_argument(
+        fmt::format("VectorEncoder expects layout.bits=64, got {}", layout.bits));
+  }
+
+  // This method is specifically for encoding std::vector<domain::chunk>
+  // where each chunk has 3 uint32_t fields: block, offset, size
+  auto* vec = static_cast<const std::vector<domain::chunk>*>(value);
+
+  // Each chunk is 3 x uint32_t = 12 bytes
+  uint32_t elem_size = 12;
+
+  // Overflow protection
+  if (vec->size() > std::numeric_limits<uint32_t>::max() / elem_size) {
+    throw std::length_error(
+        fmt::format("VectorEncoder: size overflow ({} elements)", vec->size()));
+  }
+
+  // Reserve storage for all elements
+  uint32_t storage_offset = writer.reserve_storage(
+      static_cast<uint32_t>(vec->size() * elem_size));
+
+  // Write field 1: distance (offset to element data in bytes)
+  writer.write_scalar(storage_offset, 32);
+
+  // Write field 2: length (number of elements)
+  writer.write_scalar(static_cast<uint32_t>(vec->size()), 32);
+
+  // Write each chunk to storage using domain::chunk accessor methods
+  uint32_t current_offset = storage_offset;
+  for (size_t i = 0; i < vec->size(); ++i) {
+    const domain::chunk& c = (*vec)[i];
+
+    // Write block field (32 bits) using accessor
+    uint32_t block_val = c.block();
+    std::span<uint8_t const> block_bytes(
+        reinterpret_cast<uint8_t const*>(&block_val), sizeof(uint32_t));
+    writer.write_storage(current_offset, block_bytes);
+    current_offset += sizeof(uint32_t);
+
+    // Write offset field (32 bits) using accessor
+    uint32_t offset_val = c.offset();
+    std::span<uint8_t const> offset_bytes(
+        reinterpret_cast<uint8_t const*>(&offset_val), sizeof(uint32_t));
+    writer.write_storage(current_offset, offset_bytes);
+    current_offset += sizeof(uint32_t);
+
+    // Write size field (32 bits) using accessor
+    uint32_t size_val = c.size();
+    std::span<uint8_t const> size_bytes(
+        reinterpret_cast<uint8_t const*>(&size_val), sizeof(uint32_t));
+    writer.write_storage(current_offset, size_bytes);
+    current_offset += sizeof(uint32_t);
   }
 
   return 64; // 2 fields of 32 bits each

@@ -53,9 +53,7 @@ SchemaLayout SchemaBuilder::build_chunk_layout(int16_t u32_layout_id) {
 }
 
 Schema SchemaBuilder::build_from(domain::metadata const& meta) {
-  // TODO: Task 6-7 will analyze meta to generate complete schema
-  // For now, this creates a minimal stub schema
-  (void)meta;  // Mark as intentionally unused for now
+  (void)meta;  // Mark as intentionally unused for now (Task 7 will use it)
 
   // Check for overflow before allocating IDs
   if (next_layout_id_ > std::numeric_limits<int16_t>::max() - 10) {
@@ -66,33 +64,59 @@ Schema SchemaBuilder::build_from(domain::metadata const& meta) {
   schema.relax_type_checks = true;
   schema.file_version = 1;
 
+  // Allocate layout IDs
   int16_t u32_layout_id = next_layout_id_++;
-  int16_t metadata_layout_id = next_layout_id_++;
-  int16_t chunk_layout_id = next_layout_id_++;
+  int16_t u64_layout_id = next_layout_id_++;
   int16_t vector_layout_id = next_layout_id_++;
+  int16_t chunk_layout_id = next_layout_id_++;
+  int16_t metadata_layout_id = next_layout_id_++;
 
-  // Create u32 layout (used for scalars)
+  // Create primitive layouts
   SchemaLayout u32_layout;
   u32_layout.bits = 32;
   layouts_.insert(u32_layout_id, u32_layout);
 
-  // Create vector layout
+  SchemaLayout u64_layout;
+  u64_layout.bits = 64;
+  layouts_.insert(u64_layout_id, u64_layout);
+
+  // Create vector layout (distance + length fields)
   SchemaLayout vector_layout;
   vector_layout.bits = 64;
+  SchemaField vec_field1;
+  vec_field1.layout_id = u32_layout_id;
+  vec_field1.offset = 0;
+  vector_layout.fields.insert(1, vec_field1);
+  SchemaField vec_field2;
+  vec_field2.layout_id = u32_layout_id;
+  vec_field2.offset = 32;
+  vector_layout.fields.insert(2, vec_field2);
   layouts_.insert(vector_layout_id, vector_layout);
 
-  // Create chunk layout
+  // Create chunk layout (block + offset + size)
   layouts_.insert(chunk_layout_id, build_chunk_layout(u32_layout_id));
+  chunk_layout_id_ = chunk_layout_id;  // Store for serializer access
 
-  // Create metadata root layout
+  // Create metadata root layout with all fields
   SchemaLayout metadata_layout;
-  metadata_layout.size = 0;
 
-  // Field 1: chunks (vector)
-  SchemaField chunks_field;
-  chunks_field.layout_id = chunk_layout_id;
-  chunks_field.offset = 0;
-  metadata_layout.fields.insert(1, chunks_field);
+  // Field 1: chunks (vector of chunk)
+  SchemaField field1;
+  field1.layout_id = vector_layout_id;
+  field1.offset = 0;
+  metadata_layout.fields.insert(1, field1);
+
+  // Field 15: block_size (u32)
+  SchemaField field15;
+  field15.layout_id = u32_layout_id;
+  field15.offset = 14 * 64; // Position after fields 1-14 (each field is 64 bits)
+  metadata_layout.fields.insert(15, field15);
+
+  // Field 16: total_fs_size (u64)
+  SchemaField field16;
+  field16.layout_id = u64_layout_id;
+  field16.offset = 15 * 64;
+  metadata_layout.fields.insert(16, field16);
 
   layouts_.insert(metadata_layout_id, metadata_layout);
   schema.layouts = layouts_;

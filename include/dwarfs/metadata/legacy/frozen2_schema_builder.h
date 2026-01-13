@@ -48,10 +48,21 @@ public:
    */
   Schema build_from(domain::metadata const& meta);
 
+  /**
+   * Get the chunk layout ID from the last built schema
+   *
+   * This is used by the serializer to know which layout to use for
+   * encoding chunk elements.
+   *
+   * @return The chunk layout ID, or -1 if not yet built
+   */
+  int16_t chunk_layout_id() const { return chunk_layout_id_; }
+
 private:
   SchemaLayout build_chunk_layout(int16_t u32_layout_id);
   DenseMap<SchemaLayout> layouts_;
   int16_t next_layout_id_ = 1;
+  int16_t chunk_layout_id_ = -1;
 };
 
 } // namespace dwarfs::metadata::legacy

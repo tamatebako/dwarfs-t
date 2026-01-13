@@ -77,6 +77,8 @@ public:
  * - Field 1: distance (offset to element data in storage section)
  * - Field 2: length (number of elements)
  * - Element data stored in storage section
+ *
+ * For vectors of structs, each element is encoded according to element_layout.
  */
 class VectorEncoder : public ValueEncoder {
 public:
@@ -84,6 +86,21 @@ public:
     FrozenWriter& writer,
     SchemaLayout const& layout,
     void const* value) const override;
+
+  /**
+   * Encode a vector of structs using element layout
+   *
+   * @param writer The writer to encode to
+   * @param layout The vector layout (distance + length fields)
+   * @param element_layout The layout for each element in the vector
+   * @param value Pointer to the std::vector to encode
+   * @return Number of bits written
+   */
+  uint32_t encode_with_element_layout(
+    FrozenWriter& writer,
+    SchemaLayout const& layout,
+    SchemaLayout const& element_layout,
+    void const* value) const;
 };
 
 } // namespace dwarfs::metadata::legacy
