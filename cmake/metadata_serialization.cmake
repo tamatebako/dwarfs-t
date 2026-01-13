@@ -469,6 +469,28 @@ if(WITH_TESTS)
     PROPERTIES LABELS "legacy;metadata;frozen2;schema"
   )
 
+  # Frozen2 integration tests (Task 10 - Final Integration Testing)
+  add_executable(frozen2_integration_test
+    test/metadata/legacy/frozen2_integration_test.cpp
+  )
+
+  target_link_libraries(frozen2_integration_test
+    PRIVATE
+      dwarfs_metadata_legacy
+      GTest::gtest_main
+      GTest::gmock
+  )
+
+  add_test(
+    NAME frozen2_integration_test
+    COMMAND frozen2_integration_test
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  set_tests_properties(frozen2_integration_test
+    PROPERTIES LABELS "legacy;metadata;frozen2;integration;serializer"
+  )
+
   # Modern Thrift Compact serializer tests (if Thrift available)
   if(DWARFS_HAVE_THRIFT)
     # Modern Thrift converter tests
