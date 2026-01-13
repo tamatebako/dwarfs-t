@@ -135,12 +135,19 @@ set(LEGACY_THRIFT_SOURCES
   src/metadata/legacy/frozen_schema_serializer.cpp
   src/metadata/legacy/frozen_bit_writer.cpp
   src/metadata/legacy/frozen2_serializer.cpp
+  src/metadata/legacy/frozen2_deserializer.cpp
 
   # Frozen2 modular implementation (Session 79)
   src/metadata/legacy/frozen2_layout.cpp
   src/metadata/legacy/frozen2_layout_builder.cpp
   src/metadata/legacy/frozen2_schema_converter.cpp
   src/metadata/legacy/frozen2_value_serializer.cpp
+
+  # Frozen2 Value Encoder hierarchy (Task 1 of Frozen2 Serializer Implementation)
+  src/metadata/legacy/value_encoders.cpp
+
+  # FSST decompression support (Session 84)
+  src/metadata/legacy/fsst.cpp
 )
 
 add_library(dwarfs_metadata_legacy ${LEGACY_THRIFT_SOURCES})
@@ -148,6 +155,7 @@ add_library(dwarfs_metadata_legacy ${LEGACY_THRIFT_SOURCES})
 target_include_directories(dwarfs_metadata_legacy
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/fsst>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
@@ -389,6 +397,28 @@ if(WITH_TESTS)
 
   set_tests_properties(frozen2_serializer_tests
     PROPERTIES LABELS "legacy;metadata;frozen2;serializer"
+  )
+
+  # Value encoder tests (Task 1 of Frozen2 Serializer Implementation)
+  add_executable(value_encoders_tests
+    test/metadata/legacy/value_encoders_test.cpp
+  )
+
+  target_link_libraries(value_encoders_tests
+    PRIVATE
+      dwarfs_metadata_legacy
+      GTest::gtest_main
+      GTest::gmock
+  )
+
+  add_test(
+    NAME value_encoders_tests
+    COMMAND value_encoders_tests
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  set_tests_properties(value_encoders_tests
+    PROPERTIES LABELS "legacy;metadata;frozen2;encoder"
   )
 
   # Modern Thrift Compact serializer tests (if Thrift available)
