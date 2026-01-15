@@ -142,7 +142,7 @@ dwarfs_loader::get_file(std::string_view path) const {
   try {
     std::error_code ec;
 
-    // Find file in filesystem
+    // Find file in filesystem (filesystem handles leading slash removal)
     auto entry_opt = impl_->fs.find(std::string(path));
     if (!entry_opt) {
       return std::nullopt; // Not found
@@ -176,7 +176,7 @@ dwarfs_loader::get_file(std::string_view path) const {
 
     return result;
 
-  } catch (std::exception const&) {
+  } catch (std::exception const& e) {
     return std::nullopt;
   }
 }
@@ -188,6 +188,7 @@ bool dwarfs_loader::file_exists(std::string_view path) const {
   }
 
   try {
+    // Find file in filesystem (filesystem handles leading slash removal)
     auto entry_opt = impl_->fs.find(std::string(path));
     if (!entry_opt) {
       return false;
