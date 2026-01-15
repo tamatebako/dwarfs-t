@@ -77,7 +77,15 @@ jobs:
         if: inputs.os == 'ubuntu'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build
+          sudo apt-get install -y \
+            ninja-build \
+            autoconf \
+            automake \
+            libtool \
+            make \
+            gcc \
+            g++ \
+            pkg-config
 
       - name: Install Dependencies (macOS)
         if: inputs.os == 'macos'
