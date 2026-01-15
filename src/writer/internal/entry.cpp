@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iostream>
 #include <utility>
 
 #include <fmt/format.h>
@@ -408,12 +409,49 @@ void dir::pack(metadata::domain::metadata& mv2, global_entry_data const& data,
   } else {
     d.set_parent_entry(0);
   }
-  d.set_first_entry(mv2.dir_entries->size());
+  // Don't set first_entry here - it will be set correctly below after push
   auto se = entry_index();
+  std::cerr << "[DIR_PACK] '" << name() << "' entry_index=" << (se.has_value() ? std::to_string(*se) : "nullopt") << std::endl;
   DWARFS_CHECK(se, "self entry index not set");
   d.set_self_entry(*se);
+  std::cerr << "[DIR_PACK] '" << name() << "' self_entry after set=" << d.self_entry() << std::endl;
   mv2.directories.push_back(d);
+  std::cerr << "[DIR_PACK] '" << name() << "' pushed to directories, back().self_entry=" << mv2.directories.back().self_entry() << ", size=" << mv2.directories.size() << std::endl;
+
+  // CRITICAL FIX: Set first_entry to point to the FIRST CHILD entry
+  // We need to determine if this directory has directory children or not.
+  bool has_directory_children = false;
   for (entry_ptr const& e : entries_) {
+    if (dynamic_cast<dir*>(e.get())) {
+      has_directory_children = true;
+      break;
+    }
+  }
+
+  uint32_t dir_idx = mv2.directories.size() - 1;
+  auto& mutable_dir = const_cast<metadata::domain::directory&>(mv2.directories[dir_idx]);
+  uint32_t child_entry_index;
+  if (!has_parent()) {
+    // Root directory: first child is the next directory entry
+    child_entry_index = 1;
+  } else if (has_directory_children) {
+    // Directory has directory children: first child is the next directory entry
+    // The next directory entry is at: current directory's entry_index + 1
+    DWARFS_CHECK(se, "entry index not set");
+    child_entry_index = *se + 1;
+  } else {
+    // Directory has only non-directory children: first child is the next non-directory entry
+    child_entry_index = mv2.dir_entries->size();
+  }
+  mutable_dir.set_first_entry(child_entry_index);
+  std::cerr << "[DIR_PACK] Set first_entry=" << child_entry_index << " for '" << name() << "' (dir_entries.size()=" << mv2.dir_entries->size() << ", has_dir_children=" << has_directory_children << ")" << std::endl;
+
+  for (entry_ptr const& e : entries_) {
+    // Skip directories - they already have entries created by pack_entry()
+    // in flatbuffers_entry_processor::gather_entries()
+    if (dynamic_cast<dir*>(e.get())) {
+      continue;
+    }
     e->set_entry_index(mv2.dir_entries->size());
     auto& de = mv2.dir_entries->emplace_back();
     de.set_name_index(data.get_name_index(e->name()));

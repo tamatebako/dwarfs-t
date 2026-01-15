@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <sstream>
 #include <unordered_map>
 
@@ -55,8 +56,13 @@ flatbuffers_chunk_processor::flatbuffers_chunk_processor(
 
 void flatbuffers_chunk_processor::gather_chunks(
     inode_manager const& im, block_manager const& bm, size_t chunk_count) {
+  std::cerr << "[GATHER_CHUNKS] im.count()=" << im.count() << ", chunk_count=" << chunk_count << std::endl;
+  std::cerr << "[GATHER_CHUNKS] md_.inodes.size()=" << md_.inodes.size() << std::endl;
+
   md_.chunk_table.resize(im.count() + 1);
   md_.chunks.reserve(chunk_count);
+
+  std::cerr << "[GATHER_CHUNKS] After resize, md_.chunk_table.size()=" << md_.chunk_table.size() << std::endl;
 
   std::optional<inode_hole_mapper> hole_mapper;
 
@@ -66,9 +72,12 @@ void flatbuffers_chunk_processor::gather_chunks(
                         im.get_max_data_chunk_size());
   }
 
+  size_t inode_count = 0;
   im.for_each_inode_in_order([&](std::shared_ptr<inode> const& ino) {
     auto const total_chunks = md_.chunks.size();
+    std::cerr << "[GATHER_CHUNKS] Processing inode " << ino->num() << ", total_chunks=" << total_chunks << std::endl;
     DWARFS_NOTHROW(md_.chunk_table.at(ino->num())) = total_chunks;
+    ++inode_count;
     if (!ino->append_chunks_to(md_.chunks, hole_mapper)) {
       std::ostringstream oss;
       for (auto fp : ino->all()) {
@@ -84,6 +93,9 @@ void flatbuffers_chunk_processor::gather_chunks(
 
   // Insert sentinel
   DWARFS_NOTHROW(md_.chunk_table.at(im.count())) = md_.chunks.size();
+
+  std::cerr << "[GATHER_CHUNKS] After sentinel, chunk_table.size()=" << md_.chunk_table.size() << std::endl;
+  std::cerr << "[GATHER_CHUNKS] Processed " << inode_count << " inodes" << std::endl;
 
   if (hole_mapper && hole_mapper->has_holes()) {
     md_.hole_block_index = hole_mapper->hole_block_index();

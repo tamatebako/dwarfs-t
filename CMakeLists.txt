@@ -177,20 +177,20 @@ if(APPLE)
   set(TRY_RUN_INCLUDE_DIRECTORIES ${HOMEBREW_PREFIX_PATH}/include)
 endif()
 
-include(${CMAKE_SOURCE_DIR}/cmake/compile.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/version.cmake)
+include(cmake/compile.cmake)
+include(cmake/version.cmake)
 
 # Tebako integration point
 if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
   set(TEBAKO_BUILD ON CACHE BOOL "Enable tebako build mode")
-  include(${CMAKE_SOURCE_DIR}/cmake/tebako.cmake)
+  include(cmake/tebako.cmake)
 endif()
 
 if(NOT PRJ_VERSION_FULL)
   message(FATAL_ERROR "PRJ_VERSION_FULL is not set")
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "cmake/modules")
 
 find_package(PkgConfig)
 
@@ -216,8 +216,8 @@ if(STATIC_BUILD_DO_NOT_USE)
 endif()
 
 if(WITH_MAN_PAGES)
-  include("${CMAKE_SOURCE_DIR}/cmake/ensure_mistletoe.cmake")
-  include("${CMAKE_SOURCE_DIR}/cmake/manpage.cmake")
+  include("cmake/ensure_mistletoe.cmake")
+  include("cmake/manpage.cmake")
   if(WITH_LIBDWARFS)
     list(APPEND DWARFS_MANPAGES dwarfs-format.5 dwarf-env.7)
   endif()
@@ -237,19 +237,19 @@ include(GNUInstallDirs)
 
 # Header-only libraries - vcpkg-aware
 if(WITH_TESTS)
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/gtest.cmake)
+  include(cmake/vcpkg/gtest.cmake)
 endif()
 
-include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/fmt.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/range_v3.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/json.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/utf8cpp.cmake)
+include(cmake/vcpkg/fmt.cmake)
+include(cmake/vcpkg/range_v3.cmake)
+include(cmake/vcpkg/json.cmake)
+include(cmake/vcpkg/utf8cpp.cmake)
 
 if(WITH_LIBDWARFS)
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/phmap.cmake)
+  include(cmake/vcpkg/phmap.cmake)
 
   # BZip2 must be found BEFORE Boost (required by boost-iostreams)
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/bzip2.cmake)
+  include(cmake/vcpkg/bzip2.cmake)
 
   find_package(Boost ${BOOST_REQUIRED_VERSION} REQUIRED CONFIG
                COMPONENTS chrono program_options
@@ -275,19 +275,19 @@ if(WITH_LIBDWARFS)
   # ============================================================================
 
   # Standard libraries - always required
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/openssl.cmake)
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/libarchive.cmake)
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/xxhash.cmake)
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/zstd.cmake)
+  include(cmake/vcpkg/openssl.cmake)
+  include(cmake/vcpkg/libarchive.cmake)
+  include(cmake/vcpkg/xxhash.cmake)
+  include(cmake/vcpkg/zstd.cmake)
 
   # Compression libraries - MANDATORY for static builds
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/lz4.cmake)
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/lzma.cmake)
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/brotli.cmake)
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/flac.cmake)
+  include(cmake/vcpkg/lz4.cmake)
+  include(cmake/vcpkg/lzma.cmake)
+  include(cmake/vcpkg/brotli.cmake)
+  include(cmake/vcpkg/flac.cmake)
 
   # Memory allocator - MANDATORY for static builds
-  include(${CMAKE_SOURCE_DIR}/cmake/vcpkg/jemalloc.cmake)
+  include(cmake/vcpkg/jemalloc.cmake)
 
   # mimalloc is alternative (mutually exclusive with jemalloc)
   if(USE_MIMALLOC)
@@ -299,14 +299,24 @@ if(WITH_LIBDWARFS)
   if(DWARFS_GIT_BUILD AND (NOT DEFINED DWARFS_WITH_THRIFT OR DWARFS_WITH_THRIFT))
     # In git builds, we can build folly/fbthrift from submodules
     # Only include if Thrift hasn't been explicitly disabled
-    include(${CMAKE_SOURCE_DIR}/cmake/folly.cmake)
-    include(${CMAKE_SOURCE_DIR}/cmake/thrift_library.cmake)
-    include(${CMAKE_SOURCE_DIR}/cmake/thrift.cmake)
+    include(cmake/folly.cmake)
+    include(cmake/thrift_library.cmake)
+    include(cmake/thrift.cmake)
   endif()
 
   # Metadata serialization configuration
   # NOW checks for folly/thrift targets (created above)
-  include(${CMAKE_SOURCE_DIR}/cmake/metadata_serialization.cmake)
+  include(cmake/metadata_serialization.cmake)
+
+  # If Thrift was enabled but targets don't exist yet (non-git build),
+  # try to build from submodules as fallback
+  if(DWARFS_WITH_THRIFT AND NOT TARGET folly)
+    include(cmake/folly.cmake)
+    include(cmake/thrift_library.cmake)
+    include(cmake/thrift.cmake)
+    # Note: metadata_serialization.cmake already included above at line 306
+    # No need to re-include it here as the detection logic will pick up the newly available targets
+  endif()
 
   # ============================================================================
   # WORKAROUND: Fix CMake 4.x + vcpkg generator expression bug
@@ -317,41 +327,42 @@ if(WITH_LIBDWARFS)
   #
   # See: Session 94 - Modern Thrift Testing
   # TODO: Remove when CMake/vcpkg is fixed upstream
+  # NOTE: This must come AFTER the Folly/Thrift includes above (lines 302-304 or 339-341)
   if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
-    if(TARGET Threads::Threads)
-      # Get current link libraries
-      get_target_property(_threads_link_libs Threads::Threads INTERFACE_LINK_LIBRARIES)
-      if(_threads_link_libs)
-        # Remove generator expressions from INTERFACE_LINK_LIBRARIES
-        string(REGEX REPLACE "\\$<[^>]+>" "" _threads_link_libs_clean "${_threads_link_libs}")
-        set_target_properties(Threads::Threads PROPERTIES
-          INTERFACE_LINK_LIBRARIES "${_threads_link_libs_clean}"
-        )
-        message(STATUS "Applied CMake 4.x generator expression workaround for Threads::Threads")
+    message(STATUS "Applying CMake 4.x + vcpkg generator expression workaround...")
+    # The issue is that vcpkg targets use $<LINK_ONLY:Threads::Threads> in their
+    # INTERFACE_LINK_LIBRARIES, but CMake 4.x doesn't evaluate these properly.
+    # We need to find and fix all vcpkg targets that have this issue.
+    set(_fixed_count 0)
+    get_cmake_property(_all_targets ALL_TARGETS)
+    foreach(_target ${_all_targets})
+      if(TARGET ${_target})
+        get_target_property(_target_type ${_target} TYPE)
+        if("${_target_type}" STREQUAL "INTERFACE_LIBRARY" OR "${_target_type}" STREQUAL "STATIC_LIBRARY")
+          get_target_property(_link_libs ${_target} INTERFACE_LINK_LIBRARIES)
+          if(_link_libs AND "${_link_libs}" MATCHES "\\$<LINK_ONLY:Threads::Threads>")
+            # Remove generator expressions from INTERFACE_LINK_LIBRARIES
+            string(REGEX REPLACE "\\$<LINK_ONLY:Threads::Threads>" "" _link_libs_clean "${_link_libs}")
+            set_target_properties(${_target} PROPERTIES INTERFACE_LINK_LIBRARIES "${_link_libs_clean}")
+            math(EXPR _fixed_count "${_fixed_count} + 1")
+            message(STATUS "  Fixed: ${_target}")
+          endif()
+        endif()
       endif()
-    endif()
+    endforeach()
+    message(STATUS "Applied CMake 4.x generator expression workaround: fixed ${_fixed_count} targets")
   endif()
   # ============================================================================
-
-  # If Thrift was enabled but targets don't exist yet (non-git build),
-  # try to build from submodules as fallback
-  if(DWARFS_WITH_THRIFT AND NOT TARGET folly)
-    include(${CMAKE_SOURCE_DIR}/cmake/folly.cmake)
-    include(${CMAKE_SOURCE_DIR}/cmake/thrift_library.cmake)
-    include(${CMAKE_SOURCE_DIR}/cmake/thrift.cmake)
-    # Note: metadata_serialization.cmake already included above at line 306
-    # No need to re-include it here as the detection logic will pick up the newly available targets
-  endif()
 
   if(ENABLE_RICEPP)
     # TODO: support FetchContent
     add_subdirectory(ricepp)
   endif()
 
-  include(${CMAKE_SOURCE_DIR}/cmake/libdwarfs.cmake)
+  include(cmake/libdwarfs.cmake)
 
   # Tool support library (CLI utilities for all tools)
-  include(${CMAKE_SOURCE_DIR}/cmake/tool_support.cmake)
+  include(cmake/tool_support.cmake)
 
   set(DWARFS_HAVE_CPPTRACE ${cpptrace_FOUND})
   set(DWARFS_HAVE_LIBZSTD ON)
@@ -387,19 +398,65 @@ else()
   add_library(dwarfs_extractor ALIAS dwarfs::dwarfs_extractor)
 endif()
 
-include(${CMAKE_SOURCE_DIR}/cmake/libdwarfs_tool.cmake)
+include(cmake/libdwarfs_tool.cmake)
 
 # ============================================================================
 # Include Modular CMake Files
 # ============================================================================
 
 if(WITH_TOOLS OR WITH_FUSE_DRIVER OR WITH_PXATTR OR WITH_EXAMPLE)
-  include(${CMAKE_SOURCE_DIR}/cmake/tools.cmake)
+  include(cmake/tools.cmake)
 endif()
 
 if(WITH_TESTS OR WITH_BENCHMARKS OR WITH_FUZZ)
-  include(${CMAKE_SOURCE_DIR}/cmake/tests.cmake)
+  include(cmake/tests.cmake)
 endif()
 
-include(${CMAKE_SOURCE_DIR}/cmake/compiler_flags.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/packaging.cmake)
+include(cmake/compiler_flags.cmake)
+include(cmake/packaging.cmake)
+
+# ============================================================================
+# FINAL WORKAROUND: Fix CMake 4.x + vcpkg generator expression bug
+# ============================================================================
+# This runs at the very end of configuration, after all vcpkg targets are created
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
+  message(STATUS "Applying FINAL CMake 4.x + vcpkg generator expression workaround...")
+  set(_fixed_count 0)
+  # List of known vcpkg targets that have generator expressions
+  # (from grep results: libxml2, glog, liblzma, boost_atomic, boost_thread, etc.)
+  set(_known_targets
+    Boost::atomic Boost::thread Boost::chrono Boost::context
+    glog::glog
+    liblzma::liblzma
+    LibXml2::LibXml2 Iconv::Iconv
+    BZip2::BZip2 ZLIB::ZLIB
+  )
+  foreach(_target ${_known_targets})
+    if(TARGET ${_target})
+      get_target_property(_link_libs ${_target} INTERFACE_LINK_LIBRARIES)
+      if(_link_libs AND "${_link_libs}" MATCHES "\\$<LINK_ONLY:Threads::Threads>")
+        # Remove generator expressions
+        string(REGEX REPLACE "\\$<LINK_ONLY:Threads::Threads>" "" _link_libs_clean "${_link_libs}")
+        set_target_properties(${_target} PROPERTIES INTERFACE_LINK_LIBRARIES "${_link_libs_clean}")
+        math(EXPR _fixed_count "${_fixed_count} + 1")
+        message(STATUS "  Fixed: ${_target}")
+      endif()
+    endif()
+  endforeach()
+  message(STATUS "FINAL workaround: fixed ${_fixed_count} targets")
+
+  # Also patch the build.ninja file to remove generator expressions
+  # This is needed because CMake 4.x doesn't evaluate them properly
+  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
+  if(EXISTS "${_build_ninja}")
+    message(STATUS "Patching build.ninja to remove generator expressions...")
+    execute_process(
+      COMMAND sed -i.bak "s/\\$<LINK_ONLY:Threads::Threads>//g" "${_build_ninja}"
+      RESULT_VARIABLE _sed_result
+      ERROR_QUIET
+    )
+    if(_sed_result EQUAL 0)
+      message(STATUS "  Successfully patched build.ninja")
+    endif()
+  endif()
+endif()

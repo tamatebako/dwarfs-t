@@ -27,9 +27,11 @@
 #include "dwarfs/metadata/serialization/serializer_registry.h"
 #include "dwarfs/metadata/domain/metadata.h"
 #include "dwarfs/metadata/domain/inode_size_cache.h"
+#include "dwarfs/internal/fsst.h"
 
 #include <flatbuffers/flatbuffers.h>
 #include <iostream>
+#include <iomanip>
 #include <numeric>
 #include <stdexcept>
 #include <string>
@@ -96,9 +98,22 @@ create_fs_options(::flatbuffers::FlatBufferBuilder& builder, const domain::fs_op
 // Helper: Convert domain::string_table to FlatBuffers
 static ::flatbuffers::Offset<dwarfs::flatbuffers::StringTable>
 create_string_table(::flatbuffers::FlatBufferBuilder& builder, const domain::string_table& st) {
-  auto buffer_offset = builder.CreateString(st.buffer);
-  auto symtab_offset = st.symtab ? builder.CreateString(*st.symtab) : 0;
+  // Use CreateVector for binary data (not CreateString)
+  auto buffer_offset = builder.CreateVector(
+      reinterpret_cast<const uint8_t*>(st.buffer.data()),
+      st.buffer.size());
+
+  // The domain model's compact_names contains the original data from the file.
+  // We preserve the index as-is without unpacking.
   auto index_offset = builder.CreateVector(st.index);
+
+  // Create symtab offset if compression is enabled (also binary data)
+  ::flatbuffers::Offset<::flatbuffers::Vector<uint8_t>> symtab_offset = 0;
+  if (st.symtab) {
+    symtab_offset = builder.CreateVector(
+        reinterpret_cast<const uint8_t*>(st.symtab->data()),
+        st.symtab->size());
+  }
 
   return dwarfs::flatbuffers::CreateStringTable(
     builder,
@@ -171,7 +186,7 @@ std::vector<uint8_t> FlatBuffersSerializer::serialize(const void* metadata) cons
   ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<dwarfs::flatbuffers::DirEntry>>> dir_entries_vector = 0;
   if (domain_meta->dir_entries) {
     std::vector<::flatbuffers::Offset<dwarfs::flatbuffers::DirEntry>> entries;
-    for (const auto& e : *domain_meta->dir_entries) {
+    for (auto const& e : *domain_meta->dir_entries) {
       entries.push_back(create_dir_entry(builder, e));
     }
     dir_entries_vector = builder.CreateVector(entries);
@@ -410,8 +425,6 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
   // Simple vectors
   if (fb_meta->chunk_table()) {
     bool is_packed = fb_meta->options() && fb_meta->options()->packed_chunk_table();
-    std::cerr << "DEBUG: chunk_table found, size=" << fb_meta->chunk_table()->size()
-              << ", is_packed=" << (is_packed ? "true" : "false") << std::endl;
 
     if (is_packed) {
       // Unpack delta-encoded chunk_table using prefix sum
@@ -420,6 +433,7 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
       for (auto val : *fb_meta->chunk_table()) {
         packed.push_back(val);
       }
+
       domain_meta->chunk_table.reserve(packed.size());
       std::partial_sum(packed.begin(), packed.end(),
                        std::back_inserter(domain_meta->chunk_table));
@@ -459,6 +473,7 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
     for (const auto* name : *fb_meta->names()) {
       domain_meta->names.emplace_back(name->c_str());
     }
+  } else {
   }
 
   if (fb_meta->symlinks()) {
@@ -494,7 +509,8 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
 
   if (fb_meta->dir_entries()) {
     std::vector<domain::dir_entry> entries;
-    for (const auto* entry : *fb_meta->dir_entries()) {
+    for (size_t i = 0; i < fb_meta->dir_entries()->size(); ++i) {
+      auto const* entry = fb_meta->dir_entries()->Get(i);
       domain::dir_entry e(entry->name_index(), entry->inode_num());
       entries.push_back(e);
     }
@@ -525,18 +541,135 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
     auto* fb_st = fb_meta->compact_names();
 
     if (fb_st->buffer()) {
-      st.buffer = fb_st->buffer()->c_str();
+      // Convert Vector<uint8_t> to std::string
+      std::string compressed_buffer(
+          reinterpret_cast<const char*>(fb_st->buffer()->data()),
+          fb_st->buffer()->size());
+
+      // First, unpack the index if packed_index is true
+      if (fb_st->index()) {
+        st.packed_index = fb_st->packed_index();
+
+        // CRITICAL FIX: The index format depends on whether compression is enabled.
+        // When packed_index=true and we have symtab (compression), the index contains
+        // SIZES of compressed chunks. Otherwise, it contains delta-encoded offsets.
+        if (fb_st->packed_index() && fb_st->index() && fb_st->index()->size() > 0) {
+          // Store the index values as-is (could be sizes or deltas)
+          st.index.assign(fb_st->index()->begin(), fb_st->index()->end());
+          st.packed_index = fb_st->packed_index();
+        } else if (fb_st->index() && fb_st->index()->size() > 0) {
+          // Index is already absolute offsets (not packed)
+          st.index.assign(fb_st->index()->begin(), fb_st->index()->end());
+        }
+      }
+
+      // If we have symtab, decompress the buffer using dwarfs-rs algorithm
+      if (fb_st->symtab() && fb_st->symtab()->size() > 0) {
+        // Convert Vector<uint8_t> to std::string
+        std::string symtab_data(
+            reinterpret_cast<const char*>(fb_st->symtab()->data()),
+            fb_st->symtab()->size());
+
+        internal::fsst_decoder decoder(symtab_data);
+
+        // With FSST compression, st.index contains SIZES of each compressed chunk.
+        // We need to calculate offsets into the compressed buffer from these sizes.
+        std::vector<uint32_t> compressed_offsets;
+
+        // When packed_index=true and we have symtab, the index contains SIZES of
+        // compressed chunks. Otherwise, it contains OFFSETS into the compressed buffer.
+        bool needs_conversion = st.packed_index;
+
+        if (needs_conversion) {
+          // Index contains sizes followed by buffer_size marker
+          // Format: [size0, size1, ..., sizeN-1, buffer_size]
+          // For 14 strings: [s0, s1, ..., s13, buffer_size]
+          // After partial_sum, we want offsets for chunk boundaries:
+          // [0, s0, s0+s1, ..., sum(s0..s12), buffer_size]
+          // Where each entry i is the START offset of chunk i
+          // (Entry N (buffer_size) is the end offset of the last chunk)
+
+          size_t num_entries = st.index.size();
+
+
+          compressed_offsets.assign(st.index.begin(), st.index.end());
+
+          if (num_entries > 2) {
+            uint32_t sum = 0;
+            for (size_t i = 0; i < num_entries - 1; ++i) {
+              uint32_t size = st.index[i];
+              compressed_offsets[i] = sum;
+              sum += size;
+            }
+            // Last entry is the buffer size (end offset of last chunk)
+            compressed_offsets[num_entries - 1] = st.index[num_entries - 1];
+          }
+        } else {
+          // Index already contains offsets (packed_index was false)
+          compressed_offsets = st.index;
+        }
+
+        // dwarfs-rs algorithm:
+        // - Calculate offsets into COMPRESSED buffer (from sizes or use existing offsets)
+        // - Each consecutive pair [offsets[i], offsets[i+1]] defines one COMPRESSED chunk
+        // - Decompress each chunk separately into a SINGLE output buffer
+        // - Build a NEW index with cumulative offsets into the DECOMPRESSED buffer
+
+        std::string decompressed_buffer;
+        decompressed_buffer.reserve(compressed_buffer.size() * 2);
+
+        std::vector<uint32_t> decompressed_index;
+        decompressed_index.reserve(st.index.size());
+        decompressed_index.push_back(0);  // First offset is always 0
+
+        size_t out_len = 0;
+        size_t num_chunks = compressed_offsets.size() > 0 ? compressed_offsets.size() - 1 : 0;
+
+        for (size_t i = 0; i < num_chunks; ++i) {
+          uint32_t chunk_start = compressed_offsets[i];
+          uint32_t chunk_end = compressed_offsets[i + 1];
+
+          // Clamp chunk_end to buffer size
+          if (chunk_end > compressed_buffer.size()) {
+            chunk_end = compressed_buffer.size();
+          }
+
+          // Skip chunks that start past the buffer (after clamping)
+          if (chunk_start > compressed_buffer.size()) {
+            break;
+          }
+
+          // Skip empty chunks
+          if (chunk_start == chunk_end) {
+            decompressed_index.push_back(out_len);
+            continue;
+          }
+
+          std::string_view chunk(compressed_buffer.data() + chunk_start, chunk_end - chunk_start);
+          std::string decompressed = decoder.decompress(chunk);
+
+          decompressed_buffer.append(decompressed);
+          out_len += decompressed.size();
+          decompressed_index.push_back(out_len);
+        }
+
+        // Add the final buffer size marker if not already present
+        // For N strings, we need N+1 index entries (N offsets + 1 buffer size marker)
+        if (decompressed_index.empty() || decompressed_index.back() != decompressed_buffer.size()) {
+          decompressed_index.push_back(decompressed_buffer.size());
+        }
+
+        st.buffer = decompressed_buffer;
+        st.index = decompressed_index;
+        st.packed_index = false;  // Index now contains OFFSETS, not SIZES
+      } else {
+        // Buffer is not compressed
+        st.buffer = compressed_buffer;
+      }
     }
-    if (fb_st->index()) {
-      st.index.assign(fb_st->index()->begin(), fb_st->index()->end());
-    }
-    st.packed_index = fb_st->packed_index();
-    if (fb_st->symtab() && fb_st->symtab()->size() > 0) {
-      // CRITICAL: symtab is binary FSST data, not null-terminated string!
-      // Use data() + size() to preserve all bytes including nulls
-      st.symtab = std::string(fb_st->symtab()->data(), fb_st->symtab()->size());
-    }
+
     domain_meta->compact_names = st;
+  } else {
   }
 
   if (fb_meta->compact_symlinks()) {
@@ -544,16 +677,89 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
     auto* fb_st = fb_meta->compact_symlinks();
 
     if (fb_st->buffer()) {
-      st.buffer = fb_st->buffer()->c_str();
+      // Convert Vector<uint8_t> to std::string
+      std::string compressed_buffer(
+          reinterpret_cast<const char*>(fb_st->buffer()->data()),
+          fb_st->buffer()->size());
+
+      // First, unpack the index if packed_index is true
+      if (fb_st->index()) {
+        st.packed_index = fb_st->packed_index();
+
+        if (st.packed_index) {
+          // CRITICAL FIX: Index contains SIZES, not delta-encoded offsets!
+          // We need to convert sizes to offsets using partial_sum
+          std::vector<uint32_t> packed;
+          packed.reserve(fb_st->index()->size());
+          for (auto val : *fb_st->index()) {
+            packed.push_back(val);
+          }
+
+          // Convert sizes to offsets for chunk boundaries
+          std::vector<uint32_t> offset_index;
+          offset_index.reserve(packed.size());
+          offset_index.push_back(0);  // First offset is always 0
+          for (size_t i = 0; i < packed.size() - 1; ++i) {
+            offset_index.push_back(offset_index.back() + packed[i]);
+          }
+          st.index = offset_index;
+        } else {
+          st.index.assign(fb_st->index()->begin(), fb_st->index()->end());
+        }
+      }
+
+      // If we have symtab, decompress the buffer using dwarfs-rs algorithm
+      if (fb_st->symtab() && fb_st->symtab()->size() > 0) {
+        // Convert Vector<uint8_t> to std::string
+        std::string symtab_data(
+            reinterpret_cast<const char*>(fb_st->symtab()->data()),
+            fb_st->symtab()->size());
+        internal::fsst_decoder decoder(symtab_data);
+
+        std::string decompressed_buffer;
+        decompressed_buffer.reserve(compressed_buffer.size() * 2);
+
+        std::vector<uint32_t> decompressed_index;
+        decompressed_index.reserve(st.index.size());
+        decompressed_index.push_back(0);  // First offset is always 0
+
+        size_t out_len = 0;
+        size_t num_chunks = st.index.size() > 0 ? st.index.size() - 1 : 0;
+
+
+        for (size_t i = 0; i < num_chunks; ++i) {
+          uint32_t chunk_start = st.index[i];
+          uint32_t chunk_end = st.index[i + 1];
+
+
+          if (chunk_start > chunk_end || chunk_end > compressed_buffer.size()) {
+            break;
+          }
+
+          std::string_view chunk(compressed_buffer.data() + chunk_start, chunk_end - chunk_start);
+          std::string decompressed = decoder.decompress(chunk);
+
+
+          decompressed_buffer.append(decompressed);
+          out_len += decompressed.size();
+          decompressed_index.push_back(out_len);
+        }
+
+        // Add the final buffer size marker if not already present
+        // For N strings, we need N+1 index entries (N offsets + 1 buffer size marker)
+        if (decompressed_index.empty() || decompressed_index.back() != decompressed_buffer.size()) {
+          decompressed_index.push_back(decompressed_buffer.size());
+        }
+
+        st.buffer = decompressed_buffer;
+        st.index = decompressed_index;
+        st.packed_index = false;  // Index now contains OFFSETS, not SIZES
+      } else {
+        // Buffer is not compressed
+        st.buffer = compressed_buffer;
+      }
     }
-    if (fb_st->index()) {
-      st.index.assign(fb_st->index()->begin(), fb_st->index()->end());
-    }
-    st.packed_index = fb_st->packed_index();
-    if (fb_st->symtab() && fb_st->symtab()->size() > 0) {
-      // CRITICAL: symtab is binary FSST data, not null-terminated string!
-      st.symtab = std::string(fb_st->symtab()->data(), fb_st->symtab()->size());
-    }
+
     domain_meta->compact_symlinks = st;
   }
 
@@ -623,9 +829,6 @@ std::unique_ptr<void, void(*)(void*)> FlatBuffersSerializer::deserialize(
         cache.allocated_size_lookup[(*keys)[i]] = (*values)[i];
       }
     }
-
-    std::cerr << "DEBUG: reg_file_size_cache loaded with "
-              << cache.size_lookup.size() << " entries" << std::endl;
 
     domain_meta->reg_file_size_cache = std::move(cache);
   }

@@ -54,11 +54,12 @@ using dir_entry_view_impl = domain_dir_entry_view_impl;
 using global_metadata = domain_global_metadata;
 
 #elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
-// Thrift-only build: use concrete Thrift types
-using chunk_range = thrift_backend::chunk_range;
-using inode_view_impl = thrift_backend::inode_view_impl;
-using dir_entry_view_impl = thrift_backend::dir_entry_view_impl;
-using global_metadata = thrift_backend::global_metadata;
+// Thrift-only build: use domain types (thrift_backend not implemented yet)
+// TODO: Implement thrift_backend::chunk_range, inode_view_impl, etc.
+using chunk_range = domain_chunk_range_impl;
+using inode_view_impl = domain_inode_view_impl;
+using dir_entry_view_impl = domain_dir_entry_view_impl;
+using global_metadata = domain_global_metadata;
 
 #else
 // Dual-format build: use interface types for polymorphism

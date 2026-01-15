@@ -163,6 +163,7 @@ private:
   std::vector<uint8_t>& buf_;
   uint8_t field_id_diff_tag_{0x10}; // Field ID delta tag counter
   uint16_t last_field_id_{0};       // Last written field ID
+  std::vector<uint16_t> last_field_id_stack_; // Stack for nested structs
 };
 
 } // namespace dwarfs::metadata::legacy

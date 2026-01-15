@@ -66,6 +66,35 @@ uint32_t domain_global_metadata::self_dir_entry(uint32_t dir_inode) const {
   return meta_.directories[dir_inode].self_entry();
 }
 
+// name_at and symlink_at are always needed (for both single and dual-format builds)
+std::string domain_global_metadata::name_at(uint32_t index) const {
+  // First try legacy names array (for v0.2.3 format)
+  if (index < meta_.names.size()) {
+    return meta_.names[index];
+  }
+
+  // Fall back to compact_names (v2.3+ format)
+  if (meta_.compact_names) {
+    return read_from_compact_names(*meta_.compact_names, index);
+  }
+
+  return "";
+}
+
+std::string domain_global_metadata::symlink_at(uint32_t index) const {
+  // First try legacy symlinks array (for v0.2.3 format)
+  if (index < meta_.symlinks.size()) {
+    return meta_.symlinks[index];
+  }
+
+  // Fall back to compact_symlinks (v2.3+ format)
+  if (meta_.compact_symlinks) {
+    return read_from_compact_symlinks(*meta_.compact_symlinks, index);
+  }
+
+  return "";
+}
+
 #if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
 // Interface implementations for dual-format builds
 
@@ -85,14 +114,6 @@ std::span<uint8_t const> domain_global_metadata::modes() const {
   return std::span<uint8_t const>(
       reinterpret_cast<uint8_t const*>(meta_.modes.data()),
       meta_.modes.size() * sizeof(uint16_t));
-}
-
-std::string domain_global_metadata::name_at(uint32_t index) const {
-  return index < meta_.names.size() ? meta_.names[index] : "";
-}
-
-std::string domain_global_metadata::symlink_at(uint32_t index) const {
-  return index < meta_.symlinks.size() ? meta_.symlinks[index] : "";
 }
 
 uint32_t domain_global_metadata::block_size() const {
@@ -188,7 +209,7 @@ auto domain_inode_view_impl::getgid() const -> gid_type {
   return meta_.gids[inode.group_index];
 }
 
-uint32_t domain_inode_view_impl::inode_num() const { return inode_index_; }
+uint32_t domain_inode_view_impl::inode_num() const { return inode_num_; }
 
 bool domain_inode_view_impl::is_directory() const {
   return type() == posix_file_type::directory;
@@ -202,13 +223,35 @@ domain_dir_entry_view_impl::domain_dir_entry_view_impl(
     : meta_{meta}, self_index_{self_index}, parent_index_{parent_index} {
 }
 
+// Helper method to read name by index (handles both legacy names and compact_names)
+std::string domain_dir_entry_view_impl::name_at(uint32_t index) const {
+  // First try legacy names array (for v0.2.3 format)
+  if (index < meta_.names.size()) {
+    return meta_.names[index];
+  }
+
+  // Fall back to compact_names (v2.3+ format)
+  if (!meta_.compact_names) {
+    return "";
+  }
+  auto const& table = *meta_.compact_names;
+  if (table.index.empty() || index >= table.index.size()) {
+    return "";
+  }
+  uint32_t offset = table.index[index];
+  uint32_t end_offset = (index + 1 < table.index.size())
+      ? table.index[index + 1]
+      : table.buffer.size();
+  if (offset > end_offset || end_offset > table.buffer.size()) {
+    return "";
+  }
+  return table.buffer.substr(offset, end_offset - offset);
+}
+
 std::string domain_dir_entry_view_impl::name() const {
   // For legacy format (no dir_entries), names are indexed directly by entry index
   if (!meta_.dir_entries) {
-    if (self_index_ >= meta_.names.size()) {
-      return {};
-    }
-    return meta_.names[self_index_];
+    return name_at(self_index_);
   }
 
   if (self_index_ >= meta_.dir_entries->size()) {
@@ -216,10 +259,9 @@ std::string domain_dir_entry_view_impl::name() const {
   }
   auto const& entry = (*meta_.dir_entries)[self_index_];
   uint32_t name_idx = entry.name_index();
-  if (name_idx >= meta_.names.size()) {
-    return {};
-  }
-  return meta_.names[name_idx];
+
+  // Use name_at() which handles both legacy names and compact_names
+  return name_at(name_idx);
 }
 
 std::shared_ptr<inode_view_interface>
@@ -258,17 +300,9 @@ domain_dir_entry_view_impl::inode() const {
   uint32_t inode_index;
   if (meta_.entry_table_v2_2.empty()) {
     // v2.3+ format: inode_num IS the inode index (direct mapping)
+    // For modern images created by current writers, dir_entry.inode_num
+    // is the direct index into the inodes array.
     inode_index = inode_num;
-
-    // WORKAROUND: Handle legacy images with incorrect inode numbers in dir_entries.
-    // The old writer bug caused dir_entry.inode_num to not match the actual inode position.
-    // If inode_num is significantly larger than self_index, it's using the legacy incorrect numbering.
-    // In this case, use the directory entry's position (self_index_) as the inode index.
-    // The threshold of 64 is arbitrary but effective since dir_entries are typically
-    // much smaller than inode numbers in legacy images.
-    if (inode_num > 64 && self_index_ < inode_num && self_index_ < meta_.inodes.size()) {
-      inode_index = self_index_;
-    }
   } else {
     // v2.2 format: use entry_table_v2_2 to map inode_num to inode_index
     if (inode_num >= meta_.entry_table_v2_2.size()) {
@@ -293,6 +327,24 @@ uint32_t domain_dir_entry_view_impl::parent_index() const {
   return parent_index_;
 }
 
+uint32_t domain_dir_entry_view_impl::entry_to_dir_idx(uint32_t entry_idx) const {
+  // Find the directory whose range contains this entry
+  // This is the same logic used in walk() to determine parent_dir_idx
+  if (!meta_.dir_entries || meta_.directories.empty()) {
+    return 0;  // Legacy format or no directories, return root
+  }
+
+  uint32_t result = 0;
+  for (size_t dir_idx = 0; dir_idx < meta_.directories.size(); ++dir_idx) {
+    if (meta_.directories[dir_idx].first_entry() <= entry_idx) {
+      result = dir_idx;
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
 bool domain_dir_entry_view_impl::is_root() const {
   return self_index_ == 0 && parent_index_ == 0;
 }
@@ -302,17 +354,16 @@ std::string domain_dir_entry_view_impl::path() const {
   // and names are indexed directly by entry index
   if (!meta_.dir_entries) {
     if (self_index_ == 0) {
-      return "/";  // Root directory
+      return "";  // Return empty string for root so caller can prepend /
     }
-    // Return /name for flat filesystem
-    if (self_index_ >= meta_.names.size()) {
-      return "/";
-    }
-    std::string name = meta_.names[self_index_];
+
+    // Return name for flat filesystem (use name_at() to handle compact_names)
+    // Note: No leading / so caller can prepend it
+    std::string name = name_at(self_index_);
     if (name.empty()) {
-      return "/";
+      return "";  // Return empty string for root so caller can prepend /
     }
-    return "/" + name;
+    return name;
   }
 
   // Build full path by traversing up the directory tree
@@ -328,50 +379,45 @@ std::string domain_dir_entry_view_impl::path() const {
     }
     auto const& entry = (*meta_.dir_entries)[current];
     uint32_t name_idx = entry.name_index();
-    if (name_idx >= meta_.names.size()) {
+    std::string name = name_at(name_idx);
+    if (name.empty()) {
       break;
     }
-    components.push_back(meta_.names[name_idx]);
+    components.push_back(name);
 
-    // Stop if we reached root (parent == current)
-    if (parent == current) {
+    // Stop if we reached root
+    if (parent == current || parent == 0) {
       break;
     }
 
     // Move up to parent
     current = parent;
 
-    // Find parent's parent by looking up parent's inode in directories
-    uint32_t parent_inode_num = (*meta_.dir_entries)[current].inode_num();
-    uint32_t parent_inode_index;
-    if (meta_.entry_table_v2_2.empty()) {
-      parent_inode_index = parent_inode_num;
-    } else {
-      if (parent_inode_num >= meta_.entry_table_v2_2.size()) {
-        break;
-      }
-      parent_inode_index = meta_.entry_table_v2_2[parent_inode_num];
-    }
+    // CRITICAL FIX: Convert entry index to directory index before looking up parent_entry
+    uint32_t parent_dir_idx = entry_to_dir_idx(current);
 
-    // Get parent directory's parent_entry
-    if (parent_inode_index >= meta_.directories.size()) {
+    if (parent_dir_idx >= meta_.directories.size()) {
       break;
     }
-    parent = meta_.directories[parent_inode_index].parent_entry();
+
+    parent = meta_.directories[parent_dir_idx].parent_entry();
   }
 
   // Build path from components (reverse order)
   if (components.empty()) {
-    return "/";
+    return "";  // Return empty string for root so caller can prepend /
   }
 
+  // Join components with / (no leading /)
   std::string result;
   for (auto it = components.rbegin(); it != components.rend(); ++it) {
-    result += "/";
+    if (!result.empty()) {
+      result += "/";
+    }
     result += *it;
   }
 
-  return result.empty() ? "/" : result;
+  return result;
 }
 
 std::string domain_dir_entry_view_impl::unix_path() const {
@@ -472,6 +518,98 @@ domain_chunk_range_impl::at(size_t index) const {
     return nullptr;
   }
   return std::make_shared<domain_chunk_view>(meta_, chunk_index);
+}
+
+// ========== Helper Functions for Compact String Tables ==========
+
+std::string domain_global_metadata::read_from_compact_names(
+    metadata::domain::string_table const& table, uint32_t index) {
+  if (table.index.empty()) {
+    return "";
+  }
+
+  if (index >= table.index.size()) {
+    return "";
+  }
+
+  // When packed_index=true, the index contains SIZES that need to be converted to offsets
+  // When packed_index=false, the index already contains OFFSETS
+  uint32_t offset, end_offset;
+
+  if (table.packed_index) {
+    // Index contains sizes: [s0, s1, ..., sN-1, buffer_size]
+    // Convert to cumulative offset for the requested index
+    offset = 0;
+    for (size_t i = 0; i < index; ++i) {
+      offset += table.index[i];
+    }
+
+    // Calculate end offset
+    end_offset = offset + table.index[index];
+
+    // Sanity check: end_offset should not exceed buffer size
+    if (end_offset > table.buffer.size()) {
+      end_offset = table.buffer.size();
+    }
+  } else {
+    // Index contains offsets: [0, o1, o2, ..., buffer_size]
+    offset = table.index[index];
+    end_offset = (index + 1 < table.index.size())
+        ? table.index[index + 1]
+        : table.buffer.size();
+  }
+
+  // Sanity check
+  if (offset > end_offset || end_offset > table.buffer.size()) {
+    return "";
+  }
+
+  return table.buffer.substr(offset, end_offset - offset);
+}
+
+std::string domain_global_metadata::read_from_compact_symlinks(
+    metadata::domain::string_table const& table, uint32_t index) {
+  if (table.index.empty()) {
+    return "";
+  }
+
+  if (index >= table.index.size()) {
+    return "";
+  }
+
+  // When packed_index=true, the index contains SIZES that need to be converted to offsets
+  // When packed_index=false, the index already contains OFFSETS
+  uint32_t offset, end_offset;
+
+  if (table.packed_index) {
+    // Index contains sizes: [s0, s1, ..., sN-1, buffer_size]
+    // Convert to cumulative offset for the requested index
+    offset = 0;
+    for (size_t i = 0; i < index; ++i) {
+      offset += table.index[i];
+    }
+
+    // Calculate end offset
+    end_offset = offset + table.index[index];
+
+    // Sanity check: end_offset should not exceed buffer size
+    if (end_offset > table.buffer.size()) {
+      end_offset = table.buffer.size();
+    }
+  } else {
+    // Index contains offsets: [0, o1, o2, ..., buffer_size]
+    offset = table.index[index];
+    end_offset = (index + 1 < table.index.size())
+        ? table.index[index + 1]
+        : table.buffer.size();
+  }
+
+  // Sanity check
+  if (offset > end_offset || end_offset > table.buffer.size()) {
+    return "";
+  }
+
+  return table.buffer.substr(offset, end_offset - offset);
 }
 
 } // namespace dwarfs::reader::internal

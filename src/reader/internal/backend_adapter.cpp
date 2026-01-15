@@ -37,45 +37,10 @@
 #include <thrift/lib/cpp2/frozen/FrozenUtil.h>
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #include <dwarfs/gen-cpp2/metadata_layouts.h>
-#include <dwarfs/reader/internal/metadata_types_thrift.h>
+// Note: metadata_types_thrift.h is obsolete - using domain types instead
 #endif
 
 namespace dwarfs::reader::internal {
-
-#if defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
-namespace {
-// Thread-local cache for frozen Thrift metadata
-// This allows us to create views from domain model in thrift-only builds
-struct thrift_metadata_cache {
-  apache::thrift::frozen::Bundled<
-      apache::thrift::frozen::Layout<dwarfs::thrift::metadata::metadata>::View> frozen;
-  std::unique_ptr<thrift_backend::global_metadata> global;
-
-  thrift_metadata_cache(metadata::domain::metadata const& domain_meta, logger& lgr)
-      : frozen(apache::thrift::frozen::freeze(
-            metadata::converters::to_thrift(domain_meta)))
-      , global(std::make_unique<thrift_backend::global_metadata>(lgr, frozen)) {}
-};
-
-// Get or create cached thrift metadata for current domain model
-// Uses pointer-based identity to avoid expensive comparisons
-thrift_backend::global_metadata const& get_thrift_global(
-    metadata::domain::metadata const& domain_meta,
-    logger& lgr) {
-
-  thread_local std::unordered_map<void const*, std::shared_ptr<thrift_metadata_cache>> cache;
-
-  void const* key = &domain_meta;
-  auto it = cache.find(key);
-  if (it == cache.end()) {
-    auto new_cache = std::make_shared<thrift_metadata_cache>(domain_meta, lgr);
-    it = cache.emplace(key, std::move(new_cache)).first;
-  }
-
-  return *it->second->global;
-}
-} // anonymous namespace
-#endif
 
 chunk_range backend_adapter::make_chunk_range(
     metadata::domain::metadata const& domain_meta,
@@ -88,16 +53,10 @@ chunk_range backend_adapter::make_chunk_range(
   return chunk_range{domain_meta, begin, end};
 
 #elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
-  // Thrift-only: Convert domain model to Thrift frozen types
-  // Type alias: chunk_range = thrift_backend::chunk_range
-  //
-  // Convert domain → mutable Thrift → frozen Thrift
-  auto thrift_meta = metadata::converters::to_thrift(domain_meta);
-  auto frozen_meta = apache::thrift::frozen::freeze(thrift_meta);
-
-  // Construct chunk_range using frozen metadata view
-  // frozen_meta is Bundled<View>, implicitly convertible to View const&
-  return thrift_backend::chunk_range{frozen_meta, begin, end};
+  // Thrift-only: Use domain types directly
+  // Type alias: chunk_range = domain_chunk_range_impl
+  // Note: thrift_backend types not implemented yet, using domain types
+  return chunk_range{domain_meta, begin, end};
 
 #else
   // Dual-format: Wrap domain implementation in interface
@@ -120,22 +79,9 @@ dir_entry_view backend_adapter::make_dir_entry_view(
   return dir_entry_view{domain_impl};
 
 #elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
-  // Thrift-only: Convert via cached thrift global metadata
-  // Get domain view data
-  uint32_t self_index = domain_impl->self_index();
-  uint32_t parent_index = domain_impl->parent_index();
-
-  // Get cached thrift global metadata
-  // We use a dummy logger for view construction
-  static stream_logger dummy_logger(std::cerr, logger_options{});
-  auto const& thrift_global = get_thrift_global(domain_impl->domain_meta(), dummy_logger);
-
-  // Create thrift dir_entry_view_impl
-  auto thrift_impl = thrift_backend::dir_entry_view_impl::from_dir_entry_index_shared(
-      self_index, parent_index, thrift_global);
-
-  // Wrap in dir_entry_view (public type aliases to thrift_backend::dir_entry_view_impl)
-  return dir_entry_view{thrift_impl};
+  // Thrift-only: Direct pass-through (domain types are native)
+  // Note: thrift_backend types not implemented yet, using domain types directly
+  return dir_entry_view{domain_impl};
 
 #endif
 }
@@ -148,22 +94,9 @@ inode_view backend_adapter::make_inode_view(
   return inode_view{domain_impl};
 
 #elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
-  // Thrift-only: Convert via cached thrift global metadata
-  uint32_t inode_index = domain_impl->inode_index();
-  uint32_t inode_num = domain_impl->inode_num();
-
-  // Get cached thrift global metadata
-  static stream_logger dummy_logger(std::cerr, logger_options{});
-  auto const& thrift_global = get_thrift_global(domain_impl->domain_meta(), dummy_logger);
-
-  // Create thrift inode_view_impl
-  auto const& thrift_meta = thrift_global.meta();
-  auto thrift_impl = std::make_shared<thrift_backend::inode_view_impl>(
-      thrift_meta.inodes()[inode_index], inode_num, thrift_meta);
-
-  // In thrift-only, inode_view expects std::shared_ptr<internal::inode_view_impl const>
-  // which is aliased to thrift_backend::inode_view_impl const
-  return inode_view{thrift_impl};
+  // Thrift-only: Direct pass-through
+  // Note: thrift_backend types not implemented yet, using domain types directly
+  return inode_view{domain_impl};
 
 #endif
 }
@@ -177,12 +110,9 @@ directory_view backend_adapter::make_directory_view(
   return directory_view{inode, global};
 
 #elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
-  // Thrift-only: Convert via cached thrift global metadata
-  static stream_logger dummy_logger(std::cerr, logger_options{});
-  auto const& thrift_global = get_thrift_global(global.domain_meta(), dummy_logger);
-
-  // Create directory_view (public type aliases to thrift_backend in thrift-only)
-  return directory_view{inode, thrift_global};
+  // Thrift-only: Direct construction
+  // Note: thrift_backend types not implemented yet, using domain types directly
+  return directory_view{inode, global};
 
 #endif
 }

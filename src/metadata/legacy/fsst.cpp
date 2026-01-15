@@ -1,12 +1,12 @@
 /* vim:set ts=2 sw=2 sts=2 et: */
 /**
  * \author     Marcus Holland-Moritz (github@mhxnet.de)
- * \copyright  Copyright (c) Marcus Holland-Moritz
+ * \author     Ribose Inc.
  *
  * This file is part of dwarfs.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the “Software”), to deal
+ * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
@@ -15,7 +15,7 @@
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -27,17 +27,16 @@
  */
 
 #include <cassert>
-#include <iostream>
 #include <numeric>
 #include <stdexcept>
 
-#include <dwarfs/internal/fsst.h>
+#include <dwarfs/metadata/legacy/fsst.h>
 
 #include <fmt/format.h>
 
 #include <fsst.h>
 
-namespace dwarfs::internal {
+namespace dwarfs::metadata::legacy {
 
 namespace {
 
@@ -108,11 +107,6 @@ fsst_compress_(std::span<T const> input, bool force) {
   size_t const compressed_size =
       (out_ptr_vec.back() - out_ptr_vec.front()) + out_len_vec.back();
 
-  std::cerr << "[FSST_COMPRESS] total_input_size=" << total_input_size
-            << ", compressed_size=" << compressed_size
-            << ", symtab_size=" << symtab_size
-            << ", num_strings=" << size << std::endl;
-
   if (symtab_size + compressed_size >= total_input_size && !force) {
     return output;
   }
@@ -123,8 +117,6 @@ fsst_compress_(std::span<T const> input, bool force) {
                                             static_cast<size_t>(0)));
 
   buffer.resize(compressed_size);
-
-  std::cerr << "[FSST_COMPRESS] After resize: buffer.size()=" << buffer.size() << std::endl;
 
   output.emplace();
 
@@ -181,4 +173,4 @@ auto fsst_encoder::compress(std::span<std::string const> data, bool force)
 fsst_decoder::fsst_decoder(std::string_view dictionary)
     : impl_{std::make_unique<fsst_decoder_>(dictionary)} {}
 
-} // namespace dwarfs::internal
+} // namespace dwarfs::metadata::legacy

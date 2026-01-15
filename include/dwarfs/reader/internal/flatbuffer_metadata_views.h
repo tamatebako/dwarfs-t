@@ -339,6 +339,9 @@ class flatbuffer_dir_entry_view : public dir_entry_view_interface {
   uint32_t self_index_;
   uint32_t parent_index_;
   ::dwarfs::flatbuffers::Metadata const* metadata_;
+
+  // Helper to convert entry index to directory index
+  uint32_t entry_to_dir_idx(uint32_t entry_idx) const;
 };
 
 /**

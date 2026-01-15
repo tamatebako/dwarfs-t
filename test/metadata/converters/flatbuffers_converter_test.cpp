@@ -295,7 +295,9 @@ TEST(FlatBuffersFsOptionsConverter, RoundTrip) {
 
 TEST(FlatBuffersStringTableConverter, BasicTable) {
   flatbuffers::FlatBufferBuilder builder;
-  auto buffer_offset = builder.CreateString("hello\0world", 11);
+  // Use CreateVector for binary data (not CreateString)
+  auto buffer_offset = builder.CreateVector(
+      reinterpret_cast<const uint8_t*>("hello\0world"), 11);
   std::vector<uint32_t> index = {0, 6};
   auto index_offset = builder.CreateVector(index);
 

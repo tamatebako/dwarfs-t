@@ -526,7 +526,7 @@ void rewrite_filesystem(
           // Write schema section - needed for all formats since reader expects it
           // For FlatBuffers, we write a minimal schema (empty or placeholder)
           // For Thrift, we write the actual schema
-          if (opts.rebuild_metadata->metadata_format == dwarfs::metadata::serialization::SerializationFormat::THRIFT_COMPACT) {
+          if (opts.rebuild_metadata->metadata_format == dwarfs::metadata::serialization::SerializationFormat::MODERN_THRIFT) {
             // Thrift needs actual schema
             std::vector<uint8_t> empty_schema = {0, 0, 0, 0};
             writer.write_metadata_v2_schema(dwarfs::malloc_byte_buffer::create(empty_schema).share());

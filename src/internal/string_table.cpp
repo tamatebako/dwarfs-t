@@ -27,6 +27,7 @@
  */
 
 #include <algorithm>
+#include <iostream>
 #include <numeric>
 #include <vector>
 
@@ -390,9 +391,16 @@ string_table::pack_generic(std::span<T const> input,
     // store compressed
     output.buffer() = std::move(res->buffer);
     output.symtab() = std::move(res->dictionary);
-    output.index()->resize(size);
+    // For N strings:
+    // - If pack_index: N deltas (differences between consecutive offsets)
+    // - If !pack_index: N+1 offsets (N string offsets + 1 buffer size marker)
+    output.index()->resize(size + (options.pack_index ? 0 : 1));
     for (size_t i = 0; i < size; ++i) {
       output.index()[i] = res->compressed_data[i].size();
+    }
+    // Only add buffer size marker if NOT pack_index
+    if (!options.pack_index) {
+      output.index()[size] = output.buffer().value().size();
     }
   } else {
     // store uncompressed
@@ -400,19 +408,25 @@ string_table::pack_generic(std::span<T const> input,
         std::accumulate(input.begin(), input.end(), size_t{0},
                         [](size_t n, auto const& s) { return n + s.size(); });
     output.buffer()->reserve(total_input_size);
-    output.index()->reserve(size);
+    output.index()->reserve(size + (options.pack_index ? 0 : 1));  // N or N+1 entries
     for (auto const& s : input) {
       output.buffer().value() += s;
       output.index()->emplace_back(s.size());
+    }
+    // Only add buffer size marker if NOT pack_index
+    if (!options.pack_index) {
+      output.index()->emplace_back(output.buffer().value().size());
     }
   }
 
   output.packed_index() = options.pack_index;
 
   if (!options.pack_index) {
+    // Convert sizes to offsets
     output.index()->insert(output.index()->begin(), 0);
-    std::partial_sum(output.index()->begin(), output.index()->end(),
+    std::partial_sum(output.index()->begin(), output.index()->end() - 1,
                      output.index()->begin());
+    output.index()->back() = output.buffer().value().size();
   }
 
   return output;
@@ -423,29 +437,36 @@ string_table::pack_generic(std::span<T const> input,
     // store compressed
     output.buffer = std::move(res->buffer);
     output.symtab = std::move(res->dictionary);
-    output.index.resize(size);
+    // For N strings, we need N+1 index entries
+    output.index.resize(size + 1);
     for (size_t i = 0; i < size; ++i) {
       output.index[i] = res->compressed_data[i].size();
     }
+    // The last entry is the buffer size
+    output.index[size] = output.buffer.size();
   } else {
     // store uncompressed
     auto const total_input_size =
         std::accumulate(input.begin(), input.end(), size_t{0},
                         [](size_t n, auto const& s) { return n + s.size(); });
     output.buffer.reserve(total_input_size);
-    output.index.reserve(size);
+    output.index.reserve(size + 1);  // N+1 entries
     for (auto const& s : input) {
       output.buffer += s;
       output.index.emplace_back(s.size());
     }
+    // The last entry is the buffer size
+    output.index.emplace_back(output.buffer.size());
   }
 
   output.packed_index = options.pack_index;
 
   if (!options.pack_index) {
+    // Convert sizes to offsets
     output.index.insert(output.index.begin(), 0);
-    std::partial_sum(output.index.begin(), output.index.end(),
+    std::partial_sum(output.index.begin(), output.index.end() - 1,
                      output.index.begin());
+    output.index.back() = output.buffer.size();
   }
 
   return output;
@@ -483,29 +504,41 @@ pack_domain_impl(std::span<T const> input, string_table::pack_options const& opt
     // store compressed
     output.buffer = std::move(res->buffer);
     output.symtab = std::move(res->dictionary);
-    output.index.resize(size);
+    // For N strings, we need N+1 index entries (N sizes/offsets + buffer size marker)
+    output.index.resize(size + 1);
     for (size_t i = 0; i < size; ++i) {
       output.index[i] = res->compressed_data[i].size();
     }
+    // The last entry is the buffer size (marker for end of last string)
+    output.index[size] = output.buffer.size();
   } else {
     // store uncompressed
     auto const total_input_size =
         std::accumulate(input.begin(), input.end(), size_t{0},
                         [](size_t n, auto const& s) { return n + s.size(); });
     output.buffer.reserve(total_input_size);
-    output.index.reserve(size);
+    output.index.reserve(size + 1);  // N+1 entries for N strings
     for (auto const& s : input) {
       output.buffer += s;
       output.index.emplace_back(s.size());
     }
+    // The last entry is the buffer size (marker for end of last string)
+    output.index.emplace_back(output.buffer.size());
   }
 
   output.packed_index = options.pack_index;
 
   if (!options.pack_index) {
+    // Convert sizes to offsets
+    // Index currently has N+1 entries: [s0, s1, ..., sN-1, buffer_size]
+    // We need to convert to offsets: [0, o1, o2, ..., oN-1, buffer_size]
     output.index.insert(output.index.begin(), 0);
-    std::partial_sum(output.index.begin(), output.index.end(),
+    std::partial_sum(output.index.begin(), output.index.end() - 1,
                      output.index.begin());
+    // Remove the extra element that partial_sum created
+    // After insert+partial_sum: [0, s0, s0+s1, ..., sum(s0..sN-1), sum(s0..sN-1)+buffer_size]
+    // We want: [0, o1, o2, ..., oN-1, buffer_size]
+    output.index.back() = output.buffer.size();
   }
 
   return output;

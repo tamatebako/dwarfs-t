@@ -148,7 +148,6 @@ add_library(
   src/reader/internal/inode_reader_v2.cpp
   src/reader/internal/metadata_analyzer.cpp
   src/reader/internal/metadata_factory.cpp
-  $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/reader/internal/metadata_types_thrift.cpp>
   src/reader/internal/periodic_executor.cpp
 
   # metadata_v2 implementation (always needed)
@@ -167,15 +166,6 @@ add_library(
   # Factory - only in dual-format builds
   $<$<AND:$<BOOL:${DWARFS_HAVE_THRIFT}>,$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>>:src/reader/internal/metadata_v2_factory.cpp>
 )
-
-# In dual-format mode, ensure FlatBuffers implementation uses FlatBuffers types
-if(DWARFS_HAVE_THRIFT AND DWARFS_HAVE_FLATBUFFERS)
-  set_source_files_properties(
-    src/reader/internal/metadata_types_flatbuffers.cpp
-    PROPERTIES
-    COMPILE_OPTIONS "-DDWARFS_FLATBUFFERS_BACKEND"
-  )
-endif()
 
 target_link_libraries(dwarfs_reader
   PUBLIC
@@ -463,6 +453,11 @@ list(APPEND LIBDWARFS_TARGETS
 # Add legacy metadata library to exports (always available)
 if(TARGET dwarfs_metadata_legacy)
   list(APPEND LIBDWARFS_TARGETS dwarfs_metadata_legacy)
+endif()
+
+# Add modern Thrift metadata library to exports (if enabled)
+if(TARGET dwarfs_metadata_modern_thrift)
+  list(APPEND LIBDWARFS_TARGETS dwarfs_metadata_modern_thrift)
 endif()
 
 if(DWARFS_HAVE_THRIFT)

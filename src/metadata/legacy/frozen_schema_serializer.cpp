@@ -206,8 +206,6 @@ class FrozenSchemaSerializer::Reader {
     int field_count = 0;
     while (auto field = r_.read_field_header()) {
       field_count++;
-      std::cerr << "[SCHEMA] Reading field " << field->field_id
-                << ", type=" << static_cast<int>(field->type) << std::endl;
       // Field IDs are 1-indexed in serde, but reader returns 0-indexed
       switch (field->field_id) {
       case 1: // relax_type_checks
@@ -234,24 +232,12 @@ class FrozenSchemaSerializer::Reader {
 
     r_.end_struct();
 
-    std::cerr << "[SCHEMA] Parsed schema: root_layout=" << schema.root_layout
-              << ", layouts.size()=" << schema.layouts.size() << std::endl;
-
-    for (auto [id, layout_ptr] : schema.layouts) {
-      std::cerr << "[SCHEMA]   Layout ID " << id
-                << ": size=" << layout_ptr->size
-                << ", bits=" << layout_ptr->bits
-                << ", fields=" << layout_ptr->fields.size() << std::endl;
-    }
-
     return schema;
   }
 
  private:
   DenseMap<SchemaLayout> read_layout_map() {
     auto header = r_.begin_map();
-
-    std::cerr << "[SCHEMA] read_layout_map: map size=" << header.size << std::endl;
 
     DenseMap<SchemaLayout> layouts;
     for (uint32_t i = 0; i < header.size; ++i) {
@@ -349,11 +335,6 @@ class FrozenSchemaSerializer::Reader {
     }
 
     r_.end_struct();
-
-    std::cerr << "[SCHEMA] Parsed layout: size=" << layout.size
-              << ", bits=" << layout.bits
-              << ", fields=" << layout.fields.size()
-              << ", type_name=" << layout.type_name << std::endl;
 
     return layout;
   }

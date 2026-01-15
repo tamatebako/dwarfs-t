@@ -187,6 +187,7 @@ if(DWARFS_WITH_THRIFT)
   if(folly_FOUND AND FBThrift_FOUND)
     set(DWARFS_HAVE_THRIFT ON)
     add_compile_definitions(DWARFS_HAVE_THRIFT=1)
+    add_compile_definitions(DWARFS_HAVE_MODERN_THRIFT=1)
 
     # Modern Thrift sources (to be implemented in Sessions 87-88)
     set(THRIFT_MODERN_IDL ${CMAKE_SOURCE_DIR}/thrift/metadata_modern.thrift)
@@ -194,37 +195,100 @@ if(DWARFS_WITH_THRIFT)
     set(THRIFT_MODERN_IDL_COPY ${THRIFT_MODERN_BUILD_DIR}/metadata_modern.thrift)
     set(THRIFT_MODERN_GEN_DIR ${THRIFT_MODERN_BUILD_DIR}/gen-cpp2)
 
-    # Generated Thrift C++ types (updated output paths)
-    set(THRIFT_MODERN_TYPES_H ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types.h)
-    set(THRIFT_MODERN_TYPES_CPP ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types.cpp)
+    # All generated Thrift C++ files
+    set(THRIFT_MODERN_GENERATED_FILES
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types.cpp
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types.tcc
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types_fwd.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types_custom_protocol.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_data.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_data.cpp
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_constants.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_constants.cpp
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types_binary.cpp
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types_compact.cpp
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types_serialization.cpp
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_clients.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_handlers.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_metadata.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_sinit.cpp
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_for_each_field.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_visit_union.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_visitation.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_visit_by_thrift_field_metadata.h
+    )
+
+    # Determine thrift1 include path (same as thrift_library.cmake)
+    if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+      set(_THRIFT_MODERN_INCLUDE_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
+    elseif(_VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+      set(_THRIFT_MODERN_INCLUDE_PATH "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
+    else()
+      set(_THRIFT_MODERN_INCLUDE_PATH "${CMAKE_SOURCE_DIR}")
+    endif()
+
+    # Create directory marker (similar to _keep_${_THRIFTNAME} in thrift_library.cmake)
+    add_custom_command(
+      OUTPUT ${THRIFT_MODERN_BUILD_DIR}/_keep_metadata_modern
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${THRIFT_MODERN_BUILD_DIR}
+      COMMAND ${CMAKE_COMMAND} -E touch ${THRIFT_MODERN_BUILD_DIR}/_keep_metadata_modern
+    )
 
     # Generate C++ code from Thrift IDL using fbthrift compiler
-    # Use change-directory pattern to generate relative includes (not absolute)
+    # Use change-directory pattern like thrift_library.cmake for relative includes
     add_custom_command(
-      OUTPUT ${THRIFT_MODERN_TYPES_H} ${THRIFT_MODERN_TYPES_CPP}
-      # Copy .thrift file to build subdirectory (like legacy Thrift)
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${THRIFT_MODERN_BUILD_DIR}
-      COMMAND ${CMAKE_COMMAND} -E copy ${THRIFT_MODERN_IDL} ${THRIFT_MODERN_IDL_COPY}
-      # Run thrift1 compiler with RELATIVE paths (WORKING_DIRECTORY handles cd)
-      COMMAND ${CMAKE_COMMAND} -E env ASAN_OPTIONS=detect_leaks=0 --
-              ${THRIFT1_COMPILER} -o ${THRIFT_MODERN_BUILD_DIR}
+      OUTPUT ${THRIFT_MODERN_GENERATED_FILES}
+      # Copy .thrift file to build subdirectory
+      COMMAND ${CMAKE_COMMAND} -E copy ${THRIFT_MODERN_IDL} ${THRIFT_MODERN_BUILD_DIR}/metadata_modern.thrift
+      # Run thrift1 compiler with relative path (WORKING_DIRECTORY ensures relative includes)
+      COMMAND ${CMAKE_COMMAND} -E env ASAN_OPTIONS=detect_leaks=0
+              ${THRIFT1_COMPILER}
+              -I ${_THRIFT_MODERN_INCLUDE_PATH}
+              -o ${THRIFT_MODERN_BUILD_DIR}
               --gen mstch_cpp2:no_metadata
               metadata_modern.thrift
       DEPENDS ${THRIFT_MODERN_IDL}
+              ${THRIFT_MODERN_BUILD_DIR}/_keep_metadata_modern
       WORKING_DIRECTORY ${THRIFT_MODERN_BUILD_DIR}
       COMMENT "Generating Modern Thrift C++ types from ${THRIFT_MODERN_IDL}"
       VERBATIM
     )
 
-    # Create target for generated Thrift code
+    # Copy generated headers to expected location (include/dwarfs/gen-cpp2/)
+    # This is needed because the source headers use #include <dwarfs/gen-cpp2/...>
+    set(_MODERN_THRIFT_PUBLIC_HEADERS
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types_fwd.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types_custom_protocol.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types.tcc
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_data.h
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_constants.h
+    )
+
+    set(_MODERN_THRIFT_COPIED_HEADERS)
+    foreach(_header ${_MODERN_THRIFT_PUBLIC_HEADERS})
+      get_filename_component(_header_name ${_header} NAME)
+      set(_copied_header ${CMAKE_BINARY_DIR}/include/dwarfs/gen-cpp2/${_header_name})
+      list(APPEND _MODERN_THRIFT_COPIED_HEADERS ${_copied_header})
+      add_custom_command(
+        OUTPUT ${_copied_header}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/include/dwarfs/gen-cpp2
+        COMMAND ${CMAKE_COMMAND} -E copy ${_header} ${_copied_header}
+        DEPENDS ${_header}
+        COMMENT "Copying ${_header_name} to include/dwarfs/gen-cpp2/"
+      )
+    endforeach()
+
+    # Create target for generated Thrift code (including copied headers)
     add_custom_target(dwarfs_metadata_modern_thrift_generate
-      DEPENDS ${THRIFT_MODERN_TYPES_H} ${THRIFT_MODERN_TYPES_CPP}
+      DEPENDS ${THRIFT_MODERN_GENERATED_FILES} ${_MODERN_THRIFT_COPIED_HEADERS}
     )
 
     # Modern Thrift converter and serializer sources
     set(MODERN_THRIFT_SOURCES
-      # Generated Thrift types
-      ${THRIFT_MODERN_TYPES_CPP}
+      # Generated Thrift types (.cpp files only)
+      ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types.cpp
       ${THRIFT_MODERN_GEN_DIR}/metadata_modern_data.cpp
       ${THRIFT_MODERN_GEN_DIR}/metadata_modern_constants.cpp
       ${THRIFT_MODERN_GEN_DIR}/metadata_modern_types_binary.cpp
@@ -247,8 +311,8 @@ if(DWARFS_WITH_THRIFT)
       PUBLIC
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>                   # For config.h
-        $<BUILD_INTERFACE:${THRIFT_MODERN_GEN_DIR}>              # For generated types
-        $<BUILD_INTERFACE:${THRIFT_MODERN_BUILD_DIR}>            # For thrift output dir
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>           # For dwarfs/gen-cpp2/ mapping
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include/dwarfs/gen-cpp2>  # For #include "metadata_modern_types.h"
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
 

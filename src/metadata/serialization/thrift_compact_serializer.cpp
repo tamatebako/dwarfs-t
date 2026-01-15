@@ -32,7 +32,7 @@ std::vector<uint8_t> ThriftCompactSerializer::serialize(const void* metadata) co
   auto* domain_meta = static_cast<const domain::metadata*>(metadata);
 
   // Convert domain → modern thrift using modern converters
-  auto thrift_meta = modern::domain_to_thrift(*domain_meta);
+  auto thrift_meta = dwarfs::metadata::modern::domain_to_thrift(*domain_meta);
 
   // Serialize with CompactSerializer
   std::string serialized = apache::thrift::CompactSerializer::serialize<std::string>(thrift_meta);
@@ -72,7 +72,7 @@ std::unique_ptr<void, void(*)(void*)> ThriftCompactSerializer::deserialize(
 
   // Convert modern thrift → domain using modern converters
   auto domain_meta = std::make_unique<domain::metadata>(
-      modern::thrift_to_domain(thrift_meta));
+      dwarfs::metadata::modern::thrift_to_domain(thrift_meta));
 
   // Return with custom deleter
   return std::unique_ptr<void, void(*)(void*)>(

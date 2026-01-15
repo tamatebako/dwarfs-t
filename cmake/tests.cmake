@@ -208,6 +208,8 @@ if(WITH_TESTS)
     test/utils_test.cpp
     test/worker_group_test.cpp
     test/xattr_test.cpp
+    # Homebrew compatibility tests
+    test/homebrew_compatibility_test.cpp
     # Modern Thrift metadata tests
     test/metadata/modern_thrift_serialization_test.cpp
     test/metadata/modern/converter_test.cpp

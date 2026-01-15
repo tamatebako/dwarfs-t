@@ -109,9 +109,6 @@ ThriftCompactReader::read_field_header() {
   // Port of de_thrift.rs:164-197
   uint8_t type_byte = read_byte();
 
-  std::cerr << "[THRIFT] read_field_header: type_byte=0x"
-            << std::hex << static_cast<int>(type_byte) << std::dec << std::endl;
-
   // Check for stop field
   if (type_byte == 0) {
     return std::nullopt;

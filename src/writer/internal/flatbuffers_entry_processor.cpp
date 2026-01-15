@@ -21,6 +21,7 @@
 
 #include "flatbuffers_entry_processor.h"
 
+#include <iostream>
 #include <unordered_map>
 #include <vector>
 
@@ -49,13 +50,29 @@ void flatbuffers_entry_processor::gather_entries(
   md_.inodes.resize(num_inodes);
   md_.directories.reserve(dirs.size() + 1);
 
+  // Create entries for ALL directories upfront (both root and children)
+  // This ensures each directory has a stable entry_index that won't be overwritten
+  std::cerr << "[GATHER_ENTRIES] Creating entries for " << dirs.size() << " directories" << std::endl;
   for (auto p : dirs) {
-    if (!p->has_parent()) {
-      p->set_entry_index(md_.dir_entries->size());
-      p->pack_entry(md_, ge_data, timeres_);
-    }
+    uint32_t entry_idx = md_.dir_entries->size();
+    std::cerr << "[GATHER_ENTRIES] Creating entry for '" << p->name() << "' at index " << entry_idx << std::endl;
+    p->set_entry_index(entry_idx);
+    p->pack_entry(md_, ge_data, timeres_);
+  }
 
+  // Now pack all directories (dir::pack() will skip setting entry_index for children
+  // that already have entries set)
+  std::cerr << "[GATHER_ENTRIES] Packing " << dirs.size() << " directories" << std::endl;
+  for (auto p : dirs) {
+    std::cerr << "[GATHER_ENTRIES] Packing '" << p->name() << "'" << std::endl;
     p->pack(md_, ge_data, timeres_);
+  }
+
+  std::cerr << "[GATHER_ENTRIES] After packing, directories.size()=" << md_.directories.size() << std::endl;
+  for (size_t i = 0; i < md_.directories.size(); ++i) {
+    std::cerr << "[GATHER_ENTRIES]   dir[" << i << "]: self_entry=" << md_.directories[i].self_entry()
+              << ", parent_entry=" << md_.directories[i].parent_entry()
+              << ", first_entry=" << md_.directories[i].first_entry() << std::endl;
   }
 
   metadata::domain::directory sentinel;
@@ -63,6 +80,7 @@ void flatbuffers_entry_processor::gather_entries(
   sentinel.set_first_entry(md_.dir_entries->size());
   sentinel.set_self_entry(0);
   md_.directories.push_back(sentinel);
+  std::cerr << "[GATHER_ENTRIES] After sentinel, directories.size()=" << md_.directories.size() << std::endl;
 }
 
 void flatbuffers_entry_processor::gather_global_entry_data(
@@ -79,7 +97,10 @@ void flatbuffers_entry_processor::gather_global_entry_data(
                  : ge_data.get_gids();
 
   md_.modes = ge_data.get_modes();
+  std::cerr << "[GATHER_GLOBAL] ge_data.get_timestamp_base()=" << ge_data.get_timestamp_base() << std::endl;
+  std::cerr << "[GATHER_GLOBAL] timeres_.convert_offset(" << ge_data.get_timestamp_base() << ")=" << timeres_.convert_offset(ge_data.get_timestamp_base()) << std::endl;
   md_.timestamp_base = timeres_.convert_offset(ge_data.get_timestamp_base());
+  std::cerr << "[GATHER_GLOBAL] md_.timestamp_base set to " << md_.timestamp_base << std::endl;
 
   apply_chmod();
 }

@@ -65,7 +65,22 @@ metadata_factory::load_metadata(logger& lgr, std::span<uint8_t const> data) {
   auto* raw_ptr = static_cast<dwarfs::metadata::domain::metadata*>(
       metadata_ptr.release());
 
-  return std::unique_ptr<dwarfs::metadata::domain::metadata>(raw_ptr);
+  auto domain_meta = std::unique_ptr<dwarfs::metadata::domain::metadata>(raw_ptr);
+
+  // CRITICAL FIX: If directories were packed with delta compression,
+  // we need to decompress the first_entry values after deserialization.
+  // The writer delta-compresses first_entry when pack_directories is enabled,
+  // but the deserializer just reads the compressed values as-is.
+  if (domain_meta->options.has_value() && domain_meta->options.value().packed_directories) {
+    uint32_t accumulated = 0;
+    for (auto& dir : domain_meta->directories) {
+      uint32_t delta = dir.first_entry();
+      accumulated += delta;
+      dir.set_first_entry(accumulated);
+    }
+  }
+
+  return domain_meta;
 }
 
 std::unique_ptr<dwarfs::metadata::domain::metadata>
@@ -81,6 +96,8 @@ metadata_factory::load_metadata_legacy(logger& lgr,
 
     // Deserialize metadata
     auto meta_value = dwarfs::metadata::legacy::Frozen2Deserializer::deserialize(parsed_schema, data);
+
+    // Create domain metadata
     auto domain_meta = std::unique_ptr<dwarfs::metadata::domain::metadata>(
         new dwarfs::metadata::domain::metadata(std::move(meta_value)));
 

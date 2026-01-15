@@ -117,10 +117,10 @@ table FsOptions {
 
 /// An (optionally packed) string table
 table StringTable {
-  buffer:string;           // raw buffer containing concatenation of all strings
-  symtab:string;           // symbol table for fsst compression (optional)
-  index:[uint32];          // (optionally packed) index; if packed, stored delta-compressed
-  packed_index:bool;       // indicates if the index is packed
+  buffer:[ubyte];         // raw buffer containing concatenation of all strings (binary data)
+  symtab:[ubyte];         // symbol table for fsst compression (optional, binary data)
+  index:[uint32];         // (optionally packed) index; if packed, stored delta-compressed
+  packed_index:bool;      // indicates if the index is packed
 }
 
 /// Size cache for highly fragmented file inodes

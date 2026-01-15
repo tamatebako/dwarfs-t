@@ -522,7 +522,7 @@ void thrift_metadata_builder<LoggerPolicy>::gather_chunks(inode_manager const& i
 
   // Convert Thrift chunks to domain chunks for block_manager
   std::vector<metadata::domain::chunk> domain_chunks;
-  if (md_.chunks().has_value()) {
+  if (apache::thrift::is_non_optional_field_set_manually_or_by_serializer(md_.chunks())) {
     domain_chunks.reserve(md_.chunks()->size());
     for (auto const& thrift_chunk : *md_.chunks()) {
       domain_chunks.push_back(metadata::converters::from_thrift(thrift_chunk));
@@ -807,7 +807,7 @@ template <typename LoggerPolicy>
 void thrift_metadata_builder<LoggerPolicy>::update_nlink() {
   if (md_.options()) {
     auto const& opts = md_.options().value();
-    if (opts.inodes_have_nlink().has_value()) {
+    if (apache::thrift::is_non_optional_field_set_manually_or_by_serializer(opts.inodes_have_nlink())) {
       if (opts.inodes_have_nlink().value() != options_.no_hardlink_table) {
         LOG_DEBUG << "keeping existing nlink fields";
         return;
@@ -928,20 +928,21 @@ void thrift_metadata_builder<LoggerPolicy>::update_totals_and_size_cache() {
                                          : reg_inode_num;
       auto const info = isp.get(chunk_table_index);
 
+      // CRITICAL FIX: Always populate cache for ALL regular files
+      // regardless of chunk count. This ensures file sizes are available
+      // even when min_chunk_count threshold isn't met (e.g., small files
+      // or when file hashing reduces effective chunk count).
+      // Cache size_lookup by inode_num for correct lookups after file rearrangement.
+      cache.size_lookup()[inode_num] = info.size;
+
+      if (info.allocated_size != info.size) {
+        cache.allocated_size_lookup()[inode_num] = info.allocated_size;
+      }
+
       if (info.num_chunks >= options_.inode_size_cache_min_chunk_count) {
-        LOG_DEBUG << "caching size " << info.size << " for chunk table index "
-                  << chunk_table_index << " with " << info.num_chunks
-                  << " chunks";
-
-        cache.size_lookup()[chunk_table_index] = info.size;
-
-        if (info.allocated_size != info.size) {
-          LOG_DEBUG << "caching allocated size " << info.allocated_size
-                    << " for chunk table index " << chunk_table_index
-                    << " with " << info.num_chunks << " chunks";
-
-          cache.allocated_size_lookup()[chunk_table_index] = info.allocated_size;
-        }
+        LOG_DEBUG << "caching size " << info.size << " for inode_num "
+                  << inode_num << " (chunk_table_index=" << chunk_table_index
+                  << ") with " << info.num_chunks << " chunks";
       }
 
       size_t shared_count{1};
@@ -962,7 +963,7 @@ void thrift_metadata_builder<LoggerPolicy>::update_totals_and_size_cache() {
     }
   }
 
-  if (md_.total_fs_size().has_value()) {
+  if (apache::thrift::is_non_optional_field_set_manually_or_by_serializer(md_.total_fs_size())) {
     auto const old_size = md_.total_fs_size().value();
     if (old_size != total_fs_size) {
       LOG_WARN << "correcting total file system size: was " << old_size

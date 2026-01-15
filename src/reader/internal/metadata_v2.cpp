@@ -43,6 +43,11 @@ namespace dwarfs::reader::internal {
 
 namespace {
 
+// Helper to check if a span is all zeros
+bool is_all_zeros(std::span<uint8_t const> data) {
+  return std::all_of(data.begin(), data.end(), [](uint8_t b) { return b == 0; });
+}
+
 } // anonymous namespace
 
 // Implement public constructor with new architecture
@@ -53,29 +58,29 @@ metadata_v2::metadata_v2(
     std::shared_ptr<performance_monitor const> const& perfmon) {
 
   // Use metadata_factory to load domain::metadata
-  // For Legacy Thrift format, we need both schema and frozen data
-  // Check if data starts with FlatBuffers magic to detect format
+  // The data parameter is the decompressed metadata section data
+  // The schema parameter is the decompressed schema section data (may be empty)
   std::unique_ptr<dwarfs::metadata::domain::metadata> domain_meta;
 
-  // FlatBuffers format uses size-prefixed format with file_identifier "DFBF"
-  // The first 4 bytes are the size prefix, next 4 bytes are "DFBF"
+  // Check for FlatBuffers format
+  // FlatBuffers uses size-prefixed format: 4 bytes size (little endian) + "DFBF" magic
   bool is_flatbuffers = false;
   if (data.size() >= 8) {
-    // Check for FlatBuffers magic after size prefix
-    // data[0:4] = size prefix (little endian)
-    // data[4:8] should be "DFBF"
-    is_flatbuffers = (data[4] == uint8_t('D') && data[5] == uint8_t('F') &&
-                      data[6] == uint8_t('B') && data[7] == uint8_t('F'));
+    is_flatbuffers = (data[4] == uint8_t('D') &&
+                      data[5] == uint8_t('F') &&
+                      data[6] == uint8_t('B') &&
+                      data[7] == uint8_t('F'));
   }
 
   if (is_flatbuffers) {
-    // FlatBuffers format: metadata is self-contained with magic bytes
+    // FlatBuffers format: use SerializerRegistry
     domain_meta = metadata_factory::load_metadata(lgr, data);
-  } else if (!schema.empty()) {
+  } else if (!schema.empty() && !is_all_zeros(schema)) {
     // Legacy Thrift format: schema is in a separate section
+    // Check that schema is not all zeros (which indicates an empty/invalid schema)
     domain_meta = metadata_factory::load_metadata_legacy(lgr, schema, data);
   } else {
-    // Unknown format - try auto-detection
+    // Unknown format - try auto-detection with full data
     domain_meta = metadata_factory::load_metadata(lgr, data);
   }
 

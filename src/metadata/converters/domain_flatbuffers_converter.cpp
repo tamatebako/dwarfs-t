@@ -13,6 +13,7 @@
  */
 
 #include <flatbuffers/flatbuffers.h>
+#include <iostream>
 #include "dwarfs/metadata/converters/domain_flatbuffers_converter.h"
 #include <dwarfs/gen-flatbuffers/metadata.h>
 
@@ -112,9 +113,11 @@ domain::fs_options from_flatbuffers(const dwarfs::flatbuffers::FsOptions& fb) {
 domain::string_table from_flatbuffers(const dwarfs::flatbuffers::StringTable& fb) {
   domain::string_table st;
 
-  // Buffer (required)
+  // Buffer (required) - Convert Vector<uint8_t> to std::string
   if (fb.buffer()) {
-    st.buffer = fb.buffer()->str();
+    st.buffer = std::string(
+        reinterpret_cast<const char*>(fb.buffer()->data()),
+        fb.buffer()->size());
   }
 
   // Packed index flag
@@ -128,9 +131,11 @@ domain::string_table from_flatbuffers(const dwarfs::flatbuffers::StringTable& fb
     }
   }
 
-  // FSST symbol table (optional)
+  // FSST symbol table (optional) - Convert Vector<uint8_t> to std::string
   if (fb.symtab()) {
-    st.symtab = fb.symtab()->str();
+    st.symtab = std::string(
+        reinterpret_cast<const char*>(fb.symtab()->data()),
+        fb.symtab()->size());
   }
 
   return st;
@@ -443,11 +448,16 @@ domain::metadata from_flatbuffers(const dwarfs::flatbuffers::Metadata& fb) {
 ::flatbuffers::Offset<dwarfs::flatbuffers::StringTable> to_flatbuffers(
     ::flatbuffers::FlatBufferBuilder& builder,
     const domain::string_table& st) {
-  auto buffer_offset = builder.CreateString(st.buffer);
+  // Use CreateVector for binary data (not CreateString)
+  auto buffer_offset = builder.CreateVector(
+      reinterpret_cast<const uint8_t*>(st.buffer.data()),
+      st.buffer.size());
 
-  ::flatbuffers::Offset<::flatbuffers::String> symtab_offset = 0;
+  ::flatbuffers::Offset<::flatbuffers::Vector<uint8_t>> symtab_offset = 0;
   if (st.symtab.has_value()) {
-    symtab_offset = builder.CreateString(st.symtab.value());
+    symtab_offset = builder.CreateVector(
+        reinterpret_cast<const uint8_t*>(st.symtab.value().data()),
+        st.symtab.value().size());
   }
 
   auto index_offset = builder.CreateVector(st.index);
@@ -531,7 +541,11 @@ domain::metadata from_flatbuffers(const dwarfs::flatbuffers::Metadata& fb) {
   // Convert directories
   std::vector<::flatbuffers::Offset<dwarfs::flatbuffers::Directory>> dir_offsets;
   dir_offsets.reserve(m.directories.size());
+  std::cerr << "[TO_FB_CONVERTER] Converting " << m.directories.size() << " directories" << std::endl;
   for (const auto& d : m.directories) {
+    std::cerr << "[TO_FB_CONVERTER] directory: parent_entry=" << d.parent_entry()
+              << ", first_entry=" << d.first_entry()
+              << ", self_entry=" << d.self_entry() << std::endl;
     dir_offsets.push_back(to_flatbuffers(builder, d));
   }
   auto directories_offset = builder.CreateVector(dir_offsets);

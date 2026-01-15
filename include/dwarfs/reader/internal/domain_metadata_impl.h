@@ -131,6 +131,11 @@ class domain_metadata_impl : public metadata_v2::impl {
   std::unique_ptr<metadata::domain::metadata> meta_;
   domain_global_metadata global_;
   int inode_offset_;
+  int file_inode_offset_;  // Calculated offset to first regular file inode
+
+  // UID/GID override options from metadata_options
+  std::optional<file_stat::uid_type> fs_uid_override_;
+  std::optional<file_stat::gid_type> fs_gid_override_;
 
   // Helper: Get inode data by index
   metadata::domain::inode_data const& get_inode_by_index(uint32_t index) const;
@@ -144,8 +149,16 @@ class domain_metadata_impl : public metadata_v2::impl {
   // Helper: Create directory entry view
   dir_entry_view make_dir_entry_view(uint32_t self_index, uint32_t parent_index) const;
 
-  // Helper: Get file size for inode
+  // Helper: Get file size for inode (legacy compatibility)
   file_off_t get_file_size(uint32_t inode_index) const;
+
+  // Helper: Get file size for inode with both index and num for legacy images
+  file_off_t get_file_size(uint32_t inode_index, uint32_t inode_num) const;
+
+  // Helper: Convert file inode number to chunk table index
+  // This handles the mapping from file inode (as stored in dir_entries) to
+  // the chunk_table index, accounting for legacy writer bugs and shared files
+  uint32_t file_inode_to_chunk_index(int inode) const;
 
   // Helper: Check if inode is directory
   bool is_directory(uint32_t inode_index) const;

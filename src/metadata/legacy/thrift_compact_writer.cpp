@@ -95,7 +95,8 @@ Tag ThriftCompactWriter::write_string(std::string_view s) {
 }
 
 void ThriftCompactWriter::begin_struct() {
-  // Reset field tracking
+  // Save current field_id and reset for this struct
+  last_field_id_stack_.push_back(last_field_id_);
   last_field_id_ = 0;
   field_id_diff_tag_ = 0x10;
 }
@@ -120,6 +121,12 @@ void ThriftCompactWriter::write_field_header(uint16_t field_id, Tag type) {
 void ThriftCompactWriter::end_struct() {
   // Write stop field (type 0)
   buf_.push_back(0);
+
+  // Restore previous field_id
+  if (!last_field_id_stack_.empty()) {
+    last_field_id_ = last_field_id_stack_.back();
+    last_field_id_stack_.pop_back();
+  }
 }
 
 void ThriftCompactWriter::begin_map(uint32_t size) {

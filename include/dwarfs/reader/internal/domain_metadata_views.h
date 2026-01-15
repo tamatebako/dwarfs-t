@@ -47,6 +47,12 @@ class domain_global_metadata
 
   // Get parent entry index for a directory inode
   uint32_t parent_dir_entry(uint32_t dir_inode) const;
+
+  // Get name by index (handles both legacy names and compact_names)
+  std::string name_at(uint32_t index) const;
+
+  // Get symlink by index (handles both legacy symlinks and compact_symlinks)
+  std::string symlink_at(uint32_t index) const;
 #else
   // Interface override: Get self entry index for a directory inode
   uint32_t self_dir_entry(uint32_t dir_inode) const;
@@ -78,6 +84,14 @@ class domain_global_metadata
 
  private:
   metadata::domain::metadata const& meta_;
+
+  // Helper: Read string from compact_names at given index
+  static std::string read_from_compact_names(
+      metadata::domain::string_table const& table, uint32_t index);
+
+  // Helper: Read string from compact_symlinks at given index
+  static std::string read_from_compact_symlinks(
+      metadata::domain::string_table const& table, uint32_t index);
 };
 
 /**
@@ -129,6 +143,13 @@ class domain_dir_entry_view_impl : public dir_entry_view_interface {
 
   // Accessor for backend_adapter (needed for thrift-only conversion)
   metadata::domain::metadata const& domain_meta() const { return meta_; }
+
+  // Helper: Convert entry index to directory index
+  // For directory entries, this finds the directory whose range contains this entry
+  uint32_t entry_to_dir_idx(uint32_t entry_idx) const;
+
+  // Helper: Read name by index (handles both legacy names and compact_names)
+  std::string name_at(uint32_t index) const;
 
  private:
   metadata::domain::metadata const& meta_;

@@ -22,6 +22,7 @@
 #include "flatbuffers_packing_processor.h"
 
 #include <algorithm>
+#include <iostream>
 #include <numeric>
 
 #include <dwarfs/logger.h>
@@ -45,7 +46,8 @@ void flatbuffers_packing_processor::pack_metadata() {
     // pack directories
     uint32_t last_first_entry = 0;
 
-    for (auto& d : md_.directories) {
+    for (size_t i = 0; i < md_.directories.size(); ++i) {
+      auto& d = md_.directories[i];
       d.set_parent_entry(0); // this will be recovered
       d.set_self_entry(0);   // this will be recovered
       auto delta = d.first_entry() - last_first_entry;
@@ -113,9 +115,10 @@ void flatbuffers_packing_processor::pack_metadata() {
             options_.force_pack_string_tables));
 
     // Validate packed result before clearing source data
+    // For N strings, we need N+1 index entries (N offsets + 1 buffer size marker)
     bool pack_valid =
       !packed.buffer.empty() &&
-      packed.index.size() == md_.names.size() &&
+      packed.index.size() == md_.names.size() + 1 &&
       packed.symtab.has_value();
 
     if (pack_valid) {
@@ -134,9 +137,10 @@ void flatbuffers_packing_processor::pack_metadata() {
                           options_.force_pack_string_tables));
 
     // Validate packed result before clearing source data
+    // For N strings, we need N+1 index entries (N offsets + 1 buffer size marker)
     bool pack_valid =
       !packed.buffer.empty() &&
-      packed.index.size() == md_.symlinks.size() &&
+      packed.index.size() == md_.symlinks.size() + 1 &&
       packed.symtab.has_value();
 
     if (pack_valid) {

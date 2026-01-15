@@ -409,7 +409,7 @@ get_format_from_string(std::string const& format_str) {
     return SerializationFormat::FLATBUFFERS;
   } else if (format_str == "thrift") {
 #ifdef DWARFS_HAVE_THRIFT
-    return SerializationFormat::THRIFT_COMPACT;
+    return SerializationFormat::MODERN_THRIFT;
 #else
     throw std::runtime_error(
         "Thrift format not available (build without Thrift support)");

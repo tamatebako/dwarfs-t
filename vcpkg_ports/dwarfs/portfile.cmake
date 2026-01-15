@@ -1,6 +1,6 @@
 # vcpkg portfile for dwarfs
 # DwarFS - A fast high-compression read-only file system
-# Version: 0.16.0.5 - Force rebuild with walk function fix
+# Version: 0.16.0.9 - Force rebuild with workaround removed
 
 vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 
