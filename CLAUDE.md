@@ -51,6 +51,56 @@ ninja
 - `scripts/build-all-and-test.sh` - Build and run all tests
 - `scripts/test-all-configs.sh` - Test multiple configurations
 
+## CRITICAL: Tebako jemalloc Dependency
+
+**MANDATORY**: This project REQUIRES Tebako's fork of jemalloc, NOT the upstream jemalloc!
+
+### Tebako jemalloc Details
+
+- **Repository**: https://github.com/tamatebako/jemalloc.git
+- **Version**: 5.5.0
+- **Location**: `vcpkg_ports/jemalloc/` (overlay port)
+- **CMake Variable**: `JEMALLOC_REQUIRED_VERSION` must be 5.5.0
+- **Git Repo Variable**: `JEMALLOC_GIT_REPO` set to https://github.com/tamatebako/jemalloc.git
+
+### Why Tebako jemalloc?
+
+The upstream jemalloc/jemalloc does NOT work with this project. We MUST use the Tebako fork which has specific patches for:
+- Folly compatibility (without je_ prefix)
+- Tebako-specific modifications
+- Version 5.5.0 with custom build configuration
+
+### vcpkg Overlay Port
+
+The `vcpkg_ports/jemalloc/` directory contains the overlay port that:
+1. Downloads from `tamatebako/jemalloc` NOT `jemalloc/jemalloc`
+2. Builds with `--with-jemalloc-prefix=` (no je_ prefix)
+3. Provides CMake config files (`jemallocConfig.cmake`)
+4. Version is 5.5.0, NOT upstream versions
+
+### CI/CD Requirements
+
+When updating CI workflows or build configurations:
+- **NEVER** use system jemalloc packages
+- **NEVER** use upstream jemalloc from vcpkg
+- **ALWAYS** use the overlay port in `vcpkg_ports/jemalloc/`
+- **MUST** install autoconf-archive for jemalloc build (autotools dependency)
+
+### Version Verification
+
+Always verify:
+```cmake
+# CMakeLists.txt MUST have:
+set(JEMALLOC_REQUIRED_VERSION 5.5.0)  # NOT 5.3.0 or any other version!
+
+# vcpkg_ports/jemalloc/vcpkg.json MUST have:
+"version": "5.5.0"  # NOT 5.3.0!
+
+# vcpkg_ports/jemalloc/portfile.cmake MUST have:
+REPO tamatebako/jemalloc  # NOT jemalloc/jemalloc!
+REF 5.5.0  # Use tag, not commit hash
+```
+
 ## Project Structure
 
 ### Metadata Serialization
