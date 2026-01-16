@@ -1,96 +1,39 @@
-vcpkg_from_github(
-    OUT_SOURCE_PATH SOURCE_PATH
-    REPO tamatebako/jemalloc
-    REF 5.5.0
-    SHA512 c24539d845f57290916fae7ed5892cc9f07a347580f65db71bee0c2f11c482004b7f8c27a082c889d7604c14fa5cf6b3be77eb1cf579af2949495865c1d7ed7f
-    HEAD_REF master
-    PATCHES
-        preprocessor.patch
-)
-if(VCPKG_TARGET_IS_WINDOWS)
-    set(opts "ac_cv_search_log=none required" "--without-private-namespace")
+# For overlay port testing, use the local repository source
+# CURRENT_PORT_DIR is vcpkg_ports/jemalloc/, but we need to point to the downloaded source
+# Use vcpkg's standard approach for building from source
+
+# Determine build type based on linkage
+if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
+    set(BUILD_SHARED ON)
+    set(BUILD_STATIC OFF)
 else()
-    # Build without je_ prefix for Folly compatibility
-    # Set version in jemalloc's expected format
-    set(opts "--with-jemalloc-prefix=" "--with-version=5.5.0-0-g0000000000000000000000000000000000000000")
+    set(BUILD_SHARED OFF)
+    set(BUILD_STATIC ON)
 endif()
 
-vcpkg_make_configure(
-    AUTORECONF
+# Native CMake build on all platforms (Windows, Linux, macOS, FreeBSD)
+# No more MSBuild workaround - native CMake works everywhere!
+vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
-    DISABLE_MSVC_WRAPPERS
-    DISABLE_MSVC_TRANSFORMATIONS
-    OPTIONS ${opts}
+    OPTIONS
+        -DJEMALLOC_BUILD_SHARED=${BUILD_SHARED}
+        -DJEMALLOC_BUILD_STATIC=${BUILD_STATIC}
+        -DJEMALLOC_ENABLE_DOC=OFF
+        -DJEMALLOC_ENABLE_PROF=OFF
+        -DJEMALLOC_ENABLE_STATS=ON
 )
 
-vcpkg_make_install()
+vcpkg_cmake_install()
 
-if(VCPKG_TARGET_IS_WINDOWS)
-    file(COPY "${SOURCE_PATH}/include/msvc_compat/strings.h" DESTINATION "${CURRENT_PACKAGES_DIR}/include/jemalloc/msvc_compat")
-    vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h" "<strings.h>" "\"msvc_compat/strings.h\"")
-    if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
-        file(COPY "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/lib/jemalloc.lib" DESTINATION "${CURRENT_PACKAGES_DIR}/lib")
-        file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/bin")
-        file(RENAME "${CURRENT_PACKAGES_DIR}/lib/jemalloc.dll" "${CURRENT_PACKAGES_DIR}/bin/jemalloc.dll")
-    endif()
-    if(NOT VCPKG_BUILD_TYPE)
-        if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
-            file(COPY "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-dbg/lib/jemalloc.lib" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib")
-            file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/debug/bin")
-            file(RENAME "${CURRENT_PACKAGES_DIR}/debug/lib/jemalloc.dll" "${CURRENT_PACKAGES_DIR}/debug/bin/jemalloc.dll")
-        endif()
-    endif()
-    if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
-        vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/jemalloc.pc" "install_suffix=" "install_suffix=_s")
-        if(NOT VCPKG_BUILD_TYPE)
-            vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/jemalloc.pc" "install_suffix=" "install_suffix=_s")
-        endif()
-    endif()
-endif()
+# Fix CMake config file paths
+vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/jemalloc)
 
-vcpkg_fixup_pkgconfig()
-
-# Install CMake config files
-function(jemalloc_install_cmake_config)
-    # Configure and install the CMake config file
-    configure_file("${CMAKE_CURRENT_LIST_DIR}/jemallocConfig.cmake.in"
-        "${CURRENT_PACKAGES_DIR}/share/jemalloc/jemallocConfig.cmake"
-        @ONLY
-    )
-
-    # Create version file
-    file(WRITE "${CURRENT_PACKAGES_DIR}/share/jemalloc/jemallocConfigVersion.cmake"
-"
-set(PACKAGE_VERSION \"5.5.0\")
-
-if(PACKAGE_VERSION VERSION_LESS PACKAGE_FIND_VERSION)
-    set(PACKAGE_VERSION_COMPATIBLE FALSE)
-else()
-    set(PACKAGE_VERSION_COMPATIBLE TRUE)
-    if(PACKAGE_FIND_VERSION STREQUAL PACKAGE_VERSION)
-        set(PACKAGE_VERSION_EXACT TRUE)
-    endif()
-endif()
-"
-    )
-endfunction()
-
-jemalloc_install_cmake_config()
-
-# Fix JEMALLOC_USABLE_SIZE_CONST issue when using empty prefix
-if(NOT VCPKG_TARGET_IS_WINDOWS)
-    vcpkg_replace_string(
-        "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
-        "#undef JEMALLOC_USABLE_SIZE_CONST"
-        "#undef JEMALLOC_USABLE_SIZE_CONST\n#define JEMALLOC_USABLE_SIZE_CONST const"
-    )
-endif()
-
+# Copy PDB files (Windows only)
 vcpkg_copy_pdbs()
 
+# Remove duplicate files
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/share")
-file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/tools")
 
-# Handle copyright
-file(INSTALL "${SOURCE_PATH}/COPYING" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}" RENAME copyright)
+# Install copyright
+vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/COPYING")
