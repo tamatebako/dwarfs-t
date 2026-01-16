@@ -1,6 +1,10 @@
-# For overlay port testing, use the local repository source
-# CURRENT_PORT_DIR is vcpkg_ports/jemalloc/, but we need to point to the downloaded source
-# Use vcpkg's standard approach for building from source
+vcpkg_from_github(
+    OUT_SOURCE_PATH SOURCE_PATH
+    REPO tamatebako/jemalloc
+    REF 5.5.0
+    SHA512 c24539d845f57290916fae7ed5892cc9f07a347580f65db71bee0c2f11c482004b7f8c27a082c889d7604c14fa5cf6b3be77eb1cf579af2949495865c1d7ed7f
+    HEAD_REF master
+)
 
 # Determine build type based on linkage
 if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
@@ -12,7 +16,7 @@ else()
 endif()
 
 # Native CMake build on all platforms (Windows, Linux, macOS, FreeBSD)
-# No more MSBuild workaround - native CMake works everywhere!
+# Tebako jemalloc has full native CMake support - no autotools needed!
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
