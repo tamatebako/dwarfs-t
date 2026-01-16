@@ -4,6 +4,9 @@ endif()
 
 # Allow jemalloc to be found via CMake find_package(CONFIG)
 
+# Set version variables
+set(jemalloc_VERSION "5.3.0")
+
 # Create imported target
 if(NOT TARGET jemalloc::jemalloc)
     add_library(jemalloc::jemalloc STATIC IMPORTED)
@@ -24,22 +27,5 @@ if(NOT TARGET jemalloc::jemalloc)
     endif()
 endif()
 
-# Set version variables
-set(jemalloc_VERSION "5.3.0")
-
-# Compatibility with older CMake versions
-if(NOT DEFINED jemalloc_FOUND)
-    set(jemalloc_FOUND TRUE)
-endif()
-
-# Compatibility with find_package arguments
-if(NOT DEFINED jemalloc_VERSION)
-    set(jemalloc_VERSION "5.3.0")
-endif()
-
-# For find_package_handle_standard_args compatibility
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(jemalloc
-    REQUIRED_VARS jemalloc::jemalloc
-    VERSION_VAR jemalloc_VERSION
-)
+# Set that the package was found
+set(jemalloc_FOUND TRUE)

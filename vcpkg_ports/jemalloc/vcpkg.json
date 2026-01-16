@@ -1,7 +1,7 @@
 {
   "name": "jemalloc",
   "version": "5.3.0",
-  "port-version": 6,
+  "port-version": 7,
   "description": "jemalloc is a general purpose malloc(3) implementation that emphasizes fragmentation avoidance and scalable concurrency support. Custom build for DwarFS: configured without je_ prefix for Folly compatibility.",
   "homepage": "https://jemalloc.net/",
   "license": "BSD-2-Clause",
