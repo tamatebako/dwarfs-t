@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
-    REPO jemalloc/jemalloc
-    REF 54eaed1d8b56b1aa528be3bdd1877e59c56fa90c
-    SHA512 527bfbf5db9a5c2b7b04df4785b6ae9d445cff8cb17298bf3e550c88890d2bd7953642d8efaa417580610508279b527d3a3b9e227d17394fd2013c88cb7ae75a
+    REPO tamatebako/jemalloc
+    REF 5.5.0
+    SHA512 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
     HEAD_REF master
     PATCHES
         fix-configure-ac.patch
@@ -14,7 +14,7 @@ if(VCPKG_TARGET_IS_WINDOWS)
 else()
     # Build without je_ prefix for Folly compatibility
     # Set version in jemalloc's expected format
-    set(opts "--with-jemalloc-prefix=" "--with-version=5.3.0-0-g54eaed1d8b56b1aa528be3bdd1877e59c56fa90c")
+    set(opts "--with-jemalloc-prefix=" "--with-version=5.5.0-0-g0000000000000000000000000000000000000000")
 endif()
 
 vcpkg_make_configure(

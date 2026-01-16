@@ -5,7 +5,7 @@ endif()
 # Allow jemalloc to be found via CMake find_package(CONFIG)
 
 # Set version variables
-set(jemalloc_VERSION "5.3.0")
+set(jemalloc_VERSION "5.5.0")
 
 # Create imported target
 if(NOT TARGET jemalloc::jemalloc)
