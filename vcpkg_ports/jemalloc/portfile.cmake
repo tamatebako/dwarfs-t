@@ -5,9 +5,7 @@ vcpkg_from_github(
     SHA512 c24539d845f57290916fae7ed5892cc9f07a347580f65db71bee0c2f11c482004b7f8c27a082c889d7604c14fa5cf6b3be77eb1cf579af2949495865c1d7ed7f
     HEAD_REF master
     PATCHES
-        fix-configure-ac.patch
         preprocessor.patch
-        fix-host-use-libc.patch # https://github.com/jemalloc/jemalloc/commit/45249cf5a9cfa13c2c62e68e272a391721523b4b
 )
 if(VCPKG_TARGET_IS_WINDOWS)
     set(opts "ac_cv_search_log=none required" "--without-private-namespace")
@@ -63,7 +61,7 @@ function(jemalloc_install_cmake_config)
     # Create version file
     file(WRITE "${CURRENT_PACKAGES_DIR}/share/jemalloc/jemallocConfigVersion.cmake"
 "
-set(PACKAGE_VERSION \"5.3.0\")
+set(PACKAGE_VERSION \"5.5.0\")
 
 if(PACKAGE_VERSION VERSION_LESS PACKAGE_FIND_VERSION)
     set(PACKAGE_VERSION_COMPATIBLE FALSE)
