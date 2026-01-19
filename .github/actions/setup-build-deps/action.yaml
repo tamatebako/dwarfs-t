@@ -1,0 +1,266 @@
+# Composite action to setup platform-specific build dependencies
+# vim:set ts=2 sw=2 sts=2 et:
+#
+# This action handles installation of build tools and libraries
+# across different platforms
+
+name: 'Setup Build Dependencies'
+description: 'Install platform-specific build dependencies for DwarFS'
+
+inputs:
+  platform:
+    description: 'Target platform (auto-detected if empty)'
+    required: false
+    default: ''
+
+  with-fuse:
+    description: 'Install FUSE libraries'
+    required: false
+    default: 'false'
+
+  with-openssl:
+    description: 'Install OpenSSL libraries'
+    required: false
+    default: 'true'
+
+  with-boost:
+    description: 'Install Boost libraries (system package, not vcpkg)'
+    required: false
+    default: 'false'
+
+  with-xattr:
+    description: 'Install xattr libraries'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: detect
+      shell: bash
+      run: |
+        PLATFORM="${{ inputs.platform }}"
+
+        if [[ -z "$PLATFORM" ]]; then
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            PLATFORM="windows"
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            PLATFORM="macos"
+          else
+            PLATFORM="linux"
+          fi
+        fi
+
+        echo "platform=$PLATFORM" >> $GITHUB_OUTPUT
+        echo "Detected platform: $PLATFORM"
+
+    - name: Install dependencies (Windows)
+      if: steps.detect.outputs.platform == 'windows'
+      shell: powershell
+      run: |
+        Write-Host "Installing Windows build dependencies..."
+
+        # Chocolatey packages
+        $packages = @()
+
+        if ("${{ inputs.with-openssl }}" -eq "true") {
+          $packages += "openssl"
+        }
+
+        # WinFsp for FUSE support
+        if ("${{ inputs.with-fuse }}" -eq "true") {
+          choco install winfsp -y
+        }
+
+        if ($packages.Count -gt 0) {
+          choco install $packages -y
+        }
+
+        Write-Host "✓ Windows dependencies installed"
+
+    - name: Install dependencies (macOS)
+      if: steps.detect.outputs.platform == 'macos'
+      shell: bash
+      run: |
+        set -x
+        echo "Installing macOS build dependencies..."
+
+        # Base packages
+        brew install ninja cmake git pkg-config
+
+        # Optional dependencies
+        if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
+          brew install openssl
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
+        fi
+
+        if [[ "${{ inputs.with-boost }}" == "true" ]]; then
+          brew install boost
+        fi
+
+        if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
+          # macOS FUSE support (macFUSE or FUSE-T)
+          if ! brew list macfuse 2>/dev/null && ! brew list fuse-t 2>/dev/null; then
+            echo "Warning: No FUSE package found. Install macFUSE or FUSE-T manually."
+          fi
+        fi
+
+        if [[ "${{ inputs.with-xattr }}" == "true" ]]; then
+          brew install xattr
+        fi
+
+        echo "✓ macOS dependencies installed"
+
+    - name: Install dependencies (Linux)
+      if: steps.detect.outputs.platform == 'linux'
+      shell: bash
+      run: |
+        set -x
+        echo "Installing Linux build dependencies..."
+
+        # Detect package manager
+        if command -v apt-get &> /dev/null; then
+          PKG_MANAGER="apt"
+        elif command -v yum &> /dev/null; then
+          PKG_MANAGER="yum"
+        elif command -v apk &> /dev/null; then
+          PKG_MANAGER="apk"
+        else
+          echo "::warning::Unable to detect package manager"
+          exit 0
+        fi
+
+        case "$PKG_MANAGER" in
+          apt)
+            sudo apt-get update
+            sudo apt-get install -y \
+              build-essential \
+              git \
+              ninja-build \
+              pkg-config \
+              libxxhash-dev
+
+            if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
+              sudo apt-get install -y libssl-dev
+            fi
+
+            if [[ "${{ inputs.with-boost }}" == "true" ]]; then
+              sudo apt-get install -y libboost-all-dev
+            fi
+
+            if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
+              sudo apt-get install -y libfuse3-dev fuse3
+            fi
+
+            if [[ "${{ inputs.with-xattr }}" == "true" ]]; then
+              sudo apt-get install -y libattr1-dev
+            fi
+            ;;
+
+          yum)
+            sudo yum install -y \
+              gcc-c++ \
+              git \
+              ninja-build \
+              pkgconfig \
+              xxhash-devel
+
+            if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
+              sudo yum install -y openssl-devel
+            fi
+
+            if [[ "${{ inputs.with-boost }}" == "true" ]]; then
+              sudo yum install -y boost-devel
+            fi
+
+            if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
+              sudo yum install -y fuse3-devel
+            fi
+
+            if [[ "${{ inputs.with-xattr }}" == "true" ]]; then
+              sudo yum install -y libattr-devel
+            fi
+            ;;
+
+          apk)
+            apk add --no-cache \
+              build-base \
+              git \
+              ninja \
+              pkgconf \
+              xxhash-dev
+
+            if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
+              apk add --no-cache openssl-dev
+            fi
+
+            if [[ "${{ inputs.with-boost }}" == "true" ]]; then
+              apk add --no-cache boost-dev
+            fi
+
+            if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
+              apk add --no-cache fuse3-dev fuse3
+            fi
+
+            if [[ "${{ inputs.with-xattr }}" == "true" ]]; then
+              apk add --no-cache attr-dev
+            fi
+            ;;
+        esac
+
+        echo "✓ Linux dependencies installed"
+
+    - name: Verify installations
+      shell: bash
+      run: |
+        echo "::group::Verifying installations"
+
+        # Check build tools
+        echo "Build Tools:"
+        cmake --version || echo "::warning::cmake not found"
+        ninja --version || echo "::warning::ninja not found"
+        git --version || echo "::warning::git not found"
+
+        # Check platform-specific dependencies
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          echo "Linux Libraries:"
+          [[ "${{ inputs.with-openssl }}" == "true" ]] && \
+            pkg-config --modversion openssl || echo "::warning::openssl not found"
+
+          [[ "${{ inputs.with-fuse }}" == "true" ]] && \
+            (pkg-config --modversion fuse3 || echo "::warning::fuse3 not found")
+
+          pkg-config --modversion xxhash || echo "::warning::xxhash not found"
+        fi
+
+        echo "::endgroup::"
+
+    - name: Create FUSE mount directory
+      if: inputs.with-fuse == 'true'
+      shell: bash
+      run: |
+        # Create temporary directory for FUSE mounts
+        sudo mkdir -p /tmp/dwarfs-test-mount
+        sudo chmod 777 /tmp/dwarfs-test-mount
+        echo "✓ Created FUSE mount directory: /tmp/dwarfs-test-mount"
+
+    - name: Set environment variables
+      shell: bash
+      run: |
+        # Set common environment variables
+        if [[ "$RUNNER_OS" == "macOS" ]] && [[ "${{ inputs.with-openssl }}" == "true" ]]; then
+          # OpenSSL on macOS
+          if [[ -n "$(brew --prefix openssl 2>/dev/null)" ]]; then
+            echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
+            echo "OPENSSL_LIB_DIR=$(brew --prefix openssl)/lib" >> $GITHUB_ENV
+            echo "OPENSSL_INCLUDE_DIR=$(brew --prefix openssl)/include" >> $GITHUB_ENV
+          fi
+        fi
+
+        # FUSE mount point
+        if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
+          echo "DWARFS_TEST_MOUNT_DIR=/tmp/dwarfs-test-mount" >> $GITHUB_ENV
+        fi
+
+        echo "✓ Environment variables set"

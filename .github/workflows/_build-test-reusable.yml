@@ -1,0 +1,210 @@
+# Reusable Build and Test Workflow
+#
+# This is the core build and test workflow used by all CI workflows.
+# It provides a standardized way to build, test, and upload results.
+#
+# Usage:
+#   jobs:
+#     build-and-test:
+#       strategy:
+#         matrix:
+#           include:
+#             - runner: ubuntu-latest
+#               triplet: x64-linux
+#               config: flatbuffers-only
+#       uses: ./.github/workflows/_build-test-reusable.yml
+#       with:
+#         runner: ${{ matrix.runner }}
+#         triplet: ${{ matrix.triplet }}
+#         config: ${{ matrix.config }}
+
+name: Reusable Build and Test
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'GitHub Actions runner to use'
+        required: true
+        type: string
+      triplet:
+        description: 'vcpkg triplet to use'
+        required: true
+        type: string
+      config:
+        description: 'Build configuration (flatbuffers-only, both-formats)'
+        required: true
+        type: string
+      build-type:
+        description: 'CMake build type'
+        required: false
+        type: string
+        default: Release
+      cache-key:
+        description: 'Cache key prefix for vcpkg binary cache'
+        required: false
+        type: string
+        default: vcpkg
+      with-fuse:
+        description: 'Enable FUSE driver'
+        required: false
+        type: boolean
+        default: false
+      upload-artifacts:
+        description: 'Upload build artifacts (binaries)'
+        required: false
+        type: boolean
+        default: false
+      upload-test-results:
+        description: 'Upload test results'
+        required: false
+        type: boolean
+        default: true
+
+    outputs:
+      artifact-name:
+        description: 'Generated artifact name'
+        value: ${{ jobs.build-and-test.outputs.artifact-name }}
+      build-status:
+        description: 'Build status (success/failure)'
+        value: ${{ jobs.build-and-test.outputs.build-status }}
+
+jobs:
+  build-and-test:
+    name: ${{ inputs.runner }} (${{ inputs.triplet }}) - ${{ inputs.config }}
+    runs-on: ${{ inputs.runner }}
+
+    outputs:
+      artifact-name: ${{ steps.generate-artifact-name.outputs.name }}
+      build-status: ${{ steps.check-status.outputs.status }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup vcpkg
+        uses: ./.github/actions/setup-vcpkg
+        with:
+          triplet: ${{ inputs.triplet }}
+          cache-key: ${{ inputs.cache-key }}
+
+      - name: Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
+        with:
+          platform: ${{ inputs.runner }}
+          with-fuse: ${{ inputs.with-fuse }}
+
+      - name: Configure - FlatBuffers Only
+        if: inputs.config == 'flatbuffers-only'
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-${{ inputs.config }}
+          build-type: ${{ inputs.build-type }}
+          with-tests: true
+          with-libdwarfs: true
+          with-tools: true
+          with-fuse-driver: ${{ inputs.with-fuse }}
+          with-thrift: false
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }}
+
+      - name: Configure - Both Formats
+        if: inputs.config == 'both-formats'
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-${{ inputs.config }}
+          build-type: ${{ inputs.build-type }}
+          with-tests: true
+          with-libdwarfs: true
+          with-tools: true
+          with-fuse-driver: ${{ inputs.with-fuse }}
+          with-thrift: true
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }}
+
+      - name: Build
+        id: build
+        shell: bash
+        run: |
+          set -x
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            cmake --build build-${{ inputs.config }} \
+              --config ${{ inputs.build-type }} \
+              --parallel
+          else
+            cmake --build build-${{ inputs.config }} --parallel
+          fi
+
+      - name: Generate artifact name
+        id: generate-artifact-name
+        run: |
+          # Create a consistent artifact name
+          ARTIFACT="dwarfs-${{ inputs.triplet }}-${{ inputs.config }}"
+          echo "name=$ARTIFACT" >> $GITHUB_OUTPUT
+          echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        if: inputs.upload-artifacts == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.generate-artifact-name.outputs.name }}
+          path: |
+            build-${{ inputs.config }}/tools/mkdwarfs/mkdwarfs*
+            build-${{ inputs.config }}/tools/dwarfs/dwarfs*
+            build-${{ inputs.config }}/tools/dwarfsextract/dwarfsextract*
+            build-${{ inputs.config }}/tools/dwarfs/dwarfsck*
+            build-${{ inputs.config }}/libdwarfs/*.a
+            build-${{ inputs.config }}/libdwarfs/*.so*
+            build-${{ inputs.config }}/libdwarfs/*.dylib*
+            build-${{ inputs.config }}/libdwarfs/*.dll*
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Run tests
+        id: test
+        uses: ./.github/actions/run-ctest
+        with:
+          build-dir: build-${{ inputs.config }}
+          config: ${{ inputs.build-type }}
+
+      - name: Upload test results
+        if: inputs.upload-test-results == true && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.triplet }}-${{ inputs.config }}
+          path: |
+            build-${{ inputs.config }}/Testing/
+            build-${{ inputs.config }}/**/Test.xml
+          if-no-files-found: warn
+
+      - name: Check build status
+        id: check-status
+        if: always()
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "=== Build Summary ==="
+          echo "Runner: ${{ inputs.runner }}"
+          echo "Triplet: ${{ inputs.triplet }}"
+          echo "Config: ${{ inputs.config }}"
+          echo "Build Type: ${{ inputs.build-type }}"
+          echo "Status: ${{ steps.check-status.outputs.status }}"
+          echo ""
+
+          # Show test summary if available
+          if [[ -f "build-${{ inputs.config }}/Testing/Test.xml" ]]; then
+            echo "=== Test Results ==="
+            # Parse Test.xml for summary
+            cat build-${{ inputs.config }}/Testing/Test.xml | grep -o 'Test="[0-9]*"' | head -5 || true
+          fi

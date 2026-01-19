@@ -1,0 +1,172 @@
+# CI Main Workflow - Comprehensive Testing
+#
+# This is the main CI workflow that runs on pushes to main branch.
+# It provides comprehensive validation across all platforms and configurations.
+#
+# This workflow replaces the old build.yml and provides:
+# - Full platform matrix (5 platforms)
+# - All configurations (flatbuffers-only, both-formats)
+# - Compatibility tests
+# - ~45 minute runtime
+#
+# For fast PR validation, use pr-validation.yml instead.
+
+name: CI Main
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '.benchmark/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.gitignore'
+      - '.maintainer-scripts/**'
+      - 'CHANGES.md'
+      - 'CITATION.cff'
+      - 'README.md'
+      - 'TODO'
+      - 'doc/**'
+      - '**.md'
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'Configuration to test (all, flatbuffers-only, both-formats)'
+        required: false
+        type: string
+        default: 'all'
+      triplet:
+        description: 'Specific vcpkg triplet to test'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # Main test matrix using vcpkg
+  test-matrix:
+    name: ${{ matrix.runner }} (${{ matrix.triplet }}) - ${{ matrix.config }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x64
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+            triplet: x64-linux
+            config: flatbuffers-only
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+            triplet: x64-linux
+            config: both-formats
+
+          # Linux ARM64
+          - runner: ubuntu-24.04-arm64
+            os: linux
+            arch: arm64
+            triplet: arm64-linux
+            config: flatbuffers-only
+          - runner: ubuntu-24.04-arm64
+            os: linux
+            arch: arm64
+            triplet: arm64-linux
+            config: both-formats
+
+          # macOS x64 (Intel)
+          - runner: macos-13
+            os: macos
+            arch: x64
+            triplet: x64-osx
+            config: flatbuffers-only
+          - runner: macos-13
+            os: macos
+            arch: x64
+            triplet: x64-osx
+            config: both-formats
+
+          # macOS ARM64 (Apple Silicon)
+          - runner: macos-14
+            os: macos
+            arch: arm64
+            triplet: arm64-osx
+            config: flatbuffers-only
+          - runner: macos-14
+            os: macos
+            arch: arm64
+            triplet: arm64-osx
+            config: both-formats
+
+          # Windows x64
+          - runner: windows-latest
+            os: windows
+            arch: x64
+            triplet: x64-windows-static
+            config: flatbuffers-only
+          - runner: windows-latest
+            os: windows
+            arch: x64
+            triplet: x64-windows-static
+            config: both-formats
+
+    # Skip based on inputs
+    if: |
+      (inputs.config == 'all') ||
+      (inputs.config == matrix.config)
+
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ${{ matrix.runner }}
+      triplet: ${{ matrix.triplet }}
+      config: ${{ matrix.config }}
+      build-type: Release
+      cache-key: ci-main-${{ matrix.runner }}-${{ matrix.triplet }}
+
+  # Compatibility tests (runs after main tests)
+  compat-tests:
+    name: Compatibility Tests - ${{ matrix.runner }}
+    needs: test-matrix
+    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[compat-test]')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            triplet: arm64-osx
+          - runner: macos-13
+            triplet: x64-osx
+
+    uses: ./.github/workflows/_compat-test-reusable.yml
+    with:
+      runner: ${{ matrix.runner }}
+      triplet: ${{ matrix.triplet }}
+      config: both-formats
+      cache-key: ci-compat-${{ matrix.runner }}
+
+  # Summary job
+  summary:
+    name: CI Summary
+    needs: [test-matrix, compat-tests]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Display summary
+        run: |
+          echo "=== CI Main Workflow Summary ==="
+          echo ""
+          echo "Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "Run: ${{ github.run_number }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo ""
+          echo "Job Status:"
+          echo "  Test matrix: ${{ needs.test-matrix.result }}"
+          echo "  Compatibility tests: ${{ needs.compat-tests.result || 'skipped' }}"
+          echo ""
+          echo "View results in the Actions tab for detailed logs."

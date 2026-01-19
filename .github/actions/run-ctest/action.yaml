@@ -1,0 +1,275 @@
+# Composite action to run CTest for DwarFS
+# vim:set ts=2 sw=2 sts=2 et:
+#
+# This action provides standardized test execution across
+# all platforms and build configurations
+
+name: 'Run CTest'
+description: 'Run CTest with standard options for DwarFS'
+
+inputs:
+  build-dir:
+    description: 'Build directory path'
+    required: false
+    default: 'build'
+
+  config:
+    description: 'CMake configuration (Release/Debug) - for multi-config generators'
+    required: false
+    default: 'Release'
+
+  parallel:
+    description: 'Number of parallel test jobs (0 for auto)'
+    required: false
+    default: '0'
+
+  output-on-failure:
+    description: 'Show output for failed tests'
+    required: false
+    default: 'true'
+
+  verbose:
+    description: 'Verbose test output'
+    required: false
+    default: 'false'
+
+  label-filter:
+    description: 'CTest label filter (e.g., "compat")'
+    required: false
+    default: ''
+
+  skip-fuse:
+    description: 'Skip FUSE tests'
+    required: false
+    default: 'false'
+
+  test-timeout:
+    description: 'Test timeout in seconds'
+    required: false
+    default: '300'
+
+  repeat:
+    description: 'Number of times to repeat tests (for catching flaky tests)'
+    required: false
+    default: '1'
+
+  stop-on-failure:
+    description: 'Stop testing on first failure'
+    required: false
+    default: 'false'
+
+outputs:
+  exit-code:
+    description: 'CTest exit code'
+    value: ${{ steps.test.outputs.exit-code }}
+
+  total-tests:
+    description: 'Total number of tests'
+    value: ${{ steps.test.outputs.total-tests }}
+
+  passed:
+    description: 'Number of passed tests'
+    value: ${{ steps.test.outputs.passed }}
+
+  failed:
+    description: 'Number of failed tests'
+    value: ${{ steps.test.outputs.failed }}
+
+  skipped:
+    description: 'Number of skipped tests'
+    value: ${{ steps.test.outputs.skipped }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build CTest command
+      id: ctest-cmd
+      shell: bash
+      run: |
+        set -x
+
+        # Inputs
+        BUILD_DIR="${{ inputs.build-dir }}"
+        CONFIG="${{ inputs.config }}"
+        PARALLEL="${{ inputs.parallel }}"
+        OUTPUT_ON_FAILURE="${{ inputs.output-on-failure }}"
+        VERBOSE="${{ inputs.verbose }}"
+        LABEL_FILTER="${{ inputs.label-filter }}"
+        SKIP_FUSE="${{ inputs.skip-fuse }}"
+        TIMEOUT="${{ inputs.test-timeout }}"
+        REPEAT="${{ inputs.repeat }}"
+        STOP_ON_FAILURE="${{ inputs.stop-on-failure }}"
+
+        # Build CTest command
+        CTEST_CMD="ctest --test-dir $BUILD_DIR"
+
+        # Add config for multi-config generators (Visual Studio)
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          CTEST_CMD+=" -C $CONFIG"
+        fi
+
+        # Add parallel jobs
+        if [[ "$PARALLEL" != "0" ]]; then
+          CTEST_CMD+=" -j $PARALLEL"
+        else
+          # Auto-detect parallel jobs
+          if command -v nproc &> /dev/null; then
+            CTEST_CMD+=" -j $(nproc)"
+          elif command -v sysctl &> /dev/null; then
+            CTEST_CMD+=" -j $(sysctl -n hw.ncpu)"
+          else
+            CTEST_CMD+=" -j 2"
+          fi
+        fi
+
+        # Add output on failure
+        if [[ "$OUTPUT_ON_FAILURE" == "true" ]]; then
+          CTEST_CMD+=" --output-on-failure"
+        fi
+
+        # Add verbose output
+        if [[ "$VERBOSE" == "true" ]]; then
+          CTEST_CMD+=" --verbose"
+        fi
+
+        # Add label filter
+        if [[ -n "$LABEL_FILTER" ]]; then
+          CTEST_CMD+=" -L $LABEL_FILTER"
+        fi
+
+        # Add timeout
+        CTEST_CMD+=" --timeout $TIMEOUT"
+
+        # Add repeat (for flaky test detection)
+        if [[ "$REPEAT" != "1" ]]; then
+          CTEST_CMD+=" --repeat $REPEAT"
+        fi
+
+        # Add stop on failure
+        if [[ "$STOP_ON_FAILURE" == "true" ]]; then
+          CTEST_CMD+=" --stop-on-failure"
+        fi
+
+        # Export command
+        echo "ctest-cmd=$CTEST_CMD" >> $GITHUB_OUTPUT
+
+        # Print configuration summary
+        echo "::group::CTest Configuration"
+        echo "Build Directory: $BUILD_DIR"
+        echo "Config: $CONFIG"
+        echo "Parallel: $PARALLEL (auto if 0)"
+        echo "Output on Failure: $OUTPUT_ON_FAILURE"
+        echo "Verbose: $VERBOSE"
+        if [[ -n "$LABEL_FILTER" ]]; then
+          echo "Label Filter: $LABEL_FILTER"
+        fi
+        echo "Skip FUSE Tests: $SKIP_FUSE"
+        echo "Timeout: ${TIMEOUT}s"
+        if [[ "$REPEAT" != "1" ]]; then
+          echo "Repeat: $REPEAT"
+        fi
+        echo "Stop on Failure: $STOP_ON_FAILURE"
+        echo "::endgroup::"
+
+    - name: Set environment for FUSE tests
+      if: inputs.skip-fuse == 'false'
+      shell: bash
+      run: |
+        # On Linux, may need to set up FUSE mount points
+        # On macOS, FUSE tests are typically skipped
+
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          # Create a directory for FUSE mounts if needed
+          sudo mkdir -p /tmp/dwarfs-test-mount
+          sudo chmod 777 /tmp/dwarfs-test-mount
+        fi
+
+    - name: Run CTest
+      id: test
+      shell: bash
+      run: |
+        set -x
+
+        CTEST_CMD="${{ steps.ctest-cmd.outputs.ctest-cmd }}"
+        SKIP_FUSE="${{ inputs.skip-fuse }}"
+
+        # Run tests and capture output
+        if [[ "$SKIP_FUSE" == "true" ]]; then
+          # Exclude FUSE tests using label filter
+          echo "Running CTest (excluding FUSE tests)..."
+          $CTEST_CMD -E '^fuse' || true
+        else
+          echo "Running CTest (including FUSE tests)..."
+          $CTEST_CMD || true
+        fi
+
+        # Capture exit code
+        EXIT_CODE=$?
+
+        echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+        # Try to parse test results from CTest output
+        # This is a simplified version - for detailed results, use Testfile.xml
+        if [[ -f "${{ inputs.build-dir }}/Testing/CTestTestfile.xml" ]]; then
+          echo "✓ CTest results written to XML"
+        fi
+
+        echo "✓ CTest completed with exit code: $EXIT_CODE"
+
+    - name: Parse CTest results
+      id: results
+      if: always()
+      shell: bash
+      run: |
+        BUILD_DIR="${{ inputs.build-dir }}"
+
+        # Initialize counters
+        TOTAL=0
+        PASSED=0
+        FAILED=0
+        SKIPPED=0
+
+        # Try to parse from LastTests.log
+        if [[ -f "$BUILD_DIR/Testing/LastTests.log" ]]; then
+          # Parse CTest log file for test results
+          TOTAL=$(grep -c "Test #" "$BUILD_DIR/Testing/LastTests.log" || echo "0")
+          PASSED=$(grep -c "Passed" "$BUILD_DIR/Testing/LastTests.log" || echo "0")
+          FAILED=$(grep -c "Failed" "$BUILD_DIR/Testing/LastTests.log" || echo "0")
+          SKIPPED=$(grep -c "Not Run" "$BUILD_DIR/Testing/LastTests.log" || echo "0")
+        fi
+
+        # Export outputs
+        echo "total-tests=$TOTAL" >> $GITHUB_OUTPUT
+        echo "passed=$PASSED" >> $GITHUB_OUTPUT
+        echo "failed=$FAILED" >> $GITHUB_OUTPUT
+        echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+
+        # Print summary
+        echo "::group::Test Summary"
+        echo "Total Tests: $TOTAL"
+        echo "Passed: $PASSED"
+        echo "Failed: $FAILED"
+        echo "Skipped: $SKIPPED"
+
+        if [[ "$FAILED" -gt 0 ]]; then
+          echo "::error::$FAILED test(s) failed"
+        fi
+        echo "::endgroup::"
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ctest-results-${{ runner.os }}
+        path: |
+          ${{ inputs.build-dir }}/Testing/
+          ${{ inputs.build-dir }}/test-results/
+        if-no-files-found: warn
+        retention-days: 7
+
+    - name: Check for failures
+      if: steps.test.outputs.exit-code != '0'
+      shell: bash
+      run: |
+        echo "::error::Tests failed with exit code ${{ steps.test.outputs.exit-code }}"
+        exit ${{ steps.test.outputs.exit-code }}

@@ -1,0 +1,197 @@
+# Reusable Release Build Workflow
+#
+# This workflow builds release-ready binaries for all platforms.
+# It creates optimized, stripped binaries with proper packaging.
+#
+# Usage:
+#   jobs:
+#     build-release:
+#       uses: ./.github/workflows/_build-release-reusable.yml
+#       with:
+#         runner: ubuntu-latest
+#         triplet: x64-linux
+#         artifact-name: dwarfs-linux-x64
+#         config: flatbuffers-only
+
+name: Reusable Release Build
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'GitHub Actions runner to use'
+        required: true
+        type: string
+      triplet:
+        description: 'vcpkg triplet to use'
+        required: true
+        type: string
+      artifact-name:
+        description: 'Name for the release artifact'
+        required: true
+        type: string
+      config:
+        description: 'Build configuration (flatbuffers-only or both-formats)'
+        required: false
+        type: string
+        default: flatbuffers-only
+      build-type:
+        description: 'CMake build type'
+        required: false
+        type: string
+        default: Release
+      cache-key:
+        description: 'Cache key prefix for vcpkg'
+        required: false
+        type: string
+        default: release
+
+    outputs:
+      artifact-path:
+        description: 'Path to the created artifact'
+        value: ${{ jobs.package.outputs.artifact-path }}
+      artifact-name:
+        description: 'Name of the artifact'
+        value: ${{ jobs.package.outputs.artifact-name }}
+
+jobs:
+  build:
+    name: Build ${{ inputs.artifact-name }}
+    runs-on: ${{ inputs.runner }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup vcpkg
+        uses: ./.github/actions/setup-vcpkg
+        with:
+          triplet: ${{ inputs.triplet }}
+          cache-key: ${{ inputs.cache-key }}
+
+      - name: Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
+        with:
+          platform: ${{ inputs.runner }}
+
+      - name: Configure CMake
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-release
+          build-type: ${{ inputs.build-type }}
+          with-tests: false
+          with-libdwarfs: true
+          with-tools: true
+          with-fuse-driver: false
+          with-thrift: ${{ inputs.config == 'both-formats' }}
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }}
+
+      - name: Build
+        shell: bash
+        run: |
+          set -x
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            cmake --build build-release --config ${{ inputs.build-type }} --parallel
+          else
+            cmake --build build-release --parallel
+          fi
+
+      - name: Strip binaries (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          set -x
+          # Strip debug symbols from binaries to reduce size
+          strip build-release/tools/mkdwarfs/mkdwarfs 2>/dev/null || true
+          strip build-release/tools/dwarfs/dwarfs 2>/dev/null || true
+          strip build-release/tools/dwarfsextract/dwarfsextract 2>/dev/null || true
+          strip build-release/tools/dwarfs/dwarfsck 2>/dev/null || true
+
+      - name: Package release
+        shell: bash
+        run: |
+          set -x
+          PKG_DIR="package-${{ inputs.artifact-name }}"
+          mkdir -p "$PKG_DIR"
+
+          # Copy binaries
+          cp build-release/tools/mkdwarfs/mkdwarfs* "$PKG_DIR/" 2>/dev/null || true
+          cp build-release/tools/dwarfs/dwarfs* "$PKG_DIR/" 2>/dev/null || true
+          cp build-release/tools/dwarfsextract/dwarfsextract* "$PKG_DIR/" 2>/dev/null || true
+          cp build-release/tools/dwarfs/dwarfsck* "$PKG_DIR/" 2>/dev/null || true
+
+          # Copy libraries if built
+          if ls build-release/libdwarfs/*.a 2>/dev/null; then
+            mkdir -p "$PKG_DIR/lib"
+            cp build-release/libdwarfs/*.a "$PKG_DIR/lib/" 2>/dev/null || true
+          fi
+
+          if ls build-release/libdwarfs/*.so* 2>/dev/null; then
+            mkdir -p "$PKG_DIR/lib"
+            cp build-release/libdwarfs/*.so* "$PKG_DIR/lib/" 2>/dev/null || true
+          fi
+
+          if ls build-release/libdwarfs/*.dylib* 2>/dev/null; then
+            mkdir -p "$PKG_DIR/lib"
+            cp build-release/libdwarfs/*.dylib* "$PKG_DIR/lib/" 2>/dev/null || true
+          fi
+
+          if ls build-release/libdwarfs/*.dll 2>/dev/null; then
+            cp build-release/libdwarfs/*.dll "$PKG_DIR/" 2>/dev/null || true
+          fi
+
+          # Copy headers if available
+          if [[ -d build-release/include ]]; then
+            cp -r build-release/include "$PKG_DIR/"
+          fi
+
+          # Create README
+          cat > "$PKG_DIR/README.txt" <<'EOF'
+DwarFS Release Binaries
+======================
+
+This package contains pre-built DwarFS binaries and libraries.
+
+Binaries:
+  - mkdwarfs:     Create DwarFS filesystem images
+  - dwarfs:      Mount DwarFS filesystem images (FUSE driver)
+  - dwarfsck:    Check DwarFS filesystem integrity
+  - dwarfsextract: Extract DwarFS filesystem images
+
+Libraries:
+  - lib/: Static and shared libraries (if built)
+
+Headers:
+  - include/: Header files for library development
+
+Documentation:
+  https://github.com/tamatebako/dwarfs
+
+For installation instructions, see the README.md in the repository.
+EOF
+
+          # Create tarball
+          tar czf ${{ inputs.artifact-name }}.tar.gz -C "$PKG_DIR" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.artifact-name }}.tar.gz
+          retention-days: 7
+
+  package:
+    name: Package Metadata
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-path: ${{ steps.output.outputs.path }}
+      artifact-name: ${{ steps.output.outputs.name }}
+    steps:
+      - id: output
+        run: |
+          echo "path=${{ inputs.artifact-name }}.tar.gz" >> $GITHUB_OUTPUT
+          echo "name=${{ inputs.artifact-name }}" >> $GITHUB_OUTPUT

@@ -1,0 +1,61 @@
+# PR Validation Workflow
+#
+# Fast feedback for pull requests.
+# Tests a subset of platforms and configurations to provide quick validation.
+# Target runtime: ~15 minutes
+#
+# Matrix: 4 jobs
+# - Ubuntu x64 (fastest, most common)
+# - macOS ARM64 (Apple Silicon, most common Mac)
+# - Both configs (flatbuffers-only, both-formats)
+
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main, feature/*]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: ${{ matrix.runner }} (${{ matrix.triplet }}) - ${{ matrix.config }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: true  # Fail fast on PRs to save resources
+      matrix:
+        include:
+          # Linux x64 - fastest platform, most common
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+            triplet: x64-linux
+            config: flatbuffers-only
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+            triplet: x64-linux
+            config: both-formats
+
+          # macOS ARM64 - most common Mac
+          - runner: macos-14
+            os: macos
+            arch: arm64
+            triplet: arm64-osx
+            config: flatbuffers-only
+          - runner: macos-14
+            os: macos
+            arch: arm64
+            triplet: arm64-osx
+            config: both-formats
+
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ${{ matrix.runner }}
+      triplet: ${{ matrix.triplet }}
+      config: ${{ matrix.config }}
+      build-type: Release
+      cache-key: pr-validation-${{ matrix.runner }}

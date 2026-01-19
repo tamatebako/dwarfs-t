@@ -1,0 +1,198 @@
+# Release Workflow
+#
+# Creates and publishes release artifacts for all platforms.
+# Triggered by git tags (v*) or manual dispatch.
+#
+# Process:
+# 1. Build release binaries for all 5 platforms
+# 2. Package binaries, libraries, and headers
+# 3. Upload artifacts for download
+# 4. Create GitHub release with artifacts
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v0.17.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  # Build release binaries for all platforms
+  build-release:
+    name: Build ${{ matrix.artifact-name }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x64
+          - runner: ubuntu-latest
+            triplet: x64-linux
+            artifact-name: dwarfs-linux-x64
+
+          # Linux ARM64
+          - runner: ubuntu-24.04-arm64
+            triplet: arm64-linux
+            artifact-name: dwarfs-linux-arm64
+
+          # macOS x64 (Intel)
+          - runner: macos-13
+            triplet: x64-osx
+            artifact-name: dwarfs-macos-x64
+
+          # macOS ARM64 (Apple Silicon)
+          - runner: macos-14
+            triplet: arm64-osx
+            artifact-name: dwarfs-macos-arm64
+
+          # Windows x64
+          - runner: windows-latest
+            triplet: x64-windows-static
+            artifact-name: dwarfs-windows-x64
+
+    uses: ./.github/workflows/_build-release-reusable.yml
+    with:
+      runner: ${{ matrix.runner }}
+      triplet: ${{ matrix.triplet }}
+      artifact-name: ${{ matrix.artifact-name }}
+      config: flatbuffers-only  # Production uses flatbuffers-only
+
+  # Create GitHub release with artifacts
+  publish-release:
+    name: Create GitHub Release
+    needs: build-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Display artifacts
+        run: |
+          echo "=== Downloaded Artifacts ==="
+          ls -R release-artifacts/
+          echo ""
+
+          echo "=== Artifact Sizes ==="
+          du -sh release-artifacts/*/*
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          # Get version from tag or input
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Generate release notes
+          cat > release-notes.md <<EOF
+          # DwarFS $VERSION
+
+          ## Release Artifacts
+
+          This release includes pre-built binaries for multiple platforms:
+
+          | Platform | Artifact | Description |
+          |----------|----------|-------------|
+          | Linux x64 | \`dwarfs-linux-x64.tar.gz\` | Pre-built binaries for x86_64 Linux |
+          | Linux ARM64 | \`dwarfs-linux-arm64.tar.gz\` | Pre-built binaries for ARM64 Linux |
+          | macOS x64 | \`dwarfs-macos-x64.tar.gz\` | Pre-built binaries for Intel Mac |
+          | macOS ARM64 | \`dwarfs-macos-arm64.tar.gz\` | Pre-built binaries for Apple Silicon |
+          | Windows x64 | \`dwarfs-windows-x64.tar.gz\` | Pre-built binaries for x64 Windows |
+
+          ## What's Included
+
+          Each artifact contains:
+          - \`mkdwarfs\` - Create DwarFS filesystem images
+          - \`dwarfs\` - Mount DwarFS filesystem images (FUSE driver)
+          - \`dwarfsck\` - Check DwarFS filesystem integrity
+          - \`dwarfsextract\` - Extract DwarFS filesystem images
+          - Libraries (static and shared, if built)
+          - Header files (for development)
+
+          ## Installation
+
+          ### Linux
+          \`\`\`bash
+          tar xzf dwarfs-linux-x64.tar.gz
+          sudo cp dwarfs-linux-x64/* /usr/local/bin/
+          \`\`\`
+
+          ### macOS
+          \`\`\`bash
+          tar xzf dwarfs-macos-arm64.tar.gz  # or dwarfs-macos-x64.tar.gz for Intel
+          sudo cp dwarfs-macos-arm64/* /usr/local/bin/
+          \`\`\`
+
+          ### Windows
+          \`\`\`powershell
+          tar xzf dwarfs-windows-x64.tar.gz
+          # Add to PATH or copy to desired location
+          \`\`\`
+
+          ## Verification
+
+          After installation, verify:
+          \`\`\`bash
+          mkdwarfs --version
+          dwarfs --version
+          \`\`\`
+
+          ## Documentation
+
+          - [README](https://github.com/tamatebako/dwarfs/blob/main/README.md)
+          - [Architecture](https://github.com/tamatebako/dwarfs/blob/main/ARCHITECTURE.md)
+          - [Metadata Formats](https://github.com/tamatebako/dwarfs/blob/main/doc/DWARFS_METADATA_FORMAT_PERFORMANCE.md)
+
+          ## Build Information
+
+          - **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Commit**: ${{ github.sha }}
+          - **Configuration**: FlatBuffers-only (recommended for production)
+          - **Dependencies**: vcpkg with Tebako jemalloc 5.5.0
+
+          ---
+
+          **Full Changelog**: See [CHANGES.md](https://github.com/tamatebako/dwarfs/blob/main/CHANGES.md)
+          EOF
+
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release-notes.outputs.version }}
+          name: DwarFS ${{ steps.release-notes.outputs.version }}
+          body_path: release-notes.md
+          files: release-artifacts/**/*.tar.gz
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release summary
+        run: |
+          echo "=== Release Created Successfully ==="
+          echo "Version: ${{ steps.release-notes.outputs.version }}"
+          echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.release-notes.outputs.version }}"

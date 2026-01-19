@@ -1,0 +1,262 @@
+# Reusable Benchmark Workflow
+#
+# This workflow runs comprehensive benchmarks across configurations.
+# It downloads the Perl source dataset and runs the full benchmark suite.
+#
+# Usage:
+#   jobs:
+#     benchmark:
+#       uses: ./.github/workflows/_benchmark-reusable.yml
+#       with:
+#         runner: ubuntu-latest
+#         triplet: x64-linux
+
+name: Reusable Benchmark
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'GitHub Actions runner to use'
+        required: false
+        type: string
+        default: ubuntu-latest
+      triplet:
+        description: 'vcpkg triplet to use'
+        required: false
+        type: string
+        default: x64-linux
+      dataset-url:
+        description: 'URL to benchmark dataset (Perl source)'
+        required: false
+        type: string
+        default: https://www.cpan.org/src/5.0/perl-5.43.3.tar.gz
+      iterations:
+        description: 'Number of benchmark iterations'
+        required: false
+        type: number
+        default: 3
+      skip-build:
+        description: 'Skip build if artifacts already exist'
+        required: false
+        type: boolean
+        default: false
+      cache-key:
+        description: 'Cache key prefix for vcpkg'
+        required: false
+        type: string
+        default: benchmark
+
+jobs:
+  benchmark:
+    name: Benchmark - ${{ inputs.triplet }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 180  # 3 hours
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup vcpkg
+        uses: ./.github/actions/setup-vcpkg
+        with:
+          triplet: ${{ inputs.triplet }}
+          cache-key: ${{ inputs.cache-key }}
+
+      - name: Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
+        with:
+          platform: ${{ inputs.runner }}
+
+      # Build FlatBuffers-only configuration
+      - name: Configure - FlatBuffers Only
+        if: inputs.skip-build == false
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-fb-bench
+          build-type: Release
+          with-tests: false
+          with-libdwarfs: true
+          with-tools: true
+          with-benchmarks: true
+          with-fuse-driver: false
+          with-thrift: false
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }}
+
+      # Build both-formats configuration
+      - name: Configure - Both Formats
+        if: inputs.skip-build == false
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-both-bench
+          build-type: Release
+          with-tests: false
+          with-libdwarfs: true
+          with-tools: true
+          with-benchmarks: true
+          with-fuse-driver: false
+          with-thrift: true
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }}
+
+      - name: Build benchmark binaries
+        if: inputs.skip-build == false
+        shell: bash
+        run: |
+          set -x
+          echo "Building FlatBuffers-only configuration..."
+          cmake --build build-fb-bench --parallel
+
+          echo "Building both-formats configuration..."
+          cmake --build build-both-bench --parallel
+
+      - name: Cache benchmark dataset directory
+        id: cache-dataset
+        uses: actions/cache@v4
+        with:
+          path: benchmark-files
+          key: perl-dataset-${{ hashFiles('**/perl-5.43.3/**') }}
+          restore-keys: |
+            perl-dataset-
+
+      - name: Download benchmark dataset
+        if: steps.cache-dataset.outputs.cache-hit != 'true'
+        run: |
+          set -x
+          mkdir -p benchmark-files
+          echo "Downloading Perl source dataset for benchmarks..."
+          curl -L "${{ inputs.dataset-url }}" | tar -xz -C benchmark-files
+
+          # Verify dataset was downloaded
+          if [[ ! -d "benchmark-files/perl-5.43.3" ]]; then
+            echo "ERROR: Dataset download failed"
+            exit 1
+          fi
+
+          echo "Dataset size:"
+          du -sh benchmark-files/perl-5.43.3
+
+      - name: Create test images directory
+        run: mkdir -p test-images
+
+      - name: Create FlatBuffers test image
+        run: |
+          set -x
+          build-fb-bench/tools/mkdwarfs/mkdwarfs \
+            -i benchmark-files/perl-5.43.3 \
+            -o test-images/perl-5.43.3.dff \
+            --compression zstd:level=3 \
+            --metadata-format flatbuffers \
+            --log-level error
+
+      - name: Create Thrift test image
+        run: |
+          set -x
+          build-both-bench/tools/mkdwarfs/mkdwarfs \
+            -i benchmark-files/perl-5.43.3 \
+            -o test-images/perl-5.43.3.dft \
+            --compression zstd:level=3 \
+            --metadata-format thrift \
+            --log-level error
+
+      - name: Display image information
+        run: |
+          echo "=== Created Test Images ==="
+          ls -lh test-images/
+          echo ""
+
+          # Show image metadata
+          echo "=== FlatBuffers Image ==="
+          build-fb-bench/tools/dwarfs/dwarfsck -i test-images/perl-5.43.3.dff || true
+
+          echo ""
+          echo "=== Thrift Image ==="
+          build-both-bench/tools/dwarfs/dwarfsck -i test-images/perl-5.43.3.dft || true
+
+      - name: Run benchmark suite
+        shell: bash
+        run: |
+          set -x
+          mkdir -p results
+
+          # Set environment variables for the benchmark script
+          export ITERATIONS=${{ inputs.iterations }}
+          export BUILD_FB="$PWD/build-fb-bench"
+          export BUILD_BOTH="$PWD/build-both-bench"
+          export PERL_SOURCE="$PWD/benchmark-files/perl-5.43.3/perl-5.43.3"
+          export IMAGES_DIR="$PWD/test-images"
+          export RESULTS_DIR="$PWD/results"
+
+          # Run the benchmark script
+          if [[ -x "./benchmarks/run_comprehensive_benchmark.sh" ]]; then
+            ./benchmarks/run_comprehensive_benchmark.sh
+          else
+            echo "Benchmark script not found or not executable"
+            echo "Running manual benchmark tests..."
+
+            # Quick benchmark: FlatBuffers image read test
+            echo "Testing FlatBuffers image read..."
+            time build-fb-bench/tools/dwarfs/dwarfsck -i test-images/perl-5.43.3.dff -l | head -20
+
+            # Quick benchmark: Thrift image read test
+            echo "Testing Thrift image read..."
+            time build-both-bench/tools/dwarfs/dwarfsck -i test-images/perl-5.43.3.dft -l | head -20
+          fi
+
+      - name: Generate benchmark summary
+        if: always()
+        run: |
+          echo "=== Benchmark Summary ==="
+          echo "Date: $(date)"
+          echo "Runner: ${{ inputs.runner }}"
+          echo "Triplet: ${{ inputs.triplet }}"
+          echo "Iterations: ${{ inputs.iterations }}"
+          echo ""
+
+          if [[ -d "results" ]]; then
+            echo "Results directory:"
+            ls -la results/
+            echo ""
+
+            # Try to find and display any reports
+            if [[ -f "results/COMPREHENSIVE_REPORT.md" ]]; then
+              echo "=== Comprehensive Report ==="
+              cat results/COMPREHENSIVE_REPORT.md
+            fi
+
+            # Display any JSON results
+            if ls results/*.json 2>/dev/null; then
+              echo "=== JSON Results ==="
+              for json in results/*.json; do
+                echo "--- $json ---"
+                cat "$json" | head -50
+                echo ""
+              done
+            fi
+          fi
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ inputs.triplet }}-${{ github.run_id }}
+          path: |
+            results/
+            test-images/
+          if-no-files-found: warn
+
+      - name: Benchmark summary
+        if: always()
+        run: |
+          echo "=== Benchmark Complete ==="
+          echo "Results uploaded as artifact: benchmark-results-${{ inputs.triplet }}-${{ github.run_id }}"
+          echo ""
+          echo "Key metrics:"
+          echo "  - Perl dataset: ~96 MB source code"
+          echo "  - Images created: FlatBuffers (.dff) + Thrift (.dft)"
+          echo "  - Configurations tested: FlatBuffers-only, both-formats"
