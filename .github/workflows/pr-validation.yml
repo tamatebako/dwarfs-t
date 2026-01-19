@@ -20,42 +20,42 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    name: ${{ matrix.runner }} (${{ matrix.triplet }}) - ${{ matrix.config }}
-    runs-on: ${{ matrix.runner }}
-
-    strategy:
-      fail-fast: true  # Fail fast on PRs to save resources
-      matrix:
-        include:
-          # Linux x64 - fastest platform, most common
-          - runner: ubuntu-latest
-            os: linux
-            arch: x64
-            triplet: x64-linux
-            config: flatbuffers-only
-          - runner: ubuntu-latest
-            os: linux
-            arch: x64
-            triplet: x64-linux
-            config: both-formats
-
-          # macOS ARM64 - most common Mac
-          - runner: macos-14
-            os: macos
-            arch: arm64
-            triplet: arm64-osx
-            config: flatbuffers-only
-          - runner: macos-14
-            os: macos
-            arch: arm64
-            triplet: arm64-osx
-            config: both-formats
-
+  # Linux x64 - flatbuffers-only
+  validate-ubuntu-flatbuffers:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
-      runner: ${{ matrix.runner }}
-      triplet: ${{ matrix.triplet }}
-      config: ${{ matrix.config }}
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: flatbuffers-only
       build-type: Release
-      cache-key: pr-validation-${{ matrix.runner }}
+      cache-key: pr-validation-ubuntu-latest-x64-linux
+
+  # Linux x64 - both-formats
+  validate-ubuntu-both:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: both-formats
+      build-type: Release
+      cache-key: pr-validation-ubuntu-latest-x64-linux
+
+  # macOS ARM64 - flatbuffers-only
+  validate-macos-arm64-flatbuffers:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-14
+      triplet: arm64-osx
+      config: flatbuffers-only
+      build-type: Release
+      cache-key: pr-validation-macos-14-arm64-osx
+
+  # macOS ARM64 - both-formats
+  validate-macos-arm64-both:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-14
+      triplet: arm64-osx
+      config: both-formats
+      build-type: Release
+      cache-key: pr-validation-macos-14-arm64-osx
