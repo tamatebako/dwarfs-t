@@ -15,7 +15,7 @@ name: CI Main
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/multi-format-serialization-fuse]
     paths-ignore:
       - '.benchmark/**'
       - '.clang-format'
