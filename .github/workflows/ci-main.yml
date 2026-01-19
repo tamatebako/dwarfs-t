@@ -93,21 +93,21 @@ jobs:
   test-macos-x64-flatbuffers:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
-      runner: macos-13
+      runner: macos-15
       triplet: x64-osx
       config: flatbuffers-only
       build-type: Release
-      cache-key: ci-main-macos-13-x64-osx
+      cache-key: ci-main-macos-15-x64-osx
 
   # macOS x64 (Intel) - both-formats
   test-macos-x64-both:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
-      runner: macos-13
+      runner: macos-15
       triplet: x64-osx
       config: both-formats
       build-type: Release
-      cache-key: ci-main-macos-13-x64-osx
+      cache-key: ci-main-macos-15-x64-osx
 
   # macOS ARM64 (Apple Silicon) - flatbuffers-only
   test-macos-arm64-flatbuffers:
@@ -164,10 +164,10 @@ jobs:
     needs: [test-macos-x64-flatbuffers, test-macos-x64-both]
     uses: ./.github/workflows/_compat-test-reusable.yml
     with:
-      runner: macos-13
+      runner: macos-15
       triplet: x64-osx
       config: both-formats
-      cache-key: ci-compat-macos-13
+      cache-key: ci-compat-macos-15
 
   # Summary job
   summary:

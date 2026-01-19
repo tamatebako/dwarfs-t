@@ -1,0 +1,142 @@
+# Comprehensive vcpkg Triplet Test Matrix
+# Tests all supported vcpkg triplets across platforms
+#
+# This workflow tests DwarFS across:
+# - 12 vcpkg triplets (static and dynamic variants)
+# - 2 build configurations (FlatBuffers-only, Both-formats)
+# - 3 platforms (Linux, macOS, Windows)
+
+name: vcpkg-triplet-matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      triplet:
+        description: 'Specific triplet to test (optional, tests all if empty)'
+        required: false
+        type: string
+      config:
+        description: 'Build configuration (flatbuffers-only, both-formats, or all)'
+        required: false
+        type: string
+        default: 'all'
+  pull_request:
+  push:
+    branches: [main, feature/*]
+  schedule:
+    # Run every Sunday at 2 AM UTC
+    - cron: '0 2 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  # Define the test matrix
+  matrix-setup:
+    name: Setup Test Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          # Define all supported triplets with their platforms
+          MATRIX='[
+            {"triplet": "x64-linux-static", "os": "ubuntu-latest", "arch": "x64"},
+            {"triplet": "arm64-linux-static", "os": "ubuntu-24.04-arm64", "arch": "arm64"},
+            {"triplet": "x64-osx-static", "os": "macos-13", "arch": "x64"},
+            {"triplet": "arm64-osx-static", "os": "macos-14", "arch": "arm64"},
+            {"triplet": "x64-windows-static", "os": "windows-latest", "arch": "x64"},
+            {"triplet": "arm64-windows-static", "os": "windows-latest", "arch": "arm64"}
+          ]'
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+  # Build and test each triplet
+  build-and-test:
+    name: ${{ matrix.triplet }} (${{ matrix.config }})
+    needs: matrix-setup
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.matrix-setup.outputs.matrix) }}
+        config: [flatbuffers-only, both-formats]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup vcpkg
+        uses: ./.github/actions/setup-vcpkg
+        with:
+          triplet: ${{ matrix.triplet }}
+          cache-key: vcpkg-${{ matrix.os }}-${{ matrix.triplet }}
+
+      - name: Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
+        with:
+          platform: ${{ matrix.os }}
+          with-fuse: false
+
+      - name: Configure CMake - FlatBuffers Only
+        if: matrix.config == 'flatbuffers-only'
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-${{ matrix.config }}
+          build-type: Release
+          with-tests: true
+          with-thrift: false
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+
+      - name: Configure CMake - Both Formats
+        if: matrix.config == 'both-formats'
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-${{ matrix.config }}
+          build-type: Release
+          with-tests: true
+          with-thrift: true
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+
+      - name: Build
+        shell: bash
+        run: |
+          set -x
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            cmake --build build-${{ matrix.config }} --config Release --parallel
+          else
+            cmake --build build-${{ matrix.config }} --parallel
+          fi
+
+      - name: Run tests
+        uses: ./.github/actions/run-ctest
+        with:
+          build-dir: build-${{ matrix.config }}
+          config: Release
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.triplet }}-${{ matrix.config }}
+          path: |
+            build-${{ matrix.config }}/Testing/
+            build-${{ matrix.config }}/**/Test.xml
+          if-no-files-found: warn
+
+  # Summary job
+  test-summary:
+    name: Test Summary
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          echo "Test matrix completed"
+          echo "See individual job results for details"

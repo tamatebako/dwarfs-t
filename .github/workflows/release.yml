@@ -46,7 +46,7 @@ jobs:
             artifact-name: dwarfs-linux-arm64
 
           # macOS x64 (Intel)
-          - runner: macos-13
+          - runner: macos-15
             triplet: x64-osx
             artifact-name: dwarfs-macos-x64
 

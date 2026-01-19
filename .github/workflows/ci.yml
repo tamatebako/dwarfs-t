@@ -1,0 +1,251 @@
+# Streamlined CI Workflow for DwarFS
+# Tests all configurations across platforms using vcpkg
+#
+# This is the main CI workflow that should replace the old build.yml
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, feature/*]
+    paths-ignore:
+      - '.benchmark/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.gitignore'
+      - '.maintainer-scripts/**'
+      - 'CHANGES.md'
+      - 'CITATION.cff'
+      - 'README.md'
+      - 'TODO'
+      - 'doc/**'
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'Configuration to test'
+        required: false
+        type: string
+        default: 'all'
+      triplet:
+        description: 'Specific vcpkg triplet to test'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # Main test matrix using vcpkg
+  test-matrix:
+    name: ${{ matrix.os }} (${{ matrix.triplet }}) - ${{ matrix.config }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x64
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+            triplet: x64-linux
+            config: flatbuffers-only
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+            triplet: x64-linux
+            config: both-formats
+
+          # Linux ARM64
+          - runner: ubuntu-24.04-arm64
+            os: linux
+            arch: arm64
+            triplet: arm64-linux
+            config: flatbuffers-only
+          - runner: ubuntu-24.04-arm64
+            os: linux
+            arch: arm64
+            triplet: arm64-linux
+            config: both-formats
+
+          # macOS x64
+          - runner: macos-13
+            os: macos
+            arch: x64
+            triplet: x64-osx
+            config: flatbuffers-only
+          - runner: macos-13
+            os: macos
+            arch: x64
+            triplet: x64-osx
+            config: both-formats
+
+          # macOS ARM64
+          - runner: macos-14
+            os: macos
+            arch: arm64
+            triplet: arm64-osx
+            config: flatbuffers-only
+          - runner: macos-14
+            os: macos
+            arch: arm64
+            triplet: arm64-osx
+            config: both-formats
+
+          # Windows x64
+          - runner: windows-latest
+            os: windows
+            arch: x64
+            triplet: x64-windows-static
+            config: flatbuffers-only
+          - runner: windows-latest
+            os: windows
+            arch: x64
+            triplet: x64-windows-static
+            config: both-formats
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup vcpkg
+        uses: ./.github/actions/setup-vcpkg
+        with:
+          triplet: ${{ matrix.triplet }}
+          cache-key: vcpkg-${{ matrix.runner }}-${{ matrix.triplet }}
+
+      - name: Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
+        with:
+          platform: ${{ matrix.runner }}
+          with-fuse: false
+
+      - name: Configure - FlatBuffers Only
+        if: matrix.config == 'flatbuffers-only'
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-${{ matrix.config }}
+          build-type: Release
+          with-tests: true
+          with-thrift: false
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}
+
+      - name: Configure - Both Formats
+        if: matrix.config == 'both-formats'
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-${{ matrix.config }}
+          build-type: Release
+          with-tests: true
+          with-thrift: true
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}
+
+      - name: Build
+        shell: bash
+        run: |
+          set -x
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            cmake --build build-${{ matrix.config }} --config Release --parallel
+          else
+            cmake --build build-${{ matrix.config }} --parallel
+          fi
+
+      - name: Run tests
+        uses: ./.github/actions/run-ctest
+        with:
+          build-dir: build-${{ matrix.config }}
+          config: Release
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.config }}
+          path: |
+            build-${{ matrix.config }}/Testing/
+            build-${{ matrix.config }}/**/Test.xml
+          if-no-files-found: warn
+
+  # Compatibility tests (macOS only, requires Homebrew)
+  compat-tests:
+    name: Compatibility Tests - macOS
+    runs-on: macos-14
+    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[compat-test]')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Homebrew dwarfs
+        uses: ./.github/actions/setup-homebrew-dwarfs
+
+      - name: Setup vcpkg
+        uses: ./.github/actions/setup-vcpkg
+        with:
+          triplet: arm64-osx
+
+      - name: Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
+        with:
+          platform: macos-14
+          with-fuse: false
+
+      - name: Configure with compat tests
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-dir: build-compat
+          build-type: Release
+          with-tests: true
+          with-libdwarfs: true
+          with-tools: false
+          with-fuse-driver: false
+          with-thrift: true
+          with-flatbuffers: true
+          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          cmake-args: -DVCPKG_TARGET_TRIPLET=arm64-osx -DWITH_COMPAT_TESTS=ON
+
+      - name: Build compat tests
+        shell: bash
+        run: cmake --build build-compat --target dwarfs-compat-lib -j$(sysctl -n hw.ncpu)
+
+      - name: Run compat tests
+        working-directory: test/compat
+        shell: bash
+        run: |
+          if [[ -f "./scripts/run_tests.sh" ]]; then
+            ./scripts/run_tests.sh --all --format json
+          else
+            echo "Running compat test binary..."
+            ../build-compat/test/compat/read_homebrew_files_test
+          fi
+
+      - name: Upload compat test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compat-results-macos-arm64
+          path: |
+            test/compat/results-*.json
+            build-compat/Testing/
+          if-no-files-found: warn
+
+  # Summary job
+  summary:
+    name: Test Summary
+    needs: test-matrix
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          echo "Test matrix completed"
+          echo "See individual job results for details"

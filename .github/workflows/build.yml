@@ -1,4 +1,25 @@
-name: 'build'
+# ⚠️ DEPRECATED - This workflow is no longer maintained
+#
+# This workflow has been superseded by the new unified CI/CD architecture.
+#
+# REPLACEMENT WORKFLOWS:
+# - For PR validation:    Use `pr-validation.yml` (fast, ~15 min)
+# - For main branch CI:   Use `ci-main.yml` (comprehensive, ~45 min)
+# - For releases:        Use `release.yml` (tag-based)
+# - For scheduled tests:  Use `scheduled.yml` (weekly comprehensive)
+# - For manual testing:   Use `manual.yml` (on-demand)
+#
+# See `.github/CI_CD_ARCHITECTURE_PROPOSAL.md` for the complete architecture.
+#
+# TO REMOVE THIS FILE:
+# 1. Verify the new workflows are working correctly
+# 2. Delete this file (build.yml)
+# 3. Update any references to use the new workflows
+#
+# Migration Date: 2025-01-19
+# Deprecation Date: 2025-01-19
+
+name: 'build (DEPRECATED)'
 
 on:
   workflow_dispatch:
@@ -33,6 +54,24 @@ permissions:
   contents: read
 
 jobs:
+  # ============================================================================
+  # DEPRECATION NOTICE
+  # ============================================================================
+  #
+  # This workflow is deprecated and will be removed in a future update.
+  #
+  # Please use the new unified CI/CD workflows instead:
+  #
+  #   pr-validation.yml  - Fast PR feedback (4 jobs, ~15 min)
+  #   ci-main.yml       - Comprehensive CI (10 jobs, ~45 min)
+  #   release.yml       - Release artifacts (5 jobs, ~30 min)
+  #   scheduled.yml     - Weekly comprehensive (24+ jobs, 2-3 hours)
+  #   manual.yml        - On-demand testing (flexible)
+  #
+  # See .github/IMPLEMENTATION_STATUS.md for migration guide.
+  #
+  # ============================================================================
+
   # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
   # windows:
   #   uses: ./.github/workflows/windows-builds.yml
@@ -102,288 +141,15 @@ jobs:
       with_flatbuffers: true
       should_pass: true
 
-  # DISABLED TEMPORARILY - Enable after Priority 1+2 pass
-  # metadata-linux-x86_64-thrift-only:
-  #   name: Metadata - ubuntu (x86_64) - thrift-only
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: ubuntu
-  #     arch: x86_64
-  #     runner: ubuntu-latest
-  #     format: thrift-only
-  #     with_thrift: true
-  #     with_flatbuffers: false
-  #     should_pass: false
-
-  # metadata-linux-aarch64-both-formats:
-  #   name: Metadata - ubuntu (aarch64) - both-formats
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: ubuntu
-  #     arch: aarch64
-  #     runner: ubuntu-24.04-arm64
-  #     format: both-formats
-  #     with_thrift: true
-  #     with_flatbuffers: true
-  #     should_pass: true
-
-  # metadata-linux-aarch64-flatbuffers-only:
-  #   name: Metadata - ubuntu (aarch64) - flatbuffers-only
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: ubuntu
-  #     arch: aarch64
-  #     runner: ubuntu-24.04-arm64
-  #     format: flatbuffers-only
-  #     with_thrift: false
-  #     with_flatbuffers: true
-  #     should_pass: true
-
-  # metadata-linux-aarch64-thrift-only:
-  #   name: Metadata - ubuntu (aarch64) - thrift-only
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: ubuntu
-  #     arch: aarch64
-  #     runner: ubuntu-24.04-arm64
-  #     format: thrift-only
-  #     with_thrift: true
-  #     with_flatbuffers: false
-  #     should_pass: true
-
-  # metadata-macos-x86_64-flatbuffers-only:
-  #   name: Metadata - macos (x86_64) - flatbuffers-only
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: macos
-  #     arch: x86_64
-  #     runner: macos-13
-  #     format: flatbuffers-only
-  #     with_thrift: false
-  #     with_flatbuffers: true
-  #     should_pass: true
-
-  # metadata-macos-x86_64-thrift-only:
-  #   name: Metadata - macos (x86_64) - thrift-only
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: macos
-  #     arch: x86_64
-  #     runner: macos-13
-  #     format: thrift-only
-  #     with_thrift: true
-  #     with_flatbuffers: false
-  #     should_pass: true
-
-  # metadata-macos-x86_64-both-formats:
-  #   name: Metadata - macos (x86_64) - both-formats
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: macos
-  #     arch: x86_64
-  #     runner: macos-13
-  #     format: both-formats
-  #     with_thrift: true
-  #     with_flatbuffers: true
-  #     should_pass: true
-
-  # metadata-macos-aarch64-both-formats:
-  #   name: Metadata - macos (aarch64) - both-formats
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: macos
-  #     arch: aarch64
-  #     runner: macos-14
-  #     format: both-formats
-  #     with_thrift: true
-  #     with_flatbuffers: true
-  #     should_pass: true
-
-  # metadata-macos-aarch64-thrift-only:
-  #   name: Metadata - macos (aarch64) - thrift-only
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: macos
-  #     arch: aarch64
-  #     runner: macos-14
-  #     format: thrift-only
-  #     with_thrift: true
-  #     with_flatbuffers: false
-  #     should_pass: true
-
-  # metadata-macos-aarch64-flatbuffers-only:
-  #   name: Metadata - macos (aarch64) - flatbuffers-only
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: macos
-  #     arch: aarch64
-  #     runner: macos-14
-  #     format: flatbuffers-only
-  #     with_thrift: false
-  #     with_flatbuffers: true
-  #     should_pass: true
-
-  # metadata-windows-x64-both-formats:
-  #   name: Metadata - windows (x64) - both-formats
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: windows
-  #     arch: x64
-  #     runner: windows-latest
-  #     format: both-formats
-  #     with_thrift: true
-  #     with_flatbuffers: true
-  #     should_pass: true
-
-  # metadata-windows-x64-thrift-only:
-  #   name: Metadata - windows (x64) - thrift-only
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: windows
-  #     arch: x64
-  #     runner: windows-latest
-  #     format: thrift-only
-  #     with_thrift: true
-  #     with_flatbuffers: false
-  #     should_pass: true
-
-  # metadata-windows-x64-flatbuffers-only:
-  #   name: Metadata - windows (x64) - flatbuffers-only
-  #   uses: ./.github/workflows/metadata-format-test.yml
-  #   with:
-  #     os: windows
-  #     arch: x64
-  #     runner: windows-latest
-  #     format: flatbuffers-only
-  #     with_thrift: false
-  #     with_flatbuffers: true
-  #     should_pass: true
-
-################################################################################
-
-  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
-  # allocator-testing:
-  #   name: Allocator - ${{ matrix.platform }} - ${{ matrix.allocator }}
-  #   needs: package-source
-  #
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #         #####################################################################
-  #         #                    Linux x86_64 Allocator Tests                   #
-  #         #####################################################################
-  #
-  #         - platform: linux-amd64
-  #           build_arch: amd64
-  #           build_dist: ubuntu
-  #           build_type: gcc-release-jemalloc-ninja-split
-  #           allocator: jemalloc
-  #
-  #         - platform: linux-amd64
-  #           build_arch: amd64
-  #           build_dist: ubuntu
-  #           build_type: gcc-release-mimalloc-ninja-split
-  #           allocator: mimalloc
-  #
-  #         #####################################################################
-  #         #                    Linux ARM64 Allocator Tests                    #
-  #         #####################################################################
-  #
-  #         - platform: linux-arm64
-  #           build_arch: arm64v8
-  #           build_dist: ubuntu
-  #           build_type: gcc-release-jemalloc-ninja-split
-  #           allocator: jemalloc
-  #
-  #         - platform: linux-arm64
-  #           build_arch: arm64v8
-  #           build_dist: ubuntu
-  #           build_type: gcc-release-mimalloc-ninja-split
-  #           allocator: mimalloc
-  #
-  #         #####################################################################
-  #         #                    Alpine Static Allocator Tests                  #
-  #         #####################################################################
-  #
-  #         - platform: alpine-amd64
-  #           build_arch: amd64
-  #           build_dist: alpine
-  #           build_type: gcc-release-jemalloc-ninja-static
-  #           allocator: jemalloc
-  #
-  #         - platform: alpine-amd64
-  #           build_arch: amd64
-  #           build_dist: alpine
-  #           build_type: gcc-release-mimalloc-ninja-static
-  #           allocator: mimalloc
-  #
-  #   uses: ./.github/workflows/docker-run-build.yml
-  #   with:
-  #     build_type: ${{ matrix.build_type }}
-  #     build_arch: ${{ matrix.build_arch }}
-  #     build_dist: ${{ matrix.build_dist }}
-  #     build_from_tarball: true
-  #     upload_artifacts: false
-
-################################################################################
-
-  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
-  # benchmark-smoke:
-  #   name: Benchmark Smoke Test - ${{ matrix.platform }}
-  #   needs: [linux, windows, macos]
-  #   runs-on: ${{ matrix.runner }}
-  #
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #         - platform: linux-amd64
-  #           runner: ubuntu-latest
-  #           artifact: dwarfs-linux-amd64-static
-  #           ext: ''
-  #
-  #         - platform: macos-arm64
-  #           runner: macos-14
-  #           artifact: dwarfs-macos-arm64
-  #           ext: ''
-  #
-  #         - platform: windows-x64
-  #           runner: windows-latest
-  #           artifact: dwarfs-windows-x64-all-formats
-  #           ext: '.exe'
-  #
-  #   steps:
-  #     - name: Download Artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: ${{ matrix.artifact }}
-  #         path: binaries
-  #
-  #     - name: Make Executable (Unix)
-  #       if: runner.os != 'Windows'
-  #       run: chmod +x binaries/dwarfs_benchmark
-  #
-  #     - name: Run Creation Benchmark
-  #       continue-on-error: true
-  #       shell: bash
-  #       run: |
-  #         ./binaries/dwarfs_benchmark${{ matrix.ext }} \
-  #           --benchmark_min_time=0.1s \
-  #           --benchmark_filter=.*Creation.*
-  #
-  #     - name: Run Decompression Benchmark
-  #       continue-on-error: true
-  #       shell: bash
-  #       run: |
-  #         ./binaries/dwarfs_benchmark${{ matrix.ext }} \
-  #           --benchmark_min_time=0.1s \
-  #           --benchmark_filter=.*Decompression.*
-
-################################################################################
-# TEBAKO-SPECIFIC JOBS (only in tamatebako/dwarfs fork)
-################################################################################
-
-  # DISABLED TEMPORARILY - Focus on Ubuntu x86_64 build fixes first
-  # tebako:
-  #   uses: ./.github/workflows/tebako-builds.yml
+  # PRIORITY 3: Ensure legacy-thrift format still works
+  encoding-test-linux-x86_64-legacy-thrift:
+    name: Encoding Test - Ubuntu (x86_64) - Legacy Thrift (Frozen2)
+    uses: ./.github/workflows/encoding-format-test.yml
+    with:
+      os: ubuntu
+      arch: x86_64
+      runner: ubuntu-latest
+      format: legacy-thrift
+      with_thrift: false  # Legacy is hand-coded, no fbthrift
+      with_flatbuffers: false
+      should_pass: true

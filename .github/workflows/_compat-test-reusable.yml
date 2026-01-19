@@ -60,7 +60,7 @@ jobs:
               macos-14)
                 TRIPLET="arm64-osx"
                 ;;
-              macos-13)
+              macos-15)
                 TRIPLET="x64-osx"
                 ;;
               macos-12*)

@@ -1,5 +1,27 @@
+# ⚠️ DEPRECATED - This workflow is no longer maintained
+#
+# This reusable workflow has been superseded by `_build-test-reusable.yml` in the new unified CI/CD architecture.
+#
+# REPLACEMENT WORKFLOW:
+# - Use `_build-test-reusable.yml` for standardized vcpkg-based builds
+#
+# The new workflow provides:
+# - Consistent vcpkg usage with Tebako jemalloc 5.5.0
+# - Better artifact handling
+# - Standardized test result uploads
+# - Build status outputs
+#
+# See `.github/CI_CD_ARCHITECTURE_PROPOSAL.md` for the complete architecture.
+#
+# NOTE: This workflow uses system packages instead of vcpkg, which may be
+# useful for quick testing without vcpkg. However, for consistent builds
+# across all platforms, the new vcpkg-based workflow is recommended.
+#
+# Migration Date: 2025-01-19
+# Deprecation Date: 2025-01-19
+
 ---
-name: Build and Test
+name: Build and Test (DEPRECATED)
 
 on:
   workflow_call:
@@ -75,14 +97,14 @@ permissions:
 jobs:
   build-test:
     runs-on: ${{ inputs.runner != '' && inputs.runner || (inputs.os == 'ubuntu' && 'ubuntu-latest' || inputs.os == 'macos' && 'macos-latest' || 'windows-latest') }}
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
-      
+
       - name: Configure (Unix)
         if: inputs.os != 'windows'
         shell: bash
@@ -95,7 +117,7 @@ jobs:
             -DDWARFS_WITH_THRIFT=${{ inputs.with_thrift && 'ON' || 'OFF' }} \
             -DDWARFS_WITH_FLATBUFFERS=${{ inputs.with_flatbuffers && 'ON' || 'OFF' }} \
             ${{ inputs.cmake_extra_args }}
-      
+
       - name: Configure (Windows)
         if: inputs.os == 'windows'
         shell: pwsh
@@ -106,35 +128,35 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} `
             -DWITH_TESTS=${{ inputs.with_tests && 'ON' || 'OFF' }} `
             -DWITH_BENCHMARKS=${{ inputs.with_benchmarks && 'ON' || 'OFF' }} `
-            -DWITH_FUSE_DRIVER=${{ inputs.with_fuse && 'ON' || 'OFF' }} `
-            -DDWARFS_WITH_THRIFT=${{ inputs.with_thrift && 'ON' || 'OFF' }} `
+            -DWITH_FUSE_DRIVER=${{ inputs.with_fuse && 'ON' || 'OFF' }} \
+            -DDWARFS_WITH_THRIFT=${{ inputs.with_thrift && 'ON' || 'OFF' }} \
             -DDWARFS_WITH_FLATBUFFERS=${{ inputs.with_flatbuffers && 'ON' || 'OFF' }} `
             ${{ inputs.cmake_extra_args }}
-      
+
       - name: Build (Unix)
         if: inputs.os != 'windows'
         shell: bash
         run: |
           cmake --build build --parallel
-      
+
       - name: Build (Windows)
         if: inputs.os == 'windows'
         shell: pwsh
         run: |
           cmake --build build --config ${{ inputs.build_type }} --parallel
-      
+
       - name: Test (Unix)
         if: inputs.with_tests && inputs.os != 'windows'
         shell: bash
         run: |
           ctest --test-dir build --output-on-failure -j
-      
+
       - name: Test (Windows)
         if: inputs.with_tests && inputs.os == 'windows'
         shell: pwsh
         run: |
           ctest --test-dir build -C ${{ inputs.build_type }} --output-on-failure -j
-      
+
       - name: Upload Artifacts (Unix)
         if: inputs.upload_artifacts && inputs.os != 'windows'
         uses: actions/upload-artifact@v4
@@ -147,7 +169,7 @@ jobs:
             build/dwarfsextract
             build/dwarfs_benchmark
           if-no-files-found: warn
-      
+
       - name: Upload Artifacts (Windows)
         if: inputs.upload_artifacts && inputs.os == 'windows'
         uses: actions/upload-artifact@v4
