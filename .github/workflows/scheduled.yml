@@ -5,10 +5,6 @@
 #
 # Schedule: Weekly (Sundays at 2 AM UTC)
 # Trigger: Manual dispatch with options
-#
-# Matrix: 24+ jobs
-# - 12 triplets (static + dynamic variants)
-# - 2 configurations (flatbuffers-only, both-formats)
 
 name: Scheduled Comprehensive Tests
 
@@ -26,114 +22,116 @@ on:
         description: 'Run compatibility tests'
         type: boolean
         default: true
-      triplet-filter:
-        description: 'Specific triplet to test (empty = all)'
-        type: string
-      config-filter:
-        description: 'Specific config to test (empty = all)'
-        type: choice
-        options:
-          - ''
-          - flatbuffers-only
-          - both-formats
 
 permissions:
   contents: read
 
 jobs:
-  # Setup the test matrix dynamically
-  setup-matrix:
-    name: Setup Test Matrix
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-      configs: ${{ steps.set-matrix.outputs.configs }}
-
-    steps:
-      - name: Generate matrix
-        id: set-matrix
-        run: |
-          # Filter by triplet if specified
-          if [[ -n "${{ inputs.triplet-filter }}" ]]; then
-            # Single triplet mode
-            MATRIX='[
-              {"triplet":"${{ inputs.triplet-filter }}","os":"ubuntu-latest","arch":"x64"}
-            ]'
-          else
-            # All triplets mode (including dynamic variants)
-            MATRIX='[
-              {"triplet":"x64-linux","os":"ubuntu-latest","arch":"x64"},
-              {"triplet":"arm64-linux","os":"ubuntu-24.04-arm64","arch":"arm64"},
-              {"triplet":"x64-linux-dynamic","os":"ubuntu-latest","arch":"x64"},
-              {"triplet":"arm64-linux-dynamic","os":"ubuntu-24.04-arm64","arch":"arm64"},
-              {"triplet":"x64-osx","os":"macos-15","arch":"x64"},
-              {"triplet":"arm64-osx","os":"macos-14","arch":"arm64"},
-              {"triplet":"x64-osx-dynamic","os":"macos-15","arch":"x64"},
-              {"triplet":"arm64-osx-dynamic","os":"macos-14","arch":"arm64"},
-              {"triplet":"x64-windows-static","os":"windows-latest","arch":"x64"},
-              {"triplet":"x64-windows-dynamic","os":"windows-latest","arch":"x64"},
-              {"triplet":"arm64-windows-static","os":"windows-latest","arch":"arm64"}
-            ]'
-          fi
-
-          # Filter by config if specified
-          if [[ -n "${{ inputs.config-filter }}" ]]; then
-            CONFIGS='["${{ inputs.config-filter }}"]'
-          else
-            CONFIGS='["flatbuffers-only","both-formats"]'
-          fi
-
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
-          echo "configs=$CONFIGS" >> $GITHUB_OUTPUT
-
-          # Display matrix info
-          echo "Matrix triplet count: $(echo "$MATRIX" | jq '. | length')"
-          echo "Config count: $(echo "$CONFIGS" | jq '. | length')"
-          echo "Expected jobs: $(echo "$MATRIX" | jq '. | length') × $(echo "$CONFIGS" | jq '. | length')"
-
-  # Comprehensive build and test across all triplets
-  comprehensive-test:
-    name: ${{ matrix.triplet }} (${{ matrix.config }})
-    needs: setup-matrix
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false  # Don't cancel other jobs if one fails
-      matrix:
-        include: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
-        config: ${{ fromJson(needs.setup-matrix.outputs.configs) }}
-
+  # Core test jobs - main platforms
+  test-ubuntu-x64-flatbuffers:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
-      runner: ${{ matrix.os }}
-      triplet: ${{ matrix.triplet }}
-      config: ${{ matrix.config }}
-      build-type: Release
-      cache-key: scheduled-${{ matrix.os }}-${{ matrix.triplet }}
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: flatbuffers-only
+      cache-key: scheduled-ubuntu-x64
+
+  test-ubuntu-x64-both:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: both-formats
+      cache-key: scheduled-ubuntu-x64
+
+  test-ubuntu-arm64-flatbuffers:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-24.04-arm64
+      triplet: arm64-linux
+      config: flatbuffers-only
+      cache-key: scheduled-ubuntu-arm64
+
+  test-ubuntu-arm64-both:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-24.04-arm64
+      triplet: arm64-linux
+      config: both-formats
+      cache-key: scheduled-ubuntu-arm64
+
+  test-macos-x64-flatbuffers:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-15
+      triplet: x64-osx
+      config: flatbuffers-only
+      cache-key: scheduled-macos-x64
+
+  test-macos-x64-both:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-15
+      triplet: x64-osx
+      config: both-formats
+      cache-key: scheduled-macos-x64
+
+  test-macos-arm64-flatbuffers:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-14
+      triplet: arm64-osx
+      config: flatbuffers-only
+      cache-key: scheduled-macos-arm64
+
+  test-macos-arm64-both:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-14
+      triplet: arm64-osx
+      config: both-formats
+      cache-key: scheduled-macos-arm64
+
+  test-windows-x64-flatbuffers:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: windows-latest
+      triplet: x64-windows-static
+      config: flatbuffers-only
+      cache-key: scheduled-windows-x64
+
+  test-windows-x64-both:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: windows-latest
+      triplet: x64-windows-static
+      config: both-formats
+      cache-key: scheduled-windows-x64
 
   # Compatibility tests (optional)
-  compat-tests:
-    name: Compatibility Tests
-    needs: comprehensive-test
+  compat-macos-arm64:
+    needs: [test-macos-arm64-flatbuffers, test-macos-arm64-both]
     if: inputs.run-compat == true || github.event_name == 'schedule'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-14
-            triplet: arm64-osx
-          - runner: macos-15
-            triplet: x64-osx
-
     uses: ./.github/workflows/_compat-test-reusable.yml
     with:
-      runner: ${{ matrix.runner }}
-      triplet: ${{ matrix.triplet }}
+      runner: macos-14
+      triplet: arm64-osx
+      config: both-formats
+      cache-key: scheduled-compat-arm64
+
+  compat-macos-x64:
+    needs: [test-macos-x64-flatbuffers, test-macos-x64-both]
+    if: inputs.run-compat == true || github.event_name == 'schedule'
+    uses: ./.github/workflows/_compat-test-reusable.yml
+    with:
+      runner: macos-15
+      triplet: x64-osx
+      config: both-formats
+      cache-key: scheduled-compat-x64
 
   # Benchmarks (optional)
   benchmarks:
-    name: Benchmarks
-    needs: comprehensive-test
+    needs: [test-ubuntu-x64-flatbuffers]
     if: inputs.run-benchmarks == true
     uses: ./.github/workflows/_benchmark-reusable.yml
     with:
@@ -143,7 +141,20 @@ jobs:
   # Summary job
   summary:
     name: Test Summary
-    needs: [comprehensive-test, compat-tests, benchmarks]
+    needs:
+      - test-ubuntu-x64-flatbuffers
+      - test-ubuntu-x64-both
+      - test-ubuntu-arm64-flatbuffers
+      - test-ubuntu-arm64-both
+      - test-macos-x64-flatbuffers
+      - test-macos-x64-both
+      - test-macos-arm64-flatbuffers
+      - test-macos-arm64-both
+      - test-windows-x64-flatbuffers
+      - test-windows-x64-both
+      - compat-macos-arm64
+      - compat-macos-x64
+      - benchmarks
     if: always()
     runs-on: ubuntu-latest
 
@@ -155,9 +166,6 @@ jobs:
           echo "Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           echo "Run: ${{ github.run_number }}"
           echo ""
-          echo "Job Status:"
-          echo "  Comprehensive tests: ${{ needs.comprehensive-test.result }}"
-          echo "  Compatibility tests: ${{ needs.compat-tests.result || 'skipped' }}"
-          echo "  Benchmarks: ${{ needs.benchmarks.result || 'skipped' }}"
+          echo "Tests run on 5 platforms × 2 configs = 10+ jobs"
           echo ""
           echo "View results in the Actions tab for detailed logs."

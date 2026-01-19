@@ -26,51 +26,60 @@ permissions:
   contents: write
 
 jobs:
-  # Build release binaries for all platforms
-  build-release:
-    name: Build ${{ matrix.artifact-name }}
-    runs-on: ${{ matrix.runner }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Linux x64
-          - runner: ubuntu-latest
-            triplet: x64-linux
-            artifact-name: dwarfs-linux-x64
-
-          # Linux ARM64
-          - runner: ubuntu-24.04-arm64
-            triplet: arm64-linux
-            artifact-name: dwarfs-linux-arm64
-
-          # macOS x64 (Intel)
-          - runner: macos-15
-            triplet: x64-osx
-            artifact-name: dwarfs-macos-x64
-
-          # macOS ARM64 (Apple Silicon)
-          - runner: macos-14
-            triplet: arm64-osx
-            artifact-name: dwarfs-macos-arm64
-
-          # Windows x64
-          - runner: windows-latest
-            triplet: x64-windows-static
-            artifact-name: dwarfs-windows-x64
-
+  # Linux x64
+  build-linux-x64:
     uses: ./.github/workflows/_build-release-reusable.yml
     with:
-      runner: ${{ matrix.runner }}
-      triplet: ${{ matrix.triplet }}
-      artifact-name: ${{ matrix.artifact-name }}
-      config: flatbuffers-only  # Production uses flatbuffers-only
+      runner: ubuntu-latest
+      triplet: x64-linux
+      artifact-name: dwarfs-linux-x64
+      config: flatbuffers-only
+
+  # Linux ARM64
+  build-linux-arm64:
+    uses: ./.github/workflows/_build-release-reusable.yml
+    with:
+      runner: ubuntu-24.04-arm64
+      triplet: arm64-linux
+      artifact-name: dwarfs-linux-arm64
+      config: flatbuffers-only
+
+  # macOS x64 (Intel)
+  build-macos-x64:
+    uses: ./.github/workflows/_build-release-reusable.yml
+    with:
+      runner: macos-15
+      triplet: x64-osx
+      artifact-name: dwarfs-macos-x64
+      config: flatbuffers-only
+
+  # macOS ARM64 (Apple Silicon)
+  build-macos-arm64:
+    uses: ./.github/workflows/_build-release-reusable.yml
+    with:
+      runner: macos-14
+      triplet: arm64-osx
+      artifact-name: dwarfs-macos-arm64
+      config: flatbuffers-only
+
+  # Windows x64
+  build-windows-x64:
+    uses: ./.github/workflows/_build-release-reusable.yml
+    with:
+      runner: windows-latest
+      triplet: x64-windows-static
+      artifact-name: dwarfs-windows-x64
+      config: flatbuffers-only
 
   # Create GitHub release with artifacts
   publish-release:
     name: Create GitHub Release
-    needs: build-release
+    needs:
+      - build-linux-x64
+      - build-linux-arm64
+      - build-macos-x64
+      - build-macos-arm64
+      - build-windows-x64
     runs-on: ubuntu-latest
 
     steps:
