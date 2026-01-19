@@ -24,10 +24,15 @@ on:
       - '.maintainer-scripts/**'
       - 'CHANGES.md'
       - 'CITATION.cff'
-      - 'README.md'
       - 'TODO'
       - 'doc/**'
-      - '**.md'
+      # Note: Allow .github/**/*.md changes to trigger CI for documentation updates
+      - 'README.md'
+      - 'ARCHITECTURE.md'
+      - 'BUILD_SYSTEM_ARCHITECTURE.md'
+      - 'CLEANUP_PLAN.md'
+      - 'STATUS_REPORT.md'
+      - 'WORKFLOW_GUIDE.md'
   workflow_dispatch:
     inputs:
       config:
@@ -130,7 +135,9 @@ jobs:
   compat-tests:
     name: Compatibility Tests - ${{ matrix.runner }}
     needs: test-matrix
-    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[compat-test]')
+    if: |
+      always() &&
+      (needs.test-matrix.result == 'success' || needs.test-matrix.result == 'skipped')
 
     strategy:
       fail-fast: false
