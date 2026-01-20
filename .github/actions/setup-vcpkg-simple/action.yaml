@@ -36,4 +36,13 @@ runs:
         echo "VCPKG_ROOT=$VCPKG_ROOT" >> $GITHUB_ENV
         echo "$VCPKG_ROOT" >> $GITHUB_PATH
 
+        # Set overlay ports for custom packages (jemalloc, fbthrift, folly, etc.)
+        OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg_ports"
+        if [[ -d "$OVERLAY_PORTS" ]]; then
+          echo "VCPKG_OVERLAY_PORTS=$OVERLAY_PORTS" >> $GITHUB_ENV
+          echo "✓ Overlay ports: $OVERLAY_PORTS"
+        else
+          echo "::warning::Overlay ports not found at $OVERLAY_PORTS"
+        fi
+
         "$VCPKG_ROOT/vcpkg" version
