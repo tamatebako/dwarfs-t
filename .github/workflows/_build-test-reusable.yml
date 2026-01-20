@@ -94,6 +94,7 @@ jobs:
         with:
           vcpkgGitCommitId: 44bb3ce006467fc13ba37ca099f64077b8bbf84d
           vcpkgJsonGlob: '**/vcpkg.json'
+          vcpkgDirectory: '${{ runner.temp }}/vcpkg'
           overlayTriplet: 'vcpkg_triplets/${{ inputs.triplet }}.cmake'
           additionalCachePaths: |
             ${{ env.VCPKG_ROOT }}/installed
