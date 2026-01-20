@@ -1,0 +1,32 @@
+name: Debug vcpkg Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug-vcpkg:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Test vcpkg setup (inline)
+        run: |
+          echo "Testing vcpkg setup..."
+          VCPKG_ROOT="$HOME/vcpkg"
+
+          if [[ ! -d "$VCPKG_ROOT" ]]; then
+            echo "Cloning vcpkg..."
+            git clone https://github.com/Microsoft/vcpkg.git "$VCPKG_ROOT"
+          fi
+
+          if [[ ! -x "$VCPKG_ROOT/vcpkg" ]]; then
+            echo "Bootstrapping vcpkg..."
+            cd "$VCPKG_ROOT"
+            ./bootstrap-vcpkg.sh
+          fi
+
+          echo "vcpkg setup successful!"
+          "$VCPKG_ROOT/vcpkg" version
