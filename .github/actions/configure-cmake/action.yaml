@@ -172,7 +172,7 @@ runs:
 
         # Add toolchain file if specified
         if [[ -n "$TOOLCHAIN_FILE" ]]; then
-          CMAKE_CMD+=" -DCMAKE_TOOLCHAIN_FILE=\"$TOOLCHAIN_FILE\""
+          CMAKE_CMD+=" -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE"
         fi
 
         # Add generator if specified (not auto-detected)
