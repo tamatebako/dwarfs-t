@@ -159,7 +159,7 @@ runs:
         [[ "$WITH_PXATTR" == "true" ]] && WITH_PXATTR="ON" || WITH_PXATTR="OFF"
 
         # Build CMake command
-        CMAKE_CMD="cmake -B $BUILD_DIR -S $SOURCE_DIR"
+        CMAKE_CMD="cmake -B \"$BUILD_DIR\" -S \"$SOURCE_DIR\""
         CMAKE_CMD+=" -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
         CMAKE_CMD+=" -DWITH_TESTS=$WITH_TESTS"
         CMAKE_CMD+=" -DWITH_TOOLS=$WITH_TOOLS"
@@ -172,12 +172,12 @@ runs:
 
         # Add toolchain file if specified
         if [[ -n "$TOOLCHAIN_FILE" ]]; then
-          CMAKE_CMD+=" -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE"
+          CMAKE_CMD+=" -DCMAKE_TOOLCHAIN_FILE=\"$TOOLCHAIN_FILE\""
         fi
 
         # Add generator if specified (not auto-detected)
         if [[ -n "${{ inputs.generator }}" ]]; then
-          CMAKE_CMD+=" -G $GENERATOR"
+          CMAKE_CMD+=" -G \"$GENERATOR\""
         fi
 
         # Add additional CMake arguments
