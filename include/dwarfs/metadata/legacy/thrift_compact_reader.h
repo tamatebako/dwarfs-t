@@ -24,7 +24,10 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <stdexcept>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "dwarfs/metadata/legacy/thrift_types.h"
 
