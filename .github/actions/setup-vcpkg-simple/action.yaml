@@ -55,6 +55,7 @@ runs:
         echo "✓ vcpkg setup complete"
         echo "VCPKG_ROOT=$VCPKG_ROOT" >> $GITHUB_ENV
         echo "$VCPKG_ROOT" >> $GITHUB_PATH
+        echo "VCPKG_DEFAULT_TRIPLET=${{ inputs.triplet }}" >> $GITHUB_ENV
 
         # Set overlay ports for custom packages (jemalloc, fbthrift, folly, etc.)
         OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg_ports"
