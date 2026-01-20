@@ -87,7 +87,7 @@ runs:
         echo "Installing macOS build dependencies..."
 
         # Base packages
-        brew install ninja cmake git pkg-config
+        brew install ninja cmake git pkg-config argtable3
 
         # Optional dependencies
         if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
@@ -139,7 +139,8 @@ runs:
               git \
               ninja-build \
               pkg-config \
-              libxxhash-dev
+              libxxhash-dev \
+              libargtable3-dev
 
             if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
               sudo apt-get install -y libssl-dev
@@ -164,7 +165,8 @@ runs:
               git \
               ninja-build \
               pkgconfig \
-              xxhash-devel
+              xxhash-devel \
+              argtable3-devel
 
             if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
               sudo yum install -y openssl-devel
@@ -189,7 +191,8 @@ runs:
               git \
               ninja \
               pkgconf \
-              xxhash-dev
+              xxhash-dev \
+              argtable3-dev
 
             if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
               apk add --no-cache openssl-dev
