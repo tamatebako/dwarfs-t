@@ -63,10 +63,10 @@ Complete FUSE vs API comparison across all configurations:
 ```
 
 **Tests**:
-- 3 build configurations (FlatBuffers-only, Thrift-only, Both)
+- 2 build configurations (FlatBuffers-only, Both-formats)
 - 2 image formats (.dff, .dft)
-- FUSE extraction benchmarks (4 combinations)
-- libdwarfs API benchmarks (8 combinations)
+- FUSE extraction benchmarks (3 combinations)
+- libdwarfs API benchmarks (6 combinations)
 
 **Output**: `results/comprehensive_YYYYMMDD_HHMMSS/COMPREHENSIVE_REPORT.md`
 
@@ -136,28 +136,24 @@ The comprehensive benchmark system provides end-to-end performance validation ac
    - Creates: .dff images
    - Best portability
 
-2. **Thrift-only** (`build-thrift-bench/`)
-   - Metadata: Thrift Compact only
-   - Creates: .dft images
-   - Smallest metadata (legacy)
-
-3. **Both formats** (`build-both-bench/`)
-   - Metadata: FlatBuffers + Thrift
+2. **Both formats** (`build-both-bench/`)
+   - Metadata: FlatBuffers + Thrift (Legacy + Modern)
    - Creates: .dff, .dft images
    - Maximum flexibility
 
+Note: Thrift-only build configuration is not supported due to circular dependency issues in the metadata serialization layer.
+
 ### Benchmark Combinations
 
-**Total**: 12 benchmark runs
+**Total**: 9 benchmark runs
 
-**FUSE Extraction** (4 runs):
+**FUSE Extraction** (3 runs):
 - fb-only build + .dff image
-- thrift-only build + .dft image
 - both build + .dff image
 - both build + .dft image
 
-**libdwarfs API** (8 runs):
-- Same 4 configurations × 2 operations:
+**libdwarfs API** (6 runs):
+- Same 3 configurations × 2 operations:
   - Single file extraction (latency test)
   - Full filesystem extraction (throughput test)
 

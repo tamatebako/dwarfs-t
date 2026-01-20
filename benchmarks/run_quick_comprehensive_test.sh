@@ -80,7 +80,7 @@ image="$IMAGE_DFF"
 
 # Get test file WITH "/" PREFIX (the fix!)
 info "Getting test file path..."
-test_file="/$("$BUILD_DIR/dwarfsck" "$image" -l 2>/dev/null | grep -E '\.(pm|pl|pod)$' | head -n 1)"
+test_file="/$("$BUILD_DIR/dwarfsck" -i "$image" -l 2>/dev/null | grep -E '\.(pm|pl|pod)$' | head -n 1)"
 
 if [[ -z "$test_file" ]] || [[ "$test_file" == "/" ]]; then
   echo "ERROR: No test file found"

@@ -317,8 +317,10 @@ endif()
 
 # CRITICAL: Set USE_JEMALLOC early so Folly headers use compile-time constant
 # This must be done BEFORE any compilation that includes Folly headers
+# Also link jemalloc library so the symbols are available at link time
 if(DWARFS_HAVE_THRIFT AND TARGET jemalloc::jemalloc)
   target_compile_definitions(dwarfs_common PUBLIC USE_JEMALLOC=1)
+  target_link_libraries(dwarfs_common PUBLIC jemalloc::jemalloc)
 endif()
 
 target_include_directories(dwarfs_common PUBLIC

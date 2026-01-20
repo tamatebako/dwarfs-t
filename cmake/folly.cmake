@@ -54,12 +54,16 @@ set(CXX_STD "gnu++${DWARFS_CXX_STANDARD}" CACHE STRING "The C++ standard argumen
 set(MSVC_LANGUAGE_VERSION "c++${DWARFS_CXX_STANDARD}" CACHE STRING "The C++ standard argument to pass to the compiler.")
 
 # Disable unnecessary dependencies in Folly
-set(CMAKE_DISABLE_FIND_PACKAGE_ZLIB ON)
+# NOTE: When Modern Thrift (fbthrift) is enabled, we need ZLIB and Libsodium
+# for the fizz dependency chain. Only disable these when NOT using Modern Thrift.
+if(NOT DWARFS_WITH_THRIFT)
+  set(CMAKE_DISABLE_FIND_PACKAGE_ZLIB ON)
+  set(CMAKE_DISABLE_FIND_PACKAGE_Libsodium ON)
+endif()
 set(CMAKE_DISABLE_FIND_PACKAGE_BZip2 ON)
 set(CMAKE_DISABLE_FIND_PACKAGE_Snappy ON)
 set(CMAKE_DISABLE_FIND_PACKAGE_LibAIO ON)
 set(CMAKE_DISABLE_FIND_PACKAGE_LibUring ON)
-set(CMAKE_DISABLE_FIND_PACKAGE_Libsodium ON)
 set(CMAKE_DISABLE_FIND_PACKAGE_LibDwarf ON)
 
 # jemalloc configuration (CRITICAL - RULE 1)

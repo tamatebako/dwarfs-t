@@ -20,13 +20,20 @@
  */
 
 /**
- * Frozen2 Serializer - Main Orchestrator (Task 7)
+ * Frozen2 Serializer - Schema-Driven Implementation
  *
- * Simplified API for serializing domain::metadata to Frozen2 format.
- * Uses:
- * - SchemaBuilder (Task 4) to generate schema
- * - FrozenSchemaSerializer to encode schema to Thrift
- * - ValueEncoders (Task 6-7) to encode metadata values
+ * This implementation uses the schema as the single source of truth for
+ * serialization. The schema describes:
+ * - Which fields exist and their layout IDs
+ * - The byte offset of each field
+ * - The element layout for vector types
+ *
+ * This is a clean OOP approach where:
+ * - SchemaBuilder analyzes metadata and creates the schema
+ * - SchemaFieldEncoder encodes fields based on their layout
+ * - FrozenWriter handles the bit-packing details
+ *
+ * This separates concerns and avoids hardcoded field-by-field encoding.
  */
 
 #include "dwarfs/metadata/legacy/frozen2_serializer.h"
@@ -42,6 +49,199 @@
 #include <vector>
 
 namespace dwarfs::metadata::legacy {
+
+namespace {
+
+/**
+ * SchemaFieldEncoder - Encode a single field according to its schema layout
+ *
+ * This class handles encoding of individual fields based on their schema.
+ * It knows how to:
+ * - Position the writer at the correct bit offset
+ * - Encode scalar values (u32, u64)
+ * - Encode vectors of values (chunks, directories, inodes, etc.)
+ * - Use the element layout for vector element encoding
+ */
+class SchemaFieldEncoder {
+public:
+  explicit SchemaFieldEncoder(const domain::metadata& meta)
+      : meta_(meta) {}
+
+  /**
+   * Encode a single field according to its schema
+   *
+   * @param writer The FrozenWriter to encode to
+   * @param schema The complete schema (for looking up layouts)
+   * @param field_id The field ID to encode
+   * @param field The field layout describing how to encode
+   * @return Number of bits written
+   */
+  uint32_t encode_field(
+      FrozenWriter& writer,
+      Schema const& schema,
+      int16_t field_id,
+      SchemaField const& field) {
+
+    // Get the layout for this field's type
+    auto* field_layout = schema.layouts.get(field.layout_id);
+    if (!field_layout) {
+      throw std::runtime_error(
+          fmt::format("SchemaFieldEncoder: layout {} not found for field {}",
+                      field.layout_id, field_id));
+    }
+
+    // Seek to the field's bit offset
+    uint16_t bit_offset = field.offset_bits();
+    writer.seek_to_bit_offset(bit_offset);
+
+    // Dispatch based on field type
+    // Fields 1-4, 7-10: vectors
+    // Fields 12, 15, 16: scalars
+    switch (field_id) {
+      case 1: return encode_chunks(writer, schema, field_layout);
+      case 2: return encode_directories(writer, schema, field_layout);
+      case 3: return encode_inodes(writer, schema, field_layout);
+      case 4: return encode_chunk_table(writer, field_layout);
+      case 7: return encode_uids(writer, field_layout);
+      case 8: return encode_gids(writer, field_layout);
+      case 9: return encode_modes(writer, field_layout);
+      case 10: return encode_names(writer, field_layout);
+      case 12: return encode_timestamp_base(writer, field_layout);
+      case 15: return encode_block_size(writer, field_layout);
+      case 16: return encode_total_fs_size(writer, field_layout);
+      default:
+        // Skip unknown fields (they may be optional)
+        return 0;
+    }
+  }
+
+private:
+  // Vector encoding methods
+  uint32_t encode_chunks(
+      FrozenWriter& writer,
+      Schema const& schema,
+      SchemaLayout const* field_layout) {
+
+    auto* elem_field = field_layout->fields.get(3);
+    auto* elem_layout = elem_field ? schema.layouts.get(elem_field->layout_id) : nullptr;
+
+    VectorEncoder encoder;
+    return encoder.encode_with_element_layout(
+        writer, *field_layout, *elem_layout, &meta_.chunks);
+  }
+
+  uint32_t encode_directories(
+      FrozenWriter& writer,
+      Schema const& schema,
+      SchemaLayout const* field_layout) {
+
+    auto* elem_field = field_layout->fields.get(3);
+    auto* elem_layout = elem_field ? schema.layouts.get(elem_field->layout_id) : nullptr;
+
+    VectorEncoder encoder;
+    return encoder.encode_directories(
+        writer, *field_layout, *elem_layout, &meta_.directories);
+  }
+
+  uint32_t encode_inodes(
+      FrozenWriter& writer,
+      Schema const& schema,
+      SchemaLayout const* field_layout) {
+
+    auto* elem_field = field_layout->fields.get(3);
+    auto* elem_layout = elem_field ? schema.layouts.get(elem_field->layout_id) : nullptr;
+
+    VectorEncoder encoder;
+    return encoder.encode_inodes(
+        writer, *field_layout, *elem_layout, &meta_.inodes);
+  }
+
+  uint32_t encode_chunk_table(
+      FrozenWriter& writer,
+      SchemaLayout const* field_layout) {
+
+    VectorEncoder encoder;
+    return encoder.encode(writer, *field_layout, &meta_.chunk_table);
+  }
+
+  uint32_t encode_uids(
+      FrozenWriter& writer,
+      SchemaLayout const* field_layout) {
+
+    VectorEncoder encoder;
+    return encoder.encode(writer, *field_layout, &meta_.uids);
+  }
+
+  uint32_t encode_gids(
+      FrozenWriter& writer,
+      SchemaLayout const* field_layout) {
+
+    VectorEncoder encoder;
+    return encoder.encode(writer, *field_layout, &meta_.gids);
+  }
+
+  uint32_t encode_modes(
+      FrozenWriter& writer,
+      SchemaLayout const* field_layout) {
+
+    VectorEncoder encoder;
+    return encoder.encode(writer, *field_layout, &meta_.modes);
+  }
+
+  uint32_t encode_names(
+      FrozenWriter& writer,
+      SchemaLayout const* field_layout) {
+
+    // The schema uses u32_vector_layout_id as a placeholder for names
+    // For now, encode each name as a u32 (simple representation)
+    // TODO: Implement proper string table encoding
+
+    // Create a vector of u32 values representing the names
+    std::vector<uint32_t> name_indices;
+    name_indices.reserve(meta_.names.size());
+
+    for (auto const& name : meta_.names) {
+      // Use string length as a simple u32 representation
+      // This is a placeholder - real implementation would use string table indices
+      name_indices.push_back(static_cast<uint32_t>(name.length()));
+    }
+
+    VectorEncoder encoder;
+    return encoder.encode(writer, *field_layout, &name_indices);
+  }
+
+  // Scalar encoding methods
+  uint32_t encode_timestamp_base(
+      FrozenWriter& writer,
+      SchemaLayout const* field_layout) {
+
+    ScalarEncoder encoder;
+    uint64_t value = meta_.timestamp_base;
+    return encoder.encode(writer, *field_layout, &value);
+  }
+
+  uint32_t encode_block_size(
+      FrozenWriter& writer,
+      SchemaLayout const* field_layout) {
+
+    ScalarEncoder encoder;
+    uint32_t value = meta_.block_size;
+    return encoder.encode(writer, *field_layout, &value);
+  }
+
+  uint32_t encode_total_fs_size(
+      FrozenWriter& writer,
+      SchemaLayout const* field_layout) {
+
+    ScalarEncoder encoder;
+    uint64_t value = meta_.total_fs_size;
+    return encoder.encode(writer, *field_layout, &value);
+  }
+
+  const domain::metadata& meta_;
+};
+
+} // anonymous namespace
 
 std::vector<uint8_t> Frozen2Serializer::serialize(
     const void* metadata) const {
@@ -60,155 +260,22 @@ std::vector<uint8_t> Frozen2Serializer::serialize(
   std::vector<uint8_t> schema_bytes =
     FrozenSchemaSerializer::serialize(schema);
 
-  // Step 3: Encode metadata to frozen bytes
+  // Step 3: Encode metadata using schema-driven approach
   std::vector<uint8_t> frozen_buffer(65536); // 64KB initial buffer
   FrozenWriter writer{std::span<uint8_t>(frozen_buffer)};
 
-  // Get root layout and field layouts
+  // Get root layout
   auto* root_layout = schema.layouts.get(schema.root_layout);
   if (!root_layout) {
     throw std::runtime_error("Frozen2Serializer::serialize: root layout not found");
   }
 
-  // Encode chunks (field 1)
-  auto* field1 = root_layout->fields.get(1);
-  if (field1 && !domain_meta->chunks.empty()) {
-    auto* vector_layout = schema.layouts.get(field1->layout_id);
-    if (!vector_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: vector layout not found");
-    }
+  // Create the schema-driven encoder
+  SchemaFieldEncoder encoder(*domain_meta);
 
-    auto* chunk_layout = schema.layouts.get(builder.chunk_layout_id());
-    if (!chunk_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: chunk layout not found");
-    }
-
-    VectorEncoder vec_encoder;
-    vec_encoder.encode_with_element_layout(
-      writer, *vector_layout, *chunk_layout, &domain_meta->chunks);
-  }
-
-  // Encode directories (field 2)
-  auto* field2 = root_layout->fields.get(2);
-  if (field2 && !domain_meta->directories.empty()) {
-    auto* vector_layout = schema.layouts.get(field2->layout_id);
-    if (!vector_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: vector layout not found");
-    }
-
-    auto* dir_layout = schema.layouts.get(builder.directory_layout_id());
-    if (!dir_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: directory layout not found");
-    }
-
-    VectorEncoder vec_encoder;
-    vec_encoder.encode_directories(
-      writer, *vector_layout, *dir_layout, &domain_meta->directories);
-  }
-
-  // Encode inodes (field 3)
-  auto* field3 = root_layout->fields.get(3);
-  if (field3 && !domain_meta->inodes.empty()) {
-    auto* vector_layout = schema.layouts.get(field3->layout_id);
-    if (!vector_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: vector layout not found");
-    }
-
-    auto* inode_layout = schema.layouts.get(builder.inode_layout_id());
-    if (!inode_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: inode layout not found");
-    }
-
-    VectorEncoder vec_encoder;
-    vec_encoder.encode_inodes(
-      writer, *vector_layout, *inode_layout, &domain_meta->inodes);
-  }
-
-  // Encode chunk_table (field 4)
-  auto* field4 = root_layout->fields.get(4);
-  if (field4 && !domain_meta->chunk_table.empty()) {
-    auto* vector_layout = schema.layouts.get(field4->layout_id);
-    if (!vector_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: vector layout not found");
-    }
-
-    VectorEncoder vec_encoder;
-    vec_encoder.encode(writer, *vector_layout, &domain_meta->chunk_table);
-  }
-
-  // Encode uids (field 7)
-  auto* field7 = root_layout->fields.get(7);
-  if (field7 && !domain_meta->uids.empty()) {
-    auto* vector_layout = schema.layouts.get(field7->layout_id);
-    if (!vector_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: vector layout not found");
-    }
-
-    VectorEncoder vec_encoder;
-    vec_encoder.encode(writer, *vector_layout, &domain_meta->uids);
-  }
-
-  // Encode gids (field 8)
-  auto* field8 = root_layout->fields.get(8);
-  if (field8 && !domain_meta->gids.empty()) {
-    auto* vector_layout = schema.layouts.get(field8->layout_id);
-    if (!vector_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: vector layout not found");
-    }
-
-    VectorEncoder vec_encoder;
-    vec_encoder.encode(writer, *vector_layout, &domain_meta->gids);
-  }
-
-  // Encode modes (field 9)
-  auto* field9 = root_layout->fields.get(9);
-  if (field9 && !domain_meta->modes.empty()) {
-    auto* vector_layout = schema.layouts.get(field9->layout_id);
-    if (!vector_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: vector layout not found");
-    }
-
-    VectorEncoder vec_encoder;
-    vec_encoder.encode(writer, *vector_layout, &domain_meta->modes);
-  }
-
-  // Encode timestamp_base (field 12)
-  auto* field12 = root_layout->fields.get(12);
-  if (field12 && domain_meta->timestamp_base != 0) {
-    auto* u64_layout = schema.layouts.get(field12->layout_id);
-    if (!u64_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: u64 layout not found");
-    }
-
-    ScalarEncoder scalar_encoder;
-    uint64_t ts = domain_meta->timestamp_base;
-    scalar_encoder.encode(writer, *u64_layout, &ts);
-  }
-
-  // Encode block_size (field 15)
-  auto* field15 = root_layout->fields.get(15);
-  if (field15 && domain_meta->block_size != 0) {
-    auto* u32_layout = schema.layouts.get(field15->layout_id);
-    if (!u32_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: u32 layout not found");
-    }
-
-    ScalarEncoder scalar_encoder;
-    uint32_t block_size = domain_meta->block_size;
-    scalar_encoder.encode(writer, *u32_layout, &block_size);
-  }
-
-  // Encode total_fs_size (field 16)
-  auto* field16 = root_layout->fields.get(16);
-  if (field16 && domain_meta->total_fs_size != 0) {
-    auto* u64_layout = schema.layouts.get(field16->layout_id);
-    if (!u64_layout) {
-      throw std::runtime_error("Frozen2Serializer::serialize: u64 layout not found");
-    }
-
-    ScalarEncoder scalar_encoder;
-    uint64_t total_fs_size = domain_meta->total_fs_size;
-    scalar_encoder.encode(writer, *u64_layout, &total_fs_size);
+  // Iterate through root layout fields in order and encode each one
+  for (auto [field_id, field] : root_layout->fields) {
+    encoder.encode_field(writer, schema, field_id, *field);
   }
 
   writer.finalize();

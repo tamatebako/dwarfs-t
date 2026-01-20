@@ -7,9 +7,6 @@
   "supports": "!uwp",
   "builtin-baseline": "11bbc873e00e9e58d4e9dffb30b7a5493a030e0b",
   "dependencies": [
-    "jemalloc",
-    "folly",
-    "fbthrift",
     "bzip2",
     "boost-program-options",
     "boost-filesystem",
@@ -19,12 +16,6 @@
     },
     "boost-context",
     "boost-chrono",
-    "boost-algorithm",
-    "boost-convert",
-    "boost-process",
-    "boost-range",
-    "boost-align",
-    "boost-uuid",
     {
       "name": "argtable3",
       "version>=": "3.3.1"
@@ -87,6 +78,39 @@
     {
       "name": "date",
       "version>=": "3.0.4"
+    },
+    {
+      "name": "jemalloc",
+      "version>=": "5.5.0"
+    },
+    {
+      "name": "libsodium",
+      "version>=": "1.0.21"
+    },
+    {
+      "name": "folly",
+      "version>=": "2025.12.29.00",
+      "platform": "!windows"
+    },
+    {
+      "name": "fizz",
+      "version>=": "2025.12.29.00",
+      "platform": "!windows"
+    },
+    {
+      "name": "mvfst",
+      "version>=": "2025.12.29.00",
+      "platform": "!windows"
+    },
+    {
+      "name": "wangle",
+      "version>=": "2025.12.29.00",
+      "platform": "!windows"
+    },
+    {
+      "name": "fbthrift",
+      "version>=": "2025.12.29.00",
+      "platform": "!windows"
     }
   ]
 }

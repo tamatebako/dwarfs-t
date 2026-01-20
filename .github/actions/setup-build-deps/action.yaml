@@ -87,7 +87,7 @@ runs:
         echo "Installing macOS build dependencies..."
 
         # Base packages
-        brew install ninja cmake git pkg-config argtable3
+        brew install ninja cmake git pkg-config argtable3 xxhash
 
         # Optional dependencies
         if [[ "${{ inputs.with-openssl }}" == "true" ]]; then

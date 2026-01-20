@@ -1,0 +1,12 @@
+# Generated fixture files (platform-specific, not portable)
+fixtures/
+*.dft
+
+# Test results
+results/
+*.log
+*.json
+
+# Temporary files
+*.tmp
+*.bak

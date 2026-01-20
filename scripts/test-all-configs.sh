@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test all build configurations
-# Usage: ./scripts/test-all-configs.sh
+# Usage: ./scripts/test-all-configs.sh [--vcpkg]
 
 set -e
 
@@ -9,17 +9,46 @@ echo " DwarFS Cross-Format Testing Script"
 echo "================================================="
 echo ""
 
+# Check for vcpkg mode
+USE_VCPKG=false
+VCPKG_ROOT="${VCPKG_ROOT:-$HOME/vcpkg}"
+if [[ "$1" == "--vcpkg" ]] || [[ "$USE_VCPKG" == "true" ]]; then
+  USE_VCPKG=true
+fi
+
 # Detect platform
 PLATFORM=$(uname -s)
 ARCH=$(uname -m)
+
+# Determine triplet
+if [[ "$USE_VCPKG" == "true" ]]; then
+  case "$PLATFORM" in
+    Darwin)
+      case "$ARCH" in
+        arm64) TRIPLET="arm64-osx" ;;
+        x86_64) TRIPLET="x64-osx" ;;
+      esac
+      ;;
+    Linux)
+      case "$ARCH" in
+        arm64|aarch64) TRIPLET="arm64-linux" ;;
+        x86_64) TRIPLET="x64-linux" ;;
+      esac
+      ;;
+  esac
+  echo "Using vcpkg mode: $VCPKG_ROOT"
+  echo "Triplet: $TRIPLET"
+else
+  echo "Using system package mode"
+fi
 echo "Platform: $PLATFORM $ARCH"
 echo ""
 
 # Define configurations as arrays
-CONFIGS=("flatbuffers-only" "thrift-only" "both-formats")
-FLATBUFFERS_FLAGS=("ON" "OFF" "ON")
-THRIFT_FLAGS=("OFF" "ON" "ON")
-EXPECTED_PASS=("18" "11" "18")  # Expected test pass counts
+CONFIGS=("flatbuffers-only" "both-formats")
+FLATBUFFERS_FLAGS=("ON" "ON")
+THRIFT_FLAGS=("OFF" "ON")
+EXPECTED_PASS=("18" "18")  # Expected test pass counts
 
 FAILED_CONFIGS=()
 PASSED_CONFIGS=()
@@ -41,17 +70,32 @@ for i in ${!CONFIGS[@]}; do
 
   # Configure
   echo "Configuring..."
-  if ! cmake -B build-test-$name -GNinja \
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DDWARFS_WITH_FLATBUFFERS=$fb_flag \
-    -DDWARFS_WITH_THRIFT=$thrift_flag \
-    -DUSE_JEMALLOC=OFF \
-    -DENABLE_RICEPP=OFF \
-    -DWITH_TESTS=ON \
-    -DWITH_LIBDWARFS=ON \
-    -DWITH_TOOLS=OFF \
-    -DWITH_FUSE_DRIVER=OFF \
-    > "build-test-$name-cmake.log" 2>&1; then
+  CMAKE_ARGS=(-B build-test-$name -GNinja
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    -DDWARFS_WITH_FLATBUFFERS=$fb_flag
+    -DDWARFS_WITH_THRIFT=$thrift_flag
+    -DUSE_JEMALLOC=OFF
+    -DENABLE_RICEPP=OFF
+    -DWITH_TESTS=ON
+    -DWITH_LIBDWARFS=ON
+    -DWITH_TOOLS=OFF
+    -DWITH_FUSE_DRIVER=OFF
+  )
+
+  # Add vcpkg toolchain if using vcpkg mode
+  if [[ "$USE_VCPKG" == "true" ]]; then
+    if [[ ! -d "$VCPKG_ROOT" ]]; then
+      echo "❌ ERROR: VCPKG_ROOT not found: $VCPKG_ROOT"
+      echo "   Set VCPKG_ROOT or install vcpkg"
+      FAILED_CONFIGS=("${FAILED_CONFIGS[@]}" "$name (vcpkg not found)")
+      echo ""
+      continue
+    fi
+    CMAKE_ARGS+=(-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake)
+    CMAKE_ARGS+=(-DVCPKG_TARGET_TRIPLET=$TRIPLET)
+  fi
+
+  if ! cmake "${CMAKE_ARGS[@]}" > "build-test-$name-cmake.log" 2>&1; then
 
     echo "❌ FAILED: CMake configuration"
     echo "   See: build-test-$name-cmake.log"

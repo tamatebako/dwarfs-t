@@ -61,6 +61,19 @@ class FrozenSchemaSerializer {
    */
   static Schema deserialize(std::span<uint8_t const> data);
 
+  /**
+   * Deserialize schema and return bytes consumed
+   *
+   * @param data Serialized schema bytes
+   * @param bytes_consumed Output parameter that receives the number of bytes consumed
+   * @return Parsed schema
+   * @throws std::runtime_error on parse failure or validation failure
+   *
+   * This variant is useful when you need to know where the schema ends
+   * in a larger data stream.
+   */
+  static Schema deserialize(std::span<uint8_t const> data, size_t& bytes_consumed);
+
  private:
   class Writer;
   class Reader;

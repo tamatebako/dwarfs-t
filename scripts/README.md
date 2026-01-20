@@ -1,350 +1,209 @@
-# Scripts Directory
+# DwarFS Scripts Directory
 
-This directory contains convenience scripts for building, testing, and benchmarking DwarFS across different configurations.
+This directory contains the unified build system for Tebako DwarFS.
 
-## Quick Reference
+## Directory Structure (NEW Unified System)
 
-| Script | Purpose | When to Use |
-|--------|---------|-------------|
-| [`build-all-and-test.sh`](#build-all-and-testsh) | Build + test all 3 configs | Complete validation |
-| [`benchmark-all.sh`](#benchmark-allsh) | Run comprehensive benchmarks | Performance testing |
-| [`run-all.sh`](#run-allsh) | Clean → Build → Test → Benchmark | Complete workflow |
-| [`clean-build.sh`](#clean-buildsh) | Clean build single config | Fresh development build |
-| [`test-all-configs.sh`](#test-all-configssh) | Test all 3 configs | Quick validation |
-| [`verify_benchmark_setup.sh`](#verify_benchmark_setupsh) | Check benchmark readiness | Before benchmarking |
-| [`test_vcpkg_install.sh`](#test_vcpkg_installsh) | Test vcpkg integration | vcpkg development |
-| [`extract_blocks.py`](#extract_blockspy) | Extract DwarFS blocks | Low-level analysis |
-
----
-
-## Core Workflow Scripts
-
-### `build-all-and-test.sh`
-
-**Purpose**: Build and test all three metadata serialization configurations.
-
-**Usage**:
-```bash
-./scripts/build-all-and-test.sh [--vcpkg]
+```
+scripts/
+├── lib/                    # Shared library functions (NEW)
+│   ├── build_env.sh       # Environment detection, colors, output
+│   └── vcpkg_helper.sh    # vcpkg utilities, triplet management
+│
+├── orchestrator/           # Core build/test/benchmark/release logic (NEW)
+│   ├── build.sh           # Build configuration and execution
+│   └── release.sh         # Release orchestration
+│
+├── one-step/               # One-step entry points for users (NEW)
+│   ├── test-everything.sh # Run all tests
+│   ├── build-all.sh       # Build all configurations
+│   ├── clean.sh           # Clean build artifacts
+│   └── benchmark-all.sh   # Run all benchmarks
+│
+├── utils/                  # Utility scripts (NEW)
+│   └── clean.sh           # Core clean utility
+│
+└── [legacy scripts]        # Backward compatibility wrappers
+    ├── test-everything.sh -> one-step/test-everything.sh
+    ├── clean.sh -> utils/clean.sh
+    ├── build-all-and-test.sh
+    ├── test-all-configs.sh
+    ├── run-all.sh
+    ├── clean-build.sh
+    ├── clean-all.sh
+    └── ...
 ```
 
-**Options**:
-- `--vcpkg`: Use vcpkg for dependencies (requires `VCPKG_ROOT`)
+## Quick Start (New Unified System)
 
-**Configurations Built**:
-1. **FlatBuffers-only** (`build-fb-only/`) - Modern default
-2. **Both formats** (`build-both/`) - FlatBuffers + Thrift
-3. **Thrift-only** (`build-thrift-only/`) - Legacy format
+### For Developers
 
-**Environment Variables**:
-- `JOBS`: Parallel build jobs (default: 8)
-- `BUILD_TYPE`: Release/Debug (default: Release)
-- `CMAKE_GENERATOR`: Ninja/Make (default: Ninja)
-- `VCPKG_ROOT`: vcpkg installation path
-- `VCPKG_TRIPLET`: vcpkg triplet (auto-detected if not set)
-
-**Output**:
-- `build-fb-only/`: FlatBuffers-only build
-- `build-both/`: Both-formats build
-- `build-thrift-only/`: Thrift-only build
-
-**Exit Codes**:
-- `0`: All builds and tests passed
-- `1`: One or more builds/tests failed
-
----
-
-### `benchmark-all.sh`
-
-**Purpose**: Run comprehensive benchmarks (delegates to `benchmarks/run_comprehensive_benchmark.sh`).
-
-**Usage**:
 ```bash
-./scripts/benchmark-all.sh [options]
+# One-step testing (auto-detects vcpkg or system packages)
+./scripts/one-step/test-everything.sh
+
+# Quick validation (no benchmarks)
+./scripts/one-step/test-everything.sh --quick
+
+# Force vcpkg mode
+./scripts/one-step/test-everything.sh --vcpkg
+
+# Build all configurations
+./scripts/one-step/build-all.sh
+
+# Clean build artifacts
+./scripts/one-step/clean.sh
 ```
 
-**What It Does**:
-- Delegates to `benchmarks/run_comprehensive_benchmark.sh`
-- Runs FUSE extraction and libdwarfs API benchmarks
-- Tests all 3 build configurations
-- Generates comprehensive reports
+### For Release Managers
 
-**See Also**:
-- [`benchmarks/README.md`](../benchmarks/README.md) - Detailed benchmark documentation
-- [`benchmarks/run_comprehensive_benchmark.sh`](../benchmarks/run_comprehensive_benchmark.sh) - Actual implementation
-
----
-
-### `run-all.sh`
-
-**Purpose**: Complete workflow - clean, build, test, and benchmark all configurations.
-
-**Usage**:
 ```bash
-./scripts/run-all.sh [dataset_path]
+# Full release validation
+./scripts/orchestrator/release.sh --dry-run
+
+# Create release
+./scripts/orchestrator/release.sh --version 0.14.2
 ```
 
-**Workflow**:
-1. **Clean**: Remove all `build-*` directories
-2. **Build**: Run `build-all-and-test.sh`
-3. **Benchmark**: Run `benchmark-all.sh`
+## Legacy Scripts (Still Work)
 
-**When to Use**:
-- Complete validation before commits
-- CI/CD-like local testing
-- Performance regression testing
+Old script paths still work via wrapper scripts:
 
-**Estimated Time**: 30-60 minutes (build + test + benchmark)
+| Legacy Script | New Location | Purpose |
+|--------------|--------------|---------|
+| `./scripts/test-everything.sh` | `./scripts/one-step/test-everything.sh` | Run all tests |
+| `./scripts/clean.sh` | `./scripts/utils/clean.sh` | Clean build artifacts |
+| `./scripts/build-all-and-test.sh` | (keep) | Build and test all configs |
+| `./scripts/test-all-configs.sh` | (keep) | Test all build configs |
+| `./scripts/benchmark-all.sh` | (keep) | Run benchmarks |
+| `./scripts/run-all.sh` | (keep) | Clean → Build → Test → Benchmark |
+| `./scripts/clean-build.sh` | (keep) | Clean single build |
+| `./scripts/clean-all.sh` | (deprecated) | Use `./scripts/utils/clean.sh --all` |
 
----
+## Library Functions
 
-## Development Scripts
+### build_env.sh
 
-### `clean-build.sh`
-
-**Purpose**: Clean and configure a single build directory for development.
-
-**Usage**:
 ```bash
-./scripts/clean-build.sh [-y]
+source scripts/lib/build_env.sh
+
+# Environment detection
+dwarfs_detect_os      # => darwin, linux, windows
+dwarfs_detect_arch    # => x64, arm64
+dwarfs_auto_triplet   # => arm64-osx, x64-linux, etc.
+
+# vcpkg detection
+dwarfs_has_vcpkg "$VCPKG_ROOT"
+dwarfs_detect_vcpkg
+
+# Dependency detection
+dwarfs_has_jemalloc 5.5.0
+dwarfs_has_pkgconfig
+
+# Output functions
+info "message"
+success "message"
+warn "message"
+error "message"
+fatal "message"
+section "Title"
 ```
 
-**Options**:
-- `-y`: Skip confirmation prompt
+### vcpkg_helper.sh
 
-**Environment Variables**:
-- `BUILD_DIR`: Target directory (default: `build-test`)
-- `BUILD_TYPE`: Release/Debug (default: Release)
-- `WITH_TESTS`: ON/OFF (default: ON)
-- `WITH_TOOLS`: ON/OFF (default: ON)
-- `WITH_LIBDWARFS`: ON/OFF (default: ON)
-- `WITH_FLATBUFFERS`: ON/OFF (default: ON)
-- `WITH_THRIFT`: ON/OFF (default: OFF)
-
-**Example**:
 ```bash
-# FlatBuffers-only development build
-BUILD_DIR=build-dev WITH_THRIFT=OFF ./scripts/clean-build.sh -y
+source scripts/lib/vcpkg_helper.sh
 
-# Debug build with Thrift
-BUILD_TYPE=Debug WITH_THRIFT=ON ./scripts/clean-build.sh
+# Triplet management
+dwarfs_list_triplets
+dwarfs_validate_triplet "arm64-osx"
+dwarfs_auto_triplet
+dwarfs_triplets_for_platform "osx"
+
+# vcpkg commands
+dwarfs_vcpkg "$VCPKG_ROOT" install fmt
+dwarfs_vcpkg_install "$VCPKG_ROOT" "fmt" "arm64-osx"
+
+# Overlay management
+dwarfs_setup_overlays "$VCPKG_ROOT" "$PROJECT_ROOT"
+
+# Tebako jemalloc
+dwarfs_verify_tebako_jemalloc "$PROJECT_ROOT"
+dwarfs_tebako_jemalloc_version "$PROJECT_ROOT"
+
+# Cache management
+dwarfs_vcpkg_clear_cache "$VCPKG_ROOT"
 ```
 
----
+## Orchestrator Modules
 
-### `test-all-configs.sh`
+### build.sh
 
-**Purpose**: Quick test of all three configurations (build + test only, no benchmarks).
-
-**Usage**:
 ```bash
-./scripts/test-all-configs.sh
+source scripts/orchestrator/build.sh
+
+# List all configurations
+dwarfs_list_configs
+# => flatbuffers-only both-formats
+
+# Build a configuration
+dwarfs_build_configuration "flatbuffers-only" "build-fb" "Release" "vcpkg" "$VCPKG_ROOT" "arm64-osx"
+
+# Build all configurations
+dwarfs_build_all "vcpkg" "$VCPKG_ROOT" "arm64-osx"
+
+# Clean builds
+dwarfs_clean_builds "build-*"
+dwarfs_clean_all
 ```
 
-**What It Tests**:
-- FlatBuffers-only (18 tests expected)
-- Thrift-only (11 tests expected)
-- Both-formats (18 tests expected)
+## Extending the Build System
 
-**Output**: Test logs in `build-test-*-test.log`
+### Adding a New Configuration
 
-**When to Use**:
-- Quick validation during development
-- Pre-commit checks
-- CI/CD fast path
+Edit `scripts/orchestrator/build.sh`:
 
----
-
-## Utility Scripts
-
-### `verify_benchmark_setup.sh`
-
-**Purpose**: Verify benchmark infrastructure is ready.
-
-**Usage**:
 ```bash
-./scripts/verify_benchmark_setup.sh
+DWARFS_BUILD_CONFIGS=(
+    "flatbuffers-only:OFF:FlatBuffers-only"
+    "both-formats:ON:Both-formats"
+    "new-config:OFF:New Configuration"
+)
 ```
 
-**Checks**:
-- ✓ Python 3 available
-- ✓ Build directories exist
-- ✓ Test executables present
-- ✓ Benchmark scripts available
-- ✓ Benchmark libraries present
-- ✓ Datasets downloaded
-- ✓ CI workflows configured
-- ✓ Quick functional test
+### Adding a New Triplet
 
-**Exit Codes**:
-- `0`: All checks passed
-- `1`: One or more checks failed
+1. Create `vcpkg_triplets/new-triplet.cmake`
+2. Add to `scripts/lib/vcpkg_helper.sh:dwarfs_list_triplets()`
+3. Update `vcpkg_triplets/README.md`
 
----
+### Adding a New One-Step Script
 
-### `test_vcpkg_install.sh`
+Create `scripts/one-step/new-script.sh`:
 
-**Purpose**: Test vcpkg port installation and CMake integration.
-
-**Usage**:
 ```bash
-./scripts/test_vcpkg_install.sh
+#!/bin/bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
+
+source scripts/lib/build_env.sh
+source scripts/lib/vcpkg_helper.sh
+source scripts/orchestrator/build.sh
+
+# Your script logic here
 ```
-
-**What It Tests**:
-1. `libdwarfs` port installation
-2. `dwarfs` tools port installation
-3. CMake `find_package(dwarfs)` integration
-4. Linking and execution of test programs
-
-**Requirements**:
-- vcpkg installed at `~/vcpkg`
-- Overlay ports in `ports/` directory
-
-**When to Use**:
-- Verifying vcpkg port changes
-- Testing installation procedures
-- CI/CD vcpkg validation
-
----
-
-### `extract_blocks.py`
-
-**Purpose**: Extract individual compressed blocks from DwarFS images for low-level analysis.
-
-**Usage**:
-```bash
-./scripts/extract_blocks.py <image> <basename>
-```
-
-**Example**:
-```bash
-./scripts/extract_blocks.py test.dff test_blocks/block_
-# Creates: test_blocks/block_block0, test_blocks/block_metadata8, etc.
-```
-
-**Output Files**:
-- `<basename>block<N>`: Compressed block data (without headers)
-- `<basename>schema<N>`: Schema sections
-- `<basename>metadata<N>`: Metadata sections
-- `<basename>index<N>`: Index sections
-- `<basename>history<N>`: History sections
-
-**When to Use**:
-- Experimenting with compression algorithms externally
-- Analyzing block-level compression ratios
-- Debugging compression issues
-- Research and development
-
-**Limitations**:
-- Cannot handle DwarFS image offsets
-- Extracts raw blocks without headers
-- Python 3 required
-
----
-
-## Script Organization (MECE)
-
-The scripts are organized into **Mutually Exclusive, Collectively Exhaustive** categories:
-
-### Core Workflows (Complete Tasks)
-- **`run-all.sh`**: Clean → Build → Test → Benchmark (everything)
-- **`build-all-and-test.sh`**: Build → Test (no benchmarking)
-- **`benchmark-all.sh`**: Benchmark only (requires existing builds)
-
-### Development Tools (Single Purpose)
-- **`clean-build.sh`**: Configure a single build
-- **`test-all-configs.sh`**: Test existing builds
-- **`verify_benchmark_setup.sh`**: Verify infrastructure
-
-### Integration Testing
-- **`test_vcpkg_install.sh`**: vcpkg port validation
-
-### Analysis Tools
-- **`extract_blocks.py`**: Low-level DwarFS analysis
-
----
-
-## Common Workflows
-
-### Complete Validation
-```bash
-# Full clean build and test
-./scripts/run-all.sh
-
-# Or step-by-step:
-./scripts/build-all-and-test.sh
-./scripts/verify_benchmark_setup.sh
-./scripts/benchmark-all.sh
-```
-
-### Quick Development Cycle
-```bash
-# Single config build and test
-BUILD_DIR=build-dev ./scripts/clean-build.sh -y
-cd build-dev && ninja && ctest
-
-# Or test all configs quickly
-./scripts/test-all-configs.sh
-```
-
-### Benchmark Testing
-```bash
-# Verify setup first
-./scripts/verify_benchmark_setup.sh
-
-# Run benchmarks
-./scripts/benchmark-all.sh
-```
-
-### vcpkg Development
-```bash
-# Test vcpkg ports
-./scripts/test_vcpkg_install.sh
-
-# Build with vcpkg
-./scripts/build-all-and-test.sh --vcpkg
-```
-
----
-
-## Environment Setup
-
-### Required Tools
-- **CMake** ≥3.28
-- **Ninja** (recommended) or Make
-- **C++20 compiler** (GCC 10+, Clang 12+, AppleClang 14+)
-- **Python 3** (for benchmarks and utilities)
-
-### Optional Tools
-- **vcpkg** (for `--vcpkg` builds and `test_vcpkg_install.sh`)
-- **FUSE** libraries (for `dwarfs` FUSE driver)
-
-### Environment Variables
-```bash
-# Build configuration
-export JOBS=8                    # Parallel build jobs
-export BUILD_TYPE=Release        # or Debug
-export CMAKE_GENERATOR=Ninja     # or "Unix Makefiles"
-
-# vcpkg (if using)
-export VCPKG_ROOT=~/vcpkg
-export VCPKG_TRIPLET=arm64-osx-static  # or auto-detect
-
-# Custom paths
-export BUILD_DIR=build-custom
-```
-
----
 
 ## See Also
 
-- **[`benchmarks/README.md`](../benchmarks/README.md)**: Detailed benchmarking documentation
-- **[`example/static-site-server/README.md`](../example/static-site-server/README.md)**: Example application
-- **[`doc/vcpkg-build-guide.md`](../doc/vcpkg-build-guide.md)**: vcpkg integration guide
-- **[`.kilocode/rules/memory-bank/architecture.md`](../.kilocode/rules/memory-bank/architecture.md)**: System architecture
+- **[`BUILD_SYSTEM_ARCHITECTURE.md`](../BUILD_SYSTEM_ARCHITECTURE.md)** - Complete architecture documentation
+- **[`TESTING.md`](../TESTING.md)** - Testing documentation
+- **[`vcpkg_triplets/README.md`](../vcpkg_triplets/README.md)** - Triplet documentation
+- **[`benchmarks/README.md`](../benchmarks/README.md)** - Benchmark documentation
 
 ---
 
-**Last Updated**: 2025-12-30
-**Status**: Production-ready scripts
+**Last Updated**: 2025-01-18
+**Status**: Unified build system - production ready

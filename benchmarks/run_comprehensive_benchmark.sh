@@ -3,7 +3,7 @@
 # Comprehensive DwarFS Benchmark Suite
 #
 # Compares FUSE vs libdwarfs API performance across:
-# - 3 build configurations (FB-only, Thrift-only, Both)
+# - 2 build configurations (FB-only, Both)
 # - 2 image formats (.dff FlatBuffers, .dft Thrift)
 # - Multiple access patterns
 #
@@ -24,13 +24,16 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 # Build directories
 BUILD_FB="$PROJECT_ROOT/build-fb-bench"
-BUILD_THRIFT="$PROJECT_ROOT/build-thrift-bench"
 BUILD_BOTH="$PROJECT_ROOT/build-both-bench"
 
 # Test data
 PERL_SOURCE="$PROJECT_ROOT/benchmark-files/perl-5.43.3/perl-5.43.3"
 IMAGES_DIR="$PROJECT_ROOT/test-images"
 RESULTS_DIR="$PROJECT_ROOT/results/comprehensive_${TIMESTAMP}"
+
+# Vcpkg configuration
+VCPKG_ROOT="${VCPKG_ROOT:-/Users/mulgogi/vcpkg}"
+USE_VCPKG="${USE_VCPKG:-false}"
 
 # Benchmark parameters
 ITERATIONS=3
@@ -102,22 +105,42 @@ build_configuration() {
   info "Build directory: $build_dir"
   info "FlatBuffers: $fb_flag"
   info "Thrift: $thrift_flag"
+  info "Vcpkg mode: $USE_VCPKG"
 
   rm -rf "$build_dir"
   mkdir -p "$build_dir"
 
   cd "$build_dir"
 
-  cmake "$PROJECT_ROOT" \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DWITH_BENCHMARKS=ON \
-    -DWITH_LIBDWARFS=ON \
-    -DWITH_TOOLS=ON \
-    -DWITH_FUSE_DRIVER=ON \
-    -DWITH_TESTS=ON \
-    -DDWARFS_WITH_FLATBUFFERS=$fb_flag \
-    -DDWARFS_WITH_THRIFT=$thrift_flag
+  if [[ "$USE_VCPKG" == "true" ]]; then
+    info "Using vcpkg toolchain with Tebako jemalloc 5.5.0..."
+    NO_CMAKE_PATH=1 NO_CMAKE_ENVIRONMENT_PATH=1 cmake "$PROJECT_ROOT" \
+      -GNinja \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+      -DVCPKG_OVERLAY_PORTS="$PROJECT_ROOT/vcpkg_ports" \
+      -DVCPKG_OVERLAY_TRIPLETS="$PROJECT_ROOT/vcpkg_triplets" \
+      -DVCPKG_TARGET_TRIPLET=arm64-osx-static \
+      -DWITH_BENCHMARKS=ON \
+      -DWITH_LIBDWARFS=ON \
+      -DWITH_TOOLS=ON \
+      -DWITH_FUSE_DRIVER=ON \
+      -DWITH_TESTS=ON \
+      -DDWARFS_WITH_FLATBUFFERS=$fb_flag \
+      -DDWARFS_WITH_THRIFT=$thrift_flag
+  else
+    info "Using system packages (pkg-config)..."
+    cmake "$PROJECT_ROOT" \
+      -GNinja \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DWITH_BENCHMARKS=ON \
+      -DWITH_LIBDWARFS=ON \
+      -DWITH_TOOLS=ON \
+      -DWITH_FUSE_DRIVER=ON \
+      -DWITH_TESTS=ON \
+      -DDWARFS_WITH_FLATBUFFERS=$fb_flag \
+      -DDWARFS_WITH_THRIFT=$thrift_flag
+  fi
 
   ninja
 
@@ -146,18 +169,16 @@ create_images() {
     info "FlatBuffers image already exists"
   fi
 
-  # Thrift image (.dft) - only if Thrift build available
-  if [[ -d "$BUILD_THRIFT" ]] && [[ ! -f "$IMAGES_DIR/perl-5.43.3.dft" ]]; then
+  # Thrift image (.dft) - use both-formats build
+  if [[ ! -f "$IMAGES_DIR/perl-5.43.3.dft" ]]; then
     info "Creating Thrift image..."
-    "$BUILD_THRIFT/mkdwarfs" -i "$PERL_SOURCE" -o "$IMAGES_DIR/perl-5.43.3.dft" \
+    "$BUILD_BOTH/mkdwarfs" -i "$PERL_SOURCE" -o "$IMAGES_DIR/perl-5.43.3.dft" \
       --compression zstd:level=3 \
       --metadata-format thrift \
       --log-level error
     success "Created: perl-5.43.3.dft"
-  elif [[ -f "$IMAGES_DIR/perl-5.43.3.dft" ]]; then
-    info "Thrift image already exists"
   else
-    warn "Skipping Thrift image (no Thrift build)"
+    info "Thrift image already exists"
   fi
 
   # Show image sizes
@@ -250,7 +271,7 @@ benchmark_libdwarfs_api() {
   info "libdwarfs API benchmark: $build_name with $format"
 
   # Get a test file for single/random benchmarks
-  local test_file="/$("$build_dir/dwarfsck" "$image" -l 2>/dev/null | grep -E '\.(pm|pl|pod)$' | head -n 1 || echo "")"
+  local test_file="/$("$build_dir/dwarfsck" -i "$image" -l 2>/dev/null | grep -E '\.(pm|pl|pod)$' | head -n 1 || echo "")"
 
   # Validate test file exists and is not just "/"
   if [[ -z "$test_file" ]] || [[ "$test_file" == "/" ]]; then
@@ -320,12 +341,8 @@ generate_report() {
    - Metadata: FlatBuffers only
    - Images: .dff
 
-2. **Thrift-only** (\`build-thrift-bench\`)
-   - Metadata: Thrift Compact only
-   - Images: .dft
-
-3. **Both formats** (\`build-both-bench\`)
-   - Metadata: FlatBuffers + Thrift
+2. **Both-formats** (\`build-both-bench\`)
+   - Metadata: FlatBuffers + Thrift (Legacy + Modern)
    - Images: .dff, .dft
 
 ---
@@ -455,26 +472,20 @@ main() {
   mkdir -p "$RESULTS_DIR"
 
   # Phase 1: Build all configurations
-  section "Phase 1: Building Configurations (30-60 minutes)"
+  section "Phase 1: Building Configurations (20-40 minutes)"
 
   build_configuration "flatbuffers-only" "$BUILD_FB" ON OFF
-  build_configuration "thrift-only" "$BUILD_THRIFT" OFF ON
   build_configuration "both-formats" "$BUILD_BOTH" ON ON
 
   # Phase 2: Create images
   create_images
 
   # Phase 3: FUSE Benchmarks
-  section "Phase 2: FUSE Benchmarks (30-60 minutes)"
+  section "Phase 2: FUSE Benchmarks (20-40 minutes)"
 
   # FB-only build with .dff
   if [[ -f "$IMAGES_DIR/perl-5.43.3.dff" ]]; then
     benchmark_fuse_extraction "fb-only" "$BUILD_FB" "$IMAGES_DIR/perl-5.43.3.dff" "dff"
-  fi
-
-  # Thrift-only build with .dft
-  if [[ -f "$IMAGES_DIR/perl-5.43.3.dft" ]] && [[ -d "$BUILD_THRIFT" ]]; then
-    benchmark_fuse_extraction "thrift-only" "$BUILD_THRIFT" "$IMAGES_DIR/perl-5.43.3.dft" "dft"
   fi
 
   # Both build with both formats
@@ -486,16 +497,11 @@ main() {
   fi
 
   # Phase 4: libdwarfs API Benchmarks
-  section "Phase 3: libdwarfs API Benchmarks (30-60 minutes)"
+  section "Phase 3: libdwarfs API Benchmarks (20-40 minutes)"
 
   # FB-only build with .dff
   if [[ -f "$IMAGES_DIR/perl-5.43.3.dff" ]]; then
     benchmark_libdwarfs_api "fb-only" "$BUILD_FB" "$IMAGES_DIR/perl-5.43.3.dff" "dff"
-  fi
-
-  # Thrift-only build with .dft
-  if [[ -f "$IMAGES_DIR/perl-5.43.3.dft" ]] && [[ -d "$BUILD_THRIFT" ]]; then
-    benchmark_libdwarfs_api "thrift-only" "$BUILD_THRIFT" "$IMAGES_DIR/perl-5.43.3.dft" "dft"
   fi
 
   # Both build with both formats

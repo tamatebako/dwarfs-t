@@ -28,6 +28,7 @@
 
 #include <stdexcept>
 #include <cstring>
+#include <algorithm>
 
 namespace dwarfs::metadata::serialization {
 
@@ -76,13 +77,9 @@ std::unique_ptr<void, void(*)(void*)> LegacyThriftSerializer::deserialize(
 
   // Step 1: Deserialize schema (Thrift Compact)
   // The schema tells us how to interpret the bit-packed frozen data
-  auto schema = legacy::FrozenSchemaSerializer::deserialize(metadata_bytes);
-
-  // Step 2: Calculate where frozen data starts
-  // We need to know the schema's serialized size
-  // Inefficient but correct: re-serialize schema to get its size
-  auto schema_bytes = legacy::FrozenSchemaSerializer::serialize(schema);
-  size_t schema_size = schema_bytes.size();
+  // Track bytes consumed to find where frozen data starts
+  size_t schema_size = 0;
+  auto schema = legacy::FrozenSchemaSerializer::deserialize(metadata_bytes, schema_size);
 
   if (metadata_bytes.size() < schema_size) {
     throw std::runtime_error(
@@ -91,7 +88,7 @@ std::unique_ptr<void, void(*)(void*)> LegacyThriftSerializer::deserialize(
         ", schema size: " + std::to_string(schema_size) + ")");
   }
 
-  // Step 3: Extract frozen bytes (after schema)
+  // Step 2: Extract frozen bytes (after schema)
   // Note: Task 5 only serializes schema, no frozen data yet
   // Task 6 will add metadata encoding for chunks, scalars, etc.
   std::span<uint8_t const> frozen_bytes;
@@ -101,7 +98,7 @@ std::unique_ptr<void, void(*)(void*)> LegacyThriftSerializer::deserialize(
         metadata_bytes.size() - schema_size);
   }
 
-  // Step 4: Deserialize using Frozen2 format
+  // Step 3: Deserialize using Frozen2 format
   // If no frozen data, create empty metadata (Task 5 limitation)
   std::unique_ptr<domain::metadata> domain_meta;
   if (frozen_bytes.empty()) {

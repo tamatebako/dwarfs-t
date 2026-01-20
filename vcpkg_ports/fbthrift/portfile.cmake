@@ -93,4 +93,11 @@ endif()
 # Only used internally and removed in master
 vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/share/fbthrift/FBThriftTargets.cmake" "LOCATION_HH=\\\"${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/thrift/compiler/location.hh\\\"" "" IGNORE_UNCHANGED)
 
+# Fix hardcoded library paths to use CMake targets
+vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/share/fbthrift/FBThriftTargets.cmake" "\${VCPKG_IMPORT_PREFIX}/lib/libxxhash.a" "xxHash::xxhash" IGNORE_UNCHANGED)
+vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/share/fbthrift/FBThriftTargets.cmake" "\${VCPKG_IMPORT_PREFIX}/lib/libssl.a" "OpenSSL::SSL" IGNORE_UNCHANGED)
+vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/share/fbthrift/FBThriftTargets.cmake" "\${VCPKG_IMPORT_PREFIX}/debug/lib/libssl.a" "OpenSSL::SSL" IGNORE_UNCHANGED)
+vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/share/fbthrift/FBThriftTargets.cmake" "\${VCPKG_IMPORT_PREFIX}/lib/libcrypto.a" "OpenSSL::Crypto" IGNORE_UNCHANGED)
+vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/share/fbthrift/FBThriftTargets.cmake" "\${VCPKG_IMPORT_PREFIX}/debug/lib/libcrypto.a" "OpenSSL::Crypto" IGNORE_UNCHANGED)
+
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE")

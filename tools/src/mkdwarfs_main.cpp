@@ -407,25 +407,35 @@ get_format_from_string(std::string const& format_str) {
   if (format_str == "flatbuffers" || format_str == "flatbuffer") {
     // FlatBuffers is always available (REQUIRED)
     return SerializationFormat::FLATBUFFERS;
+  } else if (format_str == "legacy-thrift" || format_str == "legacy") {
+    // Legacy Thrift (Frozen2) - hand-coded, Homebrew v0.14.1 compatible
+    return SerializationFormat::LEGACY_THRIFT;
   } else if (format_str == "thrift") {
 #ifdef DWARFS_HAVE_THRIFT
+    // Note: "thrift" with DWARFS_HAVE_THRIFT creates EXPERIMENTAL Modern Thrift format
+    // This is NOT compatible with Homebrew dwarfs (which uses Legacy Thrift)
     return SerializationFormat::MODERN_THRIFT;
 #else
     throw std::runtime_error(
-        "Thrift format not available (build without Thrift support)");
+        "Modern Thrift format not available (build without fbthrift support)");
 #endif
   } else if (format_str == "cereal" || format_str == "bitsery") {
     throw std::runtime_error(
         fmt::format("Metadata format '{}' is no longer supported. "
                     "Cereal and Bitsery formats were removed in v0.16.0. "
-                    "Please use 'flatbuffers' (default) or 'thrift' (legacy) instead. "
+                    "Please use 'flatbuffers' (default/recommended), "
+                    "'legacy-thrift' (Homebrew compatible, uses .dwarfs extension), or "
+                    "'thrift' (experimental Modern Thrift fbthrift, uses .dftx extension) instead. "
                     "To convert existing images, use: mkdwarfs --recompress=metadata "
                     "--rebuild-metadata --format=flatbuffers -I old.dwarfs -O new.dwarfs",
                     format_str));
   } else {
     throw std::runtime_error(
         fmt::format("Unknown metadata format: '{}'. "
-                    "Supported formats: flatbuffers (default), thrift (legacy)",
+                    "Supported formats:\n"
+                    "  flatbuffers - FlatBuffers format (.dff, stable, recommended default)\n"
+                    "  legacy-thrift - Legacy Thrift/Frozen2 (.dwarfs, stable, Homebrew compatible)\n"
+                    "  thrift - Modern Thrift CompactProtocol (.dftx, experimental, fbthrift)",
                     format_str));
   }
 }

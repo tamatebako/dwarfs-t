@@ -412,6 +412,17 @@ if(WITH_TESTS OR WITH_BENCHMARKS OR WITH_FUZZ)
   include(cmake/tests.cmake)
 endif()
 
+# ============================================================================
+# Homebrew Compatibility Tests
+# ============================================================================
+
+if(WITH_TESTS)
+  option(WITH_COMPAT_TESTS "Enable Homebrew compatibility tests" ON)
+  if(WITH_COMPAT_TESTS)
+    add_subdirectory(test/compat)
+  endif()
+endif()
+
 include(cmake/compiler_flags.cmake)
 include(cmake/packaging.cmake)
 

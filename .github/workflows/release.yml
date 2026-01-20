@@ -33,7 +33,7 @@ jobs:
       runner: ubuntu-latest
       triplet: x64-linux
       artifact-name: dwarfs-linux-x64
-      config: flatbuffers-only
+      config: flatbuffers
 
   # Linux ARM64
   build-linux-arm64:
@@ -42,7 +42,7 @@ jobs:
       runner: ubuntu-24.04-arm64
       triplet: arm64-linux
       artifact-name: dwarfs-linux-arm64
-      config: flatbuffers-only
+      config: flatbuffers
 
   # macOS x64 (Intel)
   build-macos-x64:
@@ -51,7 +51,7 @@ jobs:
       runner: macos-15
       triplet: x64-osx
       artifact-name: dwarfs-macos-x64
-      config: flatbuffers-only
+      config: flatbuffers
 
   # macOS ARM64 (Apple Silicon)
   build-macos-arm64:
@@ -60,7 +60,7 @@ jobs:
       runner: macos-14
       triplet: arm64-osx
       artifact-name: dwarfs-macos-arm64
-      config: flatbuffers-only
+      config: flatbuffers
 
   # Windows x64
   build-windows-x64:
@@ -69,7 +69,7 @@ jobs:
       runner: windows-latest
       triplet: x64-windows-static
       artifact-name: dwarfs-windows-x64
-      config: flatbuffers-only
+      config: flatbuffers
 
   # Create GitHub release with artifacts
   publish-release:

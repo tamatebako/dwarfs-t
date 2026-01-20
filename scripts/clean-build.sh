@@ -8,6 +8,10 @@ set -e
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$PROJECT_ROOT/build-test}"
 
+# Vcpkg configuration
+VCPKG_ROOT="${VCPKG_ROOT:-/Users/mulgogi/vcpkg}"
+USE_VCPKG="${USE_VCPKG:-false}"
+
 # Parse command-line options
 SKIP_CONFIRM=false
 while getopts "y" opt; do
@@ -18,6 +22,12 @@ while getopts "y" opt; do
         \?)
             echo "Usage: $0 [-y]"
             echo "  -y: Skip confirmation prompt"
+            echo ""
+            echo "Environment variables:"
+            echo "  BUILD_DIR    - Build directory (default: build-test)"
+            echo "  USE_VCPKG    - Use vcpkg toolchain (default: false)"
+            echo "  VCPKG_ROOT   - Vcpkg installation (default: /Users/mulgogi/vcpkg)"
+            echo "  WITH_THRIFT  - Enable Modern Thrift (default: OFF)"
             exit 1
             ;;
     esac
@@ -69,16 +79,39 @@ echo "  WITH_TOOLS:        $WITH_TOOLS"
 echo "  WITH_LIBDWARFS:    $WITH_LIBDWARFS"
 echo "  WITH_FLATBUFFERS:  $WITH_FLATBUFFERS"
 echo "  WITH_THRIFT:       $WITH_THRIFT"
+echo "  USE_VCPKG:         $USE_VCPKG"
 echo
 
 # Run CMake
-cmake .. -GNinja \
-    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-    -DWITH_TESTS="$WITH_TESTS" \
-    -DWITH_TOOLS="$WITH_TOOLS" \
-    -DWITH_LIBDWARFS="$WITH_LIBDWARFS" \
-    -DDWARFS_WITH_FLATBUFFERS="$WITH_FLATBUFFERS" \
-    -DDWARFS_WITH_THRIFT="$WITH_THRIFT"
+if [ "$USE_VCPKG" = true ]; then
+    echo "Using vcpkg toolchain with overlay ports..."
+    # Set CMAKE_PREFIX_PATH to prioritize vcpkg packages from this build
+    # This ensures vcpkg overlay ports (folly, fbthrift, etc.) are found before Homebrew versions
+    # The packages are installed to $BUILD_DIR/vcpkg_installed/$VCPKG_TARGET_TRIPLET
+    CMAKE_PREFIX_PATH="$BUILD_DIR/vcpkg_installed/$VCPKG_TARGET_TRIPLET"
+    export CMAKE_PREFIX_PATH
+    NO_CMAKE_PATH=1 NO_CMAKE_ENVIRONMENT_PATH=1 cmake .. -GNinja \
+        -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+        -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+        -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+        -DVCPKG_OVERLAY_PORTS="$PROJECT_ROOT/vcpkg_ports" \
+        -DVCPKG_OVERLAY_TRIPLETS="$PROJECT_ROOT/vcpkg_triplets" \
+        -DVCPKG_TARGET_TRIPLET=arm64-osx-static \
+        -DWITH_TESTS="$WITH_TESTS" \
+        -DWITH_TOOLS="$WITH_TOOLS" \
+        -DWITH_LIBDWARFS="$WITH_LIBDWARFS" \
+        -DDWARFS_WITH_FLATBUFFERS="$WITH_FLATBUFFERS" \
+        -DDWARFS_WITH_THRIFT="$WITH_THRIFT"
+else
+    echo "Using system packages (pkg-config)..."
+    cmake .. -GNinja \
+        -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+        -DWITH_TESTS="$WITH_TESTS" \
+        -DWITH_TOOLS="$WITH_TOOLS" \
+        -DWITH_LIBDWARFS="$WITH_LIBDWARFS" \
+        -DDWARFS_WITH_FLATBUFFERS="$WITH_FLATBUFFERS" \
+        -DDWARFS_WITH_THRIFT="$WITH_THRIFT"
+fi
 
 echo
 echo "=== Configuration Complete ==="

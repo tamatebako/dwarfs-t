@@ -274,11 +274,12 @@ domain_dir_entry_view_impl::inode() const {
     // Check if we have entry_table_v2_2 (v0.2.3 format)
     if (!meta_.entry_table_v2_2.empty()) {
       // v0.2.3 format: entry_table_v2_2[entry_idx] = inode_index
+      // For v0.2.3, chunk_table is indexed by entry index, not inode_index
       if (self_index_ >= meta_.entry_table_v2_2.size()) {
         return nullptr;
       }
       inode_index = meta_.entry_table_v2_2[self_index_];
-      inode_num = self_index_;  // In v0.2.3, inode_num = entry_idx
+      inode_num = self_index_;  // In v0.2.3, inode_num = entry_idx for chunk_table indexing
     } else {
       // Very old format: self_index_ is directly the inode index
       if (self_index_ >= meta_.inodes.size()) {

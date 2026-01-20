@@ -28,10 +28,10 @@ on:
         required: true
         type: string
       config:
-        description: 'Build configuration (flatbuffers-only or both-formats)'
+        description: 'Build configuration (flatbuffers, flatbuffers+modern-thrift)'
         required: false
         type: string
-        default: flatbuffers-only
+        default: flatbuffers
       build-type:
         description: 'CMake build type'
         required: false

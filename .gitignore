@@ -12,12 +12,13 @@
 
 *~
 .*.swp
+*.bak
+*.o
 
 # VS build environment
 .vs/
 out/
 CMakeSettings.json
-
 
 # Tebako
 .vscode/
@@ -28,3 +29,19 @@ src/dwarfs/version.cpp
 /benchmark-files
 *.pyc
 vcpkg_installed/
+buildtrees/
+vcpkg-triplets-osx-*/
+.claude/
+# Example build artifacts
+example/*/*/build/
+example/*/*/CMakeCache.txt
+example/*/*/CMakeFiles/
+example/*/*/build.ninja
+example/*/*/cmake_install.cmake
+example/*/*/.ninja_deps
+example/*/*/.ninja_log
+example/*/*/Testing/
+example/*/*/static-site-server
+example/*/*/*.o
+
+# End of .gitignore

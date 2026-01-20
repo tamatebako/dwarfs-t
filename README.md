@@ -1,6 +1,7 @@
 # DwarFS (Tebako Fork)
 
-[![Build Status](https://github.com/tamatebako/dwarfs/actions/workflows/build.yml/badge.svg)](https://github.com/tamatebako/dwarfs/actions/workflows/build.yml)
+[![CI Main](https://github.com/tamatebako/dwarfs/actions/workflows/ci-main.yml/badge.svg)](https://github.com/tamatebako/dwarfs/actions/workflows/ci-main.yml)
+[![PR Validation](https://github.com/tamatebako/dwarfs/actions/workflows/pr-validation.yml/badge.svg)](https://github.com/tamatebako/dwarfs/actions/workflows/pr-validation.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.GPL-3.0)
 
 A fast, high-compression, read-only filesystem with excellent metadata serialization flexibility.
@@ -8,6 +9,8 @@ A fast, high-compression, read-only filesystem with excellent metadata serializa
 This is the **Tebako fork** of DwarFS, providing enhanced portability, extensive
 CI/CD coverage, and flexible metadata serialization options. For the original
 DwarFS documentation, see [`README.DWARFS.md`](README.DWARFS.md).
+
+**CI/CD**: See [.github/workflows/](.github/workflows/) for all workflows and [.github/README.md](.github/README.md) for CI/CD documentation.
 
 ---
 
@@ -154,78 +157,85 @@ mkdwarfs -i input -o output.dff --compression=brotli:quality=5
 
 ## Metadata Serialization Formats
 
-This fork supports **three** metadata serialization formats.
+DwarFS supports **three** metadata serialization formats with different stability levels:
 
-DwarFS-T's additional metadata formats utilize magic bytes for format detection
-and implement a clean "Strategy Pattern" architecture.
+### FlatBuffers (Recommended Default) ✅
 
-### FlatBuffers (Default) ✅
+**Status**: **Stable, required**
 
-**Status**: Modern default, **required**
-
-- **Size Efficiency**: 102.91% of Thrift (only +2.91% overhead)
+- **Size Efficiency**: 102.91% of Legacy Thrift (only +2.91% overhead)
 - **Dependencies**: Header-only FlatBuffers library (auto-fetched)
 - **Portability**: ⭐⭐⭐⭐⭐ Excellent - works on all platforms, supports static builds
 - **Memory**: Zero-copy, memory-mappable access
 - **Format**: Self-describing (includes schema)
+- **Magic Bytes**: `"DFBF"` (DwarFS FlatBuffers)
 - **Build Time**: Fast (header-only)
 - **Priority**: 120 (highest)
+- **File Extension**: `.dff` (recommended), also supports `.dwarfs` (auto-detect)
 
-**Use for**: All new filesystem images
+**Use for**: All new filesystem images (production-ready)
 
-### Modern Thrift Compact
+### Modern Thrift Compact ⚠️ EXPERIMENTAL
 
-**Status**: ✅ **optional**
+**Status**: ⚠️ **Experimental** (fbthrift - floating target, may break)
 
 - **Size Efficiency**: 100% (baseline, smallest possible)
-- **Dependencies**: Folly, fbthrift, jemalloc (all via vcpkg v2025.12.29.00)
+- **Dependencies**: Folly, fbthrift, jemalloc (all via vcpkg v2025.12.29.00+)
 - **Portability**: ⭐⭐ Limited - requires complex build toolchain, static builds delicate
 - **Memory**: Zero-copy, memory-mappable (CompactProtocol)
 - **Format**: CompactProtocol with magic bytes `{0x82, 0x21}`
+- **Stability**: ⚠️ **NOT RECOMMENDED** - fbthrift is a moving target
 - **Build Time**: Slow (45-60 min first build, full stack compilation)
 - **Priority**: 100 (medium-high)
-- **File Extension**: `.dtc` (DwarFS Thrift Compact - recommended)
+- **File Extension**: `.dftx` (Modern Thrift - distinct from Legacy Thrift)
 
 **Use for**: Minimum size requirement, environments with existing Facebook stack
+**⚠️ WARNING**: NOT compatible with Homebrew dwarfs (which uses Legacy Thrift)
 
-### Legacy Thrift (Frozen2) (DwarFS v0.14.1 compatible)
+### Legacy Thrift (Frozen2) ✅ STABLE
 
-**Status**: ✅ Always available.
+**Status**: **Stable, always available** (Homebrew v0.14.1 compatible)
 
 - **Size Efficiency**: 100% baseline (Frozen2 bit-packed format)
 - **Dependencies**: None (hand-coded Frozen2 implementation)
 - **Portability**: ⭐⭐⭐⭐⭐ Excellent - works on all platforms, supports static builds
 - **Memory**: Sequential parsing (efficient bit-level packing)
 - **Format**: Frozen2 bit-packed structures (compatible with dwarfs-rs v0.14.x)
+- **Magic Bytes**: None (fallback format)
 - **Build Time**: Fast (~30 seconds)
 - **Priority**: 50 (fallback)
-- **File Extension**: `.dth` (recommended)
+- **File Extension**: `.dwarfs` (original extension, Homebrew compatible)
 
-**Use for**: Homebrew v0.14.1 backward compatibility without fbthrift dependency
+**Use for**: Homebrew v0.14.1 compatibility
+**Note**: Use `--format=legacy-thrift` to create Homebrew-compatible images
 
 **Format Detection**: Legacy Thrift serves as the **fallback** format when no
 magic bytes are detected, ensuring backward compatibility with v0.14.1 images
 that don't have format identifiers.
 
+### File Extension Summary
+
+| Extension | Format | Stability | Auto-Detect | Use Case |
+|-----------|--------|-----------|-------------|----------|
+| `.dff` | FlatBuffers | ✅ Yes | Recommended default |
+| `.dwarfs` | Legacy Thrift (fallback) | ✅ Yes (no magic) | Homebrew v0.14.1+ |
+| `.dftx` | Modern Thrift | ✅ Yes ({0x82, 0x21}) | Experimental fbthrift |
+| `.dft` | *Ambiguous* (Legacy or Modern) | ✅ Yes | Not recommended |
+
 ### Size Comparison
 
 Test conducted on Perl 5.43.3 dataset (96.5 MB, 6,816 files):
 
-| Format | Size | Relative | Priority | Status |
-|--------|------|----------|----------|--------|
-| **FlatBuffers** | 27,672,472 bytes | **101.41%** (+385 KB) | 120 | ✅ Default |
-| **Modern Thrift** | 27,286,666 bytes | **100%** (baseline) | 100 | ✅ |
-| **Legacy Thrift** | ~28-29 MB | **100%** | 50 | ✅ Always available |
+| Format | Size | Relative | Priority | Stability |
+|--------|------|----------|----------|-----------|
+| **FlatBuffers** | 27,672,472 bytes | **101.41%** (+385 KB) | 120 | ✅ Stable (recommended) |
+| **Modern Thrift** | 27,286,666 bytes | **100%** (baseline) | 100 | ⚠️ Experimental |
+| **Legacy Thrift** | ~28-29 MB | **100%** | 50 | ✅ Stable (Homebrew compatible) |
 
-**Key Highlights** (TODO UPDATE):
-- Modern Thrift: 100% baseline - smallest but requires full Facebook stack (fbthrift v2025.12.29.00)
-- FlatBuffers: 1.41% overhead at level 3 - negligible, excellent portability
-- Legacy Thrift: 3-6% overhead - acceptable for backward compatibility without fbthrift
-
-**Performance** (TODO UPDATE):
-- Compression: Modern Thrift 17-29% faster than FlatBuffers at levels 1-3
-- Extraction: Virtually identical (3.4% difference within noise)
-- Size: 0.07-1.41% smaller than FlatBuffers (minimal difference)
+**Key Highlights**:
+- **Modern Thrift** (⚠️ Experimental): 100% baseline - smallest but requires full Facebook stack
+- **FlatBuffers** (✅ Stable): 1.41% overhead at level 3 - negligible, excellent portability
+- **Legacy Thrift** (✅ Stable): Hand-coded, Homebrew v0.14.1 compatible via `--format=legacy-thrift`
 
 The small overhead for FlatBuffers is well worth the portability and simplicity gains.
 
@@ -484,7 +494,36 @@ dwarfs output.dff /mnt # ✅ Works
 
 Check the [Releases](https://github.com/tamatebako/dwarfs/releases) page for pre-built binaries.
 
-#### From Source
+#### From Source (Recommended: Unified Build System)
+
+The **unified build system** provides one-step commands for building and testing:
+
+```bash
+# Clone repository
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs
+cd dwarfs
+
+# One-time vcpkg setup
+git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
+~/vcpkg/bootstrap-vcpkg.sh
+export VCPKG_ROOT="$HOME/vcpkg"
+
+# Run all tests (one command!)
+./scripts/one-step/test-everything.sh
+
+# Or build all configurations
+./scripts/one-step/build-all.sh
+```
+
+**Benefits:**
+- ✅ Automatic environment detection (vcpkg vs system packages)
+- ✅ Tebako jemalloc 5.5.0 auto-verification
+- ✅ Tests all configurations (FlatBuffers-only, both-formats)
+- ✅ One-step process for developers and release managers
+
+**For detailed workflows**: See [Unified Build System](#unified-build-system) section below.
+
+#### From Source (Traditional CMake)
 
 ```bash
 # Clone repository
@@ -953,6 +992,207 @@ dwarfsextract -i image.dft -o out/  # Extract Thrift
 
 ---
 
+## Unified Build System
+
+### Overview
+
+DwarFS includes a **production-ready unified build system** designed to simplify development, testing, benchmarking, and release workflows. The system provides:
+
+- **One-step commands** for common workflows (build, test, clean, benchmark)
+- **Automatic environment detection** (vcpkg vs system packages)
+- **Multi-configuration support** (FlatBuffers-only, both-formats)
+- **CI/CD integration** with reusable workflows
+- **Tebako jemalloc verification** (critical dependency)
+
+**Status**: ✅ Production-ready, all tests passing
+
+### Quick Start
+
+```bash
+# Clone and setup
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs.git
+cd dwarfs
+
+# One-time vcpkg setup
+git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
+~/vcpkg/bootstrap-vcpkg.sh
+export VCPKG_ROOT="$HOME/vcpkg"
+
+# Run all tests (one command!)
+./scripts/one-step/test-everything.sh
+```
+
+### One-Step Scripts
+
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| **test-everything.sh** | Run all tests (auto-detects vcpkg) | `./scripts/one-step/test-everything.sh` |
+| **build-all.sh** | Build all configurations | `./scripts/one-step/build-all.sh` |
+| **clean.sh** | Clean build artifacts | `./scripts/one-step/clean.sh --all --yes` |
+| **benchmark-quick.sh** | Quick benchmark validation | `./scripts/one-step/benchmark-quick.sh` |
+
+### For Developers
+
+**Daily Development Workflow:**
+
+```bash
+# 1. Before starting work
+git pull origin main
+./scripts/one-step/clean.sh --yes
+
+# 2. During development (work with single config)
+BUILD_DIR=build-dev ./scripts/clean-build.sh -y
+cd build-dev && ninja && ninja test
+
+# 3. Before committing (quick validation)
+./scripts/one-step/test-everything.sh --quick
+
+# 4. Before pushing/PR (full validation)
+./scripts/one-step/test-everything.sh
+```
+
+### For Release Managers
+
+**Pre-Release Validation:**
+
+```bash
+# 1. Full test suite
+./scripts/one-step/test-everything.sh
+
+# 2. Run release orchestrator (dry-run)
+./scripts/orchestrator/release.sh --dry-run
+
+# 3. Verify Homebrew compatibility (if installed)
+brew install dwarfs
+./build-both-formats/mkdwarfs -i test/ -o test.dft --format=legacy-thrift
+/homebrew/bin/dwarfs test.dft ls /
+```
+
+### Architecture
+
+The unified build system uses a **layered architecture** with MECE organization:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              Developer Interface Layer                  │
+│  One-Step Scripts (test-everything.sh, build-all.sh)   │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────────┐
+│              Orchestration Layer                        │
+│  build.sh, release.sh (core build/test logic)          │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────────┐
+│              Configuration Layer                        │
+│  Build configs (flatbuffers-only, both-formats)        │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────────┐
+│              Platform Layer                             │
+│  vcpkg helper, build_env (triplet management)          │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────────┐
+│              CI/CD Layer                                │
+│  Reusable workflows, composite actions                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Directory Structure:**
+
+```
+scripts/
+├── lib/                    # Shared libraries
+│   ├── build_env.sh       # Environment detection, colors
+│   └── vcpkg_helper.sh    # vcpkg utilities, Tebako jemalloc verification
+├── orchestrator/          # Core build/test/release logic
+│   ├── build.sh          # Core build logic
+│   └── release.sh        # Release orchestration
+├── one-step/              # User-facing entry points
+│   ├── test-everything.sh
+│   ├── build-all.sh
+│   ├── clean.sh
+│   └── benchmark-quick.sh
+└── utils/                 # Utility scripts
+    └── clean.sh
+```
+
+### CI/CD Matrix Testing
+
+GitHub Actions tests across **multiple platforms** and **configurations**:
+
+**Platform Matrix:**
+
+| Platform | Runner | Architecture | Triplets |
+|----------|--------|--------------|----------|
+| **macOS** | macos-14 | arm64 | arm64-osx, arm64-osx-dynamic |
+| **macOS** | macos-13 | x64 | x64-osx, x64-osx-dynamic |
+| **Linux** | ubuntu-24.04-arm64 | arm64 | arm64-linux, arm64-linux-dynamic |
+| **Linux** | ubuntu-latest | x64 | x64-linux, x64-linux-dynamic |
+| **Windows** | windows-latest | x64 | x64-windows-static/dynamic |
+
+**Configuration Matrix:**
+
+| Configuration | Metadata Formats | File Extensions | Purpose |
+|--------------|------------------|-----------------|---------|
+| `flatbuffers-only` | FlatBuffers | .dff | Modern default, stable |
+| `both-formats` | FlatBuffers + Thrift | .dff, .dft | All formats, max compatibility |
+
+**Total CI Jobs:** 10+ test matrix combinations
+
+### Critical Dependency: Tebako jemalloc
+
+**IMPORTANT**: DwarFS requires **Tebako's fork of jemalloc 5.5.0**, NOT upstream jemalloc!
+
+| Build Mode | jemalloc Source | How to Get It |
+|------------|----------------|--------------|
+| **vcpkg (Recommended)** | Tebako 5.5.0 | Auto-installed via overlay port |
+| **System Packages** | ⚠️ Incompatible | Homebrew has 5.3.0 (won't work) |
+
+**Auto-verification**: All build scripts automatically verify Tebako jemalloc 5.5.0
+
+### vcpkg Triplet Support
+
+DwarFS supports **12+ custom triplets** across platforms:
+
+**macOS:**
+- `arm64-osx` (static, recommended for M1/M2/M3)
+- `x64-osx` (static, recommended for Intel)
+- `arm64-osx-dynamic` (dynamic)
+- `x64-osx-dynamic` (dynamic)
+
+**Linux:**
+- `arm64-linux` (static)
+- `x64-linux` (static)
+- `arm64-linux-dynamic` (dynamic)
+- `x64-linux-dynamic` (dynamic)
+
+**Windows:**
+- `arm64-windows-static/dynamic`
+- `x64-windows-static/dynamic`
+- Plus MinGW variants
+
+### Documentation
+
+- **[BUILD_SYSTEM_ARCHITECTURE.md](BUILD_SYSTEM_ARCHITECTURE.md)** - Complete system architecture
+- **[WORKFLOW_GUIDE.md](WORKFLOW_GUIDE.md)** - Developer & Release Manager workflows
+- **[TESTING.md](TESTING.md)** - Testing guide with CI/CD matrix information
+- **[scripts/README.md](scripts/README.md)** - Scripts organization guide
+- **[vcpkg_triplets/README.md](vcpkg_triplets/README.md)** - Triplet documentation
+
+### Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Unified Build System | ✅ Complete | Orchestrator + libs + one-step scripts |
+| vcpkg Triplets | ✅ Complete | 12+ triplets across platforms |
+| CI/CD Matrix | ✅ Complete | 10+ test jobs across platforms/configs |
+| Tebako jemalloc | ✅ Complete | Overlay port + auto-verification |
+| Documentation | ✅ Complete | WORKFLOW_GUIDE.md, updated TESTING.md |
+
+---
+
 ## Known Issues and Workarounds
 
 ### Large Repository Support (v0.16.0+)
@@ -1018,6 +1258,16 @@ Tested via cross-compilation:
 
 ## Documentation
 
+### Unified Build System Documentation
+
+- **[BUILD_SYSTEM_ARCHITECTURE.md](BUILD_SYSTEM_ARCHITECTURE.md)** - Complete system architecture and design
+- **[WORKFLOW_GUIDE.md](WORKFLOW_GUIDE.md)** - Developer & Release Manager workflows
+- **[TESTING.md](TESTING.md)** - Comprehensive testing guide with CI/CD matrix
+- **[STATUS_REPORT.md](STATUS_REPORT.md)** - Project status and remaining work
+- **[TODO.pre-release-checks.md](TODO.pre-release-checks.md)** - Pre-release checklist
+- **[scripts/README.md](scripts/README.md)** - Scripts organization guide
+- **[vcpkg_triplets/README.md](vcpkg_triplets/README.md)** - vcpkg triplet documentation
+
 ### Tebako Fork Documentation
 
 - **vcpkg Installation**: [`doc/VCPKG_INSTALLATION.md`](doc/VCPKG_INSTALLATION.md) - Complete vcpkg installation guide
@@ -1044,7 +1294,30 @@ Located in `.kilocode/rules/memory-bank/`:
 
 DwarFS includes a comprehensive test suite validating all metadata serialization formats.
 
-### Test Suites
+### Running Tests (Recommended: Unified Build System)
+
+**One-step testing with automatic environment detection:**
+
+```bash
+# Run all tests (auto-detects vcpkg or system packages)
+./scripts/one-step/test-everything.sh
+
+# Quick validation (skip benchmarks)
+./scripts/one-step/test-everything.sh --quick
+
+# Force vcpkg mode
+./scripts/one-step/test-everything.sh --vcpkg
+```
+
+**What it does:**
+1. ✅ Detects build environment (vcpkg vs system packages)
+2. ✅ Verifies Tebako jemalloc 5.5.0 overlay port
+3. ✅ Tests FlatBuffers-only configuration
+4. ✅ Tests both-formats configuration
+5. ✅ Runs all unit tests
+6. ⏭️  Optionally runs benchmarks (prompts first)
+
+### Running Tests (Traditional CMake)
 
 **Metadata Format Tests** (all passing ✅):
 - **frozen_bits_tests**: Bit-packing operations (15 tests)

@@ -54,7 +54,17 @@ metadata_factory::load_metadata(logger& lgr, std::span<uint8_t const> data) {
   }
 
   // Deserialize to domain model
-  auto metadata_ptr = serializer->deserialize(data_vec);
+  // Use a helper to handle exceptions from serializer
+  auto deserialize_with_error_handling = [&]() -> std::unique_ptr<void, void (*)(void*)> {
+    try {
+      return serializer->deserialize(data_vec);
+    } catch (std::exception const& e) {
+      DWARFS_THROW(runtime_error,
+          fmt::format("Metadata deserialization failed: {}", e.what()));
+    }
+  };
+
+  auto metadata_ptr = deserialize_with_error_handling();
 
   if (!metadata_ptr) {
     DWARFS_THROW(runtime_error, "Metadata deserialization failed");

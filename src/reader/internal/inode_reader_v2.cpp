@@ -250,12 +250,12 @@ void inode_reader_<LoggerPolicy>::dump(std::ostream& os,
          << ")\n";
     }
 #else
-    // Thrift-only: iterator returns chunk_view by value
-    if (chunk.is_data()) {
-      os << indent << "  [" << index << "] -> DATA (block=" << chunk.block()
-         << ", offset=" << chunk.offset() << ", size=" << chunk.size() << ")\n";
+    // Thrift-only: iterator returns shared_ptr<chunk_view_interface>
+    if (chunk->is_data()) {
+      os << indent << "  [" << index << "] -> DATA (block=" << chunk->block()
+         << ", offset=" << chunk->offset() << ", size=" << chunk->size() << ")\n";
     } else {
-      os << indent << "  [" << index << "] -> HOLE (size=" << chunk.size()
+      os << indent << "  [" << index << "] -> HOLE (size=" << chunk->size()
          << ")\n";
     }
 #endif

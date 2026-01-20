@@ -87,6 +87,25 @@ public:
   size_t storage_size() const { return storage_section_.size(); }
 
   /**
+   * Seek to a specific bit offset in the compact data section
+   *
+   * This allows seeking forward to write fields at specific positions.
+   * Can only seek forward (to higher offsets).
+   *
+   * @param bit_offset The bit offset to seek to
+   * @throws std::invalid_argument if trying to seek backwards
+   */
+  void seek_to_bit_offset(uint32_t bit_offset) {
+    if (bit_offset < bit_offset_) {
+      throw std::invalid_argument(
+          "seek_to_bit_offset: cannot seek backwards (current=" +
+          std::to_string(bit_offset_) + ", target=" +
+          std::to_string(bit_offset) + ")");
+    }
+    bit_offset_ = bit_offset;
+  }
+
+  /**
    * Finalize and combine the compact data and storage sections
    *
    * This appends the storage section after the compact data in the buffer.

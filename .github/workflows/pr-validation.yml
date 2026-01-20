@@ -19,22 +19,23 @@ permissions:
   contents: read
 
 jobs:
-  # Ubuntu x64 - flatbuffers-only
+  # Ubuntu x64 - flatbuffers
   validate-ubuntu-flatbuffers:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
-      config: flatbuffers-only
+      config: flatbuffers
       build-type: Release
       cache-key: pr-validation-ubuntu-x64
 
-  # Ubuntu x64 - both-formats
-  validate-ubuntu-both:
+  # Ubuntu x64 - flatbuffers+modern-thrift
+  validate-ubuntu-modern-thrift:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
-      config: both-formats
+      config: flatbuffers+modern-thrift
       build-type: Release
       cache-key: pr-validation-ubuntu-x64
+

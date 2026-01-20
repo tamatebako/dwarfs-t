@@ -34,9 +34,9 @@ on:
         required: false
         type: choice
         options:
-          - flatbuffers-only
-          - both-formats
-        default: flatbuffers-only
+          - flatbuffers
+          - flatbuffers+modern-thrift
+        default: flatbuffers
 
 concurrency:
   group: ci-main-${{ github.ref }}
@@ -46,30 +46,30 @@ permissions:
   contents: read
 
 jobs:
-  # Ubuntu x64 - flatbuffers-only (PRIMARY TEST)
+  # Ubuntu x64 - flatbuffers (PRIMARY TEST)
   test-ubuntu-flatbuffers:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
-      config: flatbuffers-only
+      config: flatbuffers
       build-type: Release
       cache-key: ci-main-ubuntu-x64
 
-  # Ubuntu x64 - both-formats
-  test-ubuntu-both:
+  # Ubuntu x64 - flatbuffers+modern-thrift
+  test-ubuntu-modern-thrift:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
-      config: both-formats
+      config: flatbuffers+modern-thrift
       build-type: Release
       cache-key: ci-main-ubuntu-x64
 
   # Summary job
   summary:
     name: CI Summary
-    needs: [test-ubuntu-flatbuffers, test-ubuntu-both]
+    needs: [test-ubuntu-flatbuffers, test-ubuntu-modern-thrift]
     runs-on: ubuntu-latest
     if: always()
 
@@ -84,7 +84,7 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo ""
           echo "Job Status:"
-          echo "  Ubuntu flatbuffers-only: ${{ needs.test-ubuntu-flatbuffers.result }}"
-          echo "  Ubuntu both-formats: ${{ needs.test-ubuntu-both.result }}"
+          echo "  Ubuntu flatbuffers: ${{ needs.test-ubuntu-flatbuffers.result }}"
+          echo "  Ubuntu flatbuffers+modern-thrift: ${{ needs.test-ubuntu-modern-thrift.result }}"
           echo ""
           echo "View results in the Actions tab for detailed logs."

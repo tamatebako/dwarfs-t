@@ -202,7 +202,7 @@ if(WITH_TESTS)
     test/codec_test.cpp
   )
 
-  target_link_libraries(ricepp_test PRIVATE ricepp GTest::gtest gmock GTest::gtest_main)
+  target_link_libraries(ricepp_test PRIVATE ricepp GTest::gtest GTest::gmock GTest::gtest_main)
 
   if (JEMALLOC_FOUND)
     target_link_libraries(ricepp_test PRIVATE jemalloc::jemalloc)

@@ -32,7 +32,7 @@ on:
         required: true
         type: string
       config:
-        description: 'Build configuration (flatbuffers-only, both-formats)'
+        description: 'Build configuration (flatbuffers, flatbuffers+modern-thrift)'
         required: true
         type: string
       build-type:
@@ -95,8 +95,8 @@ jobs:
           platform: ${{ inputs.runner }}
           with-fuse: ${{ inputs.with-fuse }}
 
-      - name: Configure - FlatBuffers Only
-        if: inputs.config == 'flatbuffers-only'
+      - name: Configure - FlatBuffers (default)
+        if: inputs.config == 'flatbuffers'
         uses: ./.github/actions/configure-cmake
         with:
           build-dir: build-${{ inputs.config }}
@@ -110,8 +110,8 @@ jobs:
           toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
           cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }}
 
-      - name: Configure - Both Formats
-        if: inputs.config == 'both-formats'
+      - name: Configure - FlatBuffers + Modern Thrift
+        if: inputs.config == 'flatbuffers+modern-thrift'
         uses: ./.github/actions/configure-cmake
         with:
           build-dir: build-${{ inputs.config }}

@@ -84,9 +84,10 @@ index 0e853fe..83784fe 100644
    PUBLIC
 -    ${FOLLY_LIBRARIES}
 -    ${OPENSSL_LIBRARIES}
+-    sodium
 +    Folly::folly
 +    OpenSSL::SSL OpenSSL::Crypto
-     sodium
++    unofficial-sodium::sodium
      Threads::Threads
      ZLIB::ZLIB
 -    ${ZSTD_LIBRARY}

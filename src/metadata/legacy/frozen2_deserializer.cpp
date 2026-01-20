@@ -259,6 +259,12 @@ public:
       // Advance to next element
       if (elem_layout) {
         elem_reader.bit_offset_ += static_cast<uint32_t>(elem_layout->bits);
+      } else {
+        // No layout info, assume each element is a fixed-size primitive
+        // Use the parent layout's field size as a hint
+        if (layout_) {
+          elem_reader.bit_offset_ += static_cast<uint32_t>(layout_->bits);
+        }
       }
     }
 
@@ -435,12 +441,6 @@ public:
     if (index_field) {
       table.index = field_reader(3).read_vector<uint32_t>(
           [](Reader const& r) { return r.read_u32(); });
-      // Show first few index values
-      if (!table.index.empty()) {
-        for (size_t i = 0; i < std::min(size_t(5), table.index.size()); ++i) {
-        }
-        std::cerr << std::endl;
-      }
     }
 
     // Field 4: packed_index (bool)
@@ -531,18 +531,14 @@ public:
             for (size_t i = 0; i < std::min(size_t(50), table.buffer.size()); ++i) {
               uint8_t c = table.buffer[i];
               if (c >= 32 && c <= 126) {
-                std::cerr << c;
               } else {
-                std::cerr << "\\x" << std::hex << (int)c << std::dec;
               }
             }
-            std::cerr << "'" << std::endl;
 
             // Verify the buffer contains the expected names using the index
             if (!table.index.empty() && table.index.size() >= 2) {
               for (size_t i = 0; i < std::min(size_t(5), table.index.size()); ++i) {
               }
-              std::cerr << std::endl;
 
               // Try to extract strings using the index
               bool all_valid = true;
@@ -878,7 +874,6 @@ public:
                   // Debug: Show raw index values
                   for (size_t i = 0; i < std::min(size_t(20), meta.compact_names->index.size()); ++i) {
                   }
-                  std::cerr << std::endl;
 
                   // Check if index is already unpacked (starts with 0)
                   if (!meta.compact_names->index.empty() && meta.compact_names->index[0] == 0) {
@@ -898,7 +893,6 @@ public:
 
                     for (size_t i = 0; i < std::min(size_t(10), unpacked_index.size()); ++i) {
                     }
-                    std::cerr << std::endl;
                   }
                 } else {
                   unpacked_index = meta.compact_names->index;
@@ -907,18 +901,13 @@ public:
                 // Debug: Show the buffer structure to determine format
                 for (size_t i = 0; i < std::min(size_t(50), meta.compact_names->buffer.size()); ++i) {
                   unsigned char c = static_cast<unsigned char>(meta.compact_names->buffer[i]);
-                  std::cerr << std::hex << std::setw(2) << std::setfill('0') << int(c) << " " << std::dec;
                 }
-                std::cerr << std::endl;
                 for (size_t i = 0; i < std::min(size_t(50), meta.compact_names->buffer.size()); ++i) {
                   unsigned char c = static_cast<unsigned char>(meta.compact_names->buffer[i]);
                   if (c >= 32 && c <= 126) {
-                    std::cerr << c;
                   } else {
-                    std::cerr << ".";
                   }
                 }
-                std::cerr << std::endl;
 
                 // Step 2: Create FSST decoder with the symtab
                 fsst_decoder decoder(*meta.compact_names->symtab);
@@ -992,17 +981,13 @@ public:
                 for (size_t i = 0; i < std::min(size_t(100), decompressed_buffer.size()); ++i) {
                   unsigned char c = static_cast<unsigned char>(decompressed_buffer[i]);
                   if (c >= 32 && c <= 126) {
-                    std::cerr << c;
                   } else {
-                    std::cerr << ".";
                   }
                 }
-                std::cerr << std::endl;
 
                 // Debug: Show decompressed_index values
                 for (size_t i = 0; i < std::min(size_t(15), decompressed_index.size()); ++i) {
                 }
-                std::cerr << std::endl;
 
                 // Now extract filenames using consecutive pairs from decompressed_index
                 // Each pair [decompressed_index[i], decompressed_index[i+1]) defines one filename
@@ -1059,7 +1044,6 @@ public:
                 }
                 for (size_t i = 0; i < std::min(size_t(5), names.size()); ++i) {
                 }
-                std::cerr << std::endl;
               }
             }
 

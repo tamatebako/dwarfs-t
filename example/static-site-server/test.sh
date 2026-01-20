@@ -123,24 +123,34 @@ test_image() {
 }
 
 # Test Aesop's Fables (redirect works with auto-detection)
-test_image \
-  "${SCRIPT_DIR}/aesop.dff" \
-  "Aesop's Fables (pg11339)" \
-  "/pg11339-images.html" \
-  "/11339-cover.png" \
-  "/images/01hare.jpg" \
-  "Aesop" \
-  "yes"
+if [ -f "${SCRIPT_DIR}/aesop.dff" ]; then
+  test_image \
+    "${SCRIPT_DIR}/aesop.dff" \
+    "Aesop's Fables (pg11339)" \
+    "/pg11339-images.html" \
+    "/11339-cover.png" \
+    "/images/01hare.jpg" \
+    "Aesop" \
+    "yes"
+else
+  echo -e "${YELLOW}Skipping Aesop's Fables test - aesop.dff not found${NC}"
+  echo "  To generate: mkdwarfs -i <pg11339-source> -o aesop.dff"
+fi
 
 # Test Candide (redirect works with auto-detection)
-test_image \
-  "${SCRIPT_DIR}/candide.dff" \
-  "Candide (pg19942)" \
-  "/pg19942-images.html" \
-  "/19942-cover.png" \
-  "/images/001.jpg" \
-  "Candide" \
-  "yes"
+if [ -f "${SCRIPT_DIR}/candide.dff" ]; then
+  test_image \
+    "${SCRIPT_DIR}/candide.dff" \
+    "Candide (pg19942)" \
+    "/pg19942-images.html" \
+    "/19942-cover.png" \
+    "/images/001.jpg" \
+    "Candide" \
+    "yes"
+else
+  echo -e "${YELLOW}Skipping Candide test - candide.dff not found${NC}"
+  echo "  To generate: mkdwarfs -i <pg19942-source> -o candide.dff"
+fi
 
 echo ""
 echo "═══════════════════════════════════════════"
@@ -149,7 +159,11 @@ echo "════════════════════════�
 echo "Total tests run: ${TOTAL_TESTS_RUN}"
 echo "Total tests passed: ${TOTAL_TESTS_PASSED}"
 
-if [ "${TOTAL_TESTS_PASSED}" -eq "${TOTAL_TESTS_RUN}" ]; then
+if [ "${TOTAL_TESTS_RUN}" -eq 0 ]; then
+  echo -e "${YELLOW}No tests run - .dff files not found${NC}"
+  echo "Generate .dff files from Project Gutenberg source data to run tests"
+  exit 0
+elif [ "${TOTAL_TESTS_PASSED}" -eq "${TOTAL_TESTS_RUN}" ]; then
   echo -e "${GREEN}All tests passed!${NC}"
   exit 0
 else

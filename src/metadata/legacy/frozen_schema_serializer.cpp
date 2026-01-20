@@ -197,6 +197,11 @@ class FrozenSchemaSerializer::Reader {
   explicit Reader(std::span<uint8_t const> data)
       : r_(data) {}
 
+  /**
+   * Get current read position
+   */
+  size_t position() const { return r_.position(); }
+
   Schema read_schema() {
     // Ported from: de_thrift.rs (deserialize_struct implementation)
     Schema schema;
@@ -357,8 +362,10 @@ class FrozenSchemaSerializer::Reader {
     SchemaField field;
 
     r_.begin_struct();
+    int16_t field_id_for_debug = 0;
 
     while (auto f = r_.read_field_header()) {
+      field_id_for_debug = f->field_id;
       switch (f->field_id) {
       case 1: // layout_id
         field.layout_id = r_.read_i16();
@@ -394,6 +401,25 @@ std::vector<uint8_t> FrozenSchemaSerializer::serialize(Schema const& schema) {
 Schema FrozenSchemaSerializer::deserialize(std::span<uint8_t const> data) {
   Reader reader(data);
   auto schema = reader.read_schema();
+
+  // Validate the parsed schema
+  try {
+    schema.validate();
+  } catch (std::exception const& e) {
+    throw std::runtime_error(
+        std::string("failed to parse schema: ") + e.what());
+  }
+
+  return schema;
+}
+
+Schema FrozenSchemaSerializer::deserialize(std::span<uint8_t const> data,
+                                            size_t& bytes_consumed) {
+  Reader reader(data);
+  auto schema = reader.read_schema();
+
+  // Get bytes consumed from reader position
+  bytes_consumed = reader.position();
 
   // Validate the parsed schema
   try {

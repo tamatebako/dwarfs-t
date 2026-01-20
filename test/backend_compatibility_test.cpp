@@ -17,10 +17,7 @@
 
 #include <dwarfs/reader/internal/metadata_view_interface.h>
 #include <dwarfs/reader/internal/metadata_factory.h>
-
-#ifdef DWARFS_HAVE_THRIFT
-#include <dwarfs/reader/internal/metadata_types_thrift.h>
-#endif
+#include <dwarfs/reader/internal/metadata_types_fwd.h>
 
 #include "test_logger.h"
 

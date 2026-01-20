@@ -30,10 +30,9 @@ echo "========================================"
 echo "DwarFS Build All Configurations"
 echo "========================================"
 echo ""
-echo "This script builds and tests 3 configurations:"
+echo "This script builds and tests 2 configurations:"
 echo "  1. FlatBuffers-only (default)"
 echo "  2. Both formats (FlatBuffers + Thrift)"
-echo "  3. Thrift-only (legacy)"
 echo ""
 
 # Configuration
@@ -98,7 +97,6 @@ fi
 CONFIGS=(
   "fb-only:OFF:FlatBuffers-only"
   "both::Both-formats"
-  "thrift-only:ON:Thrift-only"
 )
 
 # Results tracking
@@ -106,7 +104,8 @@ declare -A BUILD_RESULTS
 declare -A TEST_RESULTS
 
 # Function to build a configuration
-build_config() {
+# Runs in a subshell to isolate environment
+build_config() (
   local name=$1
   local thrift=$2
   local description=$3
@@ -119,6 +118,7 @@ build_config() {
 
   # Clean
   rm -rf "$build_dir"
+  mkdir -p "$build_dir"
 
   # Configure
   echo -e "${YELLOW}Configuring...${NC}"
@@ -141,21 +141,18 @@ build_config() {
     CMAKE_ARGS+=(-DVCPKG_TARGET_TRIPLET="$VCPKG_DEFAULT_TRIPLET")
   fi
 
-  # Set FlatBuffers OFF only for thrift-only config
-  if [[ "$name" == "thrift-only" ]]; then
-    CMAKE_ARGS+=(-DDWARFS_WITH_FLATBUFFERS=OFF)
-  fi
-
   # Set Thrift ON/OFF as needed
   if [[ -n "$thrift" ]]; then
     CMAKE_ARGS+=(-DDWARFS_WITH_THRIFT="$thrift")
   fi
 
+  # Print cmake command for debugging
+  echo "CMake command: cmake ${CMAKE_ARGS[*]}"
+
   if cmake "${CMAKE_ARGS[@]}"; then
     echo -e "${GREEN}✓ Configuration successful${NC}"
   else
     echo -e "${RED}✗ Configuration failed${NC}"
-    BUILD_RESULTS[$name]="FAIL"
     return 1
   fi
 
@@ -163,10 +160,8 @@ build_config() {
   echo -e "${YELLOW}Building...${NC}"
   if cmake --build "$build_dir" --target mkdwarfs dwarfsck dwarfsextract -j"$JOBS"; then
     echo -e "${GREEN}✓ Build successful${NC}"
-    BUILD_RESULTS[$name]="PASS"
   else
     echo -e "${RED}✗ Build failed${NC}"
-    BUILD_RESULTS[$name]="FAIL"
     return 1
   fi
 
@@ -174,24 +169,27 @@ build_config() {
   echo -e "${YELLOW}Testing...${NC}"
   if ctest --test-dir "$build_dir" --output-on-failure -j"$JOBS"; then
     echo -e "${GREEN}✓ Tests passed${NC}"
-    TEST_RESULTS[$name]="PASS"
   else
     echo -e "${RED}✗ Tests failed${NC}"
-    TEST_RESULTS[$name]="FAIL"
     return 1
   fi
 
-  echo
-}
+  return 0
+)
 
 # Build all configurations
 for config in "${CONFIGS[@]}"; do
   IFS=':' read -r name thrift description <<< "$config"
 
-  if build_config "$name" "$thrift" "$description"; then
+  # Run build in subshell to isolate environment
+  if ( build_config "$name" "$thrift" "$description" ); then
     echo -e "${GREEN}✓ $description: SUCCESS${NC}"
+    BUILD_RESULTS[$name]="PASS"
+    TEST_RESULTS[$name]="PASS"
   else
     echo -e "${RED}✗ $description: FAILED${NC}"
+    BUILD_RESULTS[$name]="FAIL"
+    TEST_RESULTS[$name]="FAIL"
   fi
   echo
 done
@@ -209,11 +207,11 @@ for config in "${CONFIGS[@]}"; do
   test_status="${TEST_RESULTS[$name]:-SKIP}"
 
   if [[ "$build_status" == "PASS" ]] && [[ "$test_status" == "PASS" ]]; then
-    echo -e "${GREEN}✓ $description: BUILD=$build_status TEST=$test_status${NC}"
+    echo -e "${GREEN}✓ : BUILD=$build_status TEST=$test_status${NC}"
   elif [[ "$build_status" == "FAIL" ]] || [[ "$test_status" == "FAIL" ]]; then
-    echo -e "${RED}✗ $description: BUILD=$build_status TEST=$test_status${NC}"
+    echo -e "${RED}✗ : BUILD=$build_status TEST=$test_status${NC}"
   else
-    echo -e "${YELLOW}⊘ $description: BUILD=$build_status TEST=$test_status${NC}"
+    echo -e "${YELLOW}⊘ : BUILD=$build_status TEST=$test_status${NC}"
   fi
 done
 
@@ -227,7 +225,7 @@ for config in "${CONFIGS[@]}"; do
   IFS=':' read -r name fb thrift description <<< "$config"
 
   if [[ "${BUILD_RESULTS[$name]}" == "PASS" ]]; then
-    echo -e "${BLUE}$description (build-$name):${NC}"
+    echo -e "${BLUE}($description):${NC}"
     ls -lh "build-$name"/mkdwarfs "build-$name"/dwarfsck "build-$name"/dwarfsextract 2>/dev/null | \
       awk '{printf "  - %s (%s)\n", $9, $5}' || echo "  (not found)"
   fi
