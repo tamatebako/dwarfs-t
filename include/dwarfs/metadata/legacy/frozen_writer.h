@@ -23,6 +23,8 @@
 
 #include <cstdint>
 #include <span>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace dwarfs::metadata::legacy {
