@@ -90,7 +90,7 @@ jobs:
           cmake-version: '3.28.0'
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@master
+        uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: 44bb3ce006467fc13ba37ca099f64077b8bbf84d
           vcpkgJsonGlob: '**/vcpkg.json'
