@@ -57,7 +57,8 @@ if(DEFINED CMAKE_TOOLCHAIN_FILE AND CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" CACHE STRING "Static library suffix" FORCE)
 
   message(STATUS "Static linking enabled (vcpkg mode)")
-else()
+elseif(NOT DEFINED VCPKG_BUILD)
+  # Only set VCPKG_BUILD to OFF if not already set via command line
   set(VCPKG_BUILD OFF)
   message(STATUS "Non-vcpkg build: using pkg-config or FetchContent")
 endif()
