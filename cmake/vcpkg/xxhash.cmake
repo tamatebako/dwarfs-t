@@ -7,14 +7,18 @@ message(STATUS "DEBUG: CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
 if(DEFINED VCPKG_BUILD AND VCPKG_BUILD)
   # vcpkg mode: use find_package with CONFIG
   message(STATUS "DEBUG: Using vcpkg mode, calling find_package(xxHash CONFIG)")
-  find_package(xxHash ${XXHASH_REQUIRED_VERSION} REQUIRED CONFIG)
+  find_package(xxHash ${XXHASH_REQUIRED_VERSION} CONFIG)
 
-  # Create alias to match old pkg-config target name
-  if(NOT TARGET PkgConfig::XXHASH)
-    add_library(PkgConfig::XXHASH ALIAS xxHash::xxhash)
+  if(xxHash_FOUND)
+    # Create alias to match old pkg-config target name
+    if(NOT TARGET PkgConfig::XXHASH)
+      add_library(PkgConfig::XXHASH ALIAS xxHash::xxhash)
+    endif()
+
+    message(STATUS "Using xxHash from vcpkg: ${xxHash_VERSION}")
+  else()
+    message(FATAL_ERROR "xxHash not found in vcpkg mode. Check that vcpkg installed xxHash correctly.")
   endif()
-
-  message(STATUS "Using xxHash from vcpkg: ${xxHash_VERSION}")
 else()
   # Fallback to pkg-config (non-vcpkg builds)
   message(STATUS "DEBUG: Using pkg-config mode")
