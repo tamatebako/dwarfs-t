@@ -175,10 +175,8 @@ runs:
           CMAKE_CMD+=" -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE"
         fi
 
-        # Add generator if specified (not auto-detected)
-        if [[ -n "${{ inputs.generator }}" ]]; then
-          CMAKE_CMD+=" -G \"$GENERATOR\""
-        fi
+        # Add generator (always use detected or specified generator)
+        CMAKE_CMD+=" -G \"$GENERATOR\""
 
         # Add additional CMake arguments
         if [[ -n "$CMAKE_ARGS" ]]; then
