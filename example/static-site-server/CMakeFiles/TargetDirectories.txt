@@ -1,0 +1,7 @@
+/Users/mulgogi/src/external/dwarfs/example/static-site-server/CMakeFiles/static-site-server.dir
+/Users/mulgogi/src/external/dwarfs/example/static-site-server/CMakeFiles/edit_cache.dir
+/Users/mulgogi/src/external/dwarfs/example/static-site-server/CMakeFiles/rebuild_cache.dir
+/Users/mulgogi/src/external/dwarfs/example/static-site-server/CMakeFiles/list_install_components.dir
+/Users/mulgogi/src/external/dwarfs/example/static-site-server/CMakeFiles/install.dir
+/Users/mulgogi/src/external/dwarfs/example/static-site-server/CMakeFiles/install/local.dir
+/Users/mulgogi/src/external/dwarfs/example/static-site-server/CMakeFiles/install/strip.dir

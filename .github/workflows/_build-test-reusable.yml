@@ -84,11 +84,27 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28.0'
+
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@master
         with:
           vcpkgGitCommitId: 44bb3ce006467fc13ba37ca099f64077b8bbf84d
           vcpkgJsonGlob: '**/vcpkg.json'
+          overlayTriplet: 'vcpkg_triplets/${{ inputs.triplet }}.cmake'
+          additionalCachePaths: |
+            ${{ env.VCPKG_ROOT }}/installed
+            ${{ env.VCPKG_ROOT }}/packages
+
+      - name: Setup vcpkg environment
+        shell: bash
+        run: |
+          echo "VCPKG_DEFAULT_TRIPLET=${{ inputs.triplet }}" >> $GITHUB_ENV
+          echo "VCPKG_OVERLAY_PORTS=$GITHUB_WORKSPACE/vcpkg_ports" >> $GITHUB_ENV
+          echo "✓ vcpkg triplet: ${{ inputs.triplet }}"
 
       - name: Setup build dependencies
         uses: ./.github/actions/setup-build-deps
@@ -101,6 +117,7 @@ jobs:
         with:
           build-dir: build-${{ inputs.config }}
           build-type: ${{ inputs.build-type }}
+          triplet: ${{ inputs.triplet }}
           with-tests: true
           with-libdwarfs: true
           with-tools: true
@@ -115,6 +132,7 @@ jobs:
         with:
           build-dir: build-${{ inputs.config }}
           build-type: ${{ inputs.build-type }}
+          triplet: ${{ inputs.triplet }}
           with-tests: true
           with-libdwarfs: true
           with-tools: true

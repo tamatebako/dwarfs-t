@@ -1,0 +1,5 @@
+# ninja log v7
+2	434	1768555053878629105	CMakeFiles/static-site-server.dir/http_server.cpp.o	694aa0da26da7cfe
+1	593	1768555053878324724	CMakeFiles/static-site-server.dir/main.cpp.o	3d027140c043c68a
+2	993	1768555053878512436	CMakeFiles/static-site-server.dir/dwarfs_loader.cpp.o	42e442001e93671c
+38	141	1768556475122151995	static-site-server	58c64bf66c359e55

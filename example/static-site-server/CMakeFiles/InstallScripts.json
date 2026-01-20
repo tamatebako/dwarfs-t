@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/mulgogi/src/external/dwarfs/example/static-site-server/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

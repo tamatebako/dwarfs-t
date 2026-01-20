@@ -23,6 +23,11 @@ inputs:
     required: false
     default: ''
 
+  triplet:
+    description: 'vcpkg triplet (for debugging)'
+    required: false
+    default: ''
+
   with-tests:
     description: 'Enable tests'
     required: false
