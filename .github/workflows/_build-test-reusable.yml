@@ -92,7 +92,7 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: 44bb3ce006467fc13ba37ca099f64077b8bbf84d
+          vcpkgGitCommitId: 7c11b72a6f810293d0ce234de126b99e9ab6fa7a
           vcpkgJsonGlob: '**/vcpkg.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
           overlayTriplets: 'vcpkg_triplets'
