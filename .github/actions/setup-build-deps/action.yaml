@@ -140,7 +140,7 @@ runs:
               ninja-build \
               pkg-config \
               libxxhash-dev \
-              libargtable3-dev \
+              argtable3-dev \
               autoconf \
               autoconf-archive \
               automake \
