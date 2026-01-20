@@ -1,0 +1,39 @@
+# Simplified vcpkg setup action for debugging
+name: 'Setup vcpkg (Simple)'
+
+inputs:
+  triplet:
+    description: 'vcpkg target triplet'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup vcpkg
+      shell: bash
+      run: |
+        echo "Setting up vcpkg for triplet: ${{ inputs.triplet }}"
+        echo "Runner OS: $RUNNER_OS"
+        echo "Workspace: $GITHUB_WORKSPACE"
+        echo "Home: $HOME"
+
+        VCPKG_ROOT="$HOME/vcpkg"
+
+        # Clone vcpkg if not present
+        if [[ ! -d "$VCPKG_ROOT" ]]; then
+          echo "Cloning vcpkg..."
+          git clone https://github.com/Microsoft/vcpkg.git "$VCPKG_ROOT"
+        fi
+
+        # Bootstrap vcpkg
+        if [[ ! -x "$VCPKG_ROOT/vcpkg" ]]; then
+          echo "Bootstrapping vcpkg..."
+          cd "$VCPKG_ROOT"
+          ./bootstrap-vcpkg.sh
+        fi
+
+        echo "✓ vcpkg setup complete"
+        echo "VCPKG_ROOT=$VCPKG_ROOT" >> $GITHUB_ENV
+        echo "$VCPKG_ROOT" >> $GITHUB_PATH
+
+        "$VCPKG_ROOT/vcpkg" version

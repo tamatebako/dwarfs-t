@@ -1,0 +1,23 @@
+name: Test Simplified vcpkg
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test simple vcpkg setup
+        uses: ./.github/actions/setup-vcpkg-simple
+        with:
+          triplet: x64-linux
+
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test simple vcpkg setup
+        uses: ./.github/actions/setup-vcpkg-simple
+        with:
+          triplet: arm64-osx
