@@ -16,6 +16,7 @@
     },
     "boost-context",
     "boost-chrono",
+    "boost-convert",
     {
       "name": "argtable3",
       "version>=": "3.3.1"
