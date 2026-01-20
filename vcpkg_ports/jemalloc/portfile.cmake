@@ -4,6 +4,8 @@ vcpkg_from_github(
     REF 5.5.0
     SHA512 c24539d845f57290916fae7ed5892cc9f07a347580f65db71bee0c2f11c482004b7f8c27a082c889d7604c14fa5cf6b3be77eb1cf579af2949495865c1d7ed7f
     HEAD_REF master
+    # Suppress policy warnings for misplaced CMake files (autotools build installs CMake files during build)
+    VCPKG_POLICY_SKIP_MISPLACED_CMAKE_FILES_CHECK
 )
 
 if(VCPKG_TARGET_IS_WINDOWS)
@@ -78,11 +80,15 @@ jemalloc_install_cmake_config()
 
 # Fix JEMALLOC_USABLE_SIZE_CONST issue when using empty prefix
 if(NOT VCPKG_TARGET_IS_WINDOWS)
-    vcpkg_replace_string(
-        "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
-        "#undef JEMALLOC_USABLE_SIZE_CONST"
-        "#undef JEMALLOC_USABLE_SIZE_CONST\n#define JEMALLOC_USABLE_SIZE_CONST const"
-    )
+    # Check if the pattern exists before attempting replacement
+    file(READ "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h" JEHEADER)
+    if("${JEHEADER}" MATCHES "#undef JEMALLOC_USABLE_SIZE_CONST")
+        vcpkg_replace_string(
+            "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
+            "#undef JEMALLOC_USABLE_SIZE_CONST"
+            "#undef JEMALLOC_USABLE_SIZE_CONST\n#define JEMALLOC_USABLE_SIZE_CONST const"
+        )
+    endif()
 endif()
 
 vcpkg_copy_pdbs()
