@@ -94,18 +94,17 @@ jobs:
         with:
           vcpkgGitCommitId: 44bb3ce006467fc13ba37ca099f64077b8bbf84d
           vcpkgJsonGlob: '**/vcpkg.json'
-          vcpkgDirectory: '${{ runner.temp }}/vcpkg'
-          overlayTriplet: 'vcpkg_triplets/${{ inputs.triplet }}.cmake'
-          additionalCachePaths: |
-            ${{ env.VCPKG_ROOT }}/installed
-            ${{ env.VCPKG_ROOT }}/packages
+          overlayTriplets: 'vcpkg_triplets'
+          overlayPorts: 'vcpkg_ports'
 
       - name: Setup vcpkg environment
         shell: bash
         run: |
           echo "VCPKG_DEFAULT_TRIPLET=${{ inputs.triplet }}" >> $GITHUB_ENV
           echo "VCPKG_OVERLAY_PORTS=$GITHUB_WORKSPACE/vcpkg_ports" >> $GITHUB_ENV
+          echo "VCPKG_OVERLAY_TRIPLETS=$GITHUB_WORKSPACE/vcpkg_triplets" >> $GITHUB_ENV
           echo "✓ vcpkg triplet: ${{ inputs.triplet }}"
+          echo "✓ VCPKG_ROOT: $VCPKG_ROOT"
 
       - name: Setup build dependencies
         uses: ./.github/actions/setup-build-deps
