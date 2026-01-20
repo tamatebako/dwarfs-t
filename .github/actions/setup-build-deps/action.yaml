@@ -140,7 +140,6 @@ runs:
               ninja-build \
               pkg-config \
               libxxhash-dev \
-              argtable3-dev \
               autoconf \
               autoconf-archive \
               automake \
@@ -170,7 +169,6 @@ runs:
               ninja-build \
               pkgconfig \
               xxhash-devel \
-              argtable3-devel \
               autoconf \
               autoconf-archive \
               automake \
@@ -200,7 +198,6 @@ runs:
               ninja \
               pkgconf \
               xxhash-dev \
-              argtable3-dev \
               autoconf \
               autoconf-archive \
               automake \
