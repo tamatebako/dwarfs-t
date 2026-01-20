@@ -214,6 +214,14 @@ runs:
       shell: bash
       run: |
         set -x
+
+        # Debug environment
+        echo "=== DEBUG ENVIRONMENT ==="
+        echo "VCPKG_ROOT=$VCPKG_ROOT"
+        echo "VCPKG_OVERLAY_PORTS=$VCPKG_OVERLAY_PORTS"
+        echo "TRIPLET=${{ inputs.triplet }}"
+        echo "====================="
+
         ${{ steps.cmake-cmd.outputs.cmake-cmd }}
 
         # Export outputs
