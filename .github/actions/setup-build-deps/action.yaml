@@ -140,7 +140,11 @@ runs:
               ninja-build \
               pkg-config \
               libxxhash-dev \
-              libargtable3-dev
+              libargtable3-dev \
+              autoconf \
+              autoconf-archive \
+              automake \
+              libtool
 
             if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
               sudo apt-get install -y libssl-dev
@@ -166,7 +170,11 @@ runs:
               ninja-build \
               pkgconfig \
               xxhash-devel \
-              argtable3-devel
+              argtable3-devel \
+              autoconf \
+              autoconf-archive \
+              automake \
+              libtool
 
             if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
               sudo yum install -y openssl-devel
@@ -192,7 +200,11 @@ runs:
               ninja \
               pkgconf \
               xxhash-dev \
-              argtable3-dev
+              argtable3-dev \
+              autoconf \
+              autoconf-archive \
+              automake \
+              libtool
 
             if [[ "${{ inputs.with-openssl }}" == "true" ]]; then
               apk add --no-cache openssl-dev
