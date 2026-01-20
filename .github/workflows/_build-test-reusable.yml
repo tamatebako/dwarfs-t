@@ -107,7 +107,7 @@ jobs:
           with-thrift: false
           with-flatbuffers: true
           toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }}
+          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }} -DVCPKG_BUILD=ON
 
       - name: Configure - FlatBuffers + Modern Thrift
         if: inputs.config == 'flatbuffers-with-thrift'
@@ -122,7 +122,7 @@ jobs:
           with-thrift: true
           with-flatbuffers: true
           toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }}
+          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }} -DVCPKG_BUILD=ON
 
       - name: Build
         id: build
