@@ -85,10 +85,9 @@ jobs:
           submodules: recursive
 
       - name: Setup vcpkg
-        uses: ./.github/actions/setup-vcpkg
+        uses: ./.github/actions/setup-vcpkg-simple
         with:
           triplet: ${{ inputs.triplet }}
-          cache-key: ${{ inputs.cache-key }}
 
       - name: Setup build dependencies
         uses: ./.github/actions/setup-build-deps
