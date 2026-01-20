@@ -85,9 +85,10 @@ jobs:
           submodules: recursive
 
       - name: Setup vcpkg
-        uses: ./.github/actions/setup-vcpkg-simple
+        uses: lukka/run-vcpkg@master
         with:
-          triplet: ${{ inputs.triplet }}
+          vcpkgGitCommitId: 44bb3ce006467fc13ba37ca099f64077b8bbf84d
+          vcpkgJsonGlob: '**/vcpkg.json'
 
       - name: Setup build dependencies
         uses: ./.github/actions/setup-build-deps
@@ -107,7 +108,6 @@ jobs:
           with-thrift: false
           with-flatbuffers: true
           toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }} -DVCPKG_BUILD=ON
 
       - name: Configure - FlatBuffers + Modern Thrift
         if: inputs.config == 'flatbuffers-with-thrift'
@@ -122,7 +122,6 @@ jobs:
           with-thrift: true
           with-flatbuffers: true
           toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-          cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }} -DVCPKG_BUILD=ON
 
       - name: Build
         id: build
