@@ -29,13 +29,13 @@ jobs:
       build-type: Release
       cache-key: pr-validation-ubuntu-x64
 
-  # Ubuntu x64 - flatbuffers+modern-thrift
-  validate-ubuntu-modern-thrift:
+  # Ubuntu x64 - flatbuffers-with-thrift
+  validate-ubuntu-thrift:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
-      config: flatbuffers+modern-thrift
+      config: flatbuffers-with-thrift
       build-type: Release
       cache-key: pr-validation-ubuntu-x64
 

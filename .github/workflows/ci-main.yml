@@ -35,7 +35,7 @@ on:
         type: choice
         options:
           - flatbuffers
-          - flatbuffers+modern-thrift
+          - flatbuffers-with-thrift
         default: flatbuffers
 
 concurrency:
@@ -56,20 +56,20 @@ jobs:
       build-type: Release
       cache-key: ci-main-ubuntu-x64
 
-  # Ubuntu x64 - flatbuffers+modern-thrift
-  test-ubuntu-modern-thrift:
+  # Ubuntu x64 - flatbuffers-with-thrift
+  test-ubuntu-thrift:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
-      config: flatbuffers+modern-thrift
+      config: flatbuffers-with-thrift
       build-type: Release
       cache-key: ci-main-ubuntu-x64
 
   # Summary job
   summary:
     name: CI Summary
-    needs: [test-ubuntu-flatbuffers, test-ubuntu-modern-thrift]
+    needs: [test-ubuntu-flatbuffers, test-ubuntu-thrift]
     runs-on: ubuntu-latest
     if: always()
 
@@ -85,6 +85,6 @@ jobs:
           echo ""
           echo "Job Status:"
           echo "  Ubuntu flatbuffers: ${{ needs.test-ubuntu-flatbuffers.result }}"
-          echo "  Ubuntu flatbuffers+modern-thrift: ${{ needs.test-ubuntu-modern-thrift.result }}"
+          echo "  Ubuntu flatbuffers-with-thrift: ${{ needs.test-ubuntu-thrift.result }}"
           echo ""
           echo "View results in the Actions tab for detailed logs."

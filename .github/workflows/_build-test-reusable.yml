@@ -32,7 +32,7 @@ on:
         required: true
         type: string
       config:
-        description: 'Build configuration (flatbuffers, flatbuffers+modern-thrift)'
+        description: 'Build configuration (flatbuffers, flatbuffers-with-thrift)'
         required: true
         type: string
       build-type:
@@ -111,7 +111,7 @@ jobs:
           cmake-args: -DVCPKG_TARGET_TRIPLET=${{ inputs.triplet }}
 
       - name: Configure - FlatBuffers + Modern Thrift
-        if: inputs.config == 'flatbuffers+modern-thrift'
+        if: inputs.config == 'flatbuffers-with-thrift'
         uses: ./.github/actions/configure-cmake
         with:
           build-dir: build-${{ inputs.config }}

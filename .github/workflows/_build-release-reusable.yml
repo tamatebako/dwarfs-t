@@ -28,7 +28,7 @@ on:
         required: true
         type: string
       config:
-        description: 'Build configuration (flatbuffers, flatbuffers+modern-thrift)'
+        description: 'Build configuration (flatbuffers, flatbuffers-with-thrift)'
         required: false
         type: string
         default: flatbuffers
