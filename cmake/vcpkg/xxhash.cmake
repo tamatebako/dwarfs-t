@@ -7,7 +7,7 @@ message(STATUS "DEBUG: CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
 if(DEFINED VCPKG_BUILD AND VCPKG_BUILD)
   # vcpkg mode: use find_package with CONFIG
   message(STATUS "DEBUG: Using vcpkg mode, calling find_package(xxHash CONFIG)")
-  find_package(xxHash ${XXHASH_REQUIRED_VERSION} CONFIG)
+  find_package(xxHash CONFIG)
 
   if(xxHash_FOUND)
     # Create alias to match old pkg-config target name
