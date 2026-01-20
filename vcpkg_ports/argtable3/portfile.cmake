@@ -1,6 +1,6 @@
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
-    REPO argtable/argtable3
+    URL https://github.com/argtable/argtable3.git
     REF v3.3.1
     HEAD_REF master
 )
