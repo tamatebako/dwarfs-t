@@ -92,7 +92,6 @@ jobs:
       - name: Setup build dependencies
         uses: ./.github/actions/setup-build-deps
         with:
-          platform: ${{ inputs.runner }}
           with-fuse: ${{ inputs.with-fuse }}
 
       - name: Configure - FlatBuffers (default)
