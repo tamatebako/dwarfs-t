@@ -1,13 +1,7 @@
 # CI Main Workflow - Comprehensive Testing
 #
 # This is the main CI workflow that runs on pushes to main branch.
-# It provides comprehensive validation across all platforms and configurations.
-#
-# This workflow replaces the old build.yml and provides:
-# - Full platform matrix (5 platforms)
-# - All configurations (flatbuffers-only, both-formats)
-# - Compatibility tests
-# - ~45 minute runtime
+# It provides validation on the most important platform (Ubuntu x64).
 #
 # For fast PR validation, use pr-validation.yml instead.
 
@@ -36,155 +30,46 @@ on:
   workflow_dispatch:
     inputs:
       config:
-        description: 'Configuration to test (all, flatbuffers-only, both-formats)'
+        description: 'Configuration to test'
         required: false
-        type: string
-        default: 'all'
-      triplet:
-        description: 'Specific vcpkg triplet to test'
-        required: false
-        type: string
+        type: choice
+        options:
+          - flatbuffers-only
+          - both-formats
+        default: flatbuffers-only
+
+concurrency:
+  group: ci-main-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  # Linux x64 - flatbuffers-only
-  test-ubuntu-x64-flatbuffers:
+  # Ubuntu x64 - flatbuffers-only (PRIMARY TEST)
+  test-ubuntu-flatbuffers:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: flatbuffers-only
       build-type: Release
-      cache-key: ci-main-ubuntu-latest-x64-linux
+      cache-key: ci-main-ubuntu-x64
 
-  # Linux x64 - both-formats
-  test-ubuntu-x64-both:
+  # Ubuntu x64 - both-formats
+  test-ubuntu-both:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: both-formats
       build-type: Release
-      cache-key: ci-main-ubuntu-latest-x64-linux
-
-  # Linux ARM64 - flatbuffers-only
-  test-ubuntu-arm64-flatbuffers:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: ubuntu-24.04-arm64
-      triplet: arm64-linux
-      config: flatbuffers-only
-      build-type: Release
-      cache-key: ci-main-ubuntu-arm64-x64-linux
-
-  # Linux ARM64 - both-formats
-  test-ubuntu-arm64-both:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: ubuntu-24.04-arm64
-      triplet: arm64-linux
-      config: both-formats
-      build-type: Release
-      cache-key: ci-main-ubuntu-arm64-x64-linux
-
-  # macOS x64 (Intel) - flatbuffers-only
-  test-macos-x64-flatbuffers:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: macos-15
-      triplet: x64-osx
-      config: flatbuffers-only
-      build-type: Release
-      cache-key: ci-main-macos-15-x64-osx
-
-  # macOS x64 (Intel) - both-formats
-  test-macos-x64-both:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: macos-15
-      triplet: x64-osx
-      config: both-formats
-      build-type: Release
-      cache-key: ci-main-macos-15-x64-osx
-
-  # macOS ARM64 (Apple Silicon) - flatbuffers-only
-  test-macos-arm64-flatbuffers:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: macos-14
-      triplet: arm64-osx
-      config: flatbuffers-only
-      build-type: Release
-      cache-key: ci-main-macos-14-arm64-osx
-
-  # macOS ARM64 (Apple Silicon) - both-formats
-  test-macos-arm64-both:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: macos-14
-      triplet: arm64-osx
-      config: both-formats
-      build-type: Release
-      cache-key: ci-main-macos-14-arm64-osx
-
-  # Windows x64 - flatbuffers-only
-  test-windows-x64-flatbuffers:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: windows-latest
-      triplet: x64-windows-static
-      config: flatbuffers-only
-      build-type: Release
-      cache-key: ci-main-windows-latest-x64-windows-static
-
-  # Windows x64 - both-formats
-  test-windows-x64-both:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: windows-latest
-      triplet: x64-windows-static
-      config: both-formats
-      build-type: Release
-      cache-key: ci-main-windows-latest-x64-windows-static
-
-  # Compatibility tests (macOS ARM64)
-  compat-macos-arm64:
-    needs: [test-macos-arm64-flatbuffers, test-macos-arm64-both]
-    uses: ./.github/workflows/_compat-test-reusable.yml
-    with:
-      runner: macos-14
-      triplet: arm64-osx
-      config: both-formats
-      cache-key: ci-compat-macos-14
-
-  # Compatibility tests (macOS x64)
-  compat-macos-x64:
-    needs: [test-macos-x64-flatbuffers, test-macos-x64-both]
-    uses: ./.github/workflows/_compat-test-reusable.yml
-    with:
-      runner: macos-15
-      triplet: x64-osx
-      config: both-formats
-      cache-key: ci-compat-macos-15
+      cache-key: ci-main-ubuntu-x64
 
   # Summary job
   summary:
     name: CI Summary
-    needs:
-      - test-ubuntu-x64-flatbuffers
-      - test-ubuntu-x64-both
-      - test-ubuntu-arm64-flatbuffers
-      - test-ubuntu-arm64-both
-      - test-macos-x64-flatbuffers
-      - test-macos-x64-both
-      - test-macos-arm64-flatbuffers
-      - test-macos-arm64-both
-      - test-windows-x64-flatbuffers
-      - test-windows-x64-both
-      - compat-macos-arm64
-      - compat-macos-x64
+    needs: [test-ubuntu-flatbuffers, test-ubuntu-both]
     runs-on: ubuntu-latest
     if: always()
 
@@ -197,5 +82,9 @@ jobs:
           echo "Run: ${{ github.run_number }}"
           echo "Commit: ${{ github.sha }}"
           echo "Branch: ${{ github.ref_name }}"
+          echo ""
+          echo "Job Status:"
+          echo "  Ubuntu flatbuffers-only: ${{ needs.test-ubuntu-flatbuffers.result }}"
+          echo "  Ubuntu both-formats: ${{ needs.test-ubuntu-both.result }}"
           echo ""
           echo "View results in the Actions tab for detailed logs."

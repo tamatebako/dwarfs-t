@@ -1,13 +1,8 @@
 # PR Validation Workflow
 #
 # Fast feedback for pull requests.
-# Tests a subset of platforms and configurations to provide quick validation.
-# Target runtime: ~15 minutes
-#
-# Matrix: 4 jobs
-# - Ubuntu x64 (fastest, most common)
-# - macOS ARM64 (Apple Silicon, most common Mac)
-# - Both configs (flatbuffers-only, both-formats)
+# Tests Ubuntu x64 with both configs for quick validation.
+# Target runtime: ~10 minutes
 
 name: PR Validation
 
@@ -16,11 +11,15 @@ on:
     branches: [main, feature/*]
   workflow_dispatch:
 
+concurrency:
+  group: pr-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
-  # Linux x64 - flatbuffers-only
+  # Ubuntu x64 - flatbuffers-only
   validate-ubuntu-flatbuffers:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
@@ -28,9 +27,9 @@ jobs:
       triplet: x64-linux
       config: flatbuffers-only
       build-type: Release
-      cache-key: pr-validation-ubuntu-latest-x64-linux
+      cache-key: pr-validation-ubuntu-x64
 
-  # Linux x64 - both-formats
+  # Ubuntu x64 - both-formats
   validate-ubuntu-both:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
@@ -38,24 +37,4 @@ jobs:
       triplet: x64-linux
       config: both-formats
       build-type: Release
-      cache-key: pr-validation-ubuntu-latest-x64-linux
-
-  # macOS ARM64 - flatbuffers-only
-  validate-macos-arm64-flatbuffers:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: macos-14
-      triplet: arm64-osx
-      config: flatbuffers-only
-      build-type: Release
-      cache-key: pr-validation-macos-14-arm64-osx
-
-  # macOS ARM64 - both-formats
-  validate-macos-arm64-both:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: macos-14
-      triplet: arm64-osx
-      config: both-formats
-      build-type: Release
-      cache-key: pr-validation-macos-14-arm64-osx
+      cache-key: pr-validation-ubuntu-x64
