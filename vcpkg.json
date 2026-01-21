@@ -18,6 +18,13 @@
     "boost-chrono",
     "boost-convert",
     "boost-uuid",
+    "boost-process",
+    "boost-algorithm",
+    "boost-asio",
+    "boost-range",
+    "boost-functional",
+    "boost-container",
+    "boost-lexical_cast",
     {
       "name": "argtable3",
       "version>=": "3.3.1"
