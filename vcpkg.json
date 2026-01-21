@@ -17,6 +17,7 @@
     "boost-context",
     "boost-chrono",
     "boost-convert",
+    "boost-uuid",
     {
       "name": "argtable3",
       "version>=": "3.3.1"
