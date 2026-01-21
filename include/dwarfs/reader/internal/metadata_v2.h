@@ -52,10 +52,12 @@ struct vfs_stat;
 
 class performance_monitor;
 
+#ifdef DWARFS_HAVE_THRIFT
 namespace thrift::metadata {
 class fs_options;
 class metadata;
 } // namespace thrift::metadata
+#endif
 
 namespace reader {
 
