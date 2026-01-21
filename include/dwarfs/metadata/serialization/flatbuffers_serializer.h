@@ -7,6 +7,11 @@
 
 #ifdef DWARFS_HAVE_FLATBUFFERS
 
+#include <array>
+#include <cstdint>
+#include <string>
+#include <vector>
+
 #include "metadata_serializer.h"
 #include "../domain/metadata.h"
 
