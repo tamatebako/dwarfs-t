@@ -73,6 +73,9 @@
 #endif
 
 #include <dwarfs/reader/internal/metadata_v2.h>
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+#include <dwarfs/reader/internal/metadata_v2_thrift_export.h>
+#endif
 
 namespace dwarfs::reader {
 
@@ -410,15 +413,15 @@ class filesystem_ final {
 #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift export - only compiled when Thrift support available
   std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const {
-    return metadata_v2_utils(meta_).thaw();
+    return metadata_v2_thrift_export(meta_).thaw();
   }
 
   std::unique_ptr<thrift::metadata::metadata> unpacked_metadata() const {
-    return metadata_v2_utils(meta_).unpack();
+    return metadata_v2_thrift_export(meta_).unpack();
   }
 
   std::unique_ptr<thrift::metadata::fs_options> thawed_fs_options() const {
-    return metadata_v2_utils(meta_).thaw_fs_options();
+    return metadata_v2_thrift_export(meta_).thaw_fs_options();
   }
 #endif
 
