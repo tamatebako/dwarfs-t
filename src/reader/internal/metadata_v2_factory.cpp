@@ -41,7 +41,7 @@ namespace dwarfs::reader::internal {
 
 // Forward declare factory functions from each backend
 // These are implemented in the adapter files
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 metadata_v2 make_metadata_v2_thrift(
     logger& lgr, std::span<uint8_t const> schema,
     std::span<uint8_t const> data, metadata_options const& options,
@@ -86,7 +86,7 @@ metadata_v2::metadata_v2(
   }
 
   if (*detected == metadata::serialization::SerializationFormat::MODERN_THRIFT) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     // Use Thrift adapter (requires separate schema section)
     *this = make_metadata_v2_thrift(lgr, schema, data, options,
                                    inode_offset, force_consistency_check, perfmon);

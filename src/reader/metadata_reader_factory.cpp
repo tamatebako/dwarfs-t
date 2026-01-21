@@ -17,7 +17,7 @@
 #include <stdexcept>
 #include <cstring>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
 
@@ -30,7 +30,7 @@ std::unique_ptr<metadata_reader_interface>
 create_flatbuffers_metadata_reader(const uint8_t* data, size_t size);
 #endif
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 std::unique_ptr<metadata_reader_interface>
 create_thrift_metadata_reader(const dwarfs::thrift::metadata::metadata& thrift_meta);
 #endif
@@ -81,7 +81,7 @@ create_metadata_reader(const uint8_t* data, size_t size) {
   }
 
   if (format == "Thrift" || format.empty()) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     // Note: This is a simple case - real integration needs Thrift deserialization first
     throw std::runtime_error("Thrift reader requires deserialized metadata object");
 #else

@@ -35,10 +35,6 @@
 #include <dwarfs/reader/internal/domain_metadata_impl.h>
 #include <dwarfs/reader/internal/metadata_factory.h>
 
-#ifdef DWARFS_HAVE_THRIFT
-#include <dwarfs/gen-cpp2/metadata_types.h>
-#endif
-
 namespace dwarfs::reader::internal {
 
 namespace {
@@ -122,33 +118,5 @@ nlohmann::json metadata_v2_utils::as_json() const {
 std::string metadata_v2_utils::serialize_as_json(bool simple) const {
   return impl_.serialize_as_json(simple);
 }
-
-#ifdef DWARFS_HAVE_THRIFT
-std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::thaw() const {
-  return impl_.thaw();
-}
-
-std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::unpack() const {
-  return impl_.unpack();
-}
-
-std::unique_ptr<thrift::metadata::fs_options>
-metadata_v2_utils::thaw_fs_options() const {
-  return impl_.thaw_fs_options();
-}
-#else
-std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::thaw() const {
-  DWARFS_THROW(runtime_error, "Thrift support not compiled in");
-}
-
-std::unique_ptr<thrift::metadata::metadata> metadata_v2_utils::unpack() const {
-  DWARFS_THROW(runtime_error, "Thrift support not compiled in");
-}
-
-std::unique_ptr<thrift::metadata::fs_options>
-metadata_v2_utils::thaw_fs_options() const {
-  DWARFS_THROW(runtime_error, "Thrift support not compiled in");
-}
-#endif
 
 } // namespace dwarfs::reader::internal

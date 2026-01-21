@@ -7,7 +7,7 @@
 #include "dwarfs/metadata/serialization/init_serializers.h"
 
 // Include all serializer headers to force linking
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include "dwarfs/metadata/serialization/thrift_compact_serializer.h"
 #endif
 
@@ -27,7 +27,7 @@ void init_serializers() {
   // Legacy Thrift (always available, hand-coded implementation)
   register_legacy_thrift_serializer();
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   #ifdef DWARFS_USE_THRIFT_COMPACT
   // Modern Thrift Compact (requires full Facebook stack)
   register_thrift_compact_serializer();

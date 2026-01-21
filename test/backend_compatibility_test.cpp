@@ -37,7 +37,7 @@ class backend_compatibility_test : public ::testing::Test {
   test::test_logger lgr;
 };
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 
 /**
  * Test: Both backends return consistent block_size values
@@ -149,14 +149,14 @@ TEST_F(backend_compatibility_test, full_round_trip_consistency) {
 TEST_F(backend_compatibility_test, both_formats_required) {
 #ifdef DWARFS_HAVE_FLATBUFFERS
   GTEST_SKIP() << "Thrift not available - compatibility tests require both formats";
-#elif defined(DWARFS_HAVE_THRIFT)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   GTEST_SKIP() << "FlatBuffers not available - compatibility tests require both formats";
 #else
   GTEST_SKIP() << "Neither format available - compatibility tests require both formats";
 #endif
 }
 
-#endif // DWARFS_HAVE_FLATBUFFERS && DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_FLATBUFFERS && DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 /**
  * Documentation Test: Strategy Pattern Benefits

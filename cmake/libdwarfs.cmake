@@ -63,12 +63,12 @@ add_library(
   src/internal/mappable_file.cpp
   src/internal/io_ops_$<IF:$<BOOL:${WIN32}>,win,posix>.cpp
   src/internal/io_ops_helpers.cpp
-  $<$<OR:$<BOOL:${DWARFS_HAVE_THRIFT}>,$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>>:src/internal/metadata_utils.cpp>
+  $<$<OR:$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>,$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>>:src/internal/metadata_utils.cpp>
   src/internal/mmap_file_view.cpp
   src/internal/option_parser.cpp
   src/internal/os_access_generic_data.cpp
   src/internal/read_file_view.cpp
-  $<$<OR:$<BOOL:${DWARFS_HAVE_THRIFT}>,$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>>:src/internal/string_table.cpp>
+  $<$<OR:$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>,$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>>:src/internal/string_table.cpp>
   src/internal/thread_util.cpp
   src/internal/unicode_case_folding.cpp
   src/internal/wcwidth.c
@@ -139,7 +139,7 @@ add_library(
   # Strategy Pattern: Reader implementations (conditionally compiled)
   src/reader/metadata_reader_factory.cpp  # Factory (always compiled, has guards)
   $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:src/reader/flatbuffers_metadata_reader.cpp>
-  $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/reader/thrift_metadata_reader.cpp>
+  $<$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>:src/reader/thrift_metadata_reader.cpp>
 
   src/reader/internal/block_cache.cpp
   src/reader/internal/block_cache_byte_buffer_factory.cpp
@@ -163,8 +163,11 @@ add_library(
   # Session 33: Backend adapter for type construction (always compiled)
   src/reader/internal/backend_adapter.cpp
 
+  # Thrift export (only when Modern Thrift is available)
+  $<$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>:src/reader/internal/metadata_v2_thrift_export.cpp>
+
   # Factory - only in dual-format builds
-  $<$<AND:$<BOOL:${DWARFS_HAVE_THRIFT}>,$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>>:src/reader/internal/metadata_v2_factory.cpp>
+  $<$<AND:$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>,$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>>:src/reader/internal/metadata_v2_factory.cpp>
 )
 
 target_link_libraries(dwarfs_reader
@@ -198,7 +201,7 @@ add_library(
 
   # Strategy Pattern: Writer implementations (conditionally compiled)
   $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:src/writer/flatbuffers_metadata_writer.cpp>
-  $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/writer/thrift_metadata_writer.cpp>
+  $<$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>:src/writer/thrift_metadata_writer.cpp>
 
   src/writer/internal/block_manager.cpp
   src/writer/internal/chmod_transformer.cpp
@@ -209,15 +212,15 @@ add_library(
   src/writer/internal/inode_element_view.cpp
   src/writer/internal/inode_hole_mapper.cpp
   src/writer/internal/inode_manager.cpp
-  $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/writer/internal/inode_hole_mapper.cpp>
-  $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/writer/internal/inode_manager.cpp>
+  $<$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>:src/writer/internal/inode_hole_mapper.cpp>
+  $<$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>:src/writer/internal/inode_manager.cpp>
   src/writer/internal/inode_ordering.cpp
 
   src/writer/internal/metadata_builder.cpp  # Constructor implementations (always needed)
   # Strategy Pattern - separate implementations (both conditional)
   src/writer/internal/metadata_builder_factory.cpp  # Factory (always needed)
   $<$<BOOL:${DWARFS_HAVE_FLATBUFFERS}>:src/writer/internal/flatbuffers_metadata_builder.cpp>  # FlatBuffers strategy
-  $<$<BOOL:${DWARFS_HAVE_THRIFT}>:src/writer/internal/thrift_metadata_builder.cpp>  # Thrift strategy
+  $<$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>:src/writer/internal/thrift_metadata_builder.cpp>  # Thrift strategy
 
   # Utility classes (always compiled)
   src/writer/internal/inode_size_calculator.cpp
@@ -246,7 +249,7 @@ add_library(
   # $<$<BOOL:${LIBMAGIC_FOUND}>:src/writer/categorizer/libmagic_categorizer.cpp>
 )
 
-if(DWARFS_HAVE_THRIFT)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   add_library(
     dwarfs_rewrite
 
@@ -275,7 +278,7 @@ add_library(
 )
 
 # Thrift libraries - only create if Thrift is enabled
-# (metadata_serialization.cmake will set DWARFS_HAVE_THRIFT)
+# (metadata_serialization.cmake will set DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 if(NOT DEFINED DWARFS_WITH_THRIFT OR DWARFS_WITH_THRIFT)
   add_cpp2_thrift_library(thrift/metadata.thrift FROZEN
                           TARGET dwarfs_metadata_thrift OUTPUT_PATH dwarfs)
@@ -297,11 +300,11 @@ if(TARGET dwarfs_metadata_legacy)
   target_link_libraries(dwarfs_common PUBLIC dwarfs_metadata_legacy)
 endif()
 # Link Folly from vcpkg when Thrift support is enabled
-if(DWARFS_HAVE_THRIFT AND TARGET Folly::folly)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET Folly::folly)
   target_link_libraries(dwarfs_common PRIVATE Folly::folly)
 endif()
 # Link Modern Thrift library when available
-if(DWARFS_HAVE_THRIFT AND TARGET dwarfs_metadata_modern_thrift)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET dwarfs_metadata_modern_thrift)
   target_link_libraries(dwarfs_common PUBLIC dwarfs_metadata_modern_thrift)
   message(STATUS "Modern Thrift library linked to dwarfs_common")
 endif()
@@ -311,14 +314,14 @@ target_link_libraries(dwarfs_reader PUBLIC dwarfs_common dwarfs_decompressor)
 target_link_libraries(dwarfs_writer PUBLIC dwarfs_common dwarfs_compressor dwarfs_decompressor)
 target_link_libraries(dwarfs_writer PRIVATE PkgConfig::ZSTD)
 target_link_libraries(dwarfs_extractor PUBLIC dwarfs_reader)
-if(DWARFS_HAVE_THRIFT)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   target_link_libraries(dwarfs_rewrite PUBLIC dwarfs_reader dwarfs_writer)
 endif()
 
 # CRITICAL: Set USE_JEMALLOC early so Folly headers use compile-time constant
 # This must be done BEFORE any compilation that includes Folly headers
 # Also link jemalloc library so the symbols are available at link time
-if(DWARFS_HAVE_THRIFT AND TARGET jemalloc::jemalloc)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET jemalloc::jemalloc)
   target_compile_definitions(dwarfs_common PUBLIC USE_JEMALLOC=1)
   target_link_libraries(dwarfs_common PUBLIC jemalloc::jemalloc)
 endif()
@@ -349,16 +352,16 @@ target_compile_definitions(
 # Add serialization format definitions with PUBLIC visibility
 # so they propagate to dependent targets
 
-if(DWARFS_HAVE_THRIFT)
-  target_compile_definitions(dwarfs_common PUBLIC DWARFS_HAVE_THRIFT)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+  target_compile_definitions(dwarfs_common PUBLIC DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 endif()
 
 if(DWARFS_HAVE_FLATBUFFERS)
   target_compile_definitions(dwarfs_common PUBLIC DWARFS_HAVE_FLATBUFFERS)
 endif()
 
-if(DWARFS_HAVE_THRIFT)
-  target_compile_definitions(dwarfs_common PUBLIC DWARFS_HAVE_THRIFT)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+  target_compile_definitions(dwarfs_common PUBLIC DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 endif()
 
 # FlatBuffers include directories are handled via dwarfs_metadata_flatbuffers target
@@ -369,7 +372,7 @@ if(ENABLE_RICEPP)
 endif()
 
 # Link FBThrift from vcpkg when Thrift support is enabled
-if(DWARFS_HAVE_THRIFT AND TARGET FBThrift::thrift)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET FBThrift::thrift)
   target_link_libraries(dwarfs_common PRIVATE FBThrift::thrift)
 endif()
 
@@ -386,7 +389,7 @@ endif()
 
 # Ensure at least one backend is available
 # Note: Legacy Thrift is always available (no external dependencies)
-if(NOT DWARFS_HAVE_THRIFT AND NOT DWARFS_HAVE_FLATBUFFERS AND NOT DWARFS_HAVE_LEGACY_THRIFT)
+if(NOT DWARFS_HAVE_EXPERIMENTAL_THRIFT AND NOT DWARFS_HAVE_FLATBUFFERS AND NOT DWARFS_HAVE_LEGACY_THRIFT)
   message(FATAL_ERROR "No metadata implementation available (need THRIFT or FLATBUFFERS or LEGACY_THRIFT)")
 endif()
 
@@ -462,7 +465,7 @@ if(TARGET dwarfs_metadata_modern_thrift)
   list(APPEND LIBDWARFS_TARGETS dwarfs_metadata_modern_thrift)
 endif()
 
-if(DWARFS_HAVE_THRIFT)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   list(APPEND LIBDWARFS_TARGETS dwarfs_rewrite)
 endif()
 

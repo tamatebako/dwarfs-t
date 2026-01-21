@@ -12,7 +12,7 @@ namespace dwarfs::reader::internal {
 
 // ========== domain_global_metadata ==========
 
-#if !defined(DWARFS_HAVE_FLATBUFFERS) || !defined(DWARFS_HAVE_THRIFT)
+#if !defined(DWARFS_HAVE_FLATBUFFERS) || !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // Non-interface implementations for single-format builds
 std::shared_ptr<domain_dir_entry_view_impl const>
 domain_global_metadata::make_dir_entry_view(uint32_t self_index,
@@ -95,7 +95,7 @@ std::string domain_global_metadata::symlink_at(uint32_t index) const {
   return "";
 }
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // Interface implementations for dual-format builds
 
 std::span<uint8_t const> domain_global_metadata::uids() const {

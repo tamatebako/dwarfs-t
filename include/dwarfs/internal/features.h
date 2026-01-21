@@ -32,7 +32,7 @@
 #include <set>
 #include <string>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/features_types.h>
 #else
 // Plain C++ feature enum (matches thrift/features.thrift)

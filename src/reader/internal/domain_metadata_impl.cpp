@@ -30,7 +30,7 @@
 #include <dwarfs/metadata/domain/dir_entry.h>
 #include <dwarfs/internal/metadata_utils.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #include <dwarfs/metadata/converters/domain_thrift_converter.h>
 #endif
@@ -985,7 +985,7 @@ chunk_range domain_metadata_impl::get_chunks(int inode, std::error_code& ec) con
 
     if (inode_index >= meta_->inodes.size()) {
       ec = std::make_error_code(std::errc::invalid_argument);
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       return backend_adapter::make_chunk_range(*meta_, 0, 0);
 #else
       return chunk_range{domain_chunk_range_impl{*meta_, 0, 0}};
@@ -1013,7 +1013,7 @@ chunk_range domain_metadata_impl::get_chunks(int inode, std::error_code& ec) con
             : meta_->chunks.size();
       }
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       return backend_adapter::make_chunk_range(*meta_, begin, end);
 #else
       return chunk_range{domain_chunk_range_impl{*meta_, begin, end}};
@@ -1021,14 +1021,14 @@ chunk_range domain_metadata_impl::get_chunks(int inode, std::error_code& ec) con
     }
 
     // No chunks available (out of bounds or empty chunk_table)
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     return backend_adapter::make_chunk_range(*meta_, 0, 0);
 #else
     return chunk_range{domain_chunk_range_impl{*meta_, 0, 0}};
 #endif
   } catch (std::exception const& e) {
     ec = std::make_error_code(std::errc::io_error);
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     return backend_adapter::make_chunk_range(*meta_, 0, 0);
 #else
     return chunk_range{domain_chunk_range_impl{*meta_, 0, 0}};
@@ -1285,7 +1285,7 @@ std::string domain_metadata_impl::serialize_as_json(bool simple) const {
 
 // ========== Thrift Export ==========
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 std::unique_ptr<thrift::metadata::metadata> domain_metadata_impl::thaw() const {
   // Convert domain model to Thrift using converter
   auto thrift_meta = metadata::converters::to_thrift(*meta_);
@@ -1307,19 +1307,6 @@ domain_metadata_impl::thaw_fs_options() const {
   // Convert domain fs_options to Thrift
   // TODO: Implement conversion
   return opts;
-}
-#else
-std::unique_ptr<thrift::metadata::metadata> domain_metadata_impl::thaw() const {
-  DWARFS_THROW(runtime_error, "Thrift support not compiled in");
-}
-
-std::unique_ptr<thrift::metadata::metadata> domain_metadata_impl::unpack() const {
-  DWARFS_THROW(runtime_error, "Thrift support not compiled in");
-}
-
-std::unique_ptr<thrift::metadata::fs_options>
-domain_metadata_impl::thaw_fs_options() const {
-  DWARFS_THROW(runtime_error, "Thrift support not compiled in");
 }
 #endif
 

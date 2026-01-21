@@ -42,7 +42,7 @@
 #include <dwarfs/writer/internal/flatbuffers_metadata_builder_impl.h>
 #endif
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/writer/internal/thrift_metadata_builder_impl.h>
 #endif
 
@@ -79,7 +79,7 @@ metadata_builder::metadata_builder(
                                        logger_policies>(
           lgr, std::move(md), orig_fs_options, orig_fs_version, options)} {}
 
-#elif defined(DWARFS_HAVE_THRIFT)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // Thrift strategy constructors
 
 metadata_builder::metadata_builder(logger& lgr, metadata_options const& options)
@@ -107,7 +107,7 @@ metadata_builder::metadata_builder(
           lgr, std::move(md), orig_fs_options, orig_fs_version, options)} {}
 
 #else
-#error "No metadata serialization format available - need either DWARFS_HAVE_FLATBUFFERS or DWARFS_HAVE_THRIFT"
+#error "No metadata serialization format available - need either DWARFS_HAVE_FLATBUFFERS or DWARFS_HAVE_EXPERIMENTAL_THRIFT"
 #endif
 
 metadata_builder::~metadata_builder() = default;

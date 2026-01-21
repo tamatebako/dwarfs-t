@@ -27,7 +27,7 @@
 // Test Modern Thrift (fbthrift) frozen metadata validation
 // This tests the fbthrift frozen metadata consistency checking
 // Only runs for Modern Thrift-only builds (not dual-format with FlatBuffers)
-#if defined(DWARFS_HAVE_THRIFT) && defined(DWARFS_HAVE_MODERN_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+#if defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && defined(DWARFS_HAVE_MODERN_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
 
 #include <dwarfs/error.h>
 
@@ -400,4 +400,4 @@ TEST(global_metadata_test, thrift_unavailable) {
   GTEST_SKIP() << "Modern Thrift-only metadata tests are disabled for dual-format or non-Thrift builds";
 }
 
-#endif // DWARFS_HAVE_THRIFT && DWARFS_HAVE_MODERN_THRIFT && !DWARFS_HAVE_FLATBUFFERS
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT && DWARFS_HAVE_MODERN_THRIFT && !DWARFS_HAVE_FLATBUFFERS

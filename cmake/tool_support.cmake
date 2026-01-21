@@ -52,7 +52,7 @@ add_library(dwarfs_tool_support STATIC
   ${CMAKE_SOURCE_DIR}/tools/src/mkdwarfs/create_handler.cpp
 
   # Recompress handler - only if Thrift available
-  $<$<BOOL:${DWARFS_HAVE_THRIFT}>:${CMAKE_SOURCE_DIR}/tools/src/mkdwarfs/recompress_handler.cpp>
+  $<$<BOOL:${DWARFS_HAVE_EXPERIMENTAL_THRIFT}>:${CMAKE_SOURCE_DIR}/tools/src/mkdwarfs/recompress_handler.cpp>
 
   # dwarfsck-specific handlers (always included)
   ${CMAKE_SOURCE_DIR}/tools/src/dwarfsck/argtable3_options_parser.cpp
@@ -86,7 +86,7 @@ if(TARGET Boost::process)
   target_link_libraries(dwarfs_tool_support PUBLIC Boost::process)
 endif()
 
-if(DWARFS_HAVE_THRIFT AND TARGET dwarfs_rewrite)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET dwarfs_rewrite)
   target_link_libraries(dwarfs_tool_support PUBLIC dwarfs_rewrite)
 endif()
 
@@ -158,7 +158,7 @@ endif()
 message(STATUS "Tool support library: ENABLED")
 message(STATUS "  - Core utilities: YES")
 message(STATUS "  - mkdwarfs handlers: YES")
-message(STATUS "  - Recompress handler: ${DWARFS_HAVE_THRIFT}")
+message(STATUS "  - Recompress handler: ${DWARFS_HAVE_EXPERIMENTAL_THRIFT}")
 message(STATUS "  - FUSE driver handlers: ${WITH_FUSE_DRIVER}")
 
 # ============================================================================

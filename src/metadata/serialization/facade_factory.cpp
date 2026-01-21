@@ -9,7 +9,7 @@
 #include "dwarfs/metadata/serialization/serialization_format.h"
 #include "dwarfs/metadata/converters/metadata_converter.h"
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include "dwarfs/metadata/converters/thrift_metadata_converter.h"
 #endif
 
@@ -23,7 +23,7 @@ FacadeFactory::create(SerializationFormat format) {
   // Create converter (only needed for Thrift compatibility)
   std::unique_ptr<converters::IMetadataConverter> converter;
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift converter (for Thrift↔Domain conversion)
   converter = std::make_unique<converters::ThriftMetadataConverter>();
 #else

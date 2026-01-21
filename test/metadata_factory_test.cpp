@@ -100,7 +100,7 @@ TEST_F(metadata_factory_test, load_flatbuffers_format) {
  * to Thrift format loading.
  */
 TEST_F(metadata_factory_test, load_thrift_format) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   auto data = create_thrift_metadata();
 
   // Thrift format detection works, but deserialization will fail
@@ -179,7 +179,7 @@ TEST_F(metadata_factory_test, uses_serializer_registry) {
   SUCCEED() << "SerializerRegistry architecture test";
 }
 
-#if !defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if !defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 /**
  * Test: At least one format required
  *

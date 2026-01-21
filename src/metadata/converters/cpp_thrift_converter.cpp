@@ -17,7 +17,7 @@
 
 #include "dwarfs/internal/cpp_thrift_converter.h"
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 namespace dwarfs::internal {
 
@@ -805,4 +805,4 @@ thrift::metadata::metadata to_thrift(const metadata& m) {
 
 } // namespace dwarfs::internal
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

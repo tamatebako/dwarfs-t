@@ -364,7 +364,7 @@ std::shared_ptr<chunk_view_interface const> flatbuffer_chunk_range::at(size_t in
       metadata_->large_hole_size());
 }
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 flatbuffer_chunk_range::iterator flatbuffer_chunk_range::native_begin() const {
   return iterator(this, 0);
 }

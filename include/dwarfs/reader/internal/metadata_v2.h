@@ -52,13 +52,6 @@ struct vfs_stat;
 
 class performance_monitor;
 
-#ifdef DWARFS_HAVE_THRIFT
-namespace thrift::metadata {
-class fs_options;
-class metadata;
-} // namespace thrift::metadata
-#endif
-
 namespace reader {
 
 struct fsinfo_options;
@@ -264,12 +257,6 @@ class metadata_v2 {
     virtual nlohmann::json as_json() const = 0;
 
     virtual std::string serialize_as_json(bool simple) const = 0;
-
-    virtual std::unique_ptr<thrift::metadata::metadata> thaw() const = 0;
-
-    virtual std::unique_ptr<thrift::metadata::metadata> unpack() const = 0;
-
-    virtual std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const = 0;
   };
 
   // Friend declarations for factory functions (dual-format builds)
@@ -285,7 +272,8 @@ class metadata_v2 {
       int inode_offset, bool force_consistency_check,
       std::shared_ptr<performance_monitor const> const& perfmon);
 
-  friend class metadata_v2_utils;  // Allow access to impl_
+  friend class metadata_v2_utils;       // Allow access to impl_
+  friend class metadata_v2_thrift_export; // Allow Thrift export to access impl_
 
  private:
   std::unique_ptr<impl> impl_;
@@ -305,12 +293,6 @@ class metadata_v2_utils {
   nlohmann::json as_json() const;
 
   std::string serialize_as_json(bool simple) const;
-
-  std::unique_ptr<thrift::metadata::metadata> thaw() const;
-
-  std::unique_ptr<thrift::metadata::metadata> unpack() const;
-
-  std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const;
 
  private:
   metadata_v2::impl const& impl_;  // Changed from metadata_v2_data const&

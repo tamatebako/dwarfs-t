@@ -41,7 +41,7 @@
 
 namespace dwarfs::internal {
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // ============================================================================
 // Thrift-based implementation (existing code)
@@ -237,7 +237,7 @@ string_table::string_table(std::span<std::string const> v)
     : impl_{std::make_unique<legacy_string_table_cpp>(v)} {}
 
 // NEW: Constructor that owns the vector data (FlatBuffers-only)
-#if !defined(DWARFS_HAVE_THRIFT) && defined(DWARFS_HAVE_FLATBUFFERS)
+#if !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && defined(DWARFS_HAVE_FLATBUFFERS)
 string_table::string_table(std::vector<std::string> v)
     : impl_{std::make_unique<legacy_string_table_cpp>(std::move(v))} {}
 #endif
@@ -384,7 +384,7 @@ string_table::pack_generic(std::span<T const> input,
     res = fsst_encoder::compress(input, options.force_pack_data);
   }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   thrift::metadata::string_table output;
 
   if (res.has_value()) {

@@ -23,7 +23,7 @@
 
 #pragma once
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <memory>
 #include <functional>
@@ -56,7 +56,7 @@ class parsed_options;
  * and provides a clean interface for rewriting existing DwarFS images with
  * different compression settings, metadata formats, or block sizes.
  *
- * Requires Thrift support (DWARFS_HAVE_THRIFT) because the rewrite_filesystem
+ * Requires Thrift support (DWARFS_HAVE_EXPERIMENTAL_THRIFT) because the rewrite_filesystem
  * utility depends on Thrift for reading existing metadata.
  */
 class recompress_handler : public handler_interface {
@@ -90,4 +90,4 @@ private:
 } // namespace tool
 } // namespace dwarfs
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

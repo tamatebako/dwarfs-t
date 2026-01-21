@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 // This test benchmarks Modern Thrift serialization
 
 #include <chrono>
@@ -124,7 +124,7 @@ TEST(SerializationBenchmark, SerializationSpeed) {
   auto test_meta = create_large_test_metadata();
 
   // Modern Thrift format
-  #ifdef DWARFS_HAVE_THRIFT
+  #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   {
     auto facade = serialization::FacadeFactory::create(
         serialization::SerializationFormat::MODERN_THRIFT);
@@ -147,7 +147,7 @@ TEST(SerializationBenchmark, DeserializationSpeed) {
 
   auto test_meta = create_large_test_metadata();
 
-  #ifdef DWARFS_HAVE_THRIFT
+  #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   {
     auto facade = serialization::FacadeFactory::create(
         serialization::SerializationFormat::MODERN_THRIFT);
@@ -171,7 +171,7 @@ TEST(SerializationBenchmark, SerializedSize) {
 
   auto test_meta = create_large_test_metadata();
 
-  #ifdef DWARFS_HAVE_THRIFT
+  #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   {
     auto facade = serialization::FacadeFactory::create(
         serialization::SerializationFormat::MODERN_THRIFT);
@@ -190,7 +190,7 @@ TEST(SerializationBenchmark, RoundTripPerformance) {
 
   auto test_meta = create_large_test_metadata();
 
-  #ifdef DWARFS_HAVE_THRIFT
+  #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   {
     auto facade = serialization::FacadeFactory::create(
         serialization::SerializationFormat::MODERN_THRIFT);
@@ -211,4 +211,4 @@ TEST(SerializationBenchmark, thrift_unavailable) {
   GTEST_SKIP() << "Thrift serialization not enabled - skipping serialization benchmark tests";
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

@@ -27,7 +27,7 @@
 #include <dwarfs/metadata/serialization/serialization_format.h>
 #include <dwarfs/error.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/metadata/converters/domain_thrift_converter.h>
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
@@ -39,7 +39,7 @@
 #include <dwarfs/writer/internal/flatbuffers_metadata_builder_impl.h>
 #endif
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/writer/internal/thrift_metadata_builder_impl.h>
 #endif
 
@@ -54,7 +54,7 @@ std::unique_ptr<metadata_builder::impl> metadata_builder::impl::create(
   using namespace metadata::serialization;
 
   switch (format) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     case SerializationFormat::MODERN_THRIFT:
       return make_unique_logging_object<
           impl,
@@ -89,7 +89,7 @@ std::unique_ptr<metadata_builder::impl> metadata_builder::impl::create_from_exis
   using namespace metadata::serialization;
 
   switch (format) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     case SerializationFormat::MODERN_THRIFT: {
       // Convert domain → Thrift for Thrift strategy
       auto thrift_md = metadata::converters::to_thrift(existing_md);
@@ -139,7 +139,7 @@ std::unique_ptr<metadata_builder::impl> metadata_builder::impl::create_from_exis
   using namespace metadata::serialization;
 
   switch (format) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     case SerializationFormat::MODERN_THRIFT: {
       // Convert domain → Thrift for Thrift strategy
       auto thrift_md = metadata::converters::to_thrift(existing_md);

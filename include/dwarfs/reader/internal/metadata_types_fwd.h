@@ -18,7 +18,7 @@
 #include <dwarfs/reader/internal/metadata_view_interface.h>
 
 // Forward declare wrapper for dual-format builds
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 #include <dwarfs/reader/internal/chunk_range_wrapper.h>
 #endif
 
@@ -46,14 +46,14 @@ class domain_dir_entry_view_impl;
 class domain_global_metadata;
 
 // Type aliases based on build configuration
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // FlatBuffers-only build: use domain types
 using chunk_range = domain_chunk_range_impl;
 using inode_view_impl = domain_inode_view_impl;
 using dir_entry_view_impl = domain_dir_entry_view_impl;
 using global_metadata = domain_global_metadata;
 
-#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
 // Thrift-only build: use domain types (thrift_backend not implemented yet)
 // TODO: Implement thrift_backend::chunk_range, inode_view_impl, etc.
 using chunk_range = domain_chunk_range_impl;

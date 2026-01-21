@@ -231,7 +231,7 @@ void inode_reader_<LoggerPolicy>::dump(std::ostream& os,
                                        std::string const& indent,
                                        chunk_range const& chunks) const {
   for (auto const& [index, chunk] : ranges::views::enumerate(chunks)) {
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     // Dual-format: iterator returns shared_ptr<chunk_view_interface>
     if (chunk->is_data()) {
       os << indent << "  [" << index << "] -> DATA (block=" << chunk->block()
@@ -240,7 +240,7 @@ void inode_reader_<LoggerPolicy>::dump(std::ostream& os,
       os << indent << "  [" << index << "] -> HOLE (size=" << chunk->size()
          << ")\n";
     }
-#elif defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#elif defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     // FlatBuffers-only: iterator returns shared_ptr<chunk_view_interface>
     if (chunk->is_data()) {
       os << indent << "  [" << index << "] -> DATA (block=" << chunk->block()

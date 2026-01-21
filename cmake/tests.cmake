@@ -219,7 +219,7 @@ if(WITH_TESTS)
   )
 
   # Link Modern Thrift library if available
-  if(DWARFS_HAVE_THRIFT AND TARGET dwarfs_metadata_modern_thrift)
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET dwarfs_metadata_modern_thrift)
     target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_metadata_modern_thrift)
   endif()
 

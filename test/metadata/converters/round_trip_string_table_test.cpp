@@ -1,4 +1,4 @@
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <gtest/gtest.h>
 
@@ -199,4 +199,4 @@ TEST(RoundTripStringTableTest, thrift_unavailable) {
   GTEST_SKIP() << "Thrift not enabled - skipping converter round-trip tests";
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

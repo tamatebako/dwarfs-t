@@ -177,8 +177,8 @@ get_format_from_string(std::string const& format_str) {
     // Legacy Thrift (Frozen2) - hand-coded, Homebrew v0.14.1 compatible
     return SerializationFormat::LEGACY_THRIFT;
   } else if (format_str == "thrift") {
-#ifdef DWARFS_HAVE_THRIFT
-    // Note: "thrift" with DWARFS_HAVE_THRIFT creates EXPERIMENTAL Modern Thrift format
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+    // Note: "thrift" with DWARFS_HAVE_EXPERIMENTAL_THRIFT creates EXPERIMENTAL Modern Thrift format
     // This is NOT compatible with Homebrew dwarfs (which uses Legacy Thrift)
     return SerializationFormat::MODERN_THRIFT;
 #else
@@ -230,7 +230,7 @@ int argtable3_options_parser::parse(int argc, char** argv) {
 
 #if defined(DWARFS_HAVE_FLATBUFFERS)
   opts_.metadata_format = "flatbuffers";
-#elif defined(DWARFS_HAVE_THRIFT)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   opts_.metadata_format = "thrift";
 #else
 #error "At least one metadata format must be enabled"
@@ -867,7 +867,7 @@ void argtable3_options_parser::validate_paths(iolayer const& iol) {
 }
 
 void argtable3_options_parser::validate_recompress_requirements() {
-#ifndef DWARFS_HAVE_THRIFT
+#ifndef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   if (opts_.is_recompress || opts_.rebuild_metadata || opts_.change_block_size) {
     throw std::runtime_error(
         "recompress functionality requires Thrift support\n"

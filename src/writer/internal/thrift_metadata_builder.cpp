@@ -1,4 +1,4 @@
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 /* vim:set ts=2 sw=2 sts=2 et: */
 /**
  * \author     Marcus Holland-Moritz (github@mhxnet.de)
@@ -1350,4 +1350,4 @@ template thrift_metadata_builder<prod_logger_policy>::thrift_metadata_builder(
 
 } // namespace dwarfs::writer::internal
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

@@ -207,7 +207,7 @@ get_format_from_string(std::string const& format_str) {
   if (format_str == "flatbuffers" || format_str == "flatbuffer") {
     return SerializationFormat::FLATBUFFERS;
   } else if (format_str == "thrift") {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     return SerializationFormat::THRIFT_COMPACT;
 #else
     throw std::runtime_error(
@@ -458,11 +458,11 @@ int options_parser::parse(int argc, sys_char** argv, iolayer const& iol,
 #if defined(DWARFS_HAVE_FLATBUFFERS)
         po::value<std::string>(&opts.metadata_format)->default_value("flatbuffers"),
         "metadata serialization format (flatbuffers [default], thrift [legacy])")
-#elif defined(DWARFS_HAVE_THRIFT)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
         po::value<std::string>(&opts.metadata_format)->default_value("thrift"),
         "metadata serialization format (thrift [default], flatbuffers not available)")
 #else
-        #error "At least one metadata format (DWARFS_HAVE_FLATBUFFERS or DWARFS_HAVE_THRIFT) must be enabled"
+        #error "At least one metadata format (DWARFS_HAVE_FLATBUFFERS or DWARFS_HAVE_EXPERIMENTAL_THRIFT) must be enabled"
 #endif
     ;
   // clang-format on
@@ -811,7 +811,7 @@ void options_parser::validate_paths(parsed_options const& opts,
 }
 
 void options_parser::validate_recompress_requirements(parsed_options const& opts) {
-#ifndef DWARFS_HAVE_THRIFT
+#ifndef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   if (opts.is_recompress || opts.rebuild_metadata || opts.change_block_size) {
     throw std::runtime_error(
         "recompress functionality requires Thrift support\n"

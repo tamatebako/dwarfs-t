@@ -48,7 +48,7 @@
 #include <dwarfs/fstypes.h>
 #include <dwarfs/reader/internal/domain_metadata_views.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
 
@@ -1316,32 +1316,24 @@ std::string common_metadata_operations::serialize_as_json(bool simple) const {
       "serialize_as_json() requires domain→Thrift converter (Session 28)");
 }
 
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 std::unique_ptr<thrift::metadata::metadata>
 common_metadata_operations::thaw() const {
-#ifdef DWARFS_HAVE_THRIFT
   // Convert domain model to Thrift format using Session 28 converter
   // TODO: Use metadata::converters::to_thrift(domain_meta_)
   // For now, return nullptr as converters may not be linked yet
   return nullptr;
-#else
-  return nullptr;
-#endif
 }
 
 std::unique_ptr<thrift::metadata::metadata>
 common_metadata_operations::unpack() const {
-#ifdef DWARFS_HAVE_THRIFT
   // Same as thaw but with unpacked/expanded tables
   // TODO: Use metadata::converters::to_thrift with unpack flag
   return nullptr;
-#else
-  return nullptr;
-#endif
 }
 
 std::unique_ptr<thrift::metadata::fs_options>
 common_metadata_operations::thaw_fs_options() const {
-#ifdef DWARFS_HAVE_THRIFT
   if (domain_meta_.options) {
     // Convert domain fs_options to Thrift format
     auto opts = std::make_unique<thrift::metadata::fs_options>();
@@ -1360,8 +1352,8 @@ common_metadata_operations::thaw_fs_options() const {
 
     return opts;
   }
-#endif
   return nullptr;
 }
+#endif
 
 } // namespace dwarfs::reader::internal

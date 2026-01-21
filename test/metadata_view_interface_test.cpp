@@ -20,7 +20,7 @@
 
 #include <dwarfs/reader/internal/metadata_view_interface.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/reader/internal/metadata_types_thrift.h>
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #include <dwarfs/gen-cpp2/metadata_layouts.h>
@@ -57,7 +57,7 @@ class metadata_view_interface_test : public ::testing::Test {
   }
 };
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 /**
  * Mock Thrift global_metadata for testing
@@ -211,7 +211,7 @@ TEST_F(metadata_view_interface_test, thrift_hole_block_index_absent) {
   EXPECT_FALSE(result.has_value());
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 /**
  * Test: Interface methods are pure virtual
@@ -237,7 +237,7 @@ TEST_F(metadata_view_interface_test, interface_polymorphism) {
   // This test documents that the interface can hold different implementations
   // Actual instantiation tested in format-specific blocks above
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) || defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) || defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // At least one format available - polymorphism works
   SUCCEED() << "Interface polymorphism verified via format-specific mocks";
 #else
@@ -245,7 +245,7 @@ TEST_F(metadata_view_interface_test, interface_polymorphism) {
 #endif
 }
 
-#if !defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if !defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // If neither format is available, we still need at least one test
 TEST_F(metadata_view_interface_test, no_formats_available) {
   GTEST_SKIP() << "No metadata formats enabled - skipping all interface tests";

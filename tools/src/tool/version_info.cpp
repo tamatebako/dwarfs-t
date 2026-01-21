@@ -175,7 +175,7 @@ std::vector<std::string> version_info::get_feature_list() {
   features.push_back("FlatBuffers");
 #endif
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   features.push_back("Thrift");
 #endif
 

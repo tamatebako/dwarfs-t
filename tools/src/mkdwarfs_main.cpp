@@ -82,7 +82,7 @@
 #include <dwarfs/tool/sysinfo.h>
 #include <dwarfs/tool/tool.h>
 #include <dwarfs/util.h>
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/utility/rewrite_filesystem.h>
 #include <dwarfs/utility/rewrite_options.h>
 #endif
@@ -103,7 +103,7 @@
 #include <dwarfs/tool/mkdwarfs/argtable3_options_parser.h>
 #include <dwarfs/tool/mkdwarfs/create_handler.h>
 #include <dwarfs/tool/mkdwarfs/handler_factory.h>
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/tool/mkdwarfs/recompress_handler.h>
 #endif
 #include <dwarfs_tool_main.h>
@@ -411,8 +411,8 @@ get_format_from_string(std::string const& format_str) {
     // Legacy Thrift (Frozen2) - hand-coded, Homebrew v0.14.1 compatible
     return SerializationFormat::LEGACY_THRIFT;
   } else if (format_str == "thrift") {
-#ifdef DWARFS_HAVE_THRIFT
-    // Note: "thrift" with DWARFS_HAVE_THRIFT creates EXPERIMENTAL Modern Thrift format
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+    // Note: "thrift" with DWARFS_HAVE_EXPERIMENTAL_THRIFT creates EXPERIMENTAL Modern Thrift format
     // This is NOT compatible with Homebrew dwarfs (which uses Legacy Thrift)
     return SerializationFormat::MODERN_THRIFT;
 #else

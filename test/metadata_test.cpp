@@ -29,7 +29,7 @@
 
 #include <dwarfs/writer/metadata_options.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <thrift/lib/cpp2/debug_thrift_data_difference/debug.h>
 #include <thrift/lib/cpp2/debug_thrift_data_difference/diff.h>
@@ -219,7 +219,7 @@ TEST(metadata_test, thrift_unavailable) {
   GTEST_SKIP() << "Thrift not enabled - skipping Thrift metadata rebuild tests";
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // This test is format-agnostic - keep it outside the guard
 TEST(metadata_options, output_stream) {

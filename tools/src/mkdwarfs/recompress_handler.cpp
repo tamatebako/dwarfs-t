@@ -21,7 +21,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <dwarfs/tool/mkdwarfs/recompress_handler.h>
 
@@ -190,4 +190,4 @@ int recompress_handler::run(
 
 } // namespace dwarfs::tool::mkdwarfs
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

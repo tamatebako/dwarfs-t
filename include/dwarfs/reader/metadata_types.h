@@ -41,10 +41,10 @@
 #include <dwarfs/reader/seek_whence.h>
 #include <dwarfs/reader/internal/metadata_view_interface.h>
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // Include domain-based metadata views for FlatBuffers-only builds
 #include <dwarfs/reader/internal/domain_metadata_views.h>
-#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
 // Include Thrift backend types OUTSIDE any namespace to avoid nesting issues
 #include <dwarfs/reader/internal/metadata_types_thrift.h>
 #else
@@ -56,13 +56,13 @@ namespace dwarfs::reader {
 
 namespace internal {
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // Import domain types for FlatBuffers-only builds
 using inode_view_impl = domain_inode_view_impl;
 using dir_entry_view_impl = domain_dir_entry_view_impl;
 using global_metadata = domain_global_metadata;
 using chunk_range = domain_chunk_range_impl;
-#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
 // Import Thrift backend types into internal namespace for Thrift-only builds
 using inode_view_impl = thrift_backend::inode_view_impl;
 using dir_entry_view_impl = thrift_backend::dir_entry_view_impl;

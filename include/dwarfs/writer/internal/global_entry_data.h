@@ -36,7 +36,7 @@ namespace dwarfs::metadata::domain {
 class inode_data;
 }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 namespace dwarfs::thrift::metadata {
 class inode_data;
 }
@@ -86,7 +86,7 @@ class global_entry_data {
 
   uint64_t get_timestamp_base() const;
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift overload (only when Thrift is available)
   void
   pack_inode_stat(thrift::metadata::inode_data& inode, file_stat const& stat,

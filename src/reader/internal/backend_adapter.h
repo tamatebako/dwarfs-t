@@ -69,7 +69,7 @@ class backend_adapter {
       uint32_t begin,
       uint32_t end);
 
-#if !defined(DWARFS_HAVE_FLATBUFFERS) || !defined(DWARFS_HAVE_THRIFT)
+#if !defined(DWARFS_HAVE_FLATBUFFERS) || !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   /**
    * Create a dir_entry_view from domain implementation (single-format builds).
    *

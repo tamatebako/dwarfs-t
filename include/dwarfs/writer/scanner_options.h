@@ -57,7 +57,7 @@ struct scanner_options {
 #if defined(DWARFS_HAVE_FLATBUFFERS)
   metadata::serialization::SerializationFormat metadata_format{
       metadata::serialization::SerializationFormat::FLATBUFFERS};
-#elif defined(DWARFS_HAVE_THRIFT)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   metadata::serialization::SerializationFormat metadata_format{
       metadata::serialization::SerializationFormat::THRIFT_COMPACT};
 #else

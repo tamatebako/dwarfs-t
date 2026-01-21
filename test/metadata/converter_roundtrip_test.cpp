@@ -1,7 +1,7 @@
 // New file: test/metadata/converter_roundtrip_test.cpp
 #include <gtest/gtest.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include "dwarfs/internal/cpp_thrift_converter.h"
 
@@ -158,4 +158,4 @@ TEST(ConverterRoundTripTest, MetadataWithStringTables) {
   EXPECT_EQ(original.compact_names->packed_index, roundtrip.compact_names->packed_index);
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

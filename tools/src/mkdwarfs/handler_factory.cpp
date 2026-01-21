@@ -24,7 +24,7 @@
 #include <dwarfs/tool/mkdwarfs/handler_factory.h>
 #include <dwarfs/tool/mkdwarfs/handler_interface.h>
 #include <dwarfs/tool/mkdwarfs/create_handler.h>
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/tool/mkdwarfs/recompress_handler.h>
 #endif
 #include <dwarfs/tool/mkdwarfs/parsed_options.h>
@@ -36,7 +36,7 @@ namespace dwarfs::tool::mkdwarfs {
 std::unique_ptr<handler_interface>
 handler_factory::create(parsed_options const& opts) {
   if (opts.is_recompress) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     return std::make_unique<recompress_handler>();
 #else
     throw std::runtime_error(

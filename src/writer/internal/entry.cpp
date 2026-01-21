@@ -44,7 +44,7 @@
 #include <dwarfs/metadata/domain/inode_data.h>
 #include <dwarfs/metadata/domain/metadata.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
 
@@ -171,14 +171,14 @@ void entry::update(global_entry_data& data) const {
   data.add_ctime(stat_.ctime_unchecked());
 }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 // Thrift overload (only when Thrift is available)
 void entry::pack(thrift::metadata::inode_data& entry_v2,
                  global_entry_data const& data,
                  time_resolution_converter const& timeres) const {
   data.pack_inode_stat(entry_v2, stat_, timeres);
 }
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // Domain model overload (always available)
 void entry::pack(metadata::domain::inode_data& entry_v2,
@@ -340,7 +340,7 @@ void dir::sort() {
 
 void dir::scan(os_access const&, progress&) {}
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 // Thrift overloads (only when Thrift is available)
 void dir::pack_entry(thrift::metadata::metadata& mv2,
                      global_entry_data const& data,
@@ -382,7 +382,7 @@ void dir::pack(thrift::metadata::metadata& mv2, global_entry_data const& data,
             timeres);
   }
 }
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // Domain model overloads (always available)
 void dir::pack_entry(metadata::domain::metadata& mv2,

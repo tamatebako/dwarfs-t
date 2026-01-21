@@ -38,7 +38,7 @@
 
 #include <nlohmann/json.hpp>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/compression_types.h>
 #endif
 
@@ -92,7 +92,7 @@ struct flac_block_header {
     return hdr;
   }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Convert to/from Thrift format for backward compatibility
   static flac_block_header from_thrift(
       thrift::compression::flac_block_header const& thrift_hdr) {

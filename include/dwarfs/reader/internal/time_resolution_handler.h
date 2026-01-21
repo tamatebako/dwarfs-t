@@ -28,7 +28,7 @@
 
 #pragma once
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <cstdint>
 #include <string>
@@ -78,7 +78,7 @@ class time_resolution_handler {
   explicit time_resolution_handler(::dwarfs::flatbuffers::HistoryEntry const* hist);
 #endif
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // Dual-format: use namespace-qualified type
   void fill_stat_timevals(file_stat& st, thrift_backend::inode_view_impl const& ivr) const;
 #else
@@ -111,13 +111,13 @@ class time_resolution_handler {
 } // namespace reader::internal
 } // namespace dwarfs
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 //==============================================================================
 // FlatBuffers-native time resolution handler (ONLY when Thrift not available)
 //==============================================================================
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 
 #include <cstdint>
 #include <string>
@@ -163,4 +163,4 @@ class time_resolution_handler {
 } // namespace reader::internal
 } // namespace dwarfs
 
-#endif // DWARFS_HAVE_FLATBUFFERS && !DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_FLATBUFFERS && !DWARFS_HAVE_EXPERIMENTAL_THRIFT

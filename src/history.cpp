@@ -32,7 +32,7 @@
 #include <fmt/chrono.h>
 #include <fmt/format.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 #include <dwarfs/gen-cpp2/history_types.h>
 #endif
@@ -52,7 +52,7 @@
 namespace dwarfs {
 
 history::history(history_config const& cfg)
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     : history_{std::make_unique<thrift::history::history>()}
 #else
     : history_{std::make_unique<history_internal::history_data>()}
@@ -64,7 +64,7 @@ history::~history() noexcept = default;
 history& history::operator=(history&&) noexcept = default;
 
 void history::parse(std::span<uint8_t const> data) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   history_->entries()->clear();
 #else
   history_->entries.clear();
@@ -73,7 +73,7 @@ void history::parse(std::span<uint8_t const> data) {
 }
 
 void history::parse_append(std::span<uint8_t const> data) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   folly::Range<uint8_t const*> range{data.data(), data.size()};
   thrift::history::history tmp;
   apache::thrift::CompactSerializer::deserialize(range, tmp);
@@ -154,7 +154,7 @@ void history::parse_append(std::span<uint8_t const> data) {
 void history::append(
     std::optional<std::vector<std::string>> args,
     std::function<void(library_dependencies&)> const& extra_deps) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   auto& histent = history_->entries()->emplace_back();
   auto& version = histent.version().value();
   version.major() = DWARFS_VERSION_MAJOR;
@@ -206,7 +206,7 @@ void history::append(
 }
 
 size_t history::size() const {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   return history_->entries()->size();
 #else
   return history_->entries.size();
@@ -214,7 +214,7 @@ size_t history::size() const {
 }
 
 shared_byte_buffer history::serialize() const {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   std::string buf;
   ::apache::thrift::CompactSerializer::serialize(*history_, &buf);
   return malloc_byte_buffer::create(buf).share();
@@ -283,7 +283,7 @@ shared_byte_buffer history::serialize() const {
 }
 
 void history::dump(std::ostream& os) const {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   auto const& entries = *history_->entries();
 #else
   auto const& entries = history_->entries;
@@ -297,7 +297,7 @@ void history::dump(std::ostream& os) const {
     for (auto const& histent : entries) {
       os << "  " << fmt::format("{:>{}}:", i++, iwidth);
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
       if (auto ts = histent.timestamp(); ts.has_value()) {
         os << " [" << fmt::format("{:%F %T}", safe_localtime(ts.value()))
            << "]";
@@ -343,7 +343,7 @@ void history::dump(std::ostream& os) const {
 nlohmann::json history::as_json() const {
   nlohmann::json dyn;
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   auto const& entries = *history_->entries();
 #else
   auto const& entries = history_->entries;
@@ -352,7 +352,7 @@ nlohmann::json history::as_json() const {
   for (auto const& histent : entries) {
     auto& entry = dyn.emplace_back();
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     auto const& version = histent.version().value();
     entry["libdwarfs_version"] = {
         {"major", version.major().value()},

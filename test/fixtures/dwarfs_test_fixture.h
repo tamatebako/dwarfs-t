@@ -63,7 +63,7 @@ protected:
   }
 
   static bool has_thrift() {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
     return true;
 #else
     return false;

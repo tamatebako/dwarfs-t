@@ -28,7 +28,7 @@
 
 #pragma once
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <iosfwd>
 #include <span>
@@ -58,4 +58,4 @@ class metadata_analyzer {
 
 } // namespace dwarfs::reader::internal
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

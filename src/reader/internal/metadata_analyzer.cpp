@@ -26,7 +26,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <algorithm>
 #include <concepts>
@@ -501,4 +501,4 @@ void metadata_analyzer::print_frozen(std::ostream& os, bool verbose) const {
 
 } // namespace dwarfs::reader::internal
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

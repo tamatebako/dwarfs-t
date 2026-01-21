@@ -25,7 +25,7 @@ class domain_chunk_range_impl;
  * Global metadata wrapper for domain model
  */
 class domain_global_metadata
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     : public global_metadata_interface
 #endif
 {
@@ -33,7 +33,7 @@ class domain_global_metadata
   explicit domain_global_metadata(metadata::domain::metadata const& meta)
       : meta_{meta} {}
 
-#if !defined(DWARFS_HAVE_FLATBUFFERS) || !defined(DWARFS_HAVE_THRIFT)
+#if !defined(DWARFS_HAVE_FLATBUFFERS) || !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // Non-interface methods for single-format builds
   // Create directory entry view
   std::shared_ptr<domain_dir_entry_view_impl const>
@@ -64,7 +64,7 @@ class domain_global_metadata
   // Accessor for backend_adapter (needed for thrift-only conversion)
   metadata::domain::metadata const& domain_meta() const { return meta_; }
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // Implement global_metadata_interface for dual-format builds
   std::span<uint8_t const> uids() const override;
   std::span<uint8_t const> gids() const override;
@@ -179,12 +179,12 @@ class domain_chunk_view : public chunk_view_interface {
  * Chunk range implementation for domain model
  */
 class domain_chunk_range_impl
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     : public chunk_range_interface
 #endif
 {
  public:
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // Type-erased iterator implementation for dual-format builds
   class iterator_impl : public chunk_range_interface::iterator_interface {
    public:
@@ -259,24 +259,24 @@ class domain_chunk_range_impl
                           uint32_t begin_index, uint32_t end_index);
 
   size_t size() const
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       override
 #endif
       ;
 
   bool empty() const
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       override
 #endif
       ;
 
   std::shared_ptr<chunk_view_interface const> at(size_t index) const
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       override
 #endif
       ;
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // Dual-format: return interface iterator
   chunk_range_interface::iterator begin() const override {
     return chunk_range_interface::iterator{

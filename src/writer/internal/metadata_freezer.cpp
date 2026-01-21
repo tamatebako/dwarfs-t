@@ -33,12 +33,12 @@
 // NEW: Include domain model and converter
 #include <dwarfs/metadata/domain/metadata.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #include <dwarfs/metadata/converters/domain_thrift_converter.h>
 #endif
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <thrift/lib/cpp2/frozen/FrozenUtil.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 #include <dwarfs/gen-cpp2/metadata_layouts.h>
@@ -49,7 +49,7 @@ namespace dwarfs::writer::internal {
 
 namespace {
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 template <class T>
 std::pair<shared_byte_buffer, shared_byte_buffer> freeze_to_buffer(T const& x) {
   using namespace ::apache::thrift::frozen;
@@ -94,7 +94,7 @@ class metadata_freezer_ : public metadata_freezer::impl {
 
     // For Thrift format: Convert domain → Thrift, then freeze
     if (format_ == SerializationFormat::MODERN_THRIFT) {
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
       // Convert domain model to Thrift
       auto thrift_data = metadata::converters::to_thrift(data);
 

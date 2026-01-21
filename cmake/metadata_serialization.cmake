@@ -185,8 +185,8 @@ if(DWARFS_WITH_THRIFT)
   find_package(FBThrift CONFIG)
 
   if(folly_FOUND AND FBThrift_FOUND)
-    set(DWARFS_HAVE_THRIFT ON)
-    add_compile_definitions(DWARFS_HAVE_THRIFT=1)
+    set(DWARFS_HAVE_EXPERIMENTAL_THRIFT ON)
+    add_compile_definitions(DWARFS_HAVE_EXPERIMENTAL_THRIFT=1)
     add_compile_definitions(DWARFS_HAVE_MODERN_THRIFT=1)
 
     # Modern Thrift sources (to be implemented in Sessions 87-88)
@@ -334,7 +334,7 @@ if(DWARFS_WITH_THRIFT)
     message(STATUS "  - Folly version: ${folly_VERSION}")
     message(STATUS "  - Implementation: Pending (Sessions 87-88)")
   else()
-    set(DWARFS_HAVE_THRIFT OFF)
+    set(DWARFS_HAVE_EXPERIMENTAL_THRIFT OFF)
     if(NOT folly_FOUND)
       message(STATUS "Modern Thrift Compact: DISABLED (folly not found)")
     endif()
@@ -343,7 +343,7 @@ if(DWARFS_WITH_THRIFT)
     endif()
   endif()
 else()
-  set(DWARFS_HAVE_THRIFT OFF)
+  set(DWARFS_HAVE_EXPERIMENTAL_THRIFT OFF)
   message(STATUS "Modern Thrift Compact: DISABLED (by option)")
 endif()
 
@@ -556,7 +556,7 @@ if(WITH_TESTS)
   )
 
   # Modern Thrift Compact serializer tests (if Thrift available)
-  if(DWARFS_HAVE_THRIFT)
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     # Modern Thrift converter tests
     add_executable(modern_thrift_converter_tests
       test/metadata/modern/converter_test.cpp
@@ -607,7 +607,7 @@ endif()
 
 # Verify at least one serialization format is available
 # Note: Legacy Thrift is always available (no dependencies)
-if(NOT DWARFS_HAVE_FLATBUFFERS AND NOT DWARFS_HAVE_THRIFT AND NOT DWARFS_HAVE_LEGACY_THRIFT)
+if(NOT DWARFS_HAVE_FLATBUFFERS AND NOT DWARFS_HAVE_EXPERIMENTAL_THRIFT AND NOT DWARFS_HAVE_LEGACY_THRIFT)
   message(FATAL_ERROR "At least one serialization format must be enabled! Enable either FlatBuffers or Thrift.")
 endif()
 
@@ -632,14 +632,14 @@ list(APPEND SERIALIZATION_SOURCES
   src/metadata/converters/cpp_thrift_converter.cpp
 )
 
-if(DWARFS_HAVE_THRIFT)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   # NEW: Domain model to Thrift converter
   list(APPEND SERIALIZATION_SOURCES
     src/metadata/converters/domain_thrift_converter.cpp
   )
 endif()
 
-if(DWARFS_HAVE_THRIFT)
+if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   list(APPEND SERIALIZATION_SOURCES
     src/metadata/converters/thrift_metadata_converter.cpp
   )
@@ -653,7 +653,7 @@ message(STATUS "═════════════════════�
 message(STATUS "Metadata serialization summary:")
 message(STATUS "  - Legacy Thrift:  ON (hand-coded, always available, cannot be disabled)")
 message(STATUS "  - FlatBuffers:    ${DWARFS_HAVE_FLATBUFFERS} (modern default, use -DDWARFS_WITH_FLATBUFFERS=OFF to disable)")
-message(STATUS "  - Modern Thrift:  ${DWARFS_HAVE_THRIFT} (fbthrift v2025.12.29.00+, use -DDWARFS_WITH_THRIFT=ON to enable)")
+message(STATUS "  - Modern Thrift:  ${DWARFS_HAVE_EXPERIMENTAL_THRIFT} (fbthrift v2025.12.29.00+, use -DDWARFS_WITH_THRIFT=ON to enable)")
 message(STATUS "════════════════════════════════════════════════════")
 message(STATUS "Build configurations:")
 message(STATUS "  1. Default:          FlatBuffers + Legacy Thrift")

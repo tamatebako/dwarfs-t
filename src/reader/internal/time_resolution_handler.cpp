@@ -1,4 +1,4 @@
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 /* vim:set ts=2 sw=2 sts=2 et: */
 /**
  * \author     Marcus Holland-Moritz (github@mhxnet.de)
@@ -42,7 +42,7 @@
 #include <dwarfs/reader/internal/time_resolution_handler.h>
 
 // Include backend implementations
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/reader/internal/metadata_types_thrift.h>
 #endif
 
@@ -95,7 +95,7 @@ time_resolution_handler::time_resolution_handler(
     ::apache::thrift::frozen::View<thrift::metadata::history_entry> hist)
     : time_resolution_handler(hist, 0) {}
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // Dual-format: use namespace-qualified type
 void time_resolution_handler::fill_stat_timevals(
     file_stat& st, thrift_backend::inode_view_impl const& ivr) const {
@@ -151,7 +151,7 @@ std::string time_resolution_handler::get_time_resolution_string() const {
 }
 
 } // namespace dwarfs::reader::internal
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // FlatBuffers implementations
 #ifdef DWARFS_HAVE_FLATBUFFERS

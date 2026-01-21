@@ -32,7 +32,7 @@
 #include <dwarfs/error.h>
 #include <dwarfs/logger.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/metadata/converters/domain_thrift_converter.h>
 #include <thrift/lib/cpp2/frozen/FrozenUtil.h>
 #include <dwarfs/gen-cpp2/metadata_types.h>
@@ -47,12 +47,12 @@ chunk_range backend_adapter::make_chunk_range(
     uint32_t begin,
     uint32_t end) {
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // FlatBuffers-only: Direct construction with domain model
   // Type alias: chunk_range = domain_chunk_range_impl
   return chunk_range{domain_meta, begin, end};
 
-#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
   // Thrift-only: Use domain types directly
   // Type alias: chunk_range = domain_chunk_range_impl
   // Note: thrift_backend types not implemented yet, using domain types
@@ -68,17 +68,17 @@ chunk_range backend_adapter::make_chunk_range(
 #endif
 }
 
-#if !defined(DWARFS_HAVE_FLATBUFFERS) || !defined(DWARFS_HAVE_THRIFT)
+#if !defined(DWARFS_HAVE_FLATBUFFERS) || !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // Single-format builds: convert from domain types
 dir_entry_view backend_adapter::make_dir_entry_view(
     std::shared_ptr<domain_dir_entry_view_impl const> domain_impl) {
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // FlatBuffers-only: Direct pass-through (domain types are native)
   // Type alias: dir_entry_view wraps domain_dir_entry_view_impl
   return dir_entry_view{domain_impl};
 
-#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
   // Thrift-only: Direct pass-through (domain types are native)
   // Note: thrift_backend types not implemented yet, using domain types directly
   return dir_entry_view{domain_impl};
@@ -89,11 +89,11 @@ dir_entry_view backend_adapter::make_dir_entry_view(
 inode_view backend_adapter::make_inode_view(
     std::shared_ptr<domain_inode_view_impl> domain_impl) {
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // FlatBuffers-only: Direct pass-through
   return inode_view{domain_impl};
 
-#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
   // Thrift-only: Direct pass-through
   // Note: thrift_backend types not implemented yet, using domain types directly
   return inode_view{domain_impl};
@@ -105,11 +105,11 @@ directory_view backend_adapter::make_directory_view(
     uint32_t inode,
     domain_global_metadata const& global) {
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   // FlatBuffers-only: Direct construction
   return directory_view{inode, global};
 
-#elif defined(DWARFS_HAVE_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
   // Thrift-only: Direct construction
   // Note: thrift_backend types not implemented yet, using domain types directly
   return directory_view{inode, global};
@@ -118,7 +118,7 @@ directory_view backend_adapter::make_directory_view(
 }
 #endif
 
-#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_THRIFT)
+#if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
 // Dual-format: pass-through since domain_global_metadata returns interface types
 dir_entry_view backend_adapter::make_dir_entry_view(
     std::shared_ptr<dir_entry_view_interface const> interface_impl) {

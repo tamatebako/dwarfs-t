@@ -11,7 +11,7 @@
 
 #include "dwarfs/config.h"
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -222,4 +222,4 @@ TEST_F(ModernThriftSerializationTest, CompactSize) {
   EXPECT_LT(data.size(), 10000); // Should be under 10KB for test metadata
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

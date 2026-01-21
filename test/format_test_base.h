@@ -58,11 +58,11 @@ inline std::vector<format_param> get_available_formats() {
   formats.push_back({"flatbuffers", false, true});
 #endif
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   formats.push_back({"thrift", true, false});
 #endif
 
-#if defined(DWARFS_HAVE_THRIFT) && defined(DWARFS_HAVE_FLATBUFFERS)
+#if defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && defined(DWARFS_HAVE_FLATBUFFERS)
   formats.push_back({"both", true, true});
 #endif
 
@@ -81,7 +81,7 @@ inline std::vector<format_param> get_available_formats() {
  *   auto const& format = GetParam();
  *   
  *   // Skip if format not available
- *   if (format.has_thrift && !defined(DWARFS_HAVE_THRIFT)) {
+ *   if (format.has_thrift && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)) {
  *     GTEST_SKIP() << "Thrift not available in this build";
  *   }
  *   

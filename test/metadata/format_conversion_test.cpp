@@ -5,7 +5,7 @@
  */
 #include <gtest/gtest.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include "dwarfs/metadata/serialization/serialization_facade.h"
 #include "dwarfs/metadata/serialization/facade_factory.h"
@@ -50,4 +50,4 @@ TEST(FormatConversionTest, thrift_unavailable) {
   GTEST_SKIP() << "Thrift not enabled - skipping format conversion tests";
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

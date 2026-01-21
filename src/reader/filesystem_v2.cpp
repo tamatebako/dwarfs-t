@@ -67,7 +67,7 @@
 #include <dwarfs/reader/internal/flatbuffer_metadata_views.h>
 #endif
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #include <dwarfs/gen-cpp2/metadata_types_custom_protocol.h>
 #endif
@@ -407,7 +407,7 @@ class filesystem_ final {
     ir_.cache_blocks(block_numbers);
   }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift export - only compiled when Thrift support available
   std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const {
     return metadata_v2_utils(meta_).thaw();
@@ -1544,7 +1544,7 @@ class filesystem_full_
     return fs().header();
   }
   history const& get_history() const override { return history_; }
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift export - only compiled when Thrift support available
   std::unique_ptr<thrift::metadata::metadata> thawed_metadata() const override {
     return fs().thawed_metadata();
@@ -1679,7 +1679,7 @@ history const& filesystem_v2::get_history() const {
   return full_().get_history();
 }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 // Thrift export methods - only compiled when Thrift support available
 // This follows Interface Segregation: export is a separate, optional capability
 std::unique_ptr<thrift::metadata::metadata>

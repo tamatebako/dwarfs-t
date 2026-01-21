@@ -1,4 +1,4 @@
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include <gtest/gtest.h>
 
@@ -485,4 +485,4 @@ TEST(ThriftMetadataConverterTest, thrift_unavailable) {
   GTEST_SKIP() << "Thrift not enabled - skipping Thrift metadata converter tests";
 }
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

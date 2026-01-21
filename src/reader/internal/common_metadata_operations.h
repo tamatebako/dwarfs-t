@@ -167,10 +167,12 @@ class common_metadata_operations : public metadata_v2::impl {
   nlohmann::json as_json() const override;
   std::string serialize_as_json(bool simple) const override;
 
-  // Thrift-specific methods (may return nullptr for non-Thrift sources)
-  std::unique_ptr<thrift::metadata::metadata> thaw() const override;
-  std::unique_ptr<thrift::metadata::metadata> unpack() const override;
-  std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const override;
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  // Thrift export methods (only available when Modern Thrift is compiled in)
+  std::unique_ptr<::thrift::metadata::metadata> thaw() const;
+  std::unique_ptr<::thrift::metadata::metadata> unpack() const;
+  std::unique_ptr<::thrift::metadata::fs_options> thaw_fs_options() const;
+#endif
 
  private:
   // Domain model storage

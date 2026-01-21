@@ -35,7 +35,7 @@
 #include <string_view>
 #include <vector>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_layouts.h>
 #endif
 
@@ -51,7 +51,7 @@ namespace internal {
 
 class string_table {
  public:
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   using LegacyTableView =
       ::apache::thrift::frozen::View<std::vector<std::string>>;
   using PackedTableView =
@@ -76,7 +76,7 @@ class string_table {
     bool force_pack_data;
   };
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   string_table(logger& lgr, std::string_view name, PackedTableView v);
   string_table(LegacyTableView v);
   string_table(std::span<std::string const> v);
@@ -88,7 +88,7 @@ class string_table {
                ::dwarfs::metadata::domain::string_table const& v);
 #endif
 
-#if !defined(DWARFS_HAVE_THRIFT) && defined(DWARFS_HAVE_FLATBUFFERS)
+#if !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && defined(DWARFS_HAVE_FLATBUFFERS)
   string_table(std::span<std::string const> v);
   // NEW: Constructor that owns the vector data (avoids use-after-free)
   explicit string_table(std::vector<std::string> v);

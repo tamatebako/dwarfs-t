@@ -21,7 +21,7 @@
 
 #pragma once
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 #include "metadata_serializer.h"
 #include "../domain/metadata.h"
@@ -140,4 +140,4 @@ void register_modern_thrift_serializer();
 
 } // namespace dwarfs::metadata::serialization
 
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

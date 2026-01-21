@@ -31,7 +31,7 @@
 #include <dwarfs/metadata/domain/inode_data.h>
 #include <dwarfs/writer/scanner_options.h>
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
 #endif
 
@@ -100,7 +100,7 @@ uint64_t global_entry_data::get_timestamp_base() const {
   return options_.timestamp ? *options_.timestamp : timestamp_base_;
 }
 
-#ifdef DWARFS_HAVE_THRIFT
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 // Thrift overload (only when Thrift is available)
 void global_entry_data::pack_inode_stat(
     thrift::metadata::inode_data& inode, file_stat const& stat,
@@ -136,7 +136,7 @@ void global_entry_data::pack_inode_stat(
     }
   }
 }
-#endif // DWARFS_HAVE_THRIFT
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 // Domain model overload (always available)
 void global_entry_data::pack_inode_stat(
