@@ -23,9 +23,11 @@ class domain_metadata_impl;
 } // namespace dwarfs::reader::internal
 
 // Forward declarations for global Thrift types (outside dwarfs namespace)
-namespace ::thrift::metadata {
+namespace thrift {
+namespace metadata {
 class fs_options;
 class metadata;
+}
 }
 
 namespace dwarfs::reader::internal {
