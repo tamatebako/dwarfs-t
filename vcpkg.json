@@ -24,7 +24,7 @@
     "boost-range",
     "boost-functional",
     "boost-container",
-    "boost-lexical_cast",
+    "boost-lexical-cast",
     {
       "name": "argtable3",
       "version>=": "3.3.1"
