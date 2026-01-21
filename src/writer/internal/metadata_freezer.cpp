@@ -21,6 +21,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <cstring>
+#include <span>
+
 #include <dwarfs/logger.h>
 #include <dwarfs/malloc_byte_buffer.h>
 #include <dwarfs/metadata/serialization/serializer_registry.h>
