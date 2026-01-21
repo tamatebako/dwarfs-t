@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <optional>
 #include <stdexcept>
 
 #ifdef DWARFS_HAVE_THRIFT
