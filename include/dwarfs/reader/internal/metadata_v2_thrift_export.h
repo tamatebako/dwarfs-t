@@ -10,6 +10,8 @@
 
 #pragma once
 
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+
 #include <memory>
 #include <stdexcept>
 
@@ -18,10 +20,15 @@ namespace dwarfs::reader::internal {
 class metadata_v2;
 class domain_metadata_impl;
 
-namespace thrift::metadata {
+} // namespace dwarfs::reader::internal
+
+// Forward declarations for global Thrift types (outside dwarfs namespace)
+namespace ::thrift::metadata {
 class fs_options;
 class metadata;
 }
+
+namespace dwarfs::reader::internal {
 
 /**
  * Thrift-specific metadata export functionality
@@ -71,3 +78,5 @@ class metadata_v2_thrift_export {
 };
 
 } // namespace dwarfs::reader::internal
+
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
