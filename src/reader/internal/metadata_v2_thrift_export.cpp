@@ -23,15 +23,15 @@ metadata_v2_thrift_export::metadata_v2_thrift_export(metadata_v2 const& meta) {
   }
 }
 
-std::unique_ptr<::thrift::metadata::metadata> metadata_v2_thrift_export::thaw() const {
+std::unique_ptr<thrift::metadata::metadata> metadata_v2_thrift_export::thaw() const {
   return impl_->thaw();
 }
 
-std::unique_ptr<::thrift::metadata::metadata> metadata_v2_thrift_export::unpack() const {
+std::unique_ptr<thrift::metadata::metadata> metadata_v2_thrift_export::unpack() const {
   return impl_->unpack();
 }
 
-std::unique_ptr<::thrift::metadata::fs_options>
+std::unique_ptr<thrift::metadata::fs_options>
 metadata_v2_thrift_export::thaw_fs_options() const {
   return impl_->thaw_fs_options();
 }

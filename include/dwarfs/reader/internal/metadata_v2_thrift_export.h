@@ -22,11 +22,13 @@ class domain_metadata_impl;
 
 } // namespace dwarfs::reader::internal
 
-// Forward declarations for global Thrift types (outside dwarfs namespace)
+// Forward declarations for Thrift types in dwarfs::thrift::metadata namespace
+namespace dwarfs {
 namespace thrift {
 namespace metadata {
 class fs_options;
 class metadata;
+}
 }
 }
 
@@ -59,21 +61,21 @@ class metadata_v2_thrift_export {
    *
    * @return Thrift metadata object
    */
-  std::unique_ptr<::thrift::metadata::metadata> thaw() const;
+  std::unique_ptr<thrift::metadata::metadata> thaw() const;
 
   /**
    * Convert domain metadata to Thrift format (unpacked/expanded)
    *
    * @return Thrift metadata object with expanded tables
    */
-  std::unique_ptr<::thrift::metadata::metadata> unpack() const;
+  std::unique_ptr<thrift::metadata::metadata> unpack() const;
 
   /**
    * Extract filesystem options from domain metadata
    *
    * @return Thrift fs_options object, or nullptr if not available
    */
-  std::unique_ptr<::thrift::metadata::fs_options> thaw_fs_options() const;
+  std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const;
 
  private:
   domain_metadata_impl const* impl_;  // Non-owning pointer
