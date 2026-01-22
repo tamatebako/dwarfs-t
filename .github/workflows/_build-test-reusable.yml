@@ -93,16 +93,6 @@ jobs:
         with:
           cmake-version: '3.28.0'
 
-      - name: Install mono (for vcpkg binary cache)
-        if: runner.os == 'Linux' || runner.os == 'macOS'
-        shell: bash
-        run: |
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            sudo apt-get update && sudo apt-get install -y mono-complete
-          else
-            brew install mono
-          fi
-
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
@@ -116,12 +106,9 @@ jobs:
           echo "VCPKG_DEFAULT_TRIPLET=${{ inputs.triplet }}" >> $GITHUB_ENV
           echo "VCPKG_OVERLAY_PORTS=$GITHUB_WORKSPACE/vcpkg_ports" >> $GITHUB_ENV
           echo "VCPKG_OVERLAY_TRIPLETS=$GITHUB_WORKSPACE/vcpkg_triplets" >> $GITHUB_ENV
-          # Enable GitHub Packages binary cache for vcpkg
-          # This dramatically speeds up builds by reusing compiled dependencies
-          echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite" >> $GITHUB_ENV
           echo "✓ vcpkg triplet: ${{ inputs.triplet }}"
           echo "✓ VCPKG_ROOT: $VCPKG_ROOT"
-          echo "✓ Binary cache: enabled (GitHub Packages)"
+          echo "✓ Binary cache: enabled (GitHub Actions cache)"
 
       - name: Setup build dependencies
         uses: ./.github/actions/setup-build-deps
