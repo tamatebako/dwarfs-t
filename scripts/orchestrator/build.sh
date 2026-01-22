@@ -19,11 +19,14 @@ _DWARFS_BUILD_ORCHESTRATOR_SOURCED=1
 # ============================================================================
 
 # Array of build configurations: "name:thrift:description"
-# production: FlatBuffers-only (stable, recommended for production use)
-# experimental: FlatBuffers + Modern Thrift (experimental features)
+# production: FlatBuffers + Legacy Thrift (stable, recommended for production use)
+# experimental: FlatBuffers + Legacy Thrift + Modern Thrift (experimental features)
+#
+# Note: Legacy Thrift (hand-coded Frozen2 in src/metadata/legacy/) is always available.
+# The 'thrift' flag only controls Modern Thrift (fbthrift/folly) support.
 DWARFS_BUILD_CONFIGS=(
-    "production:OFF:Production (FlatBuffers-only, stable)"
-    "experimental:ON:Experimental (FlatBuffers + Modern Thrift)"
+    "production:OFF:Production (FlatBuffers + Legacy Thrift, stable)"
+    "experimental:ON:Experimental (FlatBuffers + Legacy Thrift + Modern Thrift)"
 )
 
 # Get build configurations

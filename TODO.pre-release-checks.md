@@ -11,8 +11,10 @@ Tebako DwarFS supports 3 metadata formats in 2 builds:
 - **Modern Thrift** (fbthrift, optional, experimental)
 
 **Build Configurations:**
-- `production`: Uses only FlatBuffers for metadata (stable, recommended)
-- `experimental`: FlatBuffers + Modern Thrift (experimental features)
+- `production`: FlatBuffers + Legacy Thrift (stable, recommended)
+- `experimental`: FlatBuffers + Legacy Thrift + Modern Thrift (experimental)
+
+**Note:** Legacy Thrift (hand-coded Frozen2) is always available in both configurations.
 
 ### 2. ✅ Legacy Thrift Implementation (COMPLETED)
 

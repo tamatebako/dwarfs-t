@@ -32,7 +32,7 @@ on:
         required: true
         type: string
       config:
-        description: 'Build configuration (production=stable FlatBuffers, experimental=+Modern Thrift)'
+        description: 'Build configuration (production=stable, experimental=+Modern Thrift)'
         required: true
         type: string
       build-type:
@@ -113,7 +113,7 @@ jobs:
         with:
           with-fuse: ${{ inputs.with-fuse }}
 
-      - name: Configure - Production (FlatBuffers-only, stable)
+      - name: Configure - Production (FlatBuffers + Legacy Thrift, stable)
         if: inputs.config == 'production'
         uses: ./.github/actions/configure-cmake
         with:
@@ -128,7 +128,7 @@ jobs:
           with-flatbuffers: true
           toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
 
-      - name: Configure - Experimental (FlatBuffers + Modern Thrift)
+      - name: Configure - Experimental (+ Modern Thrift)
         if: inputs.config == 'experimental'
         uses: ./.github/actions/configure-cmake
         with:

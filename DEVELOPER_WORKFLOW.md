@@ -46,14 +46,14 @@ DwarFS supports two build configurations:
 
 | Config | Description | Metadata Formats | Stability | Use Case |
 |-------|-------------|------------------|----------|----------|
-| `production` | Production build (FlatBuffers-only) | FlatBuffers | ✅ Stable | Production use, releases |
-| `experimental` | Experimental build (+ Modern Thrift) | FlatBuffers + Modern Thrift | ⚠️ Experimental | Development, testing |
+| `production` | Production build | FlatBuffers + Legacy Thrift | ✅ Stable | Production use, releases |
+| `experimental` | Experimental build | FlatBuffers + Legacy Thrift + Modern Thrift | ⚠️ Experimental | Development, testing |
 
 **Key Differences:**
-- **Production**: Only FlatBuffers metadata format. Stable, tested, recommended for production use.
-- **Experimental**: Includes Modern Thrift (fbthrift) support. May have instability or breaking changes.
+- **Production**: FlatBuffers + Legacy Thrift (hand-coded, no external deps). Stable, tested, recommended for production use.
+- **Experimental**: Adds Modern Thrift (fbthrift) support. May have instability or breaking changes.
 
-**Note**: Legacy Thrift (hand-coded Frozen2) is always available in both configurations.
+**Note**: Legacy Thrift (hand-coded Frozen2 in `src/metadata/legacy/`) is always available in both configurations.
 
 ## Developer Workflow
 
