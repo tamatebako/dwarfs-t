@@ -211,13 +211,47 @@ export VCPKG_ROOT="$HOME/vcpkg"
 | Metadata Formats | ✅ Complete | FB, Legacy Thrift, Modern Thrift |
 | Legacy Thrift Tests | ✅ Complete | Compatibility test suite created |
 | Unified Build System | ✅ Complete | Orchestrator + libs + one-step scripts |
-| vcpkg Triplets | ✅ Complete | 12+ triplets across platforms |
+| vcpkg Triplets | ✅ Complete | 18+ triplets across platforms |
 | Scripts Organization | ✅ Complete | MECE structure with backward compat |
 | CI/CD Workflows | ✅ Complete | Reusable workflows + composite actions |
 | Tebako jemalloc | ✅ Complete | Overlay port + auto-verification |
+| TESTING Documentation | ✅ Complete | Comprehensive testing guide |
+| DEVELOPER_WORKFLOW | ✅ Complete | Step-by-step developer/release guide |
+| CI Matrix (All Triplets) | ✅ Complete | Tests Linux/macOS/Windows |
 | Benchmarks | ⚠️ Partial | Infrastructure ready, requires full build |
 | Directory Cleanup | 📝 In Progress | Scripts done, source code pending |
 | Full DRY Workflows | 📝 Optional | Core done, legacy workflows pending |
 
-**Last Updated**: 2025-01-18
-**Overall Status**: Production-ready build system, ready for release
+## CI/CD Matrix Status (2025-01-22)
+
+### Current CI Workflows
+
+| Workflow | Purpose | Trigger | Platforms | Runtime |
+|----------|---------|---------|-----------|---------|
+| `pr-validation.yml` | Fast PR feedback | Pull request | Ubuntu x64 (2 configs) | ~15 min |
+| `ci-main.yml` | Main CI (current branch) | Push to main | Ubuntu x64 (2 configs) | ~1h |
+| `ci-matrix.yml` | **FULL matrix** | Push to main | Linux/macOS/Windows | ~3h |
+| `release.yml` | Release builds | Git tag (v*) | All platforms | ~30 min |
+
+### CI Matrix Coverage
+
+The new `ci-matrix.yml` workflow tests:
+
+| Platform | Runner | Triplet | Configs | Status |
+|----------|--------|---------|---------|--------|
+| Linux x64 | ubuntu-latest | x64-linux | flatbuffers, thrift | ✅ Active |
+| macOS x64 | macos-13 | x64-osx | flatbuffers | ✅ Active |
+| macOS ARM64 | macos-latest | arm64-osx | flatbuffers | ✅ Active |
+| Windows x64 | windows-latest | x64-windows-static | flatbuffers | ✅ Active |
+
+### Documentation
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| `TESTING.md` | Comprehensive testing guide | ✅ Complete |
+| `DEVELOPER_WORKFLOW.md` | Developer & release manager workflows | ✅ Complete |
+| `BUILD_SYSTEM_ARCHITECTURE.md` | Build system details | ✅ Complete |
+| `README.md` | Project overview | ✅ Complete |
+
+**Last Updated**: 2025-01-22
+**Overall Status**: Production-ready build system with comprehensive CI/CD matrix
