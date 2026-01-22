@@ -11,7 +11,7 @@
 #           include:
 #             - runner: ubuntu-latest
 #               triplet: x64-linux
-#               config: flatbuffers-only
+#               config: production
 #       uses: ./.github/workflows/_build-test-reusable.yml
 #       with:
 #         runner: ${{ matrix.runner }}
@@ -32,7 +32,7 @@ on:
         required: true
         type: string
       config:
-        description: 'Build configuration (flatbuffers, flatbuffers-with-thrift)'
+        description: 'Build configuration (production=stable FlatBuffers, experimental=+Modern Thrift)'
         required: true
         type: string
       build-type:
@@ -113,8 +113,8 @@ jobs:
         with:
           with-fuse: ${{ inputs.with-fuse }}
 
-      - name: Configure - FlatBuffers (default)
-        if: inputs.config == 'flatbuffers'
+      - name: Configure - Production (FlatBuffers-only, stable)
+        if: inputs.config == 'production'
         uses: ./.github/actions/configure-cmake
         with:
           build-dir: build-${{ inputs.config }}
@@ -128,8 +128,8 @@ jobs:
           with-flatbuffers: true
           toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
 
-      - name: Configure - FlatBuffers + Modern Thrift
-        if: inputs.config == 'flatbuffers-with-thrift'
+      - name: Configure - Experimental (FlatBuffers + Modern Thrift)
+        if: inputs.config == 'experimental'
         uses: ./.github/actions/configure-cmake
         with:
           build-dir: build-${{ inputs.config }}

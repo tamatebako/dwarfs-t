@@ -40,6 +40,21 @@ git push origin feature/my-feature
 # Or step-by-step (see below)
 ```
 
+## Build Configurations
+
+DwarFS supports two build configurations:
+
+| Config | Description | Metadata Formats | Stability | Use Case |
+|-------|-------------|------------------|----------|----------|
+| `production` | Production build (FlatBuffers-only) | FlatBuffers | ✅ Stable | Production use, releases |
+| `experimental` | Experimental build (+ Modern Thrift) | FlatBuffers + Modern Thrift | ⚠️ Experimental | Development, testing |
+
+**Key Differences:**
+- **Production**: Only FlatBuffers metadata format. Stable, tested, recommended for production use.
+- **Experimental**: Includes Modern Thrift (fbthrift) support. May have instability or breaking changes.
+
+**Note**: Legacy Thrift (hand-coded Frozen2) is always available in both configurations.
+
 ## Developer Workflow
 
 ### Initial Setup
@@ -408,8 +423,8 @@ git branch -d release/0.9.0
 
 | Job | Platform | Triplet | Config | Status |
 |-----|----------|---------|--------|--------|
-| test-ubuntu-flatbuffers | ubuntu-latest | x64-linux | flatbuffers | ✅ Active |
-| test-ubuntu-thrift | ubuntu-latest | x64-linux | flatbuffers-with-thrift | ✅ Active |
+| test-ubuntu-production | ubuntu-latest | x64-linux | production | ✅ Active |
+| test-ubuntu-experimental | ubuntu-latest | x64-linux | experimental | ✅ Active |
 
 **TODO**: Expand to full matrix (see below)
 
@@ -425,25 +440,25 @@ strategy:
       # Linux x64
       - runner: ubuntu-latest
         triplet: x64-linux
-        config: flatbuffers
+        config: production
       - runner: ubuntu-latest
         triplet: x64-linux
-        config: flatbuffers-with-thrift
+        config: experimental
 
       # macOS x64
       - runner: macos-13
         triplet: x64-osx
-        config: flatbuffers
+        config: production
 
       # macOS ARM64
       - runner: macos-latest
         triplet: arm64-osx
-        config: flatbuffers
+        config: production
 
       # Windows x64
       - runner: windows-latest
         triplet: x64-windows-static
-        config: flatbuffers
+        config: production
 ```
 
 ### CI Workflow Files
@@ -550,7 +565,7 @@ source ../dwarfs/scripts/lib/build_env.sh
 source ../dwarfs/scripts/lib/vcpkg_helper.sh
 
 # Use same build functions
-dwarfs_build_configuration "flatbuffers-only" \
+dwarfs_build_configuration "production" \
   "build-tebako" \
   "Release" \
   "vcpkg" \

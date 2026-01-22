@@ -11,8 +11,8 @@ Tebako DwarFS supports 3 metadata formats in 2 builds:
 - **Modern Thrift** (fbthrift, optional, experimental)
 
 **Build Configurations:**
-- `flatbuffers-only`: Uses only FlatBuffers for metadata (recommended)
-- `both-formats`: FlatBuffers + Legacy Thrift + Modern Thrift (all formats enabled)
+- `production`: Uses only FlatBuffers for metadata (stable, recommended)
+- `experimental`: FlatBuffers + Modern Thrift (experimental features)
 
 ### 2. ✅ Legacy Thrift Implementation (COMPLETED)
 
@@ -29,10 +29,10 @@ Hand-written serialization code in `src/metadata/legacy/` that does not depend o
 # Create Homebrew-compatible Legacy Thrift images
 mkdwarfs -i input/ -o output.dft --format=legacy-thrift
 
-# Create FlatBuffers images (recommended)
+# Create Production images (recommended)
 mkdwarfs -i input/ -o output.dff --format=flatbuffers
 
-# Create Experimental Modern Thrift images (fbthrift)
+# Create Experimental images (with Modern Thrift)
 mkdwarfs -i input/ -o output.dft --format=thrift
 ```
 
@@ -239,10 +239,10 @@ The new `ci-matrix.yml` workflow tests:
 
 | Platform | Runner | Triplet | Configs | Status |
 |----------|--------|---------|---------|--------|
-| Linux x64 | ubuntu-latest | x64-linux | flatbuffers, thrift | ✅ Active |
-| macOS x64 | macos-13 | x64-osx | flatbuffers | ✅ Active |
-| macOS ARM64 | macos-latest | arm64-osx | flatbuffers | ✅ Active |
-| Windows x64 | windows-latest | x64-windows-static | flatbuffers | ✅ Active |
+| Linux x64 | ubuntu-latest | x64-linux | production, experimental | ✅ Active |
+| macOS x64 | macos-13 | x64-osx | production | ✅ Active |
+| macOS ARM64 | macos-latest | arm64-osx | production | ✅ Active |
+| Windows x64 | windows-latest | x64-windows-static | production | ✅ Active |
 
 ### Documentation
 

@@ -19,9 +19,11 @@ _DWARFS_BUILD_ORCHESTRATOR_SOURCED=1
 # ============================================================================
 
 # Array of build configurations: "name:thrift:description"
+# production: FlatBuffers-only (stable, recommended for production use)
+# experimental: FlatBuffers + Modern Thrift (experimental features)
 DWARFS_BUILD_CONFIGS=(
-    "flatbuffers-only:OFF:FlatBuffers-only (stable, recommended)"
-    "both-formats:ON:Both-formats (FlatBuffers + Thrift)"
+    "production:OFF:Production (FlatBuffers-only, stable)"
+    "experimental:ON:Experimental (FlatBuffers + Modern Thrift)"
 )
 
 # Get build configurations
