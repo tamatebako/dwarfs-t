@@ -49,17 +49,17 @@ class performance_monitor;
 struct filesystem_info;
 struct vfs_stat;
 
-namespace reader {
-
-struct fsinfo_options;
-struct getattr_options;
-
 namespace thrift {
 namespace metadata {
 class fs_options;
 class metadata;
 }
 }
+
+namespace reader {
+
+struct fsinfo_options;
+struct getattr_options;
 
 namespace internal {
 
