@@ -10,8 +10,6 @@
 
 #pragma once
 
-#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
-
 #include <memory>
 #include <stdexcept>
 
@@ -38,20 +36,29 @@ namespace dwarfs::reader::internal {
  * Thrift-specific metadata export functionality
  *
  * This class provides methods to convert domain metadata to Thrift format.
- * It is ONLY compiled when Modern Thrift (fbthrift/folly) is available.
+ * The class is always available, but methods throw when Thrift support
+ * was not compiled into the binary.
  *
  * Design:
  * - Single Responsibility: Thrift export operations only
- * - This entire class is conditionally compiled via CMake
- * - No preprocessor guards in the code - the class simply doesn't exist
- *   when Thrift is not available
+ * - Runtime availability check via is_available() static method
+ * - Methods throw std::runtime_error when Thrift is not available
+ * - Pure OOP: No preprocessor guards in client code
  */
 class metadata_v2_thrift_export {
  public:
   /**
+   * Check if Thrift support is available at runtime
+   *
+   * @return true if Modern Thrift (fbthrift/folly) support is compiled in
+   */
+  static bool is_available();
+
+  /**
    * Construct from metadata_v2
    *
    * @param meta The metadata object to export
+   * @throws std::runtime_error if Thrift support is not available
    * @throws std::runtime_error if the implementation is not domain_metadata_impl
    */
   explicit metadata_v2_thrift_export(metadata_v2 const& meta);
@@ -60,6 +67,7 @@ class metadata_v2_thrift_export {
    * Convert domain metadata to Thrift format (frozen/compact)
    *
    * @return Thrift metadata object
+   * @throws std::runtime_error if Thrift support is not available
    */
   std::unique_ptr<thrift::metadata::metadata> thaw() const;
 
@@ -67,6 +75,7 @@ class metadata_v2_thrift_export {
    * Convert domain metadata to Thrift format (unpacked/expanded)
    *
    * @return Thrift metadata object with expanded tables
+   * @throws std::runtime_error if Thrift support is not available
    */
   std::unique_ptr<thrift::metadata::metadata> unpack() const;
 
@@ -74,13 +83,15 @@ class metadata_v2_thrift_export {
    * Extract filesystem options from domain metadata
    *
    * @return Thrift fs_options object, or nullptr if not available
+   * @throws std::runtime_error if Thrift support is not available
    */
   std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const;
 
  private:
   domain_metadata_impl const* impl_;  // Non-owning pointer
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  bool const thrift_available_;
+#endif
 };
 
 } // namespace dwarfs::reader::internal
-
-#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
