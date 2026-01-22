@@ -30,6 +30,13 @@ struct fsinfo_options;
 struct metadata_options;
 } // namespace reader
 
+namespace thrift {
+namespace metadata {
+class fs_options;
+class metadata;
+}
+}
+
 namespace reader::internal {
 
 /**
