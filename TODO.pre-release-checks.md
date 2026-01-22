@@ -237,14 +237,23 @@ export VCPKG_ROOT="$HOME/vcpkg"
 
 ### CI Matrix Coverage
 
-The new `ci-matrix.yml` workflow tests:
+The new `ci-matrix.yml` workflow tests all supported triplets:
 
-| Platform | Runner | Triplet | Configs | Status |
+| Platform | Runner | Triplet | Config | Status |
 |----------|--------|---------|---------|--------|
-| Linux x64 | ubuntu-latest | x64-linux | production, experimental | ✅ Active |
-| macOS x64 | macos-13 | x64-osx | production | ✅ Active |
-| macOS ARM64 | macos-latest | arm64-osx | production | ✅ Active |
-| Windows x64 | windows-latest | x64-windows-static | production | ✅ Active |
+| **Linux x64** | ubuntu-latest | x64-linux | production | ✅ Active |
+| **Linux x64** | ubuntu-latest | x64-linux | experimental | ✅ Active |
+| **Linux x64** | ubuntu-latest | x64-linux-dynamic | production | ✅ Active |
+| **macOS x64** | macos-13 | x64-osx | production | ✅ Active |
+| **macOS ARM64** | macos-latest | arm64-osx | production | ✅ Active |
+| **macOS x64** | macos-13 | x64-osx-dynamic | production | ✅ Active |
+| **macOS ARM64** | macos-latest | arm64-osx-dynamic | production | ✅ Active |
+| **Windows x64** | windows-latest | x64-windows-static | production | ✅ Active |
+| **Windows ARM64** | windows-latest | arm64-windows-static | production | ✅ Active |
+| **Windows x64** | windows-latest | x64-windows-dynamic | production | ✅ Active |
+| **Windows ARM64** | windows-latest | arm64-windows-dynamic | production | ✅ Active |
+
+**Total: 11 CI jobs** (3 Linux + 4 macOS + 4 Windows)
 
 ### Documentation
 

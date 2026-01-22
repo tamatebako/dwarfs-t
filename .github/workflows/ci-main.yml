@@ -9,7 +9,7 @@ name: CI Main
 
 on:
   push:
-    branches: [main, feature/multi-format-serialization-fuse]
+    branches: [main, feature/**]
     paths-ignore:
       - '.benchmark/**'
       - '.clang-format'
@@ -44,7 +44,6 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write  # Required for vcpkg binary cache
 
 jobs:
   # Ubuntu x64 - production (PRIMARY TEST)
