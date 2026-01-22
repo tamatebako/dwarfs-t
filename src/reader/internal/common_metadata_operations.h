@@ -54,6 +54,13 @@ namespace reader {
 struct fsinfo_options;
 struct getattr_options;
 
+namespace thrift {
+namespace metadata {
+class fs_options;
+class metadata;
+}
+}
+
 namespace internal {
 
 /**
@@ -169,9 +176,9 @@ class common_metadata_operations : public metadata_v2::impl {
 
 #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   // Thrift export methods (only available when Modern Thrift is compiled in)
-  std::unique_ptr<::thrift::metadata::metadata> thaw() const;
-  std::unique_ptr<::thrift::metadata::metadata> unpack() const;
-  std::unique_ptr<::thrift::metadata::fs_options> thaw_fs_options() const;
+  std::unique_ptr<thrift::metadata::metadata> thaw() const;
+  std::unique_ptr<thrift::metadata::metadata> unpack() const;
+  std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const;
 #endif
 
  private:
