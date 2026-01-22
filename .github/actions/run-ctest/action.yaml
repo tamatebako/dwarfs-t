@@ -260,7 +260,7 @@ runs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: ctest-results-${{ runner.os }}
+        name: ctest-results-${{ runner.os }}-${{ inputs.build-dir }}
         path: |
           ${{ inputs.build-dir }}/Testing/
           ${{ inputs.build-dir }}/test-results/
