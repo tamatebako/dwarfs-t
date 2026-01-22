@@ -74,6 +74,9 @@ jobs:
     name: ${{ inputs.runner }} (${{ inputs.triplet }}) - ${{ inputs.config }}
     runs-on: ${{ inputs.runner }}
 
+    permissions:
+      contents: read
+
     outputs:
       artifact-name: ${{ steps.generate-artifact-name.outputs.name }}
       build-status: ${{ steps.check-status.outputs.status }}

@@ -177,7 +177,7 @@ int pipe(int filedes[2])
 
         /*      printf("pipe: %s \n", pipe_name);*/
 
-        filedes[1] = open(pipe_name, O_WRONLY | O_CREAT);
+        filedes[1] = open(pipe_name, O_WRONLY | O_CREAT, 0600);
         filedes[0] = open(pipe_name, O_RDONLY);
         if (filedes[0] == -1 || filedes[1] == -1)
         {
