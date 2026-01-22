@@ -109,17 +109,6 @@ jobs:
           echo "✓ VCPKG_ROOT: $VCPKG_ROOT"
           echo "✓ Binary cache: enabled (GitHub Actions cache)"
 
-      - name: Cache CMake build
-        uses: actions/cache@v4
-        with:
-          path: |
-            build-${{ inputs.config }}
-            ~/.cache/vcpkg
-          key: ${{ inputs.cache-key }}-${{ runner.os }}-${{ inputs.triplet }}-${{ inputs.config }}-${{ github.sha }}
-          restore-keys: |
-            ${{ inputs.cache-key }}-${{ runner.os }}-${{ inputs.triplet }}-${{ inputs.config }}-
-            ${{ inputs.cache-key }}-${{ runner.os }}-${{ inputs.triplet }}-
-
       - name: Setup build dependencies
         uses: ./.github/actions/setup-build-deps
         with:
