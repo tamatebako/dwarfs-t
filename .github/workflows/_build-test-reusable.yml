@@ -99,6 +99,7 @@ jobs:
           vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
           vcpkgJsonGlob: 'vcpkg-production.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
+          runVcpkgInstall: true
 
       # Setup vcpkg for experimental config (includes Modern Thrift)
       - name: Setup vcpkg (experimental)
@@ -108,6 +109,7 @@ jobs:
           vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
           vcpkgJsonGlob: 'vcpkg-experimental.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
+          runVcpkgInstall: true
 
       # Set environment for build
       - name: Setup build environment
