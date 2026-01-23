@@ -101,7 +101,7 @@
       "version>=": "1.14.0"
     },
     {
-      "name": "fuse3",
+      "name": "libfuse",
       "version>=": "3.17.3"
     }
   ]
