@@ -99,7 +99,6 @@ jobs:
           vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
           vcpkgJsonGlob: 'vcpkg.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
-          runVcpkgFormatString: 'install --feature-flags=manifests'
         env:
           VCPKG_MANIFEST_FEATURES: ''
 
@@ -111,7 +110,6 @@ jobs:
           vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
           vcpkgJsonGlob: 'vcpkg.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
-          runVcpkgFormatString: 'install --feature-flags=manifests'
         env:
           VCPKG_MANIFEST_FEATURES: 'modern-thrift'
 
