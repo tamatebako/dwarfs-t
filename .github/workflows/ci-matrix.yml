@@ -27,7 +27,7 @@ name: CI Matrix
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/**', 'ci/**']
     paths-ignore:
       - '.benchmark/**'
       - '.clang-format'
