@@ -10,12 +10,15 @@
 # Total Jobs: 18 (7 Linux, 4 macOS, 7 Windows)
 #
 # Runner Mappings:
-# - ARM64 Linux: ubuntu-24.04-arm (larger runner)
-# - x64 Linux: ubuntu-24.04
-# - ARM64 macOS: macos-15 (Apple Silicon)
-# - x64 macOS: macos-15-intel (Intel)
-# - ARM64 Windows: windows-11-arm
-# - x64 Windows: windows-2025
+# - ARM64 Linux: ubuntu-24.04-arm (larger runner, requires proper labeling)
+# - x64 Linux: ubuntu-24.04 or ubuntu-latest
+# - ARM64 macOS: macos-15 (Apple Silicon, default)
+# - x64 macOS: macos-13 (Intel, last Intel macOS version)
+# - ARM64 Windows: windows-11-arm (requires windows-11-arm label)
+# - x64 Windows: windows-2025 or windows-latest
+#
+# Note: ubuntu-24.04-arm requires GitHub Actions larger runners (ARM)
+# Note: macos-15-intel may not be available, use macos-13 for Intel
 #
 # Concurrency: Each platform/architecture combination runs independently
 # Failures: fail-fast: false ensures one failure doesn't stop other jobs
@@ -53,7 +56,7 @@ jobs:
       fail-fast: false  # One failure shouldn't stop other jobs
       matrix:
         # ==========================================================================
-        # Linux Jobs (ubuntu-24.04-arm and ubuntu-24.04)
+        # Linux Jobs (ubuntu-24.04-arm [larger] and ubuntu-latest)
         # ==========================================================================
         - os: linux
           runner: ubuntu-24.04-arm
@@ -61,83 +64,83 @@ jobs:
           config: production
 
         - os: linux
-          runner: ubuntu-24.04
+          runner: ubuntu-latest
           triplet: x64-linux
           config: production
 
         - os: linux
-          runner: ubuntu-24.04
+          runner: ubuntu-latest
           triplet: x64-linux
           config: experimental
 
         - os: linux
-          runner: ubuntu-24.04
+          runner: ubuntu-latest
           triplet: x64-linux-dynamic
           config: production
 
         - os: linux
-          runner: ubuntu-24.04
+          runner: ubuntu-latest
           triplet: x64-linux-release-dbg
           config: production
 
         - os: linux
-          runner: ubuntu-24.04
+          runner: ubuntu-latest
           triplet: x64-linux-musl
           config: production
 
         # ==========================================================================
-        # macOS Jobs (macos-15-intel and macos-15)
+        # macOS Jobs (macos-13 [Intel] and macos-latest [ARM])
         # ==========================================================================
         - os: macos
-          runner: macos-15-intel
+          runner: macos-13
           triplet: x64-osx
           config: production
 
         - os: macos
-          runner: macos-15-intel
+          runner: macos-13
           triplet: x64-osx-dynamic
           config: production
 
         - os: macos
-          runner: macos-15
+          runner: macos-latest
           triplet: arm64-osx
           config: production
 
         - os: macos
-          runner: macos-15
+          runner: macos-latest
           triplet: arm64-osx-dynamic
           config: production
 
         # ==========================================================================
-        # Windows Jobs (windows-2025 and windows-11-arm)
+        # Windows Jobs (windows-latest and windows-11-arm)
         # ==========================================================================
         - os: windows
-          runner: windows-2025
+          runner: windows-latest
           triplet: x64-windows
           config: production
 
         - os: windows
-          runner: windows-2025
+          runner: windows-latest
           triplet: x64-windows-dynamic
           config: production
 
         - os: windows
-          runner: windows-2025
+          runner: windows-latest
           triplet: x64-windows-static
           config: production
 
         - os: windows
-          runner: windows-2025
+          runner: windows-latest
           triplet: x64-windows-static-md
           config: production
 
         - os: windows
-          runner: windows-2025
+          runner: windows-latest
           triplet: x64-windows-msys
           config: production
 
         - os: windows
-          runner: windows-2025
+          runner: windows-latest
           triplet: x64-windows-mingw
           config: production
 
@@ -248,11 +251,11 @@ jobs:
           echo "| Platform | Architecture | Runner | Triplets |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------------|--------|----------|" >> $GITHUB_STEP_SUMMARY
           echo "| Linux | ARM64 | ubuntu-24.04-arm | arm64-linux |" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux | x64 | ubuntu-24.04 | x64-linux, x64-linux-dynamic, x64-linux-release-dbg, x64-linux-musl |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS | ARM64 | macos-15 | arm64-osx, arm64-osx-dynamic |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS | x64 | macos-15-intel | x64-osx, x64-osx-dynamic |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | x64 | ubuntu-latest | x64-linux, x64-linux-dynamic, x64-linux-release-dbg, x64-linux-musl |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | ARM64 | macos-latest | arm64-osx, arm64-osx-dynamic |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | x64 | macos-13 | x64-osx, x64-osx-dynamic |" >> $GITHUB_STEP_SUMMARY
           echo "| Windows | ARM64 | windows-11-arm | arm64-windows-static |" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows | x64 | windows-2025 | x64-windows, x64-windows-dynamic, x64-windows-static, x64-windows-static-md, x64-windows-msys, x64-windows-mingw |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows | x64 | windows-latest | x64-windows, x64-windows-dynamic, x64-windows-static, x64-windows-static-md, x64-windows-msys, x64-windows-mingw |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Count total jobs
