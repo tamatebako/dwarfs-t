@@ -1,7 +1,7 @@
 # Reusable Build and Test Workflow
 #
 # This is the core build and test workflow used by all CI workflows.
-# It provides a standardized way to build, test, and upload results.
+# Uses CMakePresets.json + run-cmake for modern, cache-friendly builds.
 #
 # Usage:
 #   jobs:
@@ -10,7 +10,7 @@
 #         matrix:
 #           include:
 #             - runner: ubuntu-latest
-#               triplet: x64-linux
+#               triplet: linux-x64
 #               config: production
 #       uses: ./.github/workflows/_build-test-reusable.yml
 #       with:
@@ -28,7 +28,7 @@ on:
         required: true
         type: string
       triplet:
-        description: 'vcpkg triplet to use'
+        description: 'CMake preset triplet (e.g., linux-x64, osx-arm64)'
         required: true
         type: string
       config:
@@ -36,15 +36,10 @@ on:
         required: true
         type: string
       build-type:
-        description: 'CMake build type'
+        description: 'CMake build type (override preset default if needed)'
         required: false
         type: string
-        default: Release
-      cache-key:
-        description: 'Cache key prefix for vcpkg binary cache'
-        required: false
-        type: string
-        default: vcpkg
+        default: ""
       with-fuse:
         description: 'Enable FUSE driver'
         required: false
@@ -57,6 +52,11 @@ on:
         default: false
       upload-test-results:
         description: 'Upload test results'
+        required: false
+        type: boolean
+        default: true
+      skip-fuse-tests:
+        description: 'Skip FUSE tests'
         required: false
         type: boolean
         default: true
@@ -87,75 +87,52 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.28.0'
+      # Use get-cmake to cache CMake and Ninja executables
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
 
-      - name: Setup vcpkg
+      # Setup vcpkg for production config
+      - name: Setup vcpkg (production)
+        if: inputs.config == 'production'
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: 7c11b72a6f810293d0ce234de126b99e9ab6fa7a
-          vcpkgJsonGlob: '**/vcpkg.json'
+          vcpkgJsonGlob: '**/vcpkg-production.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
 
-      - name: Setup vcpkg environment
+      # Setup vcpkg for experimental config (includes Modern Thrift)
+      - name: Setup vcpkg (experimental)
+        if: inputs.config == 'experimental'
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 7c11b72a6f810293d0ce234de126b99e9ab6fa7a
+          vcpkgJsonGlob: '**/vcpkg-experimental.json'
+          vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
+
+      # Set environment for build
+      - name: Setup build environment
         shell: bash
         run: |
           echo "VCPKG_DEFAULT_TRIPLET=${{ inputs.triplet }}" >> $GITHUB_ENV
           echo "VCPKG_OVERLAY_PORTS=$GITHUB_WORKSPACE/vcpkg_ports" >> $GITHUB_ENV
           echo "VCPKG_OVERLAY_TRIPLETS=$GITHUB_WORKSPACE/vcpkg_triplets" >> $GITHUB_ENV
-          echo "✓ vcpkg triplet: ${{ inputs.triplet }}"
-          echo "✓ VCPKG_ROOT: $VCPKG_ROOT"
+          echo "✓ Triplet: ${{ inputs.triplet }}"
+          echo "✓ Config: ${{ inputs.config }}"
           echo "✓ Binary cache: enabled (GitHub Actions cache)"
 
+      # Setup additional dependencies (FUSE, etc.)
       - name: Setup build dependencies
         uses: ./.github/actions/setup-build-deps
         with:
           with-fuse: ${{ inputs.with-fuse }}
 
-      - name: Configure - Production (FlatBuffers + Legacy Thrift, stable)
-        if: inputs.config == 'production'
-        uses: ./.github/actions/configure-cmake
+      # Run CMake with CMakePresets (configure + build + test)
+      - name: Build and test with CMakePresets
+        uses: lukka/run-cmake@v10
         with:
-          build-dir: build-${{ inputs.config }}
-          build-type: ${{ inputs.build-type }}
-          triplet: ${{ inputs.triplet }}
-          with-tests: true
-          with-libdwarfs: true
-          with-tools: true
-          with-fuse-driver: ${{ inputs.with-fuse }}
-          with-thrift: false
-          with-flatbuffers: true
-          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-
-      - name: Configure - Experimental (+ Modern Thrift)
-        if: inputs.config == 'experimental'
-        uses: ./.github/actions/configure-cmake
-        with:
-          build-dir: build-${{ inputs.config }}
-          build-type: ${{ inputs.build-type }}
-          triplet: ${{ inputs.triplet }}
-          with-tests: true
-          with-libdwarfs: true
-          with-tools: true
-          with-fuse-driver: ${{ inputs.with-fuse }}
-          with-thrift: true
-          with-flatbuffers: true
-          toolchain-file: ${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-
-      - name: Build
-        id: build
-        shell: bash
-        run: |
-          set -x
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            cmake --build build-${{ inputs.config }} \
-              --config ${{ inputs.build-type }} \
-              --parallel
-          else
-            cmake --build build-${{ inputs.config }} --parallel
-          fi
+          configurePreset: ${{ inputs.triplet }}-${{ inputs.config }}
+          buildPreset: ${{ inputs.triplet }}-${{ inputs.config }}
+          testPreset: ${{ inputs.triplet }}-${{ inputs.config }}
 
       - name: Generate artifact name
         id: generate-artifact-name
@@ -171,23 +148,16 @@ jobs:
         with:
           name: ${{ steps.generate-artifact-name.outputs.name }}
           path: |
-            build-${{ inputs.config }}/tools/mkdwarfs/mkdwarfs*
-            build-${{ inputs.config }}/tools/dwarfs/dwarfs*
-            build-${{ inputs.config }}/tools/dwarfsextract/dwarfsextract*
-            build-${{ inputs.config }}/tools/dwarfs/dwarfsck*
-            build-${{ inputs.config }}/libdwarfs/*.a
-            build-${{ inputs.config }}/libdwarfs/*.so*
-            build-${{ inputs.config }}/libdwarfs/*.dylib*
-            build-${{ inputs.config }}/libdwarfs/*.dll*
+            build-${{ inputs.triplet }}-${{ inputs.config }}/tools/mkdwarfs/mkdwarfs*
+            build-${{ inputs.triplet }}-${{ inputs.config }}/tools/dwarfs/dwarfs*
+            build-${{ inputs.triplet }}-${{ inputs.config }}/tools/dwarfsextract/dwarfsextract*
+            build-${{ inputs.triplet }}-${{ inputs.config }}/tools/dwarfs/dwarfsck*
+            build-${{ inputs.triplet }}-${{ inputs.config }}/libdwarfs/*.a
+            build-${{ inputs.triplet }}-${{ inputs.config }}/libdwarfs/*.so*
+            build-${{ inputs.triplet }}-${{ inputs.config }}/libdwarfs/*.dylib*
+            build-${{ inputs.triplet }}-${{ inputs.config }}/libdwarfs/*.dll*
           if-no-files-found: warn
           retention-days: 7
-
-      - name: Run tests
-        id: test
-        uses: ./.github/actions/run-ctest
-        with:
-          build-dir: build-${{ inputs.config }}
-          config: ${{ inputs.build-type }}
 
       - name: Upload test results
         if: inputs.upload-test-results == true && always()
@@ -195,8 +165,8 @@ jobs:
         with:
           name: test-results-${{ inputs.triplet }}-${{ inputs.config }}
           path: |
-            build-${{ inputs.config }}/Testing/
-            build-${{ inputs.config }}/**/Test.xml
+            build-${{ inputs.triplet }}-${{ inputs.config }}/Testing/
+            build-${{ inputs.triplet }}-${{ inputs.config }}/**/Test.xml
           if-no-files-found: warn
 
       - name: Check build status
@@ -216,13 +186,11 @@ jobs:
           echo "Runner: ${{ inputs.runner }}"
           echo "Triplet: ${{ inputs.triplet }}"
           echo "Config: ${{ inputs.config }}"
-          echo "Build Type: ${{ inputs.build-type }}"
           echo "Status: ${{ steps.check-status.outputs.status }}"
           echo ""
 
           # Show test summary if available
-          if [[ -f "build-${{ inputs.config }}/Testing/Test.xml" ]]; then
+          if [[ -f "build-${{ inputs.triplet }}-${{ inputs.config }}/Testing/Test.xml" ]]; then
             echo "=== Test Results ==="
-            # Parse Test.xml for summary
-            cat build-${{ inputs.config }}/Testing/Test.xml | grep -o 'Test="[0-9]*"' | head -5 || true
+            cat build-${{ inputs.triplet }}-${{ inputs.config }}/Testing/Test.xml | grep -o 'Test="[0-9]*"' | head -5 || true
           fi

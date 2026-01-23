@@ -1,7 +1,7 @@
 # CI Main Workflow - Comprehensive Testing
 #
 # This is the main CI workflow that runs on pushes to main branch.
-# It provides validation on the most important platform (Ubuntu x64).
+# Uses CMakePresets.json for consistent, cache-friendly builds.
 #
 # For fast PR validation, use pr-validation.yml instead.
 
@@ -20,13 +20,6 @@ on:
       - 'CITATION.cff'
       - 'TODO'
       - 'doc/**'
-      # Note: Allow .github/**/*.md changes to trigger CI for documentation updates
-      - 'README.md'
-      - 'ARCHITECTURE.md'
-      - 'BUILD_SYSTEM_ARCHITECTURE.md'
-      - 'CLEANUP_PLAN.md'
-      - 'STATUS_REPORT.md'
-      - 'WORKFLOW_GUIDE.md'
   workflow_dispatch:
     inputs:
       config:
@@ -53,8 +46,6 @@ jobs:
       runner: ubuntu-latest
       triplet: x64-linux
       config: production
-      build-type: Release
-      cache-key: ci-main-ubuntu-x64
 
   # Ubuntu x64 - experimental
   test-ubuntu-experimental:
@@ -63,8 +54,6 @@ jobs:
       runner: ubuntu-latest
       triplet: x64-linux
       config: experimental
-      build-type: Release
-      cache-key: ci-main-ubuntu-x64
 
   # Summary job
   summary:

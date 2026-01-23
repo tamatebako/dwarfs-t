@@ -38,10 +38,8 @@ include(CheckCXXSourceCompiles)
 
 cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
-# Allow build tree includes (required for vcpkg + Folly)
-if(POLICY CMP0111)
-  cmake_policy(SET CMP0111 OLD)
-endif()
+# Note: CMP0111 (imported targets from different directories) is now always NEW
+# The old setting was needed for vcpkg + Folly compatibility but is deprecated
 
 # ============================================================================
 # vcpkg Integration for Static Builds

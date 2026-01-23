@@ -369,7 +369,8 @@ inline std::string prettyPrint(double value, PrettyType type, bool addSpace = tr
       auto format_size = [&](double val, const char* unit) {
         // Check if it's a whole number (within floating point precision)
         double intpart;
-        if (std::modf(val, &intpart) == 0.0) {
+        constexpr double epsilon = 1e-9;
+        if (std::fabs(std::modf(val, &intpart)) < epsilon) {
           oss << static_cast<int>(val) << space << unit;
         } else {
           // Format with up to 2 decimals, removing trailing zeros
@@ -444,7 +445,7 @@ inline std::string prettyPrint(double value, PrettyType type, bool addSpace = tr
           std::snprintf(buf, sizeof(buf), "%.1f", seconds);
           oss << buf << space << "s";
         }
-      } else if (seconds == 0.0) {
+      } else if (std::fabs(seconds) < 1e-9) {
         oss << "0s";
       } else if (seconds >= 0.001) {
         // Milliseconds

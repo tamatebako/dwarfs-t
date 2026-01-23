@@ -1,0 +1,68 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "osx-x64-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS x64 base configuration",
+      "binaryDir": "${sourceDir}/build-osx-x64-${config}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "TRY_ENABLE_FLAC": "ON",
+        "TRY_ENABLE_BROTLI": "ON",
+        "TRY_ENABLE_LZ4": "ON",
+        "TRY_ENABLE_LZMA": "ON",
+        "ENABLE_RICEPP": "ON",
+        "USE_HOMEBREW_LIBARCHIVE": "ON",
+        "USE_JEMALLOC": "ON"
+      }
+    },
+    {
+      "name": "osx-x64-production",
+      "inherits": ["osx-x64-base", "production-overlays"],
+      "description": "macOS x64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "osx-x64-experimental",
+      "inherits": ["osx-x64-base", "experimental-overlays"],
+      "description": "macOS x64 Experimental (+ Modern Thrift)"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "osx-x64-production",
+      "configurePreset": "osx-x64-production",
+      "description": "Build macOS x64 Production"
+    },
+    {
+      "name": "osx-x64-experimental",
+      "configurePreset": "osx-x64-experimental",
+      "description": "Build macOS x64 Experimental"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "osx-x64-production",
+      "configurePreset": "osx-x64-production",
+      "description": "Test macOS x64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "osx-x64-experimental",
+      "configurePreset": "osx-x64-experimental",
+      "description": "Test macOS x64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    }
+  ]
+}

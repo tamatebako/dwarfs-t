@@ -178,11 +178,12 @@ file_size_t parse_size_with_unit(std::string const& str) {
 }
 
 std::string ratio_to_string(double num, double den, int precision) {
-  if (den == 0.0) {
+  constexpr double epsilon = 1e-9;
+  if (std::fabs(den) < epsilon) {
     return "N/A";
   }
 
-  if (num == 0.0) {
+  if (std::fabs(num) < epsilon) {
     return "0x";
   }
 

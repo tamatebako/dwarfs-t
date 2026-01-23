@@ -1,0 +1,69 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "windows-x64-static-md-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 Static MD base configuration",
+      "binaryDir": "${sourceDir}/build-windows-x64-static-md-${config}",
+      "generator": "Ninja",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "BUILD_SHARED_LIBS": "OFF",
+        "MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL",
+        "TRY_ENABLE_FLAC": "ON",
+        "TRY_ENABLE_BROTLI": "ON",
+        "TRY_ENABLE_LZ4": "ON",
+        "TRY_ENABLE_LZMA": "ON",
+        "ENABLE_RICEPP": "ON",
+        "USE_JEMALLOC": "ON"
+      }
+    },
+    {
+      "name": "windows-x64-static-md-production",
+      "inherits": ["windows-x64-static-md-base", "production-overlays"],
+      "description": "Windows x64 Static MD Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "windows-x64-static-md-experimental",
+      "inherits": ["windows-x64-static-md-base", "experimental-overlays"],
+      "description": "Windows x64 Static MD Experimental (+ Modern Thrift)"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-x64-static-md-production",
+      "configurePreset": "windows-x64-static-md-production",
+      "description": "Build Windows x64 Static MD Production"
+    },
+    {
+      "name": "windows-x64-static-md-experimental",
+      "configurePreset": "windows-x64-static-md-experimental",
+      "description": "Build Windows x64 Static MD Experimental"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-x64-static-md-production",
+      "configurePreset": "windows-x64-static-md-production",
+      "description": "Test Windows x64 Static MD Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "windows-x64-static-md-experimental",
+      "configurePreset": "windows-x64-static-md-experimental",
+      "description": "Test Windows x64 Static MD Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    }
+  ]
+}

@@ -1,12 +1,12 @@
 # CI Matrix - Comprehensive Testing Across All Platforms
 #
 # This workflow runs comprehensive tests across ALL supported triplets.
-# It provides maximum coverage but takes longer to complete.
+# Uses CMakePresets.json for consistent, cache-friendly builds.
 #
 # IMPORTANT: This is a HEAVY workflow. Use pr-validation.yml or ci-main.yml
 # for faster feedback during development.
 #
-# Estimated Runtime: 2-4 hours depending on GitHub Actions queue
+# Estimated Runtime: 2-4 hours on first run (warm cache: 30-60 min)
 
 name: CI Matrix
 
@@ -22,8 +22,6 @@ on:
       - 'CHANGES.md'
       - 'CITATION.cff'
       - 'doc/**'
-      # Keep markdown docs that might affect CI
-      # - '*.md'
   workflow_dispatch:
 
 concurrency:
@@ -39,133 +37,93 @@ jobs:
   # ==========================================================================
 
   # Linux x64 - Production (FlatBuffers + Legacy Thrift)
-  test-linux-x64-production:
+  test-x64-linux-production:
     name: Linux x64 - Production
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: production
-      build-type: Release
-      cache-key: ci-matrix-linux-x64-prod
 
   # Linux x64 - Experimental (+ Modern Thrift)
-  test-linux-x64-experimental:
+  test-x64-linux-experimental:
     name: Linux x64 - Experimental
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: experimental
-      build-type: Release
-      cache-key: ci-matrix-linux-x64-exp
 
   # Linux x64 - Dynamic build
-  test-linux-x64-dynamic:
+  test-x64-linux-dynamic-production:
     name: Linux x64 - Dynamic
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux-dynamic
       config: production
-      build-type: Release
-      cache-key: ci-matrix-linux-x64-dyn
+
+  # Linux x64 - Release with Debug info
+  test-x64-linux-release-dbg-production:
+    name: Linux x64 - RelWithDebInfo
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux-release-dbg
+      config: production
 
   # ==========================================================================
   # macOS Tests
   # ==========================================================================
 
-  # macOS x64 - Production (static)
-  test-macos-x64:
+  # macOS x64 - Production
+  test-x64-osx-production:
     name: macOS x64 - Production
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: macos-13
       triplet: x64-osx
       config: production
-      build-type: Release
-      cache-key: ci-matrix-macos-x64
 
-  # macOS ARM64 - Production (static)
-  test-macos-arm64:
+  # macOS ARM64 - Production
+  test-arm64-osx-production:
     name: macOS ARM64 - Production
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: macos-latest
       triplet: arm64-osx
       config: production
-      build-type: Release
-      cache-key: ci-matrix-macos-arm64
-
-  # macOS x64 - Dynamic build
-  test-macos-x64-dynamic:
-    name: macOS x64 - Dynamic
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: macos-13
-      triplet: x64-osx-dynamic
-      config: production
-      build-type: Release
-      cache-key: ci-matrix-macos-x64-dyn
-
-  # macOS ARM64 - Dynamic build
-  test-macos-arm64-dynamic:
-    name: macOS ARM64 - Dynamic
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: macos-latest
-      triplet: arm64-osx-dynamic
-      config: production
-      build-type: Release
-      cache-key: ci-matrix-macos-arm64-dyn
 
   # ==========================================================================
   # Windows Tests
   # ==========================================================================
 
-  # Windows x64 - Production (static)
-  test-windows-x64:
+  # Windows x64 - Production
+  test-x64-windows-production:
     name: Windows x64 - Production
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: windows-latest
+      triplet: x64-windows
+      config: production
+
+  # Windows x64 - Static
+  test-x64-windows-static-production:
+    name: Windows x64 - Static
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: windows-latest
       triplet: x64-windows-static
       config: production
-      build-type: Release
-      cache-key: ci-matrix-windows-x64
 
-  # Windows ARM64 - Production (static)
-  test-windows-arm64:
-    name: Windows ARM64 - Production
+  # Windows x64 - Static MD
+  test-x64-windows-static-md-production:
+    name: Windows x64 - Static MD
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: windows-latest
-      triplet: arm64-windows-static
+      triplet: x64-windows-static-md
       config: production
-      build-type: Release
-      cache-key: ci-matrix-windows-arm64
-
-  # Windows x64 - Dynamic build
-  test-windows-x64-dynamic:
-    name: Windows x64 - Dynamic
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: windows-latest
-      triplet: x64-windows-dynamic
-      config: production
-      build-type: Release
-      cache-key: ci-matrix-windows-x64-dyn
-
-  # Windows ARM64 - Dynamic build
-  test-windows-arm64-dynamic:
-    name: Windows ARM64 - Dynamic
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: windows-latest
-      triplet: arm64-windows-dynamic
-      config: production
-      build-type: Release
-      cache-key: ci-matrix-windows-arm64-dyn
 
   # ==========================================================================
   # Summary Job
@@ -174,17 +132,15 @@ jobs:
   summary:
     name: CI Matrix Summary
     needs:
-      - test-linux-x64-production
-      - test-linux-x64-experimental
-      - test-linux-x64-dynamic
-      - test-macos-x64
-      - test-macos-arm64
-      - test-macos-x64-dynamic
-      - test-macos-arm64-dynamic
-      - test-windows-x64
-      - test-windows-arm64
-      - test-windows-x64-dynamic
-      - test-windows-arm64-dynamic
+      - test-x64-linux-production
+      - test-x64-linux-experimental
+      - test-x64-linux-dynamic-production
+      - test-x64-linux-release-dbg-production
+      - test-x64-osx-production
+      - test-arm64-osx-production
+      - test-x64-windows-production
+      - test-x64-windows-static-production
+      - test-x64-windows-static-md-production
     runs-on: ubuntu-latest
     if: always()
 
@@ -199,36 +155,32 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo ""
           echo "Linux:"
-          echo "  x64 Production: ${{ needs.test-linux-x64-production.result }}"
-          echo "  x64 Experimental: ${{ needs.test-linux-x64-experimental.result }}"
-          echo "  x64 Dynamic: ${{ needs.test-linux-x64-dynamic.result }}"
+          echo "  x64 Production: ${{ needs.test-x64-linux-production.result }}"
+          echo "  x64 Experimental: ${{ needs.test-x64-linux-experimental.result }}"
+          echo "  x64 Dynamic: ${{ needs.test-x64-linux-dynamic-production.result }}"
+          echo "  x64 RelWithDebInfo: ${{ needs.test-x64-linux-release-dbg-production.result }}"
           echo ""
           echo "macOS:"
-          echo "  x64 Production: ${{ needs.test-macos-x64.result }}"
-          echo "  ARM64 Production: ${{ needs.test-macos-arm64.result }}"
-          echo "  x64 Dynamic: ${{ needs.test-macos-x64-dynamic.result }}"
-          echo "  ARM64 Dynamic: ${{ needs.test-macos-arm64-dynamic.result }}"
+          echo "  x64 Production: ${{ needs.test-x64-osx-production.result }}"
+          echo "  ARM64 Production: ${{ needs.test-arm64-osx-production.result }}"
           echo ""
           echo "Windows:"
-          echo "  x64 Production: ${{ needs.test-windows-x64.result }}"
-          echo "  ARM64 Production: ${{ needs.test-windows-arm64.result }}"
-          echo "  x64 Dynamic: ${{ needs.test-windows-x64-dynamic.result }}"
-          echo "  ARM64 Dynamic: ${{ needs.test-windows-arm64-dynamic.result }}"
+          echo "  x64 Production: ${{ needs.test-x64-windows-production.result }}"
+          echo "  x64 Static: ${{ needs.test-x64-windows-static-production.result }}"
+          echo "  x64 Static MD: ${{ needs.test-x64-windows-static-md-production.result }}"
           echo ""
 
           # Count passed/failed
           JOBS=(
-            "${{ needs.test-linux-x64-production.result }}"
-            "${{ needs.test-linux-x64-experimental.result }}"
-            "${{ needs.test-linux-x64-dynamic.result }}"
-            "${{ needs.test-macos-x64.result }}"
-            "${{ needs.test-macos-arm64.result }}"
-            "${{ needs.test-macos-x64-dynamic.result }}"
-            "${{ needs.test-macos-arm64-dynamic.result }}"
-            "${{ needs.test-windows-x64.result }}"
-            "${{ needs.test-windows-arm64.result }}"
-            "${{ needs.test-windows-x64-dynamic.result }}"
-            "${{ needs.test-windows-arm64-dynamic.result }}"
+            "${{ needs.test-x64-linux-production.result }}"
+            "${{ needs.test-x64-linux-experimental.result }}"
+            "${{ needs.test-x64-linux-dynamic-production.result }}"
+            "${{ needs.test-x64-linux-release-dbg-production.result }}"
+            "${{ needs.test-x64-osx-production.result }}"
+            "${{ needs.test-arm64-osx-production.result }}"
+            "${{ needs.test-x64-windows-production.result }}"
+            "${{ needs.test-x64-windows-static-production.result }}"
+            "${{ needs.test-x64-windows-static-md-production.result }}"
           )
 
           PASSED=0
@@ -261,22 +213,20 @@ jobs:
           echo "### Linux" >> $GITHUB_STEP_SUMMARY
           echo "| Triplet | Configuration | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|---------------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| x64-linux | Production | ${{ needs.test-linux-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| x64-linux | Experimental | ${{ needs.test-linux-x64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| x64-linux-dynamic | Production | ${{ needs.test-linux-x64-dynamic.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux | Production | ${{ needs.test-x64-linux-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux | Experimental | ${{ needs.test-x64-linux-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux-dynamic | Production | ${{ needs.test-x64-linux-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux-release-dbg | Production | ${{ needs.test-x64-linux-release-dbg-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### macOS" >> $GITHUB_STEP_SUMMARY
           echo "| Triplet | Configuration | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|---------------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| x64-osx | Production | ${{ needs.test-macos-x64.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| arm64-osx | Production | ${{ needs.test-macos-arm64.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| x64-osx-dynamic | Production | ${{ needs.test-macos-x64-dynamic.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| arm64-osx-dynamic | Production | ${{ needs.test-macos-arm64-dynamic.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-osx | Production | ${{ needs.test-x64-osx-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| arm64-osx | Production | ${{ needs.test-arm64-osx-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Windows" >> $GITHUB_STEP_SUMMARY
           echo "| Triplet | Configuration | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|---------------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| x64-windows-static | Production | ${{ needs.test-windows-x64.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| arm64-windows-static | Production | ${{ needs.test-windows-arm64.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| x64-windows-dynamic | Production | ${{ needs.test-windows-x64-dynamic.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| arm64-windows-dynamic | Production | ${{ needs.test-windows-arm64-dynamic.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows | Production | ${{ needs.test-x64-windows-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows-static | Production | ${{ needs.test-x64-windows-static-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows-static-md | Production | ${{ needs.test-x64-windows-static-md-production.result }} |" >> $GITHUB_STEP_SUMMARY

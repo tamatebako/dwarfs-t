@@ -1,0 +1,36 @@
+{
+  "version": 4,
+  "vendor": {
+    "dwarfs": {
+      "appName": "DwarFS"
+    }
+  },
+  "configurePresets": [
+    {
+      "name": "common-base",
+      "hidden": true,
+      "description": "Common settings for all presets",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_SHARED_LIBS": "OFF",
+        "VCPKG_BUILD": "ON",
+        "WITH_LIBDWARFS": "ON",
+        "WITH_TOOLS": "ON",
+        "WITH_TESTS": "ON",
+        "ENABLE_PERFMON": "ON"
+      },
+      "warnings": {
+        "dev": true,
+        "deprecated": true,
+        "uninitialized": true,
+        "unusedCli": true,
+        "systemVars": false
+      },
+      "environment": {
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "windows-x64-static-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 Static base configuration",
+      "binaryDir": "${sourceDir}/build-windows-x64-static-${config}",
+      "generator": "Ninja",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "BUILD_SHARED_LIBS": "OFF",
+        "TRY_ENABLE_FLAC": "ON",
+        "TRY_ENABLE_BROTLI": "ON",
+        "TRY_ENABLE_LZ4": "ON",
+        "TRY_ENABLE_LZMA": "ON",
+        "ENABLE_RICEPP": "ON",
+        "USE_JEMALLOC": "ON"
+      }
+    },
+    {
+      "name": "windows-x64-static-production",
+      "inherits": ["windows-x64-static-base", "production-overlays"],
+      "description": "Windows x64 Static Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "windows-x64-static-experimental",
+      "inherits": ["windows-x64-static-base", "experimental-overlays"],
+      "description": "Windows x64 Static Experimental (+ Modern Thrift)"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-x64-static-production",
+      "configurePreset": "windows-x64-static-production",
+      "description": "Build Windows x64 Static Production"
+    },
+    {
+      "name": "windows-x64-static-experimental",
+      "configurePreset": "windows-x64-static-experimental",
+      "description": "Build Windows x64 Static Experimental"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-x64-static-production",
+      "configurePreset": "windows-x64-static-production",
+      "description": "Test Windows x64 Static Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "windows-x64-static-experimental",
+      "configurePreset": "windows-x64-static-experimental",
+      "description": "Test Windows x64 Static Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    }
+  ]
+}
