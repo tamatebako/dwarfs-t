@@ -262,7 +262,7 @@ jobs:
       # ==========================================================================
 
       - name: Run Benchmarks (Linux/macOS)
-        if: success() && (runner.os == 'Linux' || runner.os == 'macOS')
+        if: "success() && (runner.os == 'Linux' || runner.os == 'macOS')"
         shell: bash
         run: |
           BUILD_DIR="build-${{ matrix.triplet }}-${{ matrix.config }}"
@@ -288,10 +288,10 @@ jobs:
           done
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Benchmark results saved to**: \`$BENCH_DIR\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Benchmark results saved to**: $BENCH_DIR" >> $GITHUB_STEP_SUMMARY
 
       - name: Run Benchmarks (Windows)
-        if: success() && runner.os == 'Windows'
+        if: "success() && runner.os == 'Windows'"
         shell: pwsh
         run: |
           $BUILD_DIR = "build-${{ matrix.triplet }}-${{ matrix.config }}"
@@ -322,7 +322,7 @@ jobs:
           }
 
           "" >> $env:GITHUB_STEP_SUMMARY
-          "**Benchmark results saved to**: `$BENCH_DIR`" >> $env:GITHUB_STEP_SUMMARY
+          "**Benchmark results saved to**: $BENCH_DIR" >> $env:GITHUB_STEP_SUMMARY
 
       - name: Upload Benchmark Results
         if: success()
