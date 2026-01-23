@@ -307,16 +307,6 @@ if(WITH_LIBDWARFS)
   # NOW checks for folly/thrift targets (created above)
   include(cmake/metadata_serialization.cmake)
 
-  # Set vcpkg manifest features based on DWARFS_WITH_THRIFT
-  # This ensures folly/fbthrift are only built when explicitly enabled
-  if(DWARFS_WITH_THRIFT)
-    set(VCPKG_MANIFEST_FEATURES "modern-thrift" CACHE STRING "vcpkg manifest features" FORCE)
-    message(STATUS "vcpkg: modern-thrift feature enabled (folly, fbthrift)")
-  else()
-    set(VCPKG_MANIFEST_FEATURES "" CACHE STRING "vcpkg manifest features" FORCE)
-    message(STATUS "vcpkg: modern-thrift feature disabled")
-  endif()
-
   # If Thrift was enabled but targets don't exist yet (non-git build),
   # try to build from submodules as fallback
   if(DWARFS_WITH_THRIFT AND NOT TARGET folly)
