@@ -6,6 +6,38 @@
   "license": "GPL-2.0-only",
   "supports": "!uwp",
   "builtin-baseline": "11bbc873e00e9e58d4e9dffb30b7a5493a030e0b",
+  "features": {
+    "modern-thrift": {
+      "description": "Enable Modern Thrift (fbthrift) support via folly",
+      "dependencies": [
+        {
+          "name": "folly",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        },
+        {
+          "name": "fizz",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        },
+        {
+          "name": "mvfst",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        },
+        {
+          "name": "wangle",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        },
+        {
+          "name": "fbthrift",
+          "version>=": "2025.12.29.00",
+          "platform": "!windows"
+        }
+      ]
+    }
+  },
   "dependencies": [
     "bzip2",
     "boost-program-options",
@@ -95,31 +127,6 @@
     {
       "name": "libsodium",
       "version>=": "1.0.21"
-    },
-    {
-      "name": "folly",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
-    },
-    {
-      "name": "fizz",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
-    },
-    {
-      "name": "mvfst",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
-    },
-    {
-      "name": "wangle",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
-    },
-    {
-      "name": "fbthrift",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
     }
   ]
 }
