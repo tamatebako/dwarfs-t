@@ -97,7 +97,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
-          vcpkgJsonGlob: '**/vcpkg-production.json'
+          vcpkgJsonGlob: 'vcpkg-production.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
           doNotCache: true
 
@@ -107,7 +107,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
-          vcpkgJsonGlob: '**/vcpkg-experimental.json'
+          vcpkgJsonGlob: 'vcpkg-experimental.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
           doNotCache: true
 
