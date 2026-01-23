@@ -67,11 +67,6 @@ jobs:
           triplet: arm64-osx
           config: production
 
-        - os: macos
-          runner: macos-13
-          triplet: x64-osx
-          config: production
-
         # Windows
         - os: windows
           runner: windows-latest
