@@ -131,6 +131,10 @@
     {
       "name": "gtest",
       "version>=": "1.14.0"
+    },
+    {
+      "name": "fuse3",
+      "version>=": "3.10.5"
     }
   ]
 }
