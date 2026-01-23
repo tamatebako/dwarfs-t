@@ -245,12 +245,15 @@ if(WITH_TESTS)
     )
   endif()
 
-  add_executable(dwarfs_expensive_tests
-    test/dwarfs_test.cpp
-  )
-  target_link_libraries(dwarfs_expensive_tests
-    PRIVATE dwarfs_test_helpers GTest::gtest_main
-  )
+  # Expensive tests (dwarfs_test.cpp) uses folly
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+    add_executable(dwarfs_expensive_tests
+      test/dwarfs_test.cpp
+    )
+    target_link_libraries(dwarfs_expensive_tests
+      PRIVATE dwarfs_test_helpers GTest::gtest_main
+    )
+  endif()
 
   if(FLAC_FOUND OR ENABLE_RICEPP)
     add_executable(dwarfs_compressor_tests)
@@ -299,9 +302,12 @@ if(WITH_LIBDWARFS AND WITH_BENCHMARKS)
       target_link_libraries(multiversioning_benchmark PRIVATE dwarfs_writer)
       list(APPEND BENCHMARK_TARGETS multiversioning_benchmark)
 
-      add_executable(converter_benchmark test/converter_benchmark.cpp)
-      target_link_libraries(converter_benchmark PRIVATE dwarfs_test_helpers benchmark::benchmark)
-      list(APPEND BENCHMARK_TARGETS converter_benchmark)
+      # converter_benchmark uses folly, only build if available
+      if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+        add_executable(converter_benchmark test/converter_benchmark.cpp)
+        target_link_libraries(converter_benchmark PRIVATE dwarfs_test_helpers benchmark::benchmark)
+        list(APPEND BENCHMARK_TARGETS converter_benchmark)
+      endif()
 
       add_executable(sorted_array_map_benchmark test/sorted_array_map_benchmark.cpp)
       target_link_libraries(sorted_array_map_benchmark PRIVATE benchmark::benchmark)
