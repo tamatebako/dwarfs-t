@@ -189,6 +189,7 @@ runs:
       shell: bash
       run: |
         set -x
+        set -e  # Exit on error
 
         CTEST_CMD="${{ steps.ctest-cmd.outputs.ctest-cmd }}"
         SKIP_FUSE="${{ inputs.skip-fuse }}"
@@ -197,10 +198,10 @@ runs:
         if [[ "$SKIP_FUSE" == "true" ]]; then
           # Exclude FUSE tests using label filter
           echo "Running CTest (excluding FUSE tests)..."
-          $CTEST_CMD -E '^fuse' || true
+          $CTEST_CMD -E '^fuse'
         else
           echo "Running CTest (including FUSE tests)..."
-          $CTEST_CMD || true
+          $CTEST_CMD
         fi
 
         # Capture exit code
