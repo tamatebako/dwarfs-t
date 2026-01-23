@@ -171,6 +171,34 @@
       "description": "Alpine Linux x64 (musl) Experimental (+ Modern Thrift)"
     },
     {
+      "name": "arm64-linux-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Linux ARM64 base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "arm64-linux",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "arm64-linux-production",
+      "inherits": ["arm64-linux-base", "production-base"],
+      "description": "Linux ARM64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "arm64-linux-experimental",
+      "inherits": ["arm64-linux-base", "experimental-base"],
+      "description": "Linux ARM64 Experimental (+ Modern Thrift)"
+    },
+    {
       "name": "x64-osx-base",
       "hidden": true,
       "inherits": "common-base",
@@ -201,6 +229,37 @@
       "description": "macOS x64 Experimental (+ Modern Thrift)"
     },
     {
+      "name": "x64-osx-dynamic-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS x64 Dynamic base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-osx-dynamic",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "BUILD_SHARED_LIBS": "ON",
+        "USE_HOMEBREW_LIBARCHIVE": "ON"
+      }
+    },
+    {
+      "name": "x64-osx-dynamic-production",
+      "inherits": ["x64-osx-dynamic-base", "production-base"],
+      "description": "macOS x64 Dynamic Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-osx-dynamic-experimental",
+      "inherits": ["x64-osx-dynamic-base", "experimental-base"],
+      "description": "macOS x64 Dynamic Experimental (+ Modern Thrift)"
+    },
+    {
       "name": "arm64-osx-base",
       "hidden": true,
       "inherits": "common-base",
@@ -229,6 +288,37 @@
       "name": "arm64-osx-experimental",
       "inherits": ["arm64-osx-base", "experimental-base"],
       "description": "macOS ARM64 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "arm64-osx-dynamic-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "macOS ARM64 Dynamic base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "arm64-osx-dynamic",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "BUILD_SHARED_LIBS": "ON",
+        "USE_HOMEBREW_LIBARCHIVE": "ON"
+      }
+    },
+    {
+      "name": "arm64-osx-dynamic-production",
+      "inherits": ["arm64-osx-dynamic-base", "production-base"],
+      "description": "macOS ARM64 Dynamic Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "arm64-osx-dynamic-experimental",
+      "inherits": ["arm64-osx-dynamic-base", "experimental-base"],
+      "description": "macOS ARM64 Dynamic Experimental (+ Modern Thrift)"
     },
     {
       "name": "x64-osx-static-base",
@@ -372,6 +462,60 @@
       "name": "x64-windows-static-md-experimental",
       "inherits": ["x64-windows-static-md-base", "experimental-base"],
       "description": "Windows x64 Static MD Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-windows-dynamic-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 Dynamic base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-windows-dynamic",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "ON"
+      }
+    },
+    {
+      "name": "x64-windows-dynamic-production",
+      "inherits": ["x64-windows-dynamic-base", "production-base"],
+      "description": "Windows x64 Dynamic Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-windows-dynamic-experimental",
+      "inherits": ["x64-windows-dynamic-base", "experimental-base"],
+      "description": "Windows x64 Dynamic Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "arm64-windows-static-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows ARM64 Static base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "arm64-windows-static",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF"
+      }
+    },
+    {
+      "name": "arm64-windows-static-production",
+      "inherits": ["arm64-windows-static-base", "production-base"],
+      "description": "Windows ARM64 Static Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "arm64-windows-static-experimental",
+      "inherits": ["arm64-windows-static-base", "experimental-base"],
+      "description": "Windows ARM64 Static Experimental (+ Modern Thrift)"
     }
   ],
 
@@ -417,6 +561,16 @@
       "description": "Build Alpine Linux x64 (musl) Experimental"
     },
     {
+      "name": "arm64-linux-production",
+      "configurePreset": "arm64-linux-production",
+      "description": "Build Linux ARM64 Production"
+    },
+    {
+      "name": "arm64-linux-experimental",
+      "configurePreset": "arm64-linux-experimental",
+      "description": "Build Linux ARM64 Experimental"
+    },
+    {
       "name": "x64-osx-production",
       "configurePreset": "x64-osx-production",
       "description": "Build macOS x64 Production"
@@ -425,6 +579,16 @@
       "name": "x64-osx-experimental",
       "configurePreset": "x64-osx-experimental",
       "description": "Build macOS x64 Experimental"
+    },
+    {
+      "name": "x64-osx-dynamic-production",
+      "configurePreset": "x64-osx-dynamic-production",
+      "description": "Build macOS x64 Dynamic Production"
+    },
+    {
+      "name": "x64-osx-dynamic-experimental",
+      "configurePreset": "x64-osx-dynamic-experimental",
+      "description": "Build macOS x64 Dynamic Experimental"
     },
     {
       "name": "x64-osx-static-production",
@@ -445,6 +609,16 @@
       "name": "arm64-osx-experimental",
       "configurePreset": "arm64-osx-experimental",
       "description": "Build macOS ARM64 Experimental"
+    },
+    {
+      "name": "arm64-osx-dynamic-production",
+      "configurePreset": "arm64-osx-dynamic-production",
+      "description": "Build macOS ARM64 Dynamic Production"
+    },
+    {
+      "name": "arm64-osx-dynamic-experimental",
+      "configurePreset": "arm64-osx-dynamic-experimental",
+      "description": "Build macOS ARM64 Dynamic Experimental"
     },
     {
       "name": "arm64-osx-static-production",
@@ -485,6 +659,26 @@
       "name": "x64-windows-static-md-experimental",
       "configurePreset": "x64-windows-static-md-experimental",
       "description": "Build Windows x64 Static MD Experimental"
+    },
+    {
+      "name": "x64-windows-dynamic-production",
+      "configurePreset": "x64-windows-dynamic-production",
+      "description": "Build Windows x64 Dynamic Production"
+    },
+    {
+      "name": "x64-windows-dynamic-experimental",
+      "configurePreset": "x64-windows-dynamic-experimental",
+      "description": "Build Windows x64 Dynamic Experimental"
+    },
+    {
+      "name": "arm64-windows-static-production",
+      "configurePreset": "arm64-windows-static-production",
+      "description": "Build Windows ARM64 Static Production"
+    },
+    {
+      "name": "arm64-windows-static-experimental",
+      "configurePreset": "arm64-windows-static-experimental",
+      "description": "Build Windows ARM64 Static Experimental"
     }
   ],
 
@@ -562,6 +756,24 @@
       }
     },
     {
+      "name": "arm64-linux-production",
+      "configurePreset": "arm64-linux-production",
+      "description": "Test Linux ARM64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-linux-experimental",
+      "configurePreset": "arm64-linux-experimental",
+      "description": "Test Linux ARM64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
       "name": "x64-osx-production",
       "configurePreset": "x64-osx-production",
       "description": "Test macOS x64 Production",
@@ -580,6 +792,24 @@
       }
     },
     {
+      "name": "x64-osx-dynamic-production",
+      "configurePreset": "x64-osx-dynamic-production",
+      "description": "Test macOS x64 Dynamic Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-osx-dynamic-experimental",
+      "configurePreset": "x64-osx-dynamic-experimental",
+      "description": "Test macOS x64 Dynamic Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
       "name": "arm64-osx-production",
       "configurePreset": "arm64-osx-production",
       "description": "Test macOS ARM64 Production",
@@ -592,6 +822,24 @@
       "name": "arm64-osx-experimental",
       "configurePreset": "arm64-osx-experimental",
       "description": "Test macOS ARM64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-osx-dynamic-production",
+      "configurePreset": "arm64-osx-dynamic-production",
+      "description": "Test macOS ARM64 Dynamic Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-osx-dynamic-experimental",
+      "configurePreset": "arm64-osx-dynamic-experimental",
+      "description": "Test macOS ARM64 Dynamic Experimental",
       "output": {
         "outputOnFailure": true,
         "verbosity": "verbose"
@@ -682,6 +930,42 @@
       "name": "x64-windows-static-md-experimental",
       "configurePreset": "x64-windows-static-md-experimental",
       "description": "Test Windows x64 Static MD Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-dynamic-production",
+      "configurePreset": "x64-windows-dynamic-production",
+      "description": "Test Windows x64 Dynamic Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-dynamic-experimental",
+      "configurePreset": "x64-windows-dynamic-experimental",
+      "description": "Test Windows x64 Dynamic Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-windows-static-production",
+      "configurePreset": "arm64-windows-static-production",
+      "description": "Test Windows ARM64 Static Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "arm64-windows-static-experimental",
+      "configurePreset": "arm64-windows-static-experimental",
+      "description": "Test Windows ARM64 Static Experimental",
       "output": {
         "outputOnFailure": true,
         "verbosity": "verbose"
