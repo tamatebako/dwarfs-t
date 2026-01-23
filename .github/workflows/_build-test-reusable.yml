@@ -96,7 +96,7 @@ jobs:
         if: inputs.config == 'production'
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: 7c11b72a6f810293d0ce234de126b99e9ab6fa7a
+          vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
           vcpkgJsonGlob: '**/vcpkg-production.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
 
@@ -105,7 +105,7 @@ jobs:
         if: inputs.config == 'experimental'
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: 7c11b72a6f810293d0ce234de126b99e9ab6fa7a
+          vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
           vcpkgJsonGlob: '**/vcpkg-experimental.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
 

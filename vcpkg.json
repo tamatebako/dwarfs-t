@@ -5,7 +5,7 @@
   "homepage": "https://github.com/tamatebako/dwarfs",
   "license": "GPL-2.0-only",
   "supports": "!uwp",
-  "builtin-baseline": "7c11b72a6f810293d0ce234de126b99e9ab6fa7a",
+  "builtin-baseline": "75a2e14262fc23c1f03bac18e135c4866dd25b51",
   "features": {
     "modern-thrift": {
       "description": "Enable Modern Thrift (fbthrift) support via folly",
