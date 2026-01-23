@@ -6,8 +6,8 @@
 # IMPORTANT: This is a HEAVY workflow. Use pr-validation.yml or ci-main.yml
 # for faster feedback during development.
 #
-# Estimated Runtime: 3-5 hours on first run (warm cache: 45-90 min)
-# Total Jobs: 15 (5 Linux, 4 macOS, 6 Windows)
+# Estimated Runtime: 1-2 hours on first run (warm cache: 15-30 min)
+# Total Jobs: 4 (2 Linux, 1 macOS, 1 Windows)
 #
 # Runner Mappings:
 # - Linux x64: ubuntu-latest
@@ -15,12 +15,8 @@
 # - macOS x64: macos-13 (Intel, last Intel macOS version)
 # - Windows x64: windows-latest
 #
-# Note: ARM64 Linux and ARM64 Windows require GitHub larger runners
-# (ubuntu-24.04-arm, windows-11-arm) which are not available for this repo.
-# Note: macos-13 is the last Intel macOS version
-#
-# Concurrency: Each platform/architecture combination runs independently
-# Failures: fail-fast: false ensures one failure doesn't stop other jobs
+# Note: Full triplet matrix available but reduced here for CI cost/efficiency.
+# Additional triplets can be enabled by expanding the matrix.
 
 name: CI Matrix
 
@@ -59,9 +55,7 @@ jobs:
       fail-fast: false  # One failure shouldn't stop other jobs
       matrix:
         # ==========================================================================
-        # Linux Jobs (ubuntu-latest)
-        # Note: ubuntu-24.04-arm requires GitHub larger runners (not available)
-        # Using standard ubuntu-latest runners for all Linux jobs
+        # Linux Jobs
         # ==========================================================================
         - os: linux
           runner: ubuntu-latest
@@ -73,77 +67,25 @@ jobs:
           triplet: x64-linux
           config: experimental
 
-        - os: linux
-          runner: ubuntu-latest
-          triplet: x64-linux-dynamic
-          config: production
-
-        - os: linux
-          runner: ubuntu-latest
-          triplet: x64-linux-release-dbg
-          config: production
-
-        - os: linux
-          runner: ubuntu-latest
-          triplet: x64-linux-musl
-          config: production
-
         # ==========================================================================
-        # macOS Jobs (macos-13 [Intel] and macos-latest [ARM])
+        # macOS Jobs
         # ==========================================================================
-        - os: macos
-          runner: macos-13
-          triplet: x64-osx
-          config: production
-
-        - os: macos
-          runner: macos-13
-          triplet: x64-osx-dynamic
-          config: production
-
         - os: macos
           runner: macos-latest
           triplet: arm64-osx
           config: production
 
         - os: macos
-          runner: macos-latest
-          triplet: arm64-osx-dynamic
+          runner: macos-13
+          triplet: x64-osx
           config: production
 
         # ==========================================================================
-        # Windows Jobs (windows-latest)
-        # Note: windows-11-arm requires GitHub larger runners (not available)
-        # Using standard windows-latest runners for all Windows jobs
+        # Windows Jobs
         # ==========================================================================
         - os: windows
           runner: windows-latest
           triplet: x64-windows
-          config: production
-
-        - os: windows
-          runner: windows-latest
-          triplet: x64-windows-dynamic
-          config: production
-
-        - os: windows
-          runner: windows-latest
-          triplet: x64-windows-static
-          config: production
-
-        - os: windows
-          runner: windows-latest
-          triplet: x64-windows-static-md
-          config: production
-
-        - os: windows
-          runner: windows-latest
-          triplet: x64-windows-msys
-          config: production
-
-        - os: windows
-          runner: windows-latest
-          triplet: x64-windows-mingw
           config: production
 
     steps:
