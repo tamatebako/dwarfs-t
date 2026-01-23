@@ -157,8 +157,10 @@ if(WITH_TESTS)
     test/block_merger_test.cpp
     test/filesystem_test.cpp
     test/integral_value_parser_test.cpp
+    test/io_ops_test.cpp
     test/os_access_generic_test.cpp
     test/pcm_sample_transformer_test.cpp
+    test/utils_test.cpp
   )
 
   add_executable(dwarfs_unit_tests
@@ -185,7 +187,6 @@ if(WITH_TESTS)
     test/lazy_value_test.cpp
     test/lru_cache_test.cpp
     test/mappable_file_test.cpp
-    test/io_ops_test.cpp
     test/metadata_factory_test.cpp
     test/metadata_requirements_test.cpp
  test/metadata_test.cpp
@@ -210,7 +211,6 @@ if(WITH_TESTS)
     test/test_iolayer_test.cpp
     test/time_resolution_converter_test.cpp
     test/unicode_test.cpp
-    test/utils_test.cpp
     test/worker_group_test.cpp
     test/xattr_test.cpp
     # Homebrew compatibility tests
