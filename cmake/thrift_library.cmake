@@ -127,17 +127,14 @@ function(add_cpp2_thrift_library idlfile)
       set(_THRIFT_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 
-    # Build the thrift compiler command, handling optional cross-compiling emulator
-    set(_THRIFT_CMD ${THRIFT1_COMPILER})
-    if(CMAKE_CROSSCOMPILING_EMULATOR)
-      list(APPEND _THRIFT_CMD ${CMAKE_CROSSCOMPILING_EMULATOR} ${THRIFT1_COMPILER})
-    endif()
+    # Build the thrift compiler command
+    # Note: ASAN_OPTIONS=detect_leaks=0 was removed to avoid cmake -E env parsing issues
 
     add_custom_command(
       OUTPUT ${_THRIFT_GEN_SRC}
       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${idlfile}
       ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}/${_THRIFTNAME}.thrift
-      COMMAND ${_THRIFT_CMD}
+      COMMAND ${THRIFT1_COMPILER}
                   -I ${_THRIFT_INCLUDE_PATH}
                   -o ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}
                   --gen ${_THRIFT_GEN} ${_THRIFTNAME}.thrift
@@ -146,8 +143,6 @@ function(add_cpp2_thrift_library idlfile)
               ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}/_keep_${_THRIFTNAME}
               ${idlfile}
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}
-      COMMAND_EXPAND_LISTS
-      ENV ASAN_OPTIONS=detect_leaks=0
     )
   endif()
 
