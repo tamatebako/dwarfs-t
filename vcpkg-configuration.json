@@ -17,13 +17,5 @@
   "overlay-triplets": ["vcpkg_triplets"],
   "overlay-ports": [
     "vcpkg_ports"
-  ],
-  "binary-caching": {
-    "x-gha": {
-      "read-environment-vars": [
-        "ACTIONS_CACHE_URL",
-        "ACTIONS_RUNTIME_TOKEN"
-      ]
-    }
-  }
+  ]
 }
