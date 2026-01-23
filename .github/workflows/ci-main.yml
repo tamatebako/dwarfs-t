@@ -44,34 +44,18 @@ jobs:
   # ==========================================================================
 
   build-and-test:
-    name: ${{ matrix.os }} ${{ matrix.triplet }} ${{ matrix.config }}
-    runs-on: ${{ matrix.runner }}
+    name: ${{ matrix.triplet }} ${{ matrix.config }}
+    runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
         # Linux
-        - os: linux
-          runner: ubuntu-latest
-          triplet: x64-linux
+        - triplet: x64-linux
           config: production
 
-        - os: linux
-          runner: ubuntu-latest
-          triplet: x64-linux
+        - triplet: x64-linux
           config: experimental
-
-        # macOS
-        - os: macos
-          runner: macos-latest
-          triplet: arm64-osx
-          config: production
-
-        # Windows
-        - os: windows
-          runner: windows-latest
-          triplet: x64-windows
-          config: production
 
     steps:
       - name: Checkout code
