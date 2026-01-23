@@ -169,6 +169,47 @@ jobs:
             build-${{ inputs.triplet }}-${{ inputs.config }}/**/Test.xml
           if-no-files-found: warn
 
+      # ==========================================================================
+      # Benchmark Execution (after successful tests)
+      # ==========================================================================
+
+      - name: Run Benchmarks
+        if: success()
+        shell: bash
+        run: |
+          BUILD_DIR="build-${{ inputs.triplet }}-${{ inputs.config }}"
+          BENCH_DIR="$BUILD_DIR/benchmark-results"
+          mkdir -p "$BENCH_DIR"
+
+          echo "### Running Benchmarks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          for bench in "$BUILD_DIR"/dwarfs_*_benchmark "$BUILD_DIR"/*_benchmark; do
+            if [ -f "$bench" ] && [ -x "$bench" ]; then
+              bench_name=$(basename "$bench")
+              echo "Running: $bench_name" >> $GITHUB_STEP_SUMMARY
+
+              if "$bench" --benchmark_format=json --benchmark_out="$BENCH_DIR/${bench_name}.json" 2>&1; then
+                echo "  ✓ Completed: $bench_name" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "  ⚠ Failed or not available: $bench_name" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Benchmark results**: $BENCH_DIR" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Benchmark Results
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ inputs.triplet }}-${{ inputs.config }}
+          path: |
+            build-${{ inputs.triplet }}-${{ inputs.config }}/benchmark-results/
+          retention-days: 30
+          if-no-files-found: ignore
+
       - name: Check build status
         id: check-status
         if: always()

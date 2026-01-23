@@ -1,6 +1,6 @@
 # CI Main Workflow - Comprehensive Testing
 #
-# This is the main CI workflow that runs on pushes to main and feature branches.
+# This is the main CI workflow that runs on pushes to main branch.
 # Uses CMakePresets.json for consistent, cache-friendly builds.
 #
 # For fast PR validation, use pr-validation.yml instead.
@@ -39,182 +39,30 @@ permissions:
   contents: read
 
 jobs:
-  # ==========================================================================
-  # Build and Test Matrix
-  # ==========================================================================
+  # Ubuntu x64 - production (PRIMARY TEST)
+  test-ubuntu-production:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: production
 
-  build-and-test:
-    name: ${{ matrix.triplet }} ${{ matrix.config }}
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        # Linux
-        - triplet: x64-linux
-          config: production
+  # Ubuntu x64 - experimental
+  test-ubuntu-experimental:
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: experimental
 
-        - triplet: x64-linux
-          config: experimental
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install CMake and Ninja
-        uses: lukka/get-cmake@latest
-
-      - name: Setup vcpkg (production)
-        if: matrix.config == 'production'
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: 7c11b72a6f810293d0ce234de126b99e9ab6fa7a
-          vcpkgJsonGlob: '**/vcpkg-production.json'
-          vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
-
-      - name: Setup vcpkg (experimental)
-        if: matrix.config == 'experimental'
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: 7c11b72a6f810293d0ce234de126b99e9ab6fa7a
-          vcpkgJsonGlob: '**/vcpkg-experimental.json'
-          vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
-
-      - name: Setup build environment
-        shell: bash
-        run: |
-          echo "VCPKG_DEFAULT_TRIPLET=${{ matrix.triplet }}" >> $GITHUB_ENV
-          echo "VCPKG_OVERLAY_PORTS=$GITHUB_WORKSPACE/vcpkg_ports" >> $GITHUB_ENV
-          echo "VCPKG_OVERLAY_TRIPLETS=$GITHUB_WORKSPACE/vcpkg_triplets" >> $GITHUB_ENV
-          echo "✓ Triplet: ${{ matrix.triplet }}"
-          echo "✓ Config: ${{ matrix.config }}"
-          echo "✓ Binary cache: enabled"
-
-      - name: Setup build dependencies
-        uses: ./.github/actions/setup-build-deps
-
-      - name: Configure, Build, and Test
-        uses: lukka/run-cmake@v10
-        with:
-          configurePreset: ${{ matrix.triplet }}-${{ matrix.config }}
-          buildPreset: ${{ matrix.triplet }}-${{ matrix.config }}
-          testPreset: ${{ matrix.triplet }}-${{ matrix.config }}
-
-      - name: Generate Test Report
-        if: always()
-        run: |
-          echo "## Test Report for ${{ matrix.os }} ${{ matrix.triplet }} ${{ matrix.config }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **OS**: ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Triplet**: ${{ matrix.triplet }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Config**: ${{ matrix.config }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Runner**: ${{ matrix.runner }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.os }}-${{ matrix.triplet }}-${{ matrix.config }}
-          path: |
-            **/Testing/
-            **/test-results/
-            **/CTestResults.xml
-          if-no-files-found: ignore
-
-      # ==========================================================================
-      # Benchmark Execution
-      # ==========================================================================
-
-      - name: Run Benchmarks (Linux/macOS)
-        if: "success() && (runner.os == 'Linux' || runner.os == 'macOS')"
-        shell: bash
-        run: |
-          BUILD_DIR="build-${{ matrix.triplet }}-${{ matrix.config }}"
-          BENCH_DIR="$BUILD_DIR/benchmark-results"
-          mkdir -p "$BENCH_DIR"
-
-          echo "### Running Benchmarks for ${{ matrix.triplet }}-${{ matrix.config }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          for bench in "$BUILD_DIR"/dwarfs_*_benchmark "$BUILD_DIR"/*_benchmark; do
-            if [ -f "$bench" ] && [ -x "$bench" ]; then
-              bench_name=$(basename "$bench")
-              echo "Running: $bench_name" >> $GITHUB_STEP_SUMMARY
-
-              if "$bench" --benchmark_format=json --benchmark_out="$BENCH_DIR/${bench_name}.json" 2>&1; then
-                echo "  ✓ Completed: $bench_name" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "  ⚠ Failed or not available: $bench_name" >> $GITHUB_STEP_SUMMARY
-              fi
-            fi
-          done
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Benchmark results**: $BENCH_DIR" >> $GITHUB_STEP_SUMMARY
-
-      - name: Run Benchmarks (Windows)
-        if: "success() && runner.os == 'Windows'"
-        shell: pwsh
-        run: |
-          $BUILD_DIR = "build-${{ matrix.triplet }}-${{ matrix.config }}"
-          $BENCH_DIR = "$BUILD_DIR\benchmark-results"
-          New-Item -ItemType Directory -Force -Path $BENCH_DIR | Out-Null
-
-          "### Running Benchmarks for ${{ matrix.triplet }}-${{ matrix.config }}" >> $env:GITHUB_STEP_SUMMARY
-          "" >> $env:GITHUB_STEP_SUMMARY
-
-          Get-ChildItem -Path "$BUILD_DIR" -Filter "*_benchmark.exe" | ForEach-Object {
-            $bench = $_.FullName
-            $bench_name = $_.BaseName
-
-            if (Test-Path $bench) {
-              "Running: $bench_name" >> $env:GITHUB_STEP_SUMMARY
-
-              $output = "$BENCH_DIR\${bench_name}.json"
-              & $bench --benchmark_format=json --benchmark_out=$output 2>&1
-
-              if ($LASTEXITCODE -eq 0) {
-                "  ✓ Completed: $bench_name" >> $env:GITHUB_STEP_SUMMARY
-              } else {
-                "  ⚠ Failed or not available: $bench_name" >> $env:GITHUB_STEP_SUMMARY
-              }
-            }
-          }
-
-          "" >> $env:GITHUB_STEP_SUMMARY
-          "**Benchmark results**: $BENCH_DIR" >> $env:GITHUB_STEP_SUMMARY
-
-      - name: Upload Benchmark Results
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-results-${{ matrix.os }}-${{ matrix.triplet }}-${{ matrix.config }}
-          path: |
-            build-${{ matrix.triplet }}-${{ matrix.config }}/benchmark-results/
-          retention-days: 30
-          if-no-files-found: ignore
-
-  # ==========================================================================
-  # Summary Job
-  # ==========================================================================
-
+  # Summary job
   summary:
     name: CI Summary
-    needs: build-and-test
-    if: always()
+    needs: [test-ubuntu-production, test-ubuntu-experimental]
     runs-on: ubuntu-latest
+    if: always()
 
     steps:
-      - name: Download all test results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: test-results-*
-          path: test-results
-        continue-on-error: true
-
       - name: Download all benchmark results
         uses: actions/download-artifact@v4
         with:
@@ -231,7 +79,9 @@ jobs:
           echo "Commit: ${{ github.sha }}"
           echo "Branch: ${{ github.ref_name }}"
           echo ""
-          echo "Job Status: ${{ needs.build-and-test.result }}"
+          echo "Job Status:"
+          echo "  Ubuntu production: ${{ needs.test-ubuntu-production.result }}"
+          echo "  Ubuntu experimental: ${{ needs.test-ubuntu-experimental.result }}"
           echo ""
           echo "View results in the Actions tab for detailed logs."
 
@@ -252,4 +102,3 @@ jobs:
             echo "No benchmark results available." >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-
