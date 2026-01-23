@@ -96,6 +96,14 @@
     {
       "name": "libsodium",
       "version>=": "1.0.21"
+    },
+    {
+      "name": "gtest",
+      "version>=": "1.14.0"
+    },
+    {
+      "name": "fuse3",
+      "version>=": "3.17.3"
     }
   ]
 }
