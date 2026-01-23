@@ -97,10 +97,8 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
-          vcpkgJsonGlob: 'vcpkg.json'
+          vcpkgJsonGlob: 'vcpkg-production.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
-        env:
-          VCPKG_MANIFEST_FEATURES: ''
 
       # Setup vcpkg for experimental config (includes Modern Thrift)
       - name: Setup vcpkg (experimental)
@@ -108,10 +106,8 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
-          vcpkgJsonGlob: 'vcpkg.json'
+          vcpkgJsonGlob: 'vcpkg-experimental.json'
           vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
-        env:
-          VCPKG_MANIFEST_FEATURES: 'modern-thrift'
 
       # Set environment for build
       - name: Setup build environment
