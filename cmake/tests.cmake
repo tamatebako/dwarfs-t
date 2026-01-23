@@ -157,6 +157,7 @@ if(WITH_TESTS)
     test/block_merger_test.cpp
     test/filesystem_test.cpp
     test/integral_value_parser_test.cpp
+    test/os_access_generic_test.cpp
     test/pcm_sample_transformer_test.cpp
   )
 
@@ -199,7 +200,6 @@ if(WITH_TESTS)
     test/metadata/converter_roundtrip_test.cpp
     test/nilsimsa_test.cpp
     test/options_test.cpp
-    test/os_access_generic_test.cpp
     test/packed_int_vector_test.cpp
     test/packed_ptr_test.cpp
     test/sorted_array_map_test.cpp
