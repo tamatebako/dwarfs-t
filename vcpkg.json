@@ -70,7 +70,8 @@
       "version>=": "3.8.4"
     },
     {
-      "name": "xxhash"
+      "name": "xxhash",
+      "version>=": "0.8.2"
     },
     {
       "name": "zstd",
