@@ -143,6 +143,34 @@
       "description": "Linux x64 Release+Debug Experimental (+ Modern Thrift)"
     },
     {
+      "name": "x64-linux-musl-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Alpine Linux x64 (musl) base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-linux-musl",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "x64-linux-musl-production",
+      "inherits": ["x64-linux-musl-base", "production-base"],
+      "description": "Alpine Linux x64 (musl) Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-linux-musl-experimental",
+      "inherits": ["x64-linux-musl-base", "experimental-base"],
+      "description": "Alpine Linux x64 (musl) Experimental (+ Modern Thrift)"
+    },
+    {
       "name": "x64-osx-base",
       "hidden": true,
       "inherits": "common-base",
@@ -379,6 +407,16 @@
       "description": "Build Linux x64 Release+Debug Experimental"
     },
     {
+      "name": "x64-linux-musl-production",
+      "configurePreset": "x64-linux-musl-production",
+      "description": "Build Alpine Linux x64 (musl) Production"
+    },
+    {
+      "name": "x64-linux-musl-experimental",
+      "configurePreset": "x64-linux-musl-experimental",
+      "description": "Build Alpine Linux x64 (musl) Experimental"
+    },
+    {
       "name": "x64-osx-production",
       "configurePreset": "x64-osx-production",
       "description": "Build macOS x64 Production"
@@ -500,6 +538,24 @@
       "name": "x64-linux-release-dbg-experimental",
       "configurePreset": "x64-linux-release-dbg-experimental",
       "description": "Test Linux x64 Release+Debug Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-linux-musl-production",
+      "configurePreset": "x64-linux-musl-production",
+      "description": "Test Alpine Linux x64 (musl) Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-linux-musl-experimental",
+      "configurePreset": "x64-linux-musl-experimental",
+      "description": "Test Alpine Linux x64 (musl) Experimental",
       "output": {
         "outputOnFailure": true,
         "verbosity": "verbose"
