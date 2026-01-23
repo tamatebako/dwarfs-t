@@ -151,11 +151,16 @@ if(WITH_TESTS)
   # Scanner and metadata tests removed - they depend on functions in dwarfs_test.cpp anonymous namespace
   # TODO: Refactor to make these extractable
 
+  # Tests that require folly
+  set(FOLLY_TESTS
+    test/compat_test.cpp
+    test/block_merger_test.cpp
+  )
+
   add_executable(dwarfs_unit_tests
     test/align_advise_range_test.cpp
     test/badfs_test.cpp
     test/backend_compatibility_test.cpp
-    test/block_merger_test.cpp
     test/block_range_test.cpp
     test/byte_buffer_test.cpp
     test/checksum_test.cpp
@@ -181,7 +186,7 @@ if(WITH_TESTS)
     test/io_ops_test.cpp
     test/metadata_factory_test.cpp
     test/metadata_requirements_test.cpp
-    test/metadata_test.cpp
+ test/metadata_test.cpp
     test/metadata_view_interface_test.cpp
     test/metadata/serialization_test.cpp
     test/metadata/serialization/serialization_facade_test.cpp
@@ -214,6 +219,11 @@ if(WITH_TESTS)
     test/metadata/modern_thrift_serialization_test.cpp
     test/metadata/modern/converter_test.cpp
   )
+
+  # Add folly-dependent tests only if folly is available
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+    target_sources(dwarfs_unit_tests PRIVATE ${FOLLY_TESTS})
+  endif()
   target_link_libraries(dwarfs_unit_tests
     PRIVATE dwarfs_test_helpers GTest::gtest_main GTest::gmock
   )
@@ -223,14 +233,17 @@ if(WITH_TESTS)
     target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_metadata_modern_thrift)
   endif()
 
-  add_executable(dwarfs_categorizer_tests
-    test/fits_categorizer_test.cpp
-    test/incompressible_categorizer_test.cpp
-    test/pcmaudio_categorizer_test.cpp
-  )
-  target_link_libraries(dwarfs_categorizer_tests
-    PRIVATE dwarfs_test_helpers GTest::gtest_main
-  )
+  # Categorizer tests require folly
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+    add_executable(dwarfs_categorizer_tests
+      test/fits_categorizer_test.cpp
+      test/incompressible_categorizer_test.cpp
+      test/pcmaudio_categorizer_test.cpp
+    )
+    target_link_libraries(dwarfs_categorizer_tests
+      PRIVATE dwarfs_test_helpers GTest::gtest_main
+    )
+  endif()
 
   add_executable(dwarfs_expensive_tests
     test/dwarfs_test.cpp
