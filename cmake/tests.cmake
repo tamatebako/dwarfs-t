@@ -261,7 +261,8 @@ if(WITH_TESTS)
     if(FLAC_FOUND)
       target_sources(dwarfs_compressor_tests PRIVATE test/flac_compressor_test.cpp)
     endif()
-    if(ENABLE_RICEPP)
+    # ricepp_compressor_test.cpp uses folly/lang/Bits.h
+    if(ENABLE_RICEPP AND DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       target_sources(dwarfs_compressor_tests PRIVATE test/ricepp_compressor_test.cpp)
     endif()
     target_link_libraries(dwarfs_compressor_tests
