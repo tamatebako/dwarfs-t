@@ -39,6 +39,10 @@ on:
       - 'doc/**'
   workflow_dispatch:
 
+concurrency:
+  group: ci-matrix-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel matrix jobs
+
 permissions:
   contents: read
 
