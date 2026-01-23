@@ -6,7 +6,8 @@
 # IMPORTANT: This is a HEAVY workflow. Use pr-validation.yml or ci-main.yml
 # for faster feedback during development.
 #
-# Estimated Runtime: 2-4 hours on first run (warm cache: 30-60 min)
+# Estimated Runtime: 3-5 hours on first run (warm cache: 45-90 min)
+# Total Jobs: 15 (6 Linux, 4 macOS, 5 Windows)
 
 name: CI Matrix
 
@@ -72,6 +73,24 @@ jobs:
       triplet: x64-linux-release-dbg
       config: production
 
+  # Linux x64 - Alpine (musl)
+  test-x64-linux-musl-production:
+    name: Linux x64 - Alpine (musl)
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux-musl
+      config: production
+
+  # Linux ARM64 - Production
+  test-arm64-linux-production:
+    name: Linux ARM64 - Production
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-latest
+      triplet: arm64-linux
+      config: production
+
   # ==========================================================================
   # macOS Tests
   # ==========================================================================
@@ -85,6 +104,15 @@ jobs:
       triplet: x64-osx
       config: production
 
+  # macOS x64 - Dynamic
+  test-x64-osx-dynamic-production:
+    name: macOS x64 - Dynamic
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-13
+      triplet: x64-osx-dynamic
+      config: production
+
   # macOS ARM64 - Production
   test-arm64-osx-production:
     name: macOS ARM64 - Production
@@ -92,6 +120,15 @@ jobs:
     with:
       runner: macos-latest
       triplet: arm64-osx
+      config: production
+
+  # macOS ARM64 - Dynamic
+  test-arm64-osx-dynamic-production:
+    name: macOS ARM64 - Dynamic
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-latest
+      triplet: arm64-osx-dynamic
       config: production
 
   # ==========================================================================
@@ -105,6 +142,15 @@ jobs:
     with:
       runner: windows-latest
       triplet: x64-windows
+      config: production
+
+  # Windows x64 - Dynamic
+  test-x64-windows-dynamic-production:
+    name: Windows x64 - Dynamic
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: windows-latest
+      triplet: x64-windows-dynamic
       config: production
 
   # Windows x64 - Static
@@ -125,6 +171,15 @@ jobs:
       triplet: x64-windows-static-md
       config: production
 
+  # Windows ARM64 - Static
+  test-arm64-windows-static-production:
+    name: Windows ARM64 - Static
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: windows-latest
+      triplet: arm64-windows-static
+      config: production
+
   # ==========================================================================
   # Summary Job
   # ==========================================================================
@@ -136,11 +191,17 @@ jobs:
       - test-x64-linux-experimental
       - test-x64-linux-dynamic-production
       - test-x64-linux-release-dbg-production
+      - test-x64-linux-musl-production
+      - test-arm64-linux-production
       - test-x64-osx-production
+      - test-x64-osx-dynamic-production
       - test-arm64-osx-production
+      - test-arm64-osx-dynamic-production
       - test-x64-windows-production
+      - test-x64-windows-dynamic-production
       - test-x64-windows-static-production
       - test-x64-windows-static-md-production
+      - test-arm64-windows-static-production
     runs-on: ubuntu-latest
     if: always()
 
@@ -159,15 +220,21 @@ jobs:
           echo "  x64 Experimental: ${{ needs.test-x64-linux-experimental.result }}"
           echo "  x64 Dynamic: ${{ needs.test-x64-linux-dynamic-production.result }}"
           echo "  x64 RelWithDebInfo: ${{ needs.test-x64-linux-release-dbg-production.result }}"
+          echo "  x64 Alpine (musl): ${{ needs.test-x64-linux-musl-production.result }}"
+          echo "  ARM64 Production: ${{ needs.test-arm64-linux-production.result }}"
           echo ""
           echo "macOS:"
           echo "  x64 Production: ${{ needs.test-x64-osx-production.result }}"
+          echo "  x64 Dynamic: ${{ needs.test-x64-osx-dynamic-production.result }}"
           echo "  ARM64 Production: ${{ needs.test-arm64-osx-production.result }}"
+          echo "  ARM64 Dynamic: ${{ needs.test-arm64-osx-dynamic-production.result }}"
           echo ""
           echo "Windows:"
           echo "  x64 Production: ${{ needs.test-x64-windows-production.result }}"
+          echo "  x64 Dynamic: ${{ needs.test-x64-windows-dynamic-production.result }}"
           echo "  x64 Static: ${{ needs.test-x64-windows-static-production.result }}"
           echo "  x64 Static MD: ${{ needs.test-x64-windows-static-md-production.result }}"
+          echo "  ARM64 Static: ${{ needs.test-arm64-windows-static-production.result }}"
           echo ""
 
           # Count passed/failed
@@ -176,11 +243,17 @@ jobs:
             "${{ needs.test-x64-linux-experimental.result }}"
             "${{ needs.test-x64-linux-dynamic-production.result }}"
             "${{ needs.test-x64-linux-release-dbg-production.result }}"
+            "${{ needs.test-x64-linux-musl-production.result }}"
+            "${{ needs.test-arm64-linux-production.result }}"
             "${{ needs.test-x64-osx-production.result }}"
+            "${{ needs.test-x64-osx-dynamic-production.result }}"
             "${{ needs.test-arm64-osx-production.result }}"
+            "${{ needs.test-arm64-osx-dynamic-production.result }}"
             "${{ needs.test-x64-windows-production.result }}"
+            "${{ needs.test-x64-windows-dynamic-production.result }}"
             "${{ needs.test-x64-windows-static-production.result }}"
             "${{ needs.test-x64-windows-static-md-production.result }}"
+            "${{ needs.test-arm64-windows-static-production.result }}"
           )
 
           PASSED=0
@@ -217,16 +290,22 @@ jobs:
           echo "| x64-linux | Experimental | ${{ needs.test-x64-linux-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-linux-dynamic | Production | ${{ needs.test-x64-linux-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-linux-release-dbg | Production | ${{ needs.test-x64-linux-release-dbg-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux-musl | Production | ${{ needs.test-x64-linux-musl-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| arm64-linux | Production | ${{ needs.test-arm64-linux-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### macOS" >> $GITHUB_STEP_SUMMARY
           echo "| Triplet | Configuration | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|---------------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| x64-osx | Production | ${{ needs.test-x64-osx-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-osx-dynamic | Production | ${{ needs.test-x64-osx-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| arm64-osx | Production | ${{ needs.test-arm64-osx-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| arm64-osx-dynamic | Production | ${{ needs.test-arm64-osx-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Windows" >> $GITHUB_STEP_SUMMARY
           echo "| Triplet | Configuration | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|---------------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| x64-windows | Production | ${{ needs.test-x64-windows-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows-dynamic | Production | ${{ needs.test-x64-windows-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-windows-static | Production | ${{ needs.test-x64-windows-static-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-windows-static-md | Production | ${{ needs.test-x64-windows-static-md-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| arm64-windows-static | Production | ${{ needs.test-arm64-windows-static-production.result }} |" >> $GITHUB_STEP_SUMMARY
