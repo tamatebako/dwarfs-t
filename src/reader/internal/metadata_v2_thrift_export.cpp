@@ -50,7 +50,7 @@ std::unique_ptr<thrift::metadata::metadata> metadata_v2_thrift_export::thaw() co
 #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   return impl_->thaw();
 #else
-  throw std::runtime_error("Thrift support not available (build without DWARFS_WITH_THRIFT)");
+  throw std::runtime_error("Thrift support not available (build without DWARFS_WITH_EXPERIMENTAL_THRIFT)");
 #endif
 }
 
@@ -58,7 +58,7 @@ std::unique_ptr<thrift::metadata::metadata> metadata_v2_thrift_export::unpack() 
 #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   return impl_->unpack();
 #else
-  throw std::runtime_error("Thrift support not available (build without DWARFS_WITH_THRIFT)");
+  throw std::runtime_error("Thrift support not available (build without DWARFS_WITH_EXPERIMENTAL_THRIFT)");
 #endif
 }
 
@@ -67,7 +67,7 @@ metadata_v2_thrift_export::thaw_fs_options() const {
 #ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   return impl_->thaw_fs_options();
 #else
-  throw std::runtime_error("Thrift support not available (build without DWARFS_WITH_THRIFT)");
+  throw std::runtime_error("Thrift support not available (build without DWARFS_WITH_EXPERIMENTAL_THRIFT)");
 #endif
 }
 

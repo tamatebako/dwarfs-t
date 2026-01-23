@@ -870,12 +870,12 @@ void argtable3_options_parser::validate_recompress_requirements() {
 #ifndef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   if (opts_.is_recompress || opts_.rebuild_metadata || opts_.change_block_size) {
     throw std::runtime_error(
-        "recompress functionality requires Thrift support\n"
-        "This build was compiled without Thrift (DWARFS_WITH_THRIFT=OFF)\n"
-        "Recompressing existing images requires Thrift because the rewrite\n"
+        "recompress functionality requires Modern Thrift support\n"
+        "This build was compiled without Modern Thrift (DWARFS_WITH_EXPERIMENTAL_THRIFT=OFF)\n"
+        "Recompressing existing images requires Modern Thrift because the rewrite\n"
         "implementation depends on Thrift-specific metadata APIs.\n"
         "\n"
-        "To use recompress features, rebuild with DWARFS_WITH_THRIFT=ON");
+        "To use recompress features, rebuild with DWARFS_WITH_EXPERIMENTAL_THRIFT=ON");
   }
 #endif
 }

@@ -277,9 +277,9 @@ add_library(
   fsst/fsst_avx512_unroll4.inc
 )
 
-# Thrift libraries - only create if Thrift is enabled
+# Thrift libraries - only create if Experimental Thrift is enabled
 # (metadata_serialization.cmake will set DWARFS_HAVE_EXPERIMENTAL_THRIFT)
-if(NOT DEFINED DWARFS_WITH_THRIFT OR DWARFS_WITH_THRIFT)
+if(NOT DEFINED DWARFS_WITH_EXPERIMENTAL_THRIFT OR DWARFS_WITH_EXPERIMENTAL_THRIFT)
   add_cpp2_thrift_library(thrift/metadata.thrift FROZEN
                           TARGET dwarfs_metadata_thrift OUTPUT_PATH dwarfs)
   add_cpp2_thrift_library(thrift/compression.thrift

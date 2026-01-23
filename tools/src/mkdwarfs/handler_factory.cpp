@@ -40,11 +40,11 @@ handler_factory::create(parsed_options const& opts) {
     return std::make_unique<recompress_handler>();
 #else
     throw std::runtime_error(
-        "Recompress functionality requires Thrift support.\n"
-        "This build was compiled without Thrift (DWARFS_WITH_THRIFT=OFF).\n"
-        "Recompressing existing images requires Thrift because the rewrite\n"
+        "Recompress functionality requires Modern Thrift support.\n"
+        "This build was compiled without Modern Thrift (DWARFS_WITH_EXPERIMENTAL_THRIFT=OFF).\n"
+        "Recompressing existing images requires Modern Thrift because the rewrite\n"
         "implementation depends on Thrift-specific metadata APIs.\n\n"
-        "To use recompress features, rebuild with DWARFS_WITH_THRIFT=ON");
+        "To use recompress features, rebuild with DWARFS_WITH_EXPERIMENTAL_THRIFT=ON");
 #endif
   }
 

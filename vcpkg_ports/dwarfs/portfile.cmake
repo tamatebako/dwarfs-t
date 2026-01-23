@@ -14,8 +14,6 @@ vcpkg_cmake_configure(
         -DWITH_LIBDWARFS=ON
         -DWITH_TOOLS=ON
         -DWITH_FUSE_DRIVER=OFF
-        -DDWARFS_WITH_FLATBUFFERS=ON
-        -DDWARFS_WITH_THRIFT=OFF
 )
 
 vcpkg_cmake_install()

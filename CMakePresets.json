@@ -45,8 +45,6 @@
       "hidden": true,
       "description": "Production configuration (FlatBuffers + Legacy Thrift only)",
       "cacheVariables": {
-        "DWARFS_WITH_FLATBUFFERS": "ON",
-        "DWARFS_WITH_THRIFT": "OFF",
         "VCPKG_MANIFEST_FEATURES": ""
       }
     },
@@ -55,8 +53,7 @@
       "hidden": true,
       "description": "Experimental configuration (+ Modern Thrift)",
       "cacheVariables": {
-        "DWARFS_WITH_FLATBUFFERS": "ON",
-        "DWARFS_WITH_THRIFT": "ON",
+        "DWARFS_WITH_EXPERIMENTAL_THRIFT": "ON",
         "VCPKG_MANIFEST_FEATURES": "modern-thrift"
       }
     },

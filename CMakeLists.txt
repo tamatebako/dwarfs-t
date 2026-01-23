@@ -295,9 +295,9 @@ if(WITH_LIBDWARFS)
 
   # folly and fbthrift - include FIRST so targets exist
   # These are optional but must be available before metadata_serialization checks them
-  if(DWARFS_GIT_BUILD AND (NOT DEFINED DWARFS_WITH_THRIFT OR DWARFS_WITH_THRIFT))
+  if(DWARFS_GIT_BUILD AND (NOT DEFINED DWARFS_WITH_EXPERIMENTAL_THRIFT OR DWARFS_WITH_EXPERIMENTAL_THRIFT))
     # In git builds, we can build folly/fbthrift from submodules
-    # Only include if Thrift hasn't been explicitly disabled
+    # Only include if Experimental Thrift hasn't been explicitly disabled
     include(cmake/folly.cmake)
     include(cmake/thrift_library.cmake)
     include(cmake/thrift.cmake)
@@ -307,9 +307,9 @@ if(WITH_LIBDWARFS)
   # NOW checks for folly/thrift targets (created above)
   include(cmake/metadata_serialization.cmake)
 
-  # If Thrift was enabled but targets don't exist yet (non-git build),
+  # If Experimental Thrift was enabled but targets don't exist yet (non-git build),
   # try to build from submodules as fallback
-  if(DWARFS_WITH_THRIFT AND NOT TARGET folly)
+  if(DWARFS_WITH_EXPERIMENTAL_THRIFT AND NOT TARGET folly)
     include(cmake/folly.cmake)
     include(cmake/thrift_library.cmake)
     include(cmake/thrift.cmake)

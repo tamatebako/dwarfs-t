@@ -4,8 +4,7 @@
  *
  * Tests for FlatBuffers ↔ Domain model converters
  *
- * NO PREPROCESSOR GUARDS: CMake controls compilation of this file.
- * This file is ONLY compiled when DWARFS_WITH_FLATBUFFERS=ON.
+ * FlatBuffers support is always enabled as the default metadata format.
  *
  * \copyright See LICENSE file
  */

@@ -2,123 +2,109 @@
 #
 # Supported Formats:
 # - Legacy Thrift (ALWAYS enabled, hand-coded, no dependencies)
-# - FlatBuffers (default ON, can be disabled)
-# - Modern Thrift Compact (default OFF, requires fbthrift)
+# - FlatBuffers (ALWAYS enabled, default metadata format)
+# - Modern Thrift Compact (optional, requires fbthrift, use DWARFS_WITH_EXPERIMENTAL_THRIFT=ON)
 
 message(STATUS "Configuring metadata serialization formats...")
 
 # Serialization format options
-option(DWARFS_WITH_THRIFT "Enable Modern Thrift serialization (requires fbthrift)" OFF)
-option(DWARFS_WITH_FLATBUFFERS "Enable FlatBuffers serialization (recommended)" ON)
+option(DWARFS_WITH_EXPERIMENTAL_THRIFT "Enable Modern Thrift (fbthrift) serialization - EXPERIMENTAL" OFF)
 
 # Legacy Thrift is ALWAYS available (no external dependencies, cannot be disabled)
 set(DWARFS_HAVE_LEGACY_THRIFT ON)
 
 # Force Modern Thrift OFF in Tebako builds (static linking incompatible)
 if(TEBAKO_BUILD)
-  set(DWARFS_WITH_THRIFT OFF CACHE BOOL "Disable Modern Thrift in Tebako builds" FORCE)
+  set(DWARFS_WITH_EXPERIMENTAL_THRIFT OFF CACHE BOOL "Disable Modern Thrift in Tebako builds" FORCE)
   message(STATUS "TEBAKO build detected - Modern Thrift disabled, FlatBuffers enabled")
 endif()
 
-# At least one serialization format must be enabled
-# Note: Legacy Thrift is always available, so this is always satisfied
-if(NOT DWARFS_WITH_THRIFT AND NOT DWARFS_WITH_FLATBUFFERS AND NOT DWARFS_HAVE_LEGACY_THRIFT)
-  message(FATAL_ERROR "At least one serialization format must be enabled! Enable either FlatBuffers or Thrift.")
-endif()
+# FlatBuffers - Modern unified serialization format (ALWAYS enabled, default metadata format)
+include(${CMAKE_SOURCE_DIR}/cmake/need_flatbuffers.cmake)
 
-# FlatBuffers - Modern unified serialization format (optional but recommended)
-if(DWARFS_WITH_FLATBUFFERS)
-  include(${CMAKE_SOURCE_DIR}/cmake/need_flatbuffers.cmake)
+if(TARGET flatbuffers::flatc OR TARGET flatc)
+  # Define output directory for generated headers
+  # Must create subdirectory structure matching include path: dwarfs/gen-flatbuffers/
+  set(FLATBUFFERS_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/include/dwarfs/gen-flatbuffers)
+  file(MAKE_DIRECTORY ${FLATBUFFERS_GENERATED_DIR})
 
-  if(TARGET flatbuffers::flatc OR TARGET flatc)
-    # Define output directory for generated headers
-    # Must create subdirectory structure matching include path: dwarfs/gen-flatbuffers/
-    set(FLATBUFFERS_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/include/dwarfs/gen-flatbuffers)
-    file(MAKE_DIRECTORY ${FLATBUFFERS_GENERATED_DIR})
+  # Compile the FlatBuffers schema
+  set(FBS_SCHEMA ${CMAKE_SOURCE_DIR}/flatbuffers/metadata.fbs)
+  set(FBS_GENERATED_HEADER ${FLATBUFFERS_GENERATED_DIR}/metadata.h)
 
-    # Compile the FlatBuffers schema
-    set(FBS_SCHEMA ${CMAKE_SOURCE_DIR}/flatbuffers/metadata.fbs)
-    set(FBS_GENERATED_HEADER ${FLATBUFFERS_GENERATED_DIR}/metadata.h)
-
-    # Determine flatc executable - use generator expression for built target
-    if(TARGET flatc)
-      set(FLATC_EXE $<TARGET_FILE:flatc>)
-      set(FLATC_DEP flatc)
-    elseif(TARGET flatbuffers::flatc)
-      get_target_property(FLATC_EXE flatbuffers::flatc IMPORTED_LOCATION)
-      if(NOT FLATC_EXE)
-        # Try IMPORTED_LOCATION_<CONFIG>
-        get_target_property(FLATC_EXE flatbuffers::flatc IMPORTED_LOCATION_RELEASE)
-      endif()
-      set(FLATC_DEP flatbuffers::flatc)
-    else()
-      message(FATAL_ERROR "FlatBuffers compiler (flatc) not found!")
+  # Determine flatc executable - use generator expression for built target
+  if(TARGET flatc)
+    set(FLATC_EXE $<TARGET_FILE:flatc>)
+    set(FLATC_DEP flatc)
+  elseif(TARGET flatbuffers::flatc)
+    get_target_property(FLATC_EXE flatbuffers::flatc IMPORTED_LOCATION)
+    if(NOT FLATC_EXE)
+      # Try IMPORTED_LOCATION_<CONFIG>
+      get_target_property(FLATC_EXE flatbuffers::flatc IMPORTED_LOCATION_RELEASE)
     endif()
-
-    # Generate the header file from the schema
-    add_custom_command(
-      OUTPUT ${FBS_GENERATED_HEADER}
-      COMMAND ${FLATC_EXE} --cpp --scoped-enums --gen-object-api
-              --cpp-std c++17 --filename-suffix "" --filename-ext h
-              -o ${FLATBUFFERS_GENERATED_DIR}
-              ${FBS_SCHEMA}
-      DEPENDS ${FBS_SCHEMA} ${FLATC_DEP}
-      COMMENT "Generating FlatBuffers header from ${FBS_SCHEMA}"
-      VERBATIM
-    )
-
-    # Compile the history.fbs schema
-    set(FBS_HISTORY_SCHEMA ${CMAKE_SOURCE_DIR}/flatbuffers/history.fbs)
-    set(FBS_HISTORY_HEADER ${FLATBUFFERS_GENERATED_DIR}/history_generated.h)
-
-    add_custom_command(
-      OUTPUT ${FBS_HISTORY_HEADER}
-      COMMAND ${FLATC_EXE} --cpp --scoped-enums --gen-object-api
-              --cpp-std c++17
-              -o ${FLATBUFFERS_GENERATED_DIR}
-              ${FBS_HISTORY_SCHEMA}
-      DEPENDS ${FBS_HISTORY_SCHEMA} ${FLATC_DEP}
-      COMMENT "Generating FlatBuffers header from ${FBS_HISTORY_SCHEMA}"
-      VERBATIM
-    )
-
-    # Create a custom target for the generated headers
-    add_custom_target(dwarfs_metadata_flatbuffers_generate
-      DEPENDS ${FBS_GENERATED_HEADER} ${FBS_HISTORY_HEADER}
-    )
-
-    # Create an interface library for the generated FlatBuffers code
-    add_library(dwarfs_metadata_flatbuffers INTERFACE)
-    add_dependencies(dwarfs_metadata_flatbuffers dwarfs_metadata_flatbuffers_generate)
-    target_include_directories(dwarfs_metadata_flatbuffers INTERFACE
-      $<BUILD_INTERFACE:${FLATBUFFERS_GENERATED_DIR}/../..>  # For dwarfs/gen-flatbuffers/... (build/include)
-      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    )
-
-    # Link flatbuffers for include directories only
-    # Don't propagate to consuming projects (header-only)
-    if(TARGET flatbuffers::flatbuffers)
-      target_include_directories(dwarfs_metadata_flatbuffers INTERFACE
-        $<TARGET_PROPERTY:flatbuffers::flatbuffers,INTERFACE_INCLUDE_DIRECTORIES>
-      )
-    elseif(TARGET flatbuffers)
-      target_include_directories(dwarfs_metadata_flatbuffers INTERFACE
-        $<TARGET_PROPERTY:flatbuffers,INTERFACE_INCLUDE_DIRECTORIES>
-      )
-    endif()
-
-    # Set variables for use in other parts of the build system
-    set(DWARFS_HAVE_FLATBUFFERS ON)
-    add_compile_definitions(DWARFS_HAVE_FLATBUFFERS=1)
-    message(STATUS "FlatBuffers serialization: ENABLED (modern default)")
+    set(FLATC_DEP flatbuffers::flatc)
   else()
-    set(DWARFS_WITH_FLATBUFFERS OFF)
-    set(DWARFS_HAVE_FLATBUFFERS OFF)
-    message(STATUS "FlatBuffers serialization: DISABLED (flatbuffers not found)")
+    message(FATAL_ERROR "FlatBuffers compiler (flatc) not found!")
   endif()
+
+  # Generate the header file from the schema
+  add_custom_command(
+    OUTPUT ${FBS_GENERATED_HEADER}
+    COMMAND ${FLATC_EXE} --cpp --scoped-enums --gen-object-api
+            --cpp-std c++17 --filename-suffix "" --filename-ext h
+            -o ${FLATBUFFERS_GENERATED_DIR}
+            ${FBS_SCHEMA}
+    DEPENDS ${FBS_SCHEMA} ${FLATC_DEP}
+    COMMENT "Generating FlatBuffers header from ${FBS_SCHEMA}"
+    VERBATIM
+  )
+
+  # Compile the history.fbs schema
+  set(FBS_HISTORY_SCHEMA ${CMAKE_SOURCE_DIR}/flatbuffers/history.fbs)
+  set(FBS_HISTORY_HEADER ${FLATBUFFERS_GENERATED_DIR}/history_generated.h)
+
+  add_custom_command(
+    OUTPUT ${FBS_HISTORY_HEADER}
+    COMMAND ${FLATC_EXE} --cpp --scoped-enums --gen-object-api
+            --cpp-std c++17
+            -o ${FLATBUFFERS_GENERATED_DIR}
+            ${FBS_HISTORY_SCHEMA}
+    DEPENDS ${FBS_HISTORY_SCHEMA} ${FLATC_DEP}
+    COMMENT "Generating FlatBuffers header from ${FBS_HISTORY_SCHEMA}"
+    VERBATIM
+  )
+
+  # Create a custom target for the generated headers
+  add_custom_target(dwarfs_metadata_flatbuffers_generate
+    DEPENDS ${FBS_GENERATED_HEADER} ${FBS_HISTORY_HEADER}
+  )
+
+  # Create an interface library for the generated FlatBuffers code
+  add_library(dwarfs_metadata_flatbuffers INTERFACE)
+  add_dependencies(dwarfs_metadata_flatbuffers dwarfs_metadata_flatbuffers_generate)
+  target_include_directories(dwarfs_metadata_flatbuffers INTERFACE
+    $<BUILD_INTERFACE:${FLATBUFFERS_GENERATED_DIR}/../..>  # For dwarfs/gen-flatbuffers/... (build/include)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
+
+  # Link flatbuffers for include directories only
+  # Don't propagate to consuming projects (header-only)
+  if(TARGET flatbuffers::flatbuffers)
+    target_include_directories(dwarfs_metadata_flatbuffers INTERFACE
+      $<TARGET_PROPERTY:flatbuffers::flatbuffers,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+  elseif(TARGET flatbuffers)
+    target_include_directories(dwarfs_metadata_flatbuffers INTERFACE
+      $<TARGET_PROPERTY:flatbuffers,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+  endif()
+
+  # Set variables for use in other parts of the build system
+  set(DWARFS_HAVE_FLATBUFFERS ON)
+  add_compile_definitions(DWARFS_HAVE_FLATBUFFERS=1)
+  message(STATUS "FlatBuffers serialization: ENABLED (default metadata format)")
 else()
-  set(DWARFS_HAVE_FLATBUFFERS OFF)
-  message(STATUS "FlatBuffers serialization: DISABLED (by option)")
+  message(FATAL_ERROR "FlatBuffers compiler (flatc) not found! FlatBuffers is required.")
 endif()
 
 # Legacy Thrift - Hand-coded implementation (always available, no external deps)
@@ -179,7 +165,7 @@ target_link_libraries(dwarfs_metadata_legacy
 message(STATUS "Legacy Thrift: ENABLED (hand-coded, no external deps)")
 
 # Modern Thrift Compact - Uses apache::thrift::CompactSerializer from fbthrift
-if(DWARFS_WITH_THRIFT)
+if(DWARFS_WITH_EXPERIMENTAL_THRIFT)
   # Try to find fbthrift (folly is a dependency of fbthrift)
   find_package(folly CONFIG)
   find_package(FBThrift CONFIG)
@@ -605,12 +591,6 @@ if(WITH_TESTS)
   endif()
 endif()
 
-# Verify at least one serialization format is available
-# Note: Legacy Thrift is always available (no dependencies)
-if(NOT DWARFS_HAVE_FLATBUFFERS AND NOT DWARFS_HAVE_EXPERIMENTAL_THRIFT AND NOT DWARFS_HAVE_LEGACY_THRIFT)
-  message(FATAL_ERROR "At least one serialization format must be enabled! Enable either FlatBuffers or Thrift.")
-endif()
-
 # Define serialization source files
 set(SERIALIZATION_SOURCES
   src/metadata/serialization/serializer_registry.cpp
@@ -618,14 +598,10 @@ set(SERIALIZATION_SOURCES
   src/metadata/serialization/serialization_facade.cpp
   src/metadata/serialization/facade_factory.cpp
   src/metadata/serialization/legacy_thrift_serializer.cpp
+  # FlatBuffers sources (always enabled)
+  src/metadata/serialization/flatbuffers_serializer.cpp
+  src/metadata/converters/domain_flatbuffers_converter.cpp
 )
-
-if(DWARFS_HAVE_FLATBUFFERS)
-  list(APPEND SERIALIZATION_SOURCES
-    src/metadata/serialization/flatbuffers_serializer.cpp
-    src/metadata/converters/domain_flatbuffers_converter.cpp
-  )
-endif()
 
 # C++ to Thrift converter (always compiled, properly guarded)
 list(APPEND SERIALIZATION_SOURCES
@@ -651,11 +627,11 @@ set(DWARFS_SERIALIZATION_SOURCES ${SERIALIZATION_SOURCES} CACHE INTERNAL "Serial
 # Summary
 message(STATUS "════════════════════════════════════════════════════")
 message(STATUS "Metadata serialization summary:")
-message(STATUS "  - Legacy Thrift:  ON (hand-coded, always available, cannot be disabled)")
-message(STATUS "  - FlatBuffers:    ${DWARFS_HAVE_FLATBUFFERS} (modern default, use -DDWARFS_WITH_FLATBUFFERS=OFF to disable)")
-message(STATUS "  - Modern Thrift:  ${DWARFS_HAVE_EXPERIMENTAL_THRIFT} (fbthrift v2025.12.29.00+, use -DDWARFS_WITH_THRIFT=ON to enable)")
+message(STATUS "  - Legacy Thrift:  ON (hand-coded, always available)")
+message(STATUS "  - FlatBuffers:    ON (default metadata format, always enabled)")
+message(STATUS "  - Modern Thrift:  ${DWARFS_HAVE_EXPERIMENTAL_THRIFT} (experimental, use -DDWARFS_WITH_EXPERIMENTAL_THRIFT=ON)")
 message(STATUS "════════════════════════════════════════════════════")
 message(STATUS "Build configurations:")
-message(STATUS "  1. Default:          FlatBuffers + Legacy Thrift")
-message(STATUS "  2. With Modern:      FlatBuffers + Legacy Thrift + Modern Thrift")
+message(STATUS "  1. Default:     FlatBuffers + Legacy Thrift (production)")
+message(STATUS "  2. Experimental: FlatBuffers + Legacy Thrift + Modern Thrift")
 message(STATUS "════════════════════════════════════════════════════")

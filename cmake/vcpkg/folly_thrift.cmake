@@ -1,9 +1,9 @@
 # Folly and fbthrift dependency configuration
-# OPTIONAL - Only needed for Thrift metadata format support
+# OPTIONAL - Only needed for Experimental Thrift metadata format support
 
-# Only attempt to find folly/fbthrift if Thrift support is enabled
-if(NOT DWARFS_WITH_THRIFT)
-  message(STATUS "Thrift support disabled, skipping folly/fbthrift")
+# Only attempt to find folly/fbthrift if Experimental Thrift support is enabled
+if(NOT DWARFS_WITH_EXPERIMENTAL_THRIFT)
+  message(STATUS "Experimental Thrift support disabled, skipping folly/fbthrift")
   return()
 endif()
 

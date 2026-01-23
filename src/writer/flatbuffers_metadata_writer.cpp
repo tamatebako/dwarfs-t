@@ -4,8 +4,8 @@
  *
  * FlatBuffers Metadata Writer Implementation
  *
- * NO PREPROCESSOR GUARDS: This file is ONLY compiled when
- * DWARFS_WITH_FLATBUFFERS=ON via CMake configuration.
+ * This file is part of the FlatBuffers metadata support, which is
+ * always enabled as the default metadata format.
  *
  * \author Ribose Inc.
  * \date 2025-12-22

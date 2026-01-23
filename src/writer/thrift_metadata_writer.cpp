@@ -2,10 +2,10 @@
 /**
  * \file thrift_metadata_writer.cpp
  *
- * Thrift Metadata Writer Implementation
+ * Modern Thrift Metadata Writer Implementation
  *
- * NO PREPROCESSOR GUARDS: This file is ONLY compiled when
- * DWARFS_WITH_THRIFT=ON via CMake configuration.
+ * This file is ONLY compiled when DWARFS_WITH_EXPERIMENTAL_THRIFT=ON
+ * via CMake configuration (requires fbthrift).
  *
  * \author Ribose Inc.
  * \date 2025-12-22
