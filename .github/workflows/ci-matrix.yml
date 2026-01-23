@@ -6,18 +6,17 @@
 # IMPORTANT: This is a HEAVY workflow. Use pr-validation.yml or ci-main.yml
 # for faster feedback during development.
 #
-# Estimated Runtime: 4-6 hours on first run (warm cache: 60-120 min)
-# Total Jobs: 18 (7 Linux, 4 macOS, 7 Windows)
+# Estimated Runtime: 3-5 hours on first run (warm cache: 45-90 min)
+# Total Jobs: 15 (5 Linux, 4 macOS, 6 Windows)
 #
 # Runner Mappings:
-# - ARM64 Linux: ubuntu-24.04-arm (larger runner, requires proper labeling)
-# - x64 Linux: ubuntu-latest
-# - ARM64 macOS: macos-latest (Apple Silicon, default)
-# - x64 macOS: macos-13 (Intel, last Intel macOS version)
-# - ARM64 Windows: windows-11-arm (requires windows-11-arm label)
-# - x64 Windows: windows-latest
+# - Linux x64: ubuntu-latest
+# - macOS ARM64: macos-latest (Apple Silicon)
+# - macOS x64: macos-13 (Intel, last Intel macOS version)
+# - Windows x64: windows-latest
 #
-# Note: ubuntu-24.04-arm requires GitHub Actions larger runners (ARM)
+# Note: ARM64 Linux and ARM64 Windows require GitHub larger runners
+# (ubuntu-24.04-arm, windows-11-arm) which are not available for this repo.
 # Note: macos-13 is the last Intel macOS version
 #
 # Concurrency: Each platform/architecture combination runs independently
@@ -60,13 +59,10 @@ jobs:
       fail-fast: false  # One failure shouldn't stop other jobs
       matrix:
         # ==========================================================================
-        # Linux Jobs (ubuntu-24.04-arm [larger] and ubuntu-latest)
+        # Linux Jobs (ubuntu-latest)
+        # Note: ubuntu-24.04-arm requires GitHub larger runners (not available)
+        # Using standard ubuntu-latest runners for all Linux jobs
         # ==========================================================================
-        - os: linux
-          runner: ubuntu-24.04-arm
-          triplet: arm64-linux
-          config: production
-
         - os: linux
           runner: ubuntu-latest
           triplet: x64-linux
@@ -116,7 +112,9 @@ jobs:
           config: production
 
         # ==========================================================================
-        # Windows Jobs (windows-latest and windows-11-arm)
+        # Windows Jobs (windows-latest)
+        # Note: windows-11-arm requires GitHub larger runners (not available)
+        # Using standard windows-latest runners for all Windows jobs
         # ==========================================================================
         - os: windows
           runner: windows-latest
@@ -146,11 +144,6 @@ jobs:
         - os: windows
           runner: windows-latest
           triplet: x64-windows-mingw
-          config: production
-
-        - os: windows
-          runner: windows-11-arm
-          triplet: arm64-windows-static
           config: production
 
     steps:
@@ -361,11 +354,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Platform | Architecture | Runner | Triplets |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------------|--------|----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux | ARM64 | ubuntu-24.04-arm | arm64-linux |" >> $GITHUB_STEP_SUMMARY
           echo "| Linux | x64 | ubuntu-latest | x64-linux, x64-linux-dynamic, x64-linux-release-dbg, x64-linux-musl |" >> $GITHUB_STEP_SUMMARY
           echo "| macOS | ARM64 | macos-latest | arm64-osx, arm64-osx-dynamic |" >> $GITHUB_STEP_SUMMARY
           echo "| macOS | x64 | macos-13 | x64-osx, x64-osx-dynamic |" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows | ARM64 | windows-11-arm | arm64-windows-static |" >> $GITHUB_STEP_SUMMARY
           echo "| Windows | x64 | windows-latest | x64-windows, x64-windows-dynamic, x64-windows-static, x64-windows-static-md, x64-windows-msys, x64-windows-mingw |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -386,7 +377,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Triplet | Config | Artifact Name |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|---------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| arm64-linux | production | dwarfs-arm64-linux-production |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-linux | production | dwarfs-x64-linux-production |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-linux | experimental | dwarfs-x64-linux-experimental |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-linux-dynamic | production | dwarfs-x64-linux-dynamic-production |" >> $GITHUB_STEP_SUMMARY
@@ -402,7 +392,6 @@ jobs:
           echo "| x64-windows-static-md | production | dwarfs-x64-windows-static-md-production |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-windows-msys | production | dwarfs-x64-windows-msys-production |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-windows-mingw | production | dwarfs-x64-windows-mingw-production |" >> $GITHUB_STEP_SUMMARY
-          echo "| arm64-windows-static | production | dwarfs-arm64-windows-static-production |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Note**: Artifacts are retained for 30 days." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
