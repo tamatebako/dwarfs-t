@@ -155,6 +155,9 @@ if(WITH_TESTS)
   set(FOLLY_TESTS
     test/compat_test.cpp
     test/block_merger_test.cpp
+    test/filesystem_test.cpp
+    test/integral_value_parser_test.cpp
+    test/pcm_sample_transformer_test.cpp
   )
 
   add_executable(dwarfs_unit_tests
@@ -173,13 +176,11 @@ if(WITH_TESTS)
     test/file_range_utils_test.cpp
     test/file_utils_test.cpp
     test/file_view_test.cpp
-    test/filesystem_test.cpp
     test/filesystem_writer_test.cpp
     test/fragment_category_test.cpp
     test/fsst_test.cpp
     test/glob_matcher_test.cpp
     test/global_metadata_test.cpp
-    test/integral_value_parser_test.cpp
     test/lazy_value_test.cpp
     test/lru_cache_test.cpp
     test/mappable_file_test.cpp
@@ -201,7 +202,6 @@ if(WITH_TESTS)
     test/os_access_generic_test.cpp
     test/packed_int_vector_test.cpp
     test/packed_ptr_test.cpp
-    test/pcm_sample_transformer_test.cpp
     test/sorted_array_map_test.cpp
     test/sparse_file_seeker_test.cpp
     test/speedometer_test.cpp
