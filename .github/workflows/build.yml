@@ -1,11 +1,11 @@
-# CI Main Workflow - Comprehensive Testing
+# Build Workflow - Comprehensive Testing
 #
-# This is the main CI workflow that runs on pushes to main branch.
+# This is the main build workflow that runs on pushes to main and feature branches.
 # Uses CMakePresets.json for consistent, cache-friendly builds.
 #
 # For fast PR validation, use pr-validation.yml instead.
 
-name: CI Main
+name: Build
 
 on:
   push:
@@ -32,7 +32,7 @@ on:
         default: production
 
 concurrency:
-  group: ci-main-${{ github.ref }}
+  group: build-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:

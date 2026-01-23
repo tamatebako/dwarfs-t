@@ -19,8 +19,11 @@
     "vcpkg_ports"
   ],
   "binary-caching": {
-    "cmake": {
-      "name": "vcpkg-binary-cache"
+    "x-gha": {
+      "read-environment-vars": [
+        "ACTIONS_CACHE_URL",
+        "ACTIONS_RUNTIME_TOKEN"
+      ]
     }
   }
 }
