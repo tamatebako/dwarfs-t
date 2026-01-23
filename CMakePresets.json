@@ -516,6 +516,60 @@
       "name": "arm64-windows-static-experimental",
       "inherits": ["arm64-windows-static-base", "experimental-base"],
       "description": "Windows ARM64 Static Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-windows-msys-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 MSYS2 base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-windows-msys",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "ON"
+      }
+    },
+    {
+      "name": "x64-windows-msys-production",
+      "inherits": ["x64-windows-msys-base", "production-base"],
+      "description": "Windows x64 MSYS2 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-windows-msys-experimental",
+      "inherits": ["x64-windows-msys-base", "experimental-base"],
+      "description": "Windows x64 MSYS2 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-windows-mingw-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 MinGW-w64 base configuration",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-windows-mingw",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "ON"
+      }
+    },
+    {
+      "name": "x64-windows-mingw-production",
+      "inherits": ["x64-windows-mingw-base", "production-base"],
+      "description": "Windows x64 MinGW-w64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-windows-mingw-experimental",
+      "inherits": ["x64-windows-mingw-base", "experimental-base"],
+      "description": "Windows x64 MinGW-w64 Experimental (+ Modern Thrift)"
     }
   ],
 
@@ -679,6 +733,26 @@
       "name": "arm64-windows-static-experimental",
       "configurePreset": "arm64-windows-static-experimental",
       "description": "Build Windows ARM64 Static Experimental"
+    },
+    {
+      "name": "x64-windows-msys-production",
+      "configurePreset": "x64-windows-msys-production",
+      "description": "Build Windows x64 MSYS2 Production"
+    },
+    {
+      "name": "x64-windows-msys-experimental",
+      "configurePreset": "x64-windows-msys-experimental",
+      "description": "Build Windows x64 MSYS2 Experimental"
+    },
+    {
+      "name": "x64-windows-mingw-production",
+      "configurePreset": "x64-windows-mingw-production",
+      "description": "Build Windows x64 MinGW-w64 Production"
+    },
+    {
+      "name": "x64-windows-mingw-experimental",
+      "configurePreset": "x64-windows-mingw-experimental",
+      "description": "Build Windows x64 MinGW-w64 Experimental"
     }
   ],
 
@@ -966,6 +1040,42 @@
       "name": "arm64-windows-static-experimental",
       "configurePreset": "arm64-windows-static-experimental",
       "description": "Test Windows ARM64 Static Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-msys-production",
+      "configurePreset": "x64-windows-msys-production",
+      "description": "Test Windows x64 MSYS2 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-msys-experimental",
+      "configurePreset": "x64-windows-msys-experimental",
+      "description": "Test Windows x64 MSYS2 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-mingw-production",
+      "configurePreset": "x64-windows-mingw-production",
+      "description": "Test Windows x64 MinGW-w64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-windows-mingw-experimental",
+      "configurePreset": "x64-windows-mingw-experimental",
+      "description": "Test Windows x64 MinGW-w64 Experimental",
       "output": {
         "outputOnFailure": true,
         "verbosity": "verbose"
