@@ -69,7 +69,9 @@
       "name": "libarchive",
       "version>=": "3.8.4"
     },
-    "xxhash",
+    {
+      "name": "xxhash"
+    },
     {
       "name": "zstd",
       "version>=": "1.5.7"
