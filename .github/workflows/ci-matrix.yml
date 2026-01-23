@@ -11,14 +11,14 @@
 #
 # Runner Mappings:
 # - ARM64 Linux: ubuntu-24.04-arm (larger runner, requires proper labeling)
-# - x64 Linux: ubuntu-24.04 or ubuntu-latest
-# - ARM64 macOS: macos-15 (Apple Silicon, default)
+# - x64 Linux: ubuntu-latest
+# - ARM64 macOS: macos-latest (Apple Silicon, default)
 # - x64 macOS: macos-13 (Intel, last Intel macOS version)
 # - ARM64 Windows: windows-11-arm (requires windows-11-arm label)
-# - x64 Windows: windows-2025 or windows-latest
+# - x64 Windows: windows-latest
 #
 # Note: ubuntu-24.04-arm requires GitHub Actions larger runners (ARM)
-# Note: macos-15-intel may not be available, use macos-13 for Intel
+# Note: macos-13 is the last Intel macOS version
 #
 # Concurrency: Each platform/architecture combination runs independently
 # Failures: fail-fast: false ensures one failure doesn't stop other jobs
