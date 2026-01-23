@@ -227,6 +227,36 @@ jobs:
             **/build.ninja.log
           if-no-files-found: ignore
 
+      - name: Upload Compiled Artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwarfs-${{ matrix.triplet }}-${{ matrix.config }}
+          path: |
+            build-${{ matrix.triplet }}-${{ matrix.config }}/tools/mkdwarfs/
+            build-${{ matrix.triplet }}-${{ matrix.config }}/tools/dwarfs/
+            build-${{ matrix.triplet }}-${{ matrix.config }}/tools/dwarfsextract/
+            build-${{ matrix.triplet }}-${{ matrix.config }}/tools/dwarfsck/
+            build-${{ matrix.triplet }}-${{ matrix.config }}/libdwarfs/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: List Uploaded Artifacts
+        if: success()
+        run: |
+          echo "### Uploaded Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact**: dwarfs-${{ matrix.triplet }}-${{ matrix.config }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Contents**:" >> $GITHUB_STEP_SUMMARY
+          echo "- mkdwarfs (filesystem image creator)" >> $GITHUB_STEP_SUMMARY
+          echo "- dwarfs (FUSE filesystem driver)" >> $GITHUB_STEP_SUMMARY
+          echo "- dwarfsextract (archive extractor)" >> $GITHUB_STEP_SUMMARY
+          echo "- dwarfsck (filesystem checker)" >> $GITHUB_STEP_SUMMARY
+          echo "- libdwarfs (library files)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Retention**: 30 days" >> $GITHUB_STEP_SUMMARY
+
   # ==========================================================================
   # Summary Job - Aggregates all results
   # ==========================================================================
@@ -269,6 +299,35 @@ jobs:
           # Get job results from needs
           RESULTS="${{ needs.build-and-test.result }}"
           echo "Overall Status: $RESULTS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: List Available Artifacts
+        run: |
+          echo "### Available Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following compiled artifacts are available for download:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Triplet | Config | Artifact Name |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|---------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| arm64-linux | production | dwarfs-arm64-linux-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux | production | dwarfs-x64-linux-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux | experimental | dwarfs-x64-linux-experimental |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux-dynamic | production | dwarfs-x64-linux-dynamic-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux-release-dbg | production | dwarfs-x64-linux-release-dbg-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-linux-musl | production | dwarfs-x64-linux-musl-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-osx | production | dwarfs-x64-osx-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-osx-dynamic | production | dwarfs-x64-osx-dynamic-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| arm64-osx | production | dwarfs-arm64-osx-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| arm64-osx-dynamic | production | dwarfs-arm64-osx-dynamic-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows | production | dwarfs-x64-windows-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows-dynamic | production | dwarfs-x64-windows-dynamic-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows-static | production | dwarfs-x64-windows-static-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows-static-md | production | dwarfs-x64-windows-static-md-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows-msys | production | dwarfs-x64-windows-msys-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-windows-mingw | production | dwarfs-x64-windows-mingw-production |" >> $GITHUB_STEP_SUMMARY
+          echo "| arm64-windows-static | production | dwarfs-arm64-windows-static-production |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: Artifacts are retained for 30 days." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
       - name: Check for failures
