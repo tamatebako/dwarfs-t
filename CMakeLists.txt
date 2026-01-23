@@ -293,19 +293,18 @@ if(WITH_LIBDWARFS)
     find_package(mimalloc ${MIMALLOC_REQUIRED_VERSION} REQUIRED CONFIG)
   endif()
 
-  # folly and fbthrift - include FIRST so targets exist
-  # These are optional but must be available before metadata_serialization checks them
-  if(DWARFS_GIT_BUILD AND (NOT DEFINED DWARFS_WITH_EXPERIMENTAL_THRIFT OR DWARFS_WITH_EXPERIMENTAL_THRIFT))
+  # Metadata serialization configuration - MUST BE FIRST
+  # This defines DWARFS_WITH_EXPERIMENTAL_THRIFT option before we check it
+  include(cmake/metadata_serialization.cmake)
+
+  # folly and fbthrift - include AFTER metadata_serialization
+  # These are only included when DWARFS_WITH_EXPERIMENTAL_THRIFT is enabled
+  if(DWARFS_GIT_BUILD AND DWARFS_WITH_EXPERIMENTAL_THRIFT)
     # In git builds, we can build folly/fbthrift from submodules
-    # Only include if Experimental Thrift hasn't been explicitly disabled
     include(cmake/folly.cmake)
     include(cmake/thrift_library.cmake)
     include(cmake/thrift.cmake)
   endif()
-
-  # Metadata serialization configuration
-  # NOW checks for folly/thrift targets (created above)
-  include(cmake/metadata_serialization.cmake)
 
   # If Experimental Thrift was enabled but targets don't exist yet (non-git build),
   # try to build from submodules as fallback
