@@ -257,6 +257,83 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Retention**: 30 days" >> $GITHUB_STEP_SUMMARY
 
+      # ==========================================================================
+      # Benchmark Execution (runs after successful tests)
+      # ==========================================================================
+
+      - name: Run Benchmarks (Linux/macOS)
+        if: success() && (runner.os == 'Linux' || runner.os == 'macOS')
+        shell: bash
+        run: |
+          BUILD_DIR="build-${{ matrix.triplet }}-${{ matrix.config }}"
+          BENCH_DIR="$BUILD_DIR/benchmark-results"
+          mkdir -p "$BENCH_DIR"
+
+          echo "### Running Benchmarks for ${{ matrix.triplet }}-${{ matrix.config }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Find all benchmark executables and run them
+          for bench in "$BUILD_DIR"/dwarfs_*_benchmark "$BUILD_DIR"/*_benchmark; do
+            if [ -f "$bench" ] && [ -x "$bench" ]; then
+              bench_name=$(basename "$bench")
+              echo "Running: $bench_name" >> $GITHUB_STEP_SUMMARY
+
+              # Run benchmark with JSON output
+              if "$bench" --benchmark_format=json --benchmark_out="$BENCH_DIR/${bench_name}.json" 2>&1; then
+                echo "  ✓ Completed: $bench_name" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "  ⚠ Failed or not available: $bench_name" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Benchmark results saved to**: \`$BENCH_DIR\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Benchmarks (Windows)
+        if: success() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $BUILD_DIR = "build-${{ matrix.triplet }}-${{ matrix.config }}"
+          $BENCH_DIR = "$BUILD_DIR\benchmark-results"
+          New-Item -ItemType Directory -Force -Path $BENCH_DIR | Out-Null
+
+          "### Running Benchmarks for ${{ matrix.triplet }}-${{ matrix.config }}" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+
+          # Find all benchmark executables and run them
+          Get-ChildItem -Path "$BUILD_DIR" -Filter "*_benchmark.exe" | ForEach-Object {
+            $bench = $_.FullName
+            $bench_name = $_.BaseName
+
+            if (Test-Path $bench) {
+              "Running: $bench_name" >> $env:GITHUB_STEP_SUMMARY
+
+              # Run benchmark with JSON output
+              $output = "$BENCH_DIR\${bench_name}.json"
+              & $bench --benchmark_format=json --benchmark_out=$output 2>&1
+
+              if ($LASTEXITCODE -eq 0) {
+                "  ✓ Completed: $bench_name" >> $env:GITHUB_STEP_SUMMARY
+              } else {
+                "  ⚠ Failed or not available: $bench_name" >> $env:GITHUB_STEP_SUMMARY
+              }
+            }
+          }
+
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "**Benchmark results saved to**: `$BENCH_DIR`" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload Benchmark Results
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ matrix.os }}-${{ matrix.triplet }}-${{ matrix.config }}
+          path: |
+            build-${{ matrix.triplet }}-${{ matrix.config }}/benchmark-results/
+          retention-days: 30
+          if-no-files-found: ignore
+
   # ==========================================================================
   # Summary Job - Aggregates all results
   # ==========================================================================
@@ -328,6 +405,43 @@ jobs:
           echo "| arm64-windows-static | production | dwarfs-arm64-windows-static-production |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Note**: Artifacts are retained for 30 days." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Download all benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: benchmark-results-*
+          path: benchmark-results
+        continue-on-error: true
+
+      - name: List Benchmark Results
+        run: |
+          echo "### Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "benchmark-results" ] && [ "$(ls -A benchmark-results)" ]; then
+            echo "The following benchmark results are available for download:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # List all benchmark result artifacts
+            for dir in benchmark-results/benchmark-results-*/; do
+              if [ -d "$dir" ]; then
+                dirname=$(basename "$dir")
+                echo "- \`${dirname}\`" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Benchmarks run**:" >> $GITHUB_STEP_SUMMARY
+            echo "- dwarfs_benchmark - Core DwarFS performance benchmarks" >> $GITHUB_STEP_SUMMARY
+            echo "- segmenter_benchmark - Segmentation algorithm benchmarks" >> $GITHUB_STEP_SUMMARY
+            echo "- dwarfs_compression_benchmark - Compression algorithm comparison" >> $GITHUB_STEP_SUMMARY
+            echo "- libdwarfs_benchmarks - API performance benchmarks" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Note**: Benchmark results are retained for 30 days." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No benchmark results available. Benchmarks may have been skipped or failed." >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
 
       - name: Check for failures

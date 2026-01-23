@@ -19,6 +19,7 @@
         "WITH_LIBDWARFS": "ON",
         "WITH_TOOLS": "ON",
         "WITH_TESTS": "ON",
+        "WITH_BENCHMARKS": "ON",
         "ENABLE_PERFMON": "ON",
         "TRY_ENABLE_FLAC": "ON",
         "TRY_ENABLE_BROTLI": "ON",
