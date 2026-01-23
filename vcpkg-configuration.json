@@ -17,5 +17,10 @@
   "overlay-triplets": ["vcpkg_triplets"],
   "overlay-ports": [
     "vcpkg_ports"
-  ]
+  ],
+  "binary-caching": {
+    "cmake": {
+      "name": "vcpkg-binary-cache"
+    }
+  }
 }

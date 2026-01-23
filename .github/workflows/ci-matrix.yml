@@ -149,18 +149,36 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup vcpkg (production)
         if: matrix.config == 'production'
         uses: lukka/run-vcpkg@v11
         with:
+          vcpkgGitCommitId: 7c11b72a6f810293d0ce234de126b99e9ab6fa7a
           vcpkgJsonGlob: '**/vcpkg-production.json'
+          vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
 
       - name: Setup vcpkg (experimental)
         if: matrix.config == 'experimental'
         uses: lukka/run-vcpkg@v11
         with:
+          vcpkgGitCommitId: 7c11b72a6f810293d0ce234de126b99e9ab6fa7a
           vcpkgJsonGlob: '**/vcpkg-experimental.json'
+          vcpkgDirectory: '${{ github.workspace }}/../vcpkg'
+
+      - name: Set environment variables
+        run: |
+          echo "VCPKG_DEFAULT_TRIPLET=${{ matrix.triplet }}" >> $GITHUB_ENV
+          echo "VCPKG_OVERLAY_PORTS=$GITHUB_WORKSPACE/vcpkg_ports" >> $GITHUB_ENV
+          echo "VCPKG_OVERLAY_TRIPLETS=$GITHUB_WORKSPACE/vcpkg_triplets" >> $GITHUB_ENV
+          echo "✓ Triplet: ${{ matrix.triplet }}"
+          echo "✓ Config: ${{ matrix.config }}"
+          echo "✓ Binary cache: enabled (GitHub Actions cache via x-gha)"
+
+      - name: Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
 
       - name: Configure, Build, and Test
         uses: lukka/run-cmake@v10
