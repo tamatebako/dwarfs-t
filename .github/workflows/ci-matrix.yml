@@ -1,11 +1,14 @@
 # Full CI Matrix Workflow
 #
-# This workflow tests all supported triplets across multiple platforms.
-# Runs on push to main and can be triggered manually.
+# Comprehensive cross-platform testing across all supported triplets.
+# Tests Linux, macOS, and Windows with multiple configurations.
 #
-# Total jobs: 10 (covers Linux x64, Linux ARM64, macOS x64, macOS ARM64, Windows x64, Windows ARM64)
+# Use this for:
+# - Pre-release validation
+# - Scheduled testing (via workflow_dispatch)
+# - Manual cross-platform verification
 #
-# For fast PR validation, use pr-validation.yml instead (2 jobs, ~15 min).
+# For faster PR feedback, use pr-validation.yml instead.
 
 name: CI Matrix
 
@@ -20,19 +23,21 @@ on:
       - '.maintainer-scripts/**'
       - 'CHANGES.md'
       - 'CITATION.cff'
-      - 'TODO'
       - 'doc/**'
+      - 'TODO'
   workflow_dispatch:
     inputs:
-      platforms:
-        description: 'Platforms to test (comma-separated: linux,macos,windows)'
+      platform:
+        description: 'Platform filter (linux, macos, windows, all)'
         required: false
-        type: string
-        default: 'linux,macos,windows'
-      configs:
-        description: 'Configs to test (comma-separated: production,experimental)'
+        type: choice
+        options: ['all', 'linux', 'macos', 'windows']
+        default: 'all'
+      config:
+        description: 'Configuration (production, experimental, all)'
         required: false
-        type: string
+        type: choice
+        options: ['production', 'experimental', 'all']
         default: 'production'
 
 concurrency:
@@ -47,140 +52,189 @@ jobs:
   # Linux Jobs
   # ========================================================================
   linux-x64-production:
-    if: contains(github.event.inputs.platforms || 'linux', 'linux')
-    uses: ./.github/workflows/_build-test-reusable.yml
+    if: contains(github.event.inputs.platform || 'all', 'linux') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
 
   linux-x64-experimental:
-    if: contains(github.event.inputs.configs || 'production', 'experimental') && contains(github.event.inputs.platforms || 'linux', 'linux')
-    uses: ./.github/workflows/_build-test-reusable.yml
+    if: (contains(github.event.inputs.platform || 'all', 'linux') || github.event_name == 'push') && (contains(github.event.inputs.config || 'production', 'experimental') || github.event.inputs.config == 'all')
+    uses: ./.github/workflows/_build.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      cache-key-prefix: matrix
 
   linux-x64-dynamic-production:
-    if: contains(github.event.inputs.platforms || 'linux', 'linux')
-    uses: ./.github/workflows/_build-test-reusable.yml
+    if: contains(github.event.inputs.platform || 'all', 'linux') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux-dynamic
       config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
 
   linux-arm64-production:
-    if: contains(github.event.inputs.platforms || 'linux', 'linux')
-    uses: ./.github/workflows/_build-test-reusable.yml
+    if: contains(github.event.inputs.platform || 'all', 'linux') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
     with:
       runner: ubuntu-24.04-arm64
       triplet: arm64-linux
       config: production
-
-  linux-arm64-experimental:
-    if: contains(github.event.inputs.configs || 'production', 'experimental') && contains(github.event.inputs.platforms || 'linux', 'linux')
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: ubuntu-24.04-arm64
-      triplet: arm64-linux
-      config: experimental
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
 
   # ========================================================================
   # macOS Jobs
   # ========================================================================
   macos-x64-production:
-    if: contains(github.event.inputs.platforms || 'macos,windows', 'macos')
-    uses: ./.github/workflows/_build-test-reusable.yml
+    if: contains(github.event.inputs.platform || 'all', 'macos') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
     with:
       runner: macos-13
       triplet: x64-osx
       config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
+
+  macos-x64-dynamic-production:
+    if: contains(github.event.inputs.platform || 'all', 'macos') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: macos-13
+      triplet: x64-osx-dynamic
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
 
   macos-arm64-production:
-    if: contains(github.event.inputs.platforms || 'macos,windows', 'macos')
-    uses: ./.github/workflows/_build-test-reusable.yml
+    if: contains(github.event.inputs.platform || 'all', 'macos') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
     with:
       runner: macos-latest
       triplet: arm64-osx
       config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
 
-  macos-arm64-experimental:
-    if: contains(github.event.inputs.configs || 'production', 'experimental') && contains(github.event.inputs.platforms || 'macos,windows', 'macos')
-    uses: ./.github/workflows/_build-test-reusable.yml
+  macos-arm64-dynamic-production:
+    if: contains(github.event.inputs.platform || 'all', 'macos') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
     with:
       runner: macos-latest
-      triplet: arm64-osx
-      config: experimental
+      triplet: arm64-osx-dynamic
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
 
   # ========================================================================
   # Windows Jobs
   # ========================================================================
   windows-x64-static-production:
-    if: contains(github.event.inputs.platforms || 'macos,windows', 'windows')
-    uses: ./.github/workflows/_build-test-reusable.yml
+    if: contains(github.event.inputs.platform || 'all', 'windows') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
     with:
       runner: windows-latest
       triplet: x64-windows-static
       config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
+
+  windows-x64-dynamic-production:
+    if: contains(github.event.inputs.platform || 'all', 'windows') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: windows-latest
+      triplet: x64-windows-dynamic
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
+
+  windows-x64-msys-production:
+    if: contains(github.event.inputs.platform || 'all', 'windows') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: windows-latest
+      triplet: x64-windows-msys
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
+
+  windows-x64-mingw-production:
+    if: contains(github.event.inputs.platform || 'all', 'windows') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: windows-latest
+      triplet: x64-windows-mingw
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
 
   windows-arm64-static-production:
-    if: contains(github.event.inputs.platforms || 'macos,windows', 'windows')
-    uses: ./.github/workflows/_build-test-reusable.yml
+    if: contains(github.event.inputs.platform || 'all', 'windows') || github.event_name == 'push'
+    uses: ./.github/workflows/_build.yml
     with:
       runner: windows-latest
       triplet: arm64-windows-static
       config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: matrix
 
   # ========================================================================
-  # Summary Job
+  # Summary
   # ========================================================================
   summary:
-    name: CI Matrix Summary
+    name: Matrix Summary
     needs:
       - linux-x64-production
       - linux-x64-experimental
       - linux-x64-dynamic-production
       - linux-arm64-production
-      - linux-arm64-experimental
       - macos-x64-production
+      - macos-x64-dynamic-production
       - macos-arm64-production
-      - macos-arm64-experimental
+      - macos-arm64-dynamic-production
       - windows-x64-static-production
+      - windows-x64-dynamic-production
+      - windows-x64-msys-production
+      - windows-x64-mingw-production
       - windows-arm64-static-production
     runs-on: ubuntu-latest
     if: always()
 
     steps:
-      - name: Download all benchmark results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: benchmark-results-*
-          path: benchmark-results
-        continue-on-error: true
-
-      - name: Display summary
+      - name: 📊 Matrix Results
         run: |
-          echo "=== CI Matrix Summary ==="
-          echo ""
-          echo "Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-          echo "Run: ${{ github.run_number }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo ""
-          echo "Job Results:"
-          echo ""
-          echo "| Job | Result |"
-          echo "|-----|--------|"
-          echo "| linux-x64-production | ${{ needs.linux-x64-production.result }} |"
-          echo "| linux-x64-experimental | ${{ needs.linux-x64-experimental.result }} |"
-          echo "| linux-x64-dynamic-production | ${{ needs.linux-x64-dynamic-production.result }} |"
-          echo "| linux-arm64-production | ${{ needs.linux-arm64-production.result }} |"
-          echo "| linux-arm64-experimental | ${{ needs.linux-arm64-experimental.result }} |"
-          echo "| macos-x64-production | ${{ needs.macos-x64-production.result }} |"
-          echo "| macos-arm64-production | ${{ needs.macos-arm64-production.result }} |"
-          echo "| macos-arm64-experimental | ${{ needs.macos-arm64-experimental.result }} |"
-          echo "| windows-x64-static-production | ${{ needs.windows-x64-static-production.result }} |"
-          echo "| windows-arm64-static-production | ${{ needs.windows-arm64-static-production.result }} |"
-          echo ""
-          echo "View full results in the Actions tab."
+          echo "# CI Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Linux" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Production | ${{ needs.linux-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Experimental | ${{ needs.linux-x64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Dynamic | ${{ needs.linux-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Production | ${{ needs.linux-arm64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## macOS" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Production | ${{ needs.macos-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Dynamic | ${{ needs.macos-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Production | ${{ needs.macos-arm64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Dynamic | ${{ needs.macos-arm64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Windows" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Static | ${{ needs.windows-x64-static-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Dynamic | ${{ needs.windows-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 MSYS | ${{ needs.windows-x64-msys-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 MinGW | ${{ needs.windows-x64-mingw-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Static | ${{ needs.windows-arm64-static-production.result }} |" >> $GITHUB_STEP_SUMMARY

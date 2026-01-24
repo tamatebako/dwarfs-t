@@ -1,0 +1,79 @@
+# Main CI Workflow
+#
+# Runs on every push to main and feature branches.
+# Tests Linux x64 with both production and experimental configurations.
+#
+# Production: FlatBuffers + Legacy Thrift (stable, ~15 min)
+# Experimental: Production + Modern Thrift (folly/fbthrift, ~45 min)
+#
+# For full cross-platform matrix, use ci-matrix.yml.
+
+name: CI
+
+on:
+  push:
+    branches: [main, feature/**]
+    paths-ignore:
+      - '.benchmark/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.gitignore'
+      - '.maintainer-scripts/**'
+      - 'CHANGES.md'
+      - 'CITATION.cff'
+      - 'doc/**'
+      - 'TODO'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ========================================================================
+  # Production Build (Always runs, fast)
+  # ========================================================================
+  production:
+    name: Linux x64 · Production
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: ci
+
+  # ========================================================================
+  # Experimental Build (Production + Modern Thrift)
+  # ========================================================================
+  experimental:
+    name: Linux x64 · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      cache-key-prefix: ci
+
+  # ========================================================================
+  # Summary
+  # ========================================================================
+  summary:
+    name: Summary
+    needs: [production, experimental]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📊 Results
+        run: |
+          echo "# CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Production | ${{ needs.production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Experimental | ${{ needs.experimental.result }} |" >> $GITHUB_STEP_SUMMARY

@@ -1,8 +1,10 @@
 # PR Validation Workflow
 #
 # Fast feedback for pull requests.
-# Tests Ubuntu x64 with both configs for quick validation.
-# Target runtime: ~10 minutes
+# Tests production configuration on Linux x64 only.
+# Target runtime: ~15-20 minutes.
+#
+# For full matrix testing, use ci-matrix.yml manually.
 
 name: PR Validation
 
@@ -12,30 +14,19 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: pr-validation-${{ github.ref }}
-  cancel-in-progress: false
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  # Ubuntu x64 - production
-  validate-ubuntu-production:
-    uses: ./.github/workflows/_build-test-reusable.yml
+  validate:
+    name: Linux x64 · Production
+    uses: ./.github/workflows/_build.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: production
-      build-type: Release
-      cache-key: pr-validation-ubuntu-x64
-
-  # Ubuntu x64 - experimental
-  validate-ubuntu-experimental:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      runner: ubuntu-latest
-      triplet: x64-linux
-      config: experimental
-      build-type: Release
-      cache-key: pr-validation-ubuntu-x64
-
+      vcpkg-manifest: vcpkg-production.json
+      cache-key-prefix: pr

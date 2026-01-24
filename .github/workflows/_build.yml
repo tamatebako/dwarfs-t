@@ -1,0 +1,117 @@
+# Core Reusable Build Workflow
+#
+# Single-source-of-truth for all DwarFS CI builds.
+# Used by pr-validation.yml, ci.yml, ci-matrix.yml, and release.yml.
+#
+# Caching Strategy:
+# - vcpkg: Lukka/run-vcpkg with GitHub Actions cache
+# - CMake builds: Lukka/run-cmake with buildCache property
+# - Shared vcpkg directory: ${{ github.workspace }}/../vcpkg
+#
+# Workflow Structure:
+# 1. Checkout (with submodules)
+# 2. Install CMake/Ninja (cached)
+# 3. Setup vcpkg (with binary cache)
+# 4. Configure environment
+# 5. Setup platform deps (FUSE on Linux)
+# 6. Build + Test with CMakePresets
+# 7. Upload artifacts
+
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'GitHub Actions runner'
+        required: true
+        type: string
+      triplet:
+        description: 'vcpkg triplet (x64-linux, arm64-osx, x64-windows-static, etc)'
+        required: true
+        type: string
+      config:
+        description: 'Build config: production or experimental'
+        required: true
+        type: string
+        default: production
+      vcpkg-manifest:
+        description: 'vcpkg manifest file (vcpkg-production.json or vcpkg-experimental.json)'
+        required: false
+        type: string
+        default: ''
+      cache-key-prefix:
+        description: 'Optional cache key prefix for busting'
+        required: false
+        type: string
+        default: ''
+      upload-artifacts:
+        description: 'Upload build artifacts'
+        required: false
+        type: boolean
+        default: false
+
+    outputs:
+      build-status:
+        description: 'Build success or failure'
+        value: ${{ jobs.build.outputs.status }}
+
+jobs:
+  build:
+    name: ${{ inputs.runner }} · ${{ inputs.triplet }} · ${{ inputs.config }}
+    runs-on: ${{ inputs.runner }}
+
+    permissions:
+      contents: read
+
+    outputs:
+      status: ${{ steps.status.outputs.result }}
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 🔧 Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: 📦 Setup vcpkg
+        uses: lukka/run-vcpkg@main
+        with:
+          vcpkgGitCommitId: 75a2e14262fc23c1f03bac18e135c4866dd25b51
+          vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
+          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
+          cacheKeyValue: ${{ inputs.cache-key-prefix }}-${{ inputs.triplet }}-${{ inputs.config }}
+
+      - name: 🔨 Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
+        with:
+          with-fuse: false
+
+      - name: 🏗️ Build and Test
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: ${{ inputs.triplet }}-${{ inputs.config }}
+          buildPreset: ${{ inputs.triplet }}-${{ inputs.config }}
+          testPreset: ${{ inputs.triplet }}-${{ inputs.config }}
+
+      - name: 📊 Upload build artifacts
+        if: inputs.upload-artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwarfs-${{ inputs.triplet }}-${{ inputs.config }}
+          path: build-${{ inputs.triplet }}-${{ inputs.config }}/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: ✅ Status
+        id: status
+        if: always()
+        run: echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
