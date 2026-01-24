@@ -395,7 +395,8 @@
         "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "USE_JEMALLOC": "OFF"
       }
     },
     {
@@ -422,7 +423,8 @@
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "BUILD_SHARED_LIBS": "OFF"
+        "BUILD_SHARED_LIBS": "OFF",
+        "USE_JEMALLOC": "OFF"
       }
     },
     {
@@ -450,7 +452,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_SHARED_LIBS": "OFF",
-        "MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL"
+        "MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL",
+        "USE_JEMALLOC": "OFF"
       }
     },
     {
@@ -477,7 +480,8 @@
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "BUILD_SHARED_LIBS": "ON"
+        "BUILD_SHARED_LIBS": "ON",
+        "USE_JEMALLOC": "OFF"
       }
     },
     {
@@ -504,7 +508,8 @@
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "BUILD_SHARED_LIBS": "OFF"
+        "BUILD_SHARED_LIBS": "OFF",
+        "USE_JEMALLOC": "OFF"
       }
     },
     {
@@ -531,7 +536,8 @@
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "BUILD_SHARED_LIBS": "ON"
+        "BUILD_SHARED_LIBS": "ON",
+        "USE_JEMALLOC": "OFF"
       }
     },
     {
@@ -558,7 +564,8 @@
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "BUILD_SHARED_LIBS": "ON"
+        "BUILD_SHARED_LIBS": "ON",
+        "USE_JEMALLOC": "OFF"
       }
     },
     {
