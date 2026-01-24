@@ -1,0 +1,142 @@
+# Linux CI Matrix Workflow
+#
+# Comprehensive Linux testing across all supported triplets.
+# Tests x64 (static/dynamic), ARM64, and Alpine (musl).
+#
+# Platform Coverage:
+# - x64-linux (static/dynamic)
+# - arm64-linux (static)
+# - x64-linux-musl (Alpine)
+
+name: Linux Matrix
+
+on:
+  pull_request:
+    branches: [main, feature/*]
+  push:
+    branches: [main, feature/**]
+    paths-ignore:
+      - '.benchmark/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.gitignore'
+      - '.maintainer-scripts/**'
+      - 'CHANGES.md'
+      - 'CITATION.cff'
+      - 'doc/**'
+      - 'TODO'
+  workflow_dispatch:
+
+concurrency:
+  group: linux-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ========================================================================
+  # x64 Jobs
+  # ========================================================================
+  linux-x64-production:
+    name: 📦 x64 · Production
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
+  linux-x64-experimental:
+    name: 🧪 x64 · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
+
+  linux-x64-dynamic-production:
+    name: 🔧 x64 · Dynamic
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux-dynamic
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
+  linux-x64-dynamic-experimental:
+    name: 🧪 x64 · Dynamic · Exp
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux-dynamic
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
+
+  # ========================================================================
+  # ARM64 Jobs
+  # ========================================================================
+  linux-arm64-production:
+    name: 📦 ARM64 · Production
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-24.04-arm64
+      triplet: arm64-linux
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
+  linux-arm64-experimental:
+    name: 🧪 ARM64 · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-24.04-arm64
+      triplet: arm64-linux
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
+
+  # ========================================================================
+  # Alpine (musl) Jobs
+  # ========================================================================
+  linux-musl-x64-production:
+    name: 🏔️ x64-musl · Production
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux-musl
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
+  # ========================================================================
+  # Summary
+  # ========================================================================
+  summary:
+    name: 📊 Summary
+    needs:
+      - linux-x64-production
+      - linux-x64-experimental
+      - linux-x64-dynamic-production
+      - linux-x64-dynamic-experimental
+      - linux-arm64-production
+      - linux-arm64-experimental
+      - linux-musl-x64-production
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📊 Results
+        run: |
+          echo "# Linux Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Production | ${{ needs.linux-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Experimental | ${{ needs.linux-x64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Dynamic | ${{ needs.linux-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Dynamic Exp | ${{ needs.linux-x64-dynamic-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Production | ${{ needs.linux-arm64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Experimental | ${{ needs.linux-arm64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-musl Production | ${{ needs.linux-musl-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY

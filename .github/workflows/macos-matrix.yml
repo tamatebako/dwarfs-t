@@ -1,0 +1,114 @@
+# macOS CI Matrix Workflow
+#
+# Comprehensive macOS testing across all supported triplets.
+# Tests x64 (Intel) and ARM64 (Apple Silicon) with static/dynamic builds.
+#
+# Platform Coverage:
+# - x64-osx (static/dynamic) on macos-15 (Intel)
+# - arm64-osx (static/dynamic/experimental) on macos-latest (Apple Silicon)
+
+name: macOS Matrix
+
+on:
+  pull_request:
+    branches: [main, feature/*]
+  push:
+    branches: [main, feature/**]
+    paths-ignore:
+      - '.benchmark/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.gitignore'
+      - '.maintainer-scripts/**'
+      - 'CHANGES.md'
+      - 'CITATION.cff'
+      - 'doc/**'
+      - 'TODO'
+  workflow_dispatch:
+
+concurrency:
+  group: macos-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ========================================================================
+  # x64 (Intel) Jobs
+  # ========================================================================
+  macos-x64-production:
+    name: 🍎 x64 · Production
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: macos-15
+      triplet: x64-osx
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
+  macos-x64-dynamic-production:
+    name: 🔧 x64 · Dynamic
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: macos-15
+      triplet: x64-osx-dynamic
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
+  # ========================================================================
+  # ARM64 (Apple Silicon) Jobs
+  # ========================================================================
+  macos-arm64-production:
+    name: 🍎 ARM64 · Production
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: macos-latest
+      triplet: arm64-osx
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
+  macos-arm64-dynamic-production:
+    name: 🔧 ARM64 · Dynamic
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: macos-latest
+      triplet: arm64-osx-dynamic
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
+  macos-arm64-experimental:
+    name: 🧪 ARM64 · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: macos-latest
+      triplet: arm64-osx
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
+
+  # ========================================================================
+  # Summary
+  # ========================================================================
+  summary:
+    name: 📊 Summary
+    needs:
+      - macos-x64-production
+      - macos-x64-dynamic-production
+      - macos-arm64-production
+      - macos-arm64-dynamic-production
+      - macos-arm64-experimental
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📊 Results
+        run: |
+          echo "# macOS Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Production | ${{ needs.macos-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Dynamic | ${{ needs.macos-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Production | ${{ needs.macos-arm64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Dynamic | ${{ needs.macos-arm64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Experimental | ${{ needs.macos-arm64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
