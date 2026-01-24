@@ -9,44 +9,50 @@ vcpkg_from_github(
 )
 
 if(VCPKG_TARGET_IS_WINDOWS)
-    set(opts "ac_cv_search_log=none required" "--without-private-namespace")
-else()
-    # Build without je_ prefix for Folly compatibility
-    # Set version in jemalloc's expected format
-    set(opts "--with-jemalloc-prefix=" "--with-version=5.5.0-0-g0000000000000000000000000000000000000000")
-endif()
+    # Use CMake on Windows (Tebako jemalloc has CMake support)
+    vcpkg_cmake_configure(
+        SOURCE_PATH "${SOURCE_PATH}"
+        OPTIONS "-DJEMALLOC_PREFIX=" "-DJEMALLOC_VERSION=5.5.0"
+    )
 
-vcpkg_make_configure(
-    AUTORECONF
-    SOURCE_PATH "${SOURCE_PATH}"
-    DISABLE_MSVC_WRAPPERS
-    DISABLE_MSVC_TRANSFORMATIONS
-    OPTIONS ${opts}
-)
+    vcpkg_cmake_build()
+    vcpkg_cmake_install()
 
-vcpkg_make_install()
-
-if(VCPKG_TARGET_IS_WINDOWS)
+    # Copy MSVC compatibility headers
     file(COPY "${SOURCE_PATH}/include/msvc_compat/strings.h" DESTINATION "${CURRENT_PACKAGES_DIR}/include/jemalloc/msvc_compat")
     vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h" "<strings.h>" "\"msvc_compat/strings.h\"")
+
+    # Handle dynamic library DLL placement
     if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
         file(COPY "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/lib/jemalloc.lib" DESTINATION "${CURRENT_PACKAGES_DIR}/lib")
         file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/bin")
         file(RENAME "${CURRENT_PACKAGES_DIR}/lib/jemalloc.dll" "${CURRENT_PACKAGES_DIR}/bin/jemalloc.dll")
-    endif()
-    if(NOT VCPKG_BUILD_TYPE)
-        if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
+        if(NOT VCPKG_BUILD_TYPE)
             file(COPY "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-dbg/lib/jemalloc.lib" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib")
             file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/debug/bin")
             file(RENAME "${CURRENT_PACKAGES_DIR}/debug/lib/jemalloc.dll" "${CURRENT_PACKAGES_DIR}/debug/bin/jemalloc.dll")
         endif()
-    endif()
+    endif
+
+    # Fix pkgconfig file for static linkage
     if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
         vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/jemalloc.pc" "install_suffix=" "install_suffix=_s")
         if(NOT VCPKG_BUILD_TYPE)
             vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/jemalloc.pc" "install_suffix=" "install_suffix=_s")
         endif()
     endif()
+else()
+    # Build without je_ prefix for Folly compatibility
+    # Set version in jemalloc's expected format
+    set(opts "--with-jemalloc-prefix=" "--with-version=5.5.0-0-g0000000000000000000000000000000000000000")
+
+    vcpkg_make_configure(
+        AUTORECONF
+        SOURCE_PATH "${SOURCE_PATH}"
+        OPTIONS ${opts}
+    )
+
+    vcpkg_make_install()
 endif()
 
 vcpkg_fixup_pkgconfig()
