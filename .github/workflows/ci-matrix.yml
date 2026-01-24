@@ -20,7 +20,7 @@ on:
   pull_request:
     branches: [main, feature/*]
   push:
-    branches: [main]
+    branches: [main, feature/**]
     paths-ignore:
       - '.benchmark/**'
       - '.clang-format'
