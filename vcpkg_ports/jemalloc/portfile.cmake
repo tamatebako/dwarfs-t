@@ -12,9 +12,6 @@ if(VCPKG_TARGET_IS_WINDOWS)
     # Use CMake on Windows (Tebako jemalloc has CMake support)
     vcpkg_cmake_configure(
         SOURCE_PATH "${SOURCE_PATH}"
-        OPTIONS
-            "-DJEMALLOC_PREFIX="
-            "-DJEMALLOC_VERSION=5.5.0"
     )
 
     vcpkg_cmake_build()
