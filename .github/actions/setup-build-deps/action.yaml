@@ -25,5 +25,5 @@ runs:
     - name: Install build dependencies
       shell: bash
       run: |
-        WITH_FUSE="${{ inputs.with-fuse }}" \
-          bash ${{ github.action_path }}/../../../scripts/github-actions/install-build-deps.sh
+        SCRIPT_DIR="$(cd "${{ github.action_path }}/../../../scripts/github-actions" && pwd)"
+        WITH_FUSE="${{ inputs.with-fuse }}" bash "$SCRIPT_DIR/install-build-deps.sh"
