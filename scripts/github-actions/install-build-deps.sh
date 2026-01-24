@@ -39,10 +39,16 @@ case "$RUNNER_OS" in
     # Autoconf tools (for building vcpkg dependencies from source)
     brew install autoconf autoconf-archive automake libtool
 
-    # FUSE support for tests
+    # FUSE support for tests and compilation
     if [[ "$WITH_FUSE" == "true" ]]; then
-      if ! brew list macfuse 2>/dev/null && ! brew list fuse-t 2>/dev/null; then
-        echo "::warning::No FUSE package found. Install macFUSE or FUSE-T manually."
+      # Install FUSE-T (kext-less FUSE for macOS)
+      if ! brew list fuse-t 2>/dev/null; then
+        echo "Installing FUSE-T for macOS FUSE support..."
+        brew tap macos-fuse-t/homebrew-cask
+        brew install fuse-t
+        echo "✓ FUSE-T installed successfully"
+      else
+        echo "✓ FUSE-T already installed"
       fi
     fi
 

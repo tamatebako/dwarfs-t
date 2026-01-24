@@ -93,7 +93,7 @@ jobs:
       - name: 🔨 Setup build dependencies
         uses: ./.github/actions/setup-build-deps
         with:
-          with-fuse: false
+          with-fuse: ${{ contains(runner.os, 'macOS') || contains(runner.os, 'Linux') }}
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
