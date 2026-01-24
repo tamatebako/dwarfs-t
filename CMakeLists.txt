@@ -192,7 +192,36 @@ endif()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "cmake/modules")
 
 find_package(PkgConfig)
-include(cmake/need_fuse.cmake)
+
+if(PKG_CONFIG_FOUND)
+  pkg_check_modules(FUSE IMPORTED_TARGET fuse>=2.9.9)
+  pkg_check_modules(FUSE3 IMPORTED_TARGET fuse3>=3.9.0)
+  pkg_check_modules(LIBLZ4 IMPORTED_TARGET liblz4>=1.9.2)
+  pkg_check_modules(LIBLZMA IMPORTED_TARGET liblzma>=5.2.4)
+  if(NOT IS_MSYS)
+    pkg_check_modules(LIBBROTLIDEC IMPORTED_TARGET libbrotlidec>=1.0.7)
+    pkg_check_modules(LIBBROTLIENC IMPORTED_TARGET libbrotlienc>=1.0.7)
+    pkg_check_modules(LIBBROTLICOMMON IMPORTED_TARGET libbrotlicommon>=1.0.7)
+  endif(NOT IS_MSYS)
+  if (MSVC)
+    pkg_check_modules(LIBARCHIVE IMPORTED_TARGET libarchive>=3.6.0)
+  endif(MSVC)
+  pkg_check_modules(ZSTD IMPORTED_TARGET libzstd>=1.5.2)
+  pkg_check_modules(XXHASH IMPORTED_TARGET libxxhash>=0.8.1)
+endif()
+
+if(XXHASH_FOUND)
+  list(APPEND CMAKE_REQUIRED_LIBRARIES PkgConfig::XXHASH)
+  check_cxx_source_compiles(
+    "#include <xxhash.h>
+    #if XXH_VERSION_NUMBER < 800
+    #error XXH_VERSION_NUMBER < 800
+    #endif
+    int main() {
+      return 0;
+    }"
+    XXHASH_VERSION_OK)
+endif()
 
 if(STATIC_BUILD_DO_NOT_USE)
   set(CMAKE_FIND_LIBRARY_SUFFIXES
@@ -379,11 +408,6 @@ if(WITH_LIBDWARFS)
   set(DWARFS_PERFMON_ENABLED ${ENABLE_PERFMON})
   set(DWARFS_STACKTRACE_ENABLED ${ENABLE_STACKTRACE})
   set(DWARFS_FILESYSTEM_EXTRACTOR_NO_OPEN_FORMAT ${DISABLE_FILESYSTEM_EXTRACTOR_FORMAT})
-
-  # Set FUSE-T flag if using FUSE-T on macOS
-  if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t")
-    set(DWARFS_USE_FUSE_T ON)
-  endif()
 
   configure_file(cmake/config.h.in include/dwarfs/config.h @ONLY)
 else()
