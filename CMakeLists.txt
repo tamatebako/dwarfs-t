@@ -16,316 +16,185 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.24.0)
+# Conditional minimum version for tebako compatibility
+if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
+  cmake_minimum_required(VERSION 3.24.0)
+else()
+  cmake_minimum_required(VERSION 3.28.0)
+endif()
 
 # Enable CMAKE_MSVC_RUNTIME_LIBRARY
 cmake_policy(SET CMP0091 NEW)
 
-# Use Boost’s CMake package
-if (POLICY CMP0167)
+# Use Boost's CMake package instead of FindBoost when in tebako mode
+if((DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD) AND POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()
 
-project(dwarfs)
+project(dwarfs LANGUAGES CXX C)
 
 include(ExternalProject)
-
 include(CheckCXXSourceCompiles)
 
-# Force use of FindBoost.cmake; avoid BoostConfig.cmake per-component config lookups
-# set(Boost_NO_BOOST_CMAKE ON CACHE BOOL "Use FindBoost module instead of Boost CMake config" FORCE)
+cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
+# Note: CMP0111 (imported targets from different directories) is now always NEW
+# The old setting was needed for vcpkg + Folly compatibility but is deprecated
+
+# ============================================================================
+# vcpkg Integration for Static Builds
+# ============================================================================
+
+# Detect if vcpkg toolchain is active
+if(DEFINED CMAKE_TOOLCHAIN_FILE AND CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
+  set(VCPKG_BUILD ON)
+  message(STATUS "vcpkg build detected: ${CMAKE_TOOLCHAIN_FILE}")
+
+  # Force static linking in vcpkg mode
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries" FORCE)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" CACHE STRING "Static library suffix" FORCE)
+
+  message(STATUS "Static linking enabled (vcpkg mode)")
+elseif(NOT DEFINED VCPKG_BUILD)
+  # Only set VCPKG_BUILD to OFF if not already set via command line
+  set(VCPKG_BUILD OFF)
+  message(STATUS "Non-vcpkg build: using pkg-config or FetchContent")
+endif()
+
+option(WITH_LIBDWARFS "build with libdwarfs" ON)
+option(WITH_TOOLS "build with tools" ON)
+option(WITH_FUSE_DRIVER "build with FUSE driver" ON)
+option(WITH_DESKTOP_INTEGRATION "install mimetype and desktop integration" ON)
 option(WITH_TESTS "build with tests" OFF)
 option(WITH_BENCHMARKS "build with benchmarks" OFF)
+option(WITH_ALL_BENCHMARKS "build with *all* benchmarks" OFF)
+option(WITH_FUZZ "build with fuzzing binaries" OFF)
+option(WITH_MAN_OPTION "build with --man option" ON)
 option(ENABLE_PERFMON "enable performance monitor in all tools" ON)
-option(PREFER_SYSTEM_LIBFMT "use system libfmt if available" OFF)
-if(WIN32)
-  set(PREFER_SYSTEM_ZSTD ON)
-  set(PREFER_SYSTEM_XXHASH ON)
-else()
+option(TRY_ENABLE_FLAC "build with FLAC support" ON)
+option(ENABLE_RICEPP "build with RICEPP compression support" ON)
+option(TRY_ENABLE_BROTLI "build with BROTLI compression support" ON)
+option(TRY_ENABLE_LZ4 "build with LZ4 compression support" ON)
+option(TRY_ENABLE_LZMA "build with LZMA compression support" ON)
+option(WITH_UNIVERSAL_BINARY "build with universal binary" OFF)
+option(WITH_FUSE_EXTRACT_BINARY "build with fuse-extract binary" OFF)
+option(WITH_PXATTR "build with pxattr binary" OFF)
+option(WITH_EXAMPLE "build with example binary" OFF)
+option(WITH_DEV_TOOLS "build with developer tools" OFF)
+option(ENABLE_STACKTRACE "build with stack trace support" OFF)
+option(DISABLE_FILESYSTEM_EXTRACTOR_FORMAT "disable filesystem extractor format support" OFF)
+option(BUILD_FSST_MAIN "build fsst_main application (dev-only)" OFF)
+option(USE_SUBDIR_LIBARCHIVE "use local libarchive subdir (dev-only)" OFF)
+if(APPLE)
+  option(USE_HOMEBREW_LIBARCHIVE "use libarchive from homebrew" ON)
+endif()
+if(NOT WIN32)
   option(WITH_LEGACY_FUSE "build fuse2 driver even if we have fuse3" OFF)
   option(WITH_MAN_PAGES "build man pages using ronn" ON)
   option(ENABLE_ASAN "enable address sanitizer" OFF)
   option(ENABLE_TSAN "enable thread sanitizer" OFF)
   option(ENABLE_UBSAN "enable undefined behaviour sanitizer" OFF)
   option(ENABLE_COVERAGE "enable code coverage" OFF)
-  option(USE_JEMALLOC "build with jemalloc" ON)
-  option(PREFER_SYSTEM_ZSTD "use system zstd if available" OFF)
-  option(PREFER_SYSTEM_XXHASH "use system xxHash if available" OFF)
+  option(USE_JEMALLOC "build with jemalloc if available" ON)
+  option(USE_MIMALLOC "build with mimalloc if available" OFF)
+  option(PREFER_SYSTEM_FAST_FLOAT "use system fast_float if available" OFF)
   option(PREFER_SYSTEM_GTEST "use system gtest if available" OFF)
   option(DISABLE_CCACHE "disable ccache" OFF)
+  option(DISABLE_MOLD "disable mold" OFF)
   option(STATIC_BUILD_DO_NOT_USE "try static build (experimental)" OFF)
 endif()
+
+if(STATIC_BUILD_DO_NOT_USE AND NOT(WITH_LIBDWARFS AND WITH_TOOLS AND WITH_FUSE_DRIVER))
+  message(FATAL_ERROR "STATIC_BUILD_DO_NOT_USE requires WITH_LIBDWARFS, WITH_TOOLS and WITH_FUSE_DRIVER")
+endif()
+
+if(USE_JEMALLOC AND USE_MIMALLOC)
+  message(FATAL_ERROR "USE_JEMALLOC and USE_MIMALLOC are mutually exclusive")
+endif()
+
+if(WITH_ALL_BENCHMARKS)
+  set(WITH_BENCHMARKS ON)
+endif()
+
+if(NOT WIN32)
+  set(BASH_INSTALL_PATH "bash-completion/completions" CACHE STRING "Bash completion install dir")
+  set(ZSH_INSTALL_PATH "zsh/site-functions" CACHE STRING "Zsh completion install dir")
+endif()
+
+set(DWARFS_CXX_STANDARD 20)
+
+# Libraries that we can fetch on demand if necessary
+#
+# All of these libraries are header-only and not strictly required once
+# libdwarfs is built. Only the range-v3 library is used to implement
+# string splitting, but there's plenty of alternatives for that.
+#
+# We only use these libraries for building the binary targets, we won't
+# install them.
+
+set(LIBFMT_REQUIRED_VERSION 10.0)
+set(LIBFMT_PREFERRED_VERSION 12.0.0)
+
+set(GOOGLETEST_REQUIRED_VERSION 1.13.0)
+set(GOOGLETEST_PREFERRED_VERSION v1.17.0)
+
+set(RANGE_V3_REQUIRED_VERSION 0.12.0)
+set(RANGE_V3_PREFERRED_VERSION 0.12.0)
+
+set(PARALLEL_HASHMAP_REQUIRED_VERSION 1.3.8)
+set(PARALLEL_HASHMAP_PREFERRED_VERSION v1.3.12)
+
+set(BOOST_REQUIRED_VERSION 1.67.0)
+set(LIBCRYPTO_REQUIRED_VERSION 3.0.0)
+set(LIBLZ4_REQUIRED_VERSION 1.9.3)
+set(LIBLZMA_REQUIRED_VERSION 5.2.5)
+set(LIBBROTLI_REQUIRED_VERSION 1.0.9)
+set(LIBARCHIVE_REQUIRED_VERSION 3.6.0)
+set(LIBMAGIC_REQUIRED_VERSION 5.38)
+set(ZSTD_REQUIRED_VERSION 1.4.8)
+set(XXHASH_REQUIRED_VERSION 0.8.1)
+set(FLAC_REQUIRED_VERSION 1.4.2)
+set(JEMALLOC_REQUIRED_VERSION 5.5.0)
+set(MIMALLOC_REQUIRED_VERSION 2.0.0)
 
 if(DEFINED ENV{DWARFS_LOCAL_REPO_PATH})
   set(LIBFMT_GIT_REPO $ENV{DWARFS_LOCAL_REPO_PATH}/fmt)
   set(GOOGLETEST_GIT_REPO $ENV{DWARFS_LOCAL_REPO_PATH}/googletest)
+  set(RANGE_V3_GIT_REPO $ENV{DWARFS_LOCAL_REPO_PATH}/range-v3)
+  set(PARALLEL_HASHMAP_GIT_REPO $ENV{DWARFS_LOCAL_REPO_PATH}/parallel-hashmap)
+  set(JEMALLOC_GIT_REPO $ENV{DWARFS_LOCAL_REPO_PATH}/jemalloc)
 else()
   set(LIBFMT_GIT_REPO https://github.com/fmtlib/fmt.git)
   set(GOOGLETEST_GIT_REPO https://github.com/google/googletest.git)
+  set(RANGE_V3_GIT_REPO https://github.com/ericniebler/range-v3.git)
+  set(PARALLEL_HASHMAP_GIT_REPO https://github.com/greg7mdp/parallel-hashmap.git)
+  set(JEMALLOC_GIT_REPO https://github.com/tamatebako/jemalloc.git)
 endif()
 
-if(NOT DISABLE_CCACHE)
-  find_program(CCACHE_EXE ccache)
-  if(CCACHE_EXE)
-    set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_EXE})
-    set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_EXE})
-    message(STATUS "Using ccache at ${CCACHE_EXE}")
-  else()
-    message(STATUS "Could not find ccache")
-  endif()
+if(APPLE)
+  set(HOMEBREW_PREFIX_PATH "/opt/homebrew")
+  set(TRY_RUN_INCLUDE_DIRECTORIES ${HOMEBREW_PREFIX_PATH}/include)
 endif()
 
-if(DEFINED ENV{CCACHE_PREFIX})
-  add_compile_options(-Wno-gnu-line-marker)
+include(cmake/compile.cmake)
+include(cmake/version.cmake)
+
+# Tebako integration point
+if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
+  set(TEBAKO_BUILD ON CACHE BOOL "Enable tebako build mode")
+  include(cmake/tebako.cmake)
 endif()
 
-set(default_build_type "Release")
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to '${default_build_type}'")
-  set(CMAKE_BUILD_TYPE
-      "${default_build_type}"
-      CACHE STRING "Build Type" FORCE)
+if(NOT PRJ_VERSION_FULL)
+  message(FATAL_ERROR "PRJ_VERSION_FULL is not set")
 endif()
 
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  add_compile_options(-fdiagnostics-color=always)
-  # For gcc, -O3 is *much* worse than -O2
-  # Update: This is still true for gcc-12
-  set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O2 -g")
-  set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O2 -g")
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  add_compile_options(-fcolor-diagnostics)
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "13.0.0")
-    # for some reason, clang-10 binaries crash upon throwing exceptions
-    # [maxirmx] This is true for clang-12 Release build, but no crash for RelWithDebugInfo
-  add_compile_options(-fno-omit-frame-pointer)
-  endif()
-endif()
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "cmake/modules")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  add_compile_options(/Zc:__cplusplus /utf-8 /wd4267 /wd4244 /wd5219)
-  # Apply /MT or /MTd  (multithread, static version of the run-time library)
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-endif()
-
-include(${CMAKE_SOURCE_DIR}/cmake/version.cmake)
-
-# -----------------------------------------------------------------------------------------
-message(STATUS ">>>>> Applying tebako settings")
-
-# THis is the default that may be overwritten
-set(GNU_BASH "bash")
-
-# -------------------------------------------------------------------------------------------------------------------------------
-# Build scopes
-#  ALL -- build library, all tools            [WITH_TEST or WITH_BENCHMARKS enforce this scope]
-#  MKD -- build library and mkdwarfs utility  [This is the configuration required for tebako]
-#  LIB -- build library only                  [This configuration is required for cross compilation of tebako packaged software]
-#                                             [For example in order to build MacOS arm64 package on MacOS x86_64               ]
-# -------------------------------------------------------------------------------------------------------------------------------
-
-if(NOT TEBAKO_BUILD_SCOPE)
-  set(TEBAKO_BUILD_SCOPE "ALL")
-  message(STATUS "Tebako build scope was not specified and has been set to ALL")
-endif()
-if((WITH_TESTS OR WITH_BENCHMARKS) AND NOT "${TEBAKO_BUILD_SCOPE}" STREQUAL "ALL" )
-  set(TEBAKO_BUILD_SCOPE "ALL")
-  message(STATUS "WITH_TESTS or WITH_BENCHMARKS option was specified. Tebako build scope has been forcefully set to ALL")
-endif()
-if(NOT "${TEBAKO_BUILD_SCOPE}" STREQUAL "ALL" AND
-   NOT "${TEBAKO_BUILD_SCOPE}" STREQUAL "MKD" AND
-   NOT "${TEBAKO_BUILD_SCOPE}" STREQUAL "LIB")
-   message(STATUS "Unknown build scope setting ${TEBAKO_BUILD_SCOPE}. Tebako build scope has been forcefully set to ALL")
-   set(TEBAKO_BUILD_SCOPE "ALL")
-endif()
-
-if (NOT DEPS)
-  set(DEPS "${CMAKE_CURRENT_SOURCE_DIR}/deps")
-  message(STATUS "Using local setting for DEPS folder: ${DEPS}")
-  set(EXTERNAL_DEPS OFF)
-else()
-  message(STATUS "Using upstream setting for DEPS folder: ${DEPS}")
-  set(EXTERNAL_DEPS ON)
-endif()
-
-set(DEPS_INCLUDE_DIR ${DEPS}/include)
-set(DEPS_LIB_DIR ${DEPS}/lib)
-set(DEPS_BIN_DIR ${DEPS}/bin)
-set(DEPS_SBIN_DIR ${DEPS}/sbin)
-
-if (NOT TOOLS)
-  set(TOOLS "${CMAKE_CURRENT_SOURCE_DIR}/tools")
-  message(STATUS "Using local setting for TOOLS folder: ${TOOLS}")
-else()
-  message(STATUS "Using upstream setting for TOOLS folder: ${TOOLS}")
-endif()
-
-include(${TOOLS}/cmake-scripts/def-external-project.cmake)
-
-
-set(FOLLY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/folly")
-set(FBTHRIFT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/fbthrift")
-set(ZSTD_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/zstd")
-
-include_directories(BEFORE ${DEPS_INCLUDE_DIR} ${FOLLY_ROOT} ${FBTHRIFT_ROOT})
-link_directories(BEFORE ${DEPS_LIB_DIR})
-
-set(IS_MSYS OFF)
-add_compile_definitions(GLOG_USE_GLOG_EXPORT FOLLY_ASSUME_NO_TCMALLOC)
-
-if(MSVC)
-  set(OSTYPE_TXT "Windows")
-  message(STATUS "OSTYPE (forced by MSVC): '${OSTYPE_TXT}'")
-  set(PREFER_SYSTEM_LIBFMT ON)
-elseif(MINGW)
-  set(OSTYPE_TXT "msys")
-  message(STATUS "OSTYPE  (forced by MINGW): '${OSTYPE_TXT}'")
-  set(IS_MSYS ON)
-  include(${TOOLS}/cmake-scripts/setup-libarchive.cmake)
-  add_compile_definitions(GFLAGS_IS_A_DLL=0)
-else(MSVC)
-  include(${TOOLS}/cmake-scripts/setup-libarchive.cmake)
-
-  execute_process(
-    COMMAND "${GNU_BASH}"
-            "-c"
-            "echo \$OSTYPE"
-    RESULT_VARIABLE OSTYPE_RES
-    OUTPUT_VARIABLE OSTYPE_TXT
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_STRIP_TRAILING_WHITESPACE
-  )
-
-  if(OSTYPE_RES EQUAL 0)
-    message(STATUS "OSTYPE: '${OSTYPE_TXT}'")
-  else(OSTYPE_RES EQUAL 0)
-    message(FATAL_ERROR "Failed to detect OSTYPE: ${OSTYPE_TXT}")
-  endif(OSTYPE_RES EQUAL 0)
-endif(MSVC)
-
-if (NO_PATCH)
-  set(PATCH_FOLLY OFF)
-  set(PATCH_FBTHRIFT OFF)
-  set(PATCH_ZSTD OFF)
-else (NO_PATCH)
-  set(PATCH_FOLLY ON)
-  set(PATCH_FBTHRIFT ON)
-  set(PATCH_ZSTD ON)
-endif(NO_PATCH)
-
-if(DEFINED OPENSSL_ROOT_DIR)
-# This is required because dwarfs itself does not do FindOpenSSL
-include_directories("${OPENSSL_ROOT_DIR}/include")
-endif(DEFINED OPENSSL_ROOT_DIR)
-
-if("${OSTYPE_TXT}" MATCHES "^linux-musl.*")
-  message(STATUS "Adding __musl__ compile definition")
-  add_compile_definitions(__musl__)
-  include(${TOOLS}/cmake-scripts/setup-libutfcpp.cmake)
-  add_dependencies(_LIBARCHIVE ${LIBUTFCPP_PRJ})
-endif()
-
-if ("${OSTYPE_TXT}" MATCHES "^darwin*")
-  include(${TOOLS}/cmake-scripts/macos-environment.cmake)
-  include(${TOOLS}/cmake-scripts/setup-libutfcpp.cmake)
-  add_dependencies(_LIBARCHIVE ${LIBUTFCPP_PRJ})
-endif()
-
-if ("${OSTYPE_TXT}" MATCHES "msys")
-  include(${TOOLS}/cmake-scripts/msys-environment.cmake)
-  include(${TOOLS}/cmake-scripts/setup-libutfcpp.cmake)
-  add_dependencies(_LIBARCHIVE ${LIBUTFCPP_PRJ})
-  find_library(WINSOCK ws2_32 REQUIRED)
-  message(STATUS "Using winsock2 at ${WINSOCK}")
-endif()
-
-if (${PATCH_FOLLY})
-  message(STATUS "Patching folly with '${GNU_BASH} ${TOOLS}/ci-scripts/patch-folly.sh ${FOLLY_ROOT}'")
-  execute_process(
-    COMMAND "${GNU_BASH}"
-            "${TOOLS}/ci-scripts/patch-folly.sh"
-            "${FOLLY_ROOT}"
-    RESULT_VARIABLE PATCH_FOLLY_RES
-    OUTPUT_VARIABLE PATCH_FOLLY_TXT
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_STRIP_TRAILING_WHITESPACE
-  )
-
-  if(PATCH_FOLLY_RES EQUAL 0)
-    message(STATUS "Patched folly at '${FOLLY_ROOT}'")
-  else(PATCH_FOLLY_RES EQUAL 0)
-    message(FATAL_ERROR "Failed to patch folly at '${FOLLY_ROOT}': ${PATH_FOLLY_TXT}")
-  endif(PATCH_FOLLY_RES EQUAL 0)
-endif(${PATCH_FOLLY})
-
-if (${PATCH_FBTHRIFT})
-  message(STATUS "Patching fbthrift with '${GNU_BASH} ${TOOLS}/ci-scripts/patch-fbthrift.sh ${FBTHRIFT_ROOT}'")
-  execute_process(
-    COMMAND "${GNU_BASH}"
-            "${TOOLS}/ci-scripts/patch-fbthrift.sh"
-            "${FBTHRIFT_ROOT}"
-    RESULT_VARIABLE PATCH_FBTHRIFT_RES
-    OUTPUT_VARIABLE PATCH_FBTHRIFT_TXT
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_STRIP_TRAILING_WHITESPACE
-  )
-
-  if(PATCH_FBTHRIFT_RES EQUAL 0)
-    message(STATUS "Patched fbthrift at '${FBTHRIFT_ROOT}'")
-  else(PATCH_FBTHRIFT_RES EQUAL 0)
-    message(FATAL_ERROR "Failed to patch fbthrift at '${FBTHRIFT_ROOT}': ${PATCH_FBTHRIFT_TXT}")
-  endif(PATCH_FBTHRIFT_RES EQUAL 0)
-endif(${PATCH_FBTHRIFT})
-
-if (${PATCH_ZSTD})
-  message(STATUS "Patching zstd with '${GNU_BASH} ${TOOLS}/ci-scripts/patch-zstd.sh ${ZSTD_ROOT}'")
-  execute_process(
-    COMMAND "${GNU_BASH}"
-            "${TOOLS}/ci-scripts/patch-zstd.sh"
-            "${ZSTD_ROOT}"
-    RESULT_VARIABLE PATCH_ZSTD_RES
-    OUTPUT_VARIABLE PATCH_ZSTD_TXT
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_STRIP_TRAILING_WHITESPACE
-  )
-
-  if(PATCH_ZSTD_RES EQUAL 0)
-    message(STATUS "Patched zstd at '${ZSTD_ROOT}'")
-  else(PATCH_ZSTD_RES EQUAL 0)
-    message(FATAL_ERROR "Failed to patch zstd at '${ZSTD_ROOT}': ${PATCH_ZSTD_TXT}")
-  endif(PATCH_ZSTD_RES EQUAL 0)
-endif(${PATCH_ZSTD})
-
-check_cxx_source_compiles(
-  "#include <filesystem>
-  int main() {
-    std::filesystem::path p = \"\";
-    std::u8string s;
-    p = p / s;
-    return 0;
-  }"
-  U8STRING_AND_PATH_OK)
-
-if(U8STRING_AND_PATH_OK)
-  add_compile_definitions(U8STRING_AND_PATH_OK)
-endif()
-
-message(STATUS "<<<<< Applied tebako settings")
-# -----------------------------------------------------------------------------------------
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules")
+find_package(PkgConfig)
+include(cmake/need_fuse.cmake)
 
 if(STATIC_BUILD_DO_NOT_USE)
-  if(STATIC_BUILD_EXTRA_PREFIX)
-    include_directories(BEFORE ${STATIC_BUILD_EXTRA_PREFIX}/include)
-    set(CMAKE_PREFIX_PATH ${STATIC_BUILD_EXTRA_PREFIX})
-  endif()
-
   set(CMAKE_FIND_LIBRARY_SUFFIXES
       ".a"
       CACHE STRING "please look for static libs")
@@ -341,997 +210,263 @@ if(STATIC_BUILD_DO_NOT_USE)
   set(GFLAGS_SHARED
       OFF
       CACHE BOOL "static")
-  set(FOLLY_NO_EXCEPTION_TRACER
-      ON
-      CACHE BOOL "disable exception tracer")
-endif()
 
-if(WITH_MAN_PAGES)
-  find_program(RONN_EXE ronn DOC "ronn man page generator" REQUIRED)
-
-  foreach(man dwarfs.1 mkdwarfs.1 dwarfsck.1 dwarfsextract.1 dwarfs-format.5)
-    string(REGEX MATCH "^[^.]*" docname "${man}")
-    string(REGEX MATCH "[^.]*$" section "${man}")
-    set(man_dir "${CMAKE_CURRENT_BINARY_DIR}/man${section}")
-    set(man_input "${CMAKE_CURRENT_SOURCE_DIR}/doc/${docname}.md")
-    set(man_output "${man_dir}/${man}")
-
-    execute_process(
-      COMMAND ${RONN_EXE}
-      INPUT_FILE "${man_input}"
-      RESULT_VARIABLE ronn_result
-      OUTPUT_VARIABLE ronn_output
-      ERROR_VARIABLE ronn_error)
-
-    if(${ronn_result} EQUAL 0)
-      add_custom_command(
-        OUTPUT "${man_output}"
-        COMMAND mkdir -p "${man_dir}"
-        COMMAND ${RONN_EXE} <"${man_input}" >"${man_output}"
-        DEPENDS "${man_input}")
-      list(APPEND MAN_PAGES "${man_output}")
-      list(APPEND MAN_DIRS "${man_dir}")
-    else()
-      message(WARNING "${RONN_EXE} failed to process ${man_input} -> ${man}")
-      message(WARNING "error: ${ronn_error}")
-    endif()
-  endforeach()
-endif()
-
-if(PREFER_SYSTEM_LIBFMT)
-  find_package(fmt 10 CONFIG)
-else(PREFER_SYSTEM_LIBFMT)
-
-  include(FetchContent)
-  FetchContent_Declare(
-    fmt
-    GIT_REPOSITORY ${LIBFMT_GIT_REPO}
-    GIT_TAG 10.2.1
-    OVERRIDE_FIND_PACKAGE
-  )
-  FetchContent_MakeAvailable(fmt)
-
-  target_include_directories(fmt BEFORE PUBLIC
-    $<BUILD_INTERFACE:${fmt_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-  )
-
-  include_directories(BEFORE ${fmt_SOURCE_DIR}/include)
-endif(PREFER_SYSTEM_LIBFMT)
-
-find_package(Boost 1.67 REQUIRED COMPONENTS chrono iostreams program_options)
-
-if(STATIC_BUILD_DO_NOT_USE)
   set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
-endif()
-
-find_package(PkgConfig)
-
-if(STATIC_BUILD_DO_NOT_USE)
-  if (PKG_CONFIG_FOUND)
-    list(APPEND PKG_CONFIG_EXECUTABLE "--static")
-  endif()
-endif()
-
-if(PKG_CONFIG_FOUND)
-  pkg_check_modules(FUSE IMPORTED_TARGET fuse>=2.9.9)
-  pkg_check_modules(FUSE3 IMPORTED_TARGET fuse3>=3.9.0)
-  pkg_check_modules(LIBLZ4 IMPORTED_TARGET liblz4>=1.9.2)
-  pkg_check_modules(LIBLZMA IMPORTED_TARGET liblzma>=5.2.4)
-  if(NOT IS_MSYS)
-    pkg_check_modules(LIBBROTLIDEC IMPORTED_TARGET libbrotlidec>=1.0.7)
-    pkg_check_modules(LIBBROTLIENC IMPORTED_TARGET libbrotlienc>=1.0.7)
-    pkg_check_modules(LIBBROTLICOMMON IMPORTED_TARGET libbrotlicommon>=1.0.7)
-  endif(NOT IS_MSYS)
-  if (MSVC)
-    pkg_check_modules(LIBARCHIVE IMPORTED_TARGET libarchive>=3.6.0)
-  endif(MSVC)
-  pkg_check_modules(ZSTD IMPORTED_TARGET libzstd>=1.5.2)
-  pkg_check_modules(XXHASH IMPORTED_TARGET libxxhash>=0.8.1)
-endif()
-
-if(XXHASH_FOUND)
-  list(APPEND CMAKE_REQUIRED_LIBRARIES PkgConfig::XXHASH)
-  check_cxx_source_compiles(
-    "#include <xxhash.h>
-    #if XXH_VERSION_NUMBER < 800
-    #error XXH_VERSION_NUMBER < 800
-    #endif
-    int main() {
-      return 0;
-    }"
-    XXHASH_VERSION_OK)
-endif()
-
-if ("${TEBAKO_BUILD_SCOPE}" STREQUAL "ALL")
-  if(WIN32)
-    if(NOT WINFSP_PATH)
-      set(WINFSP_PATH "C:/Program Files (x86)/WinFsp")
-    endif()
-    find_library(WINFSP winfsp-x64.lib "${WINFSP_PATH}/lib")
-    if (NOT WINFSP)
-      message(WARNING "No WinFsp library found")
-      add_compile_definitions(WITHOUT_FUSE)
-    endif()
-  else()
-    if(NOT FUSE_FOUND AND NOT FUSE3_FOUND)
-      message(WARNING "No FUSE or FUSE3 library found")
-      add_compile_definitions(WITHOUT_FUSE)
-    endif()
-  endif()
-endif("${TEBAKO_BUILD_SCOPE}" STREQUAL "ALL")
-
-if(USE_JEMALLOC)
-  pkg_check_modules(JEMALLOC IMPORTED_TARGET jemalloc>=5.2.1)
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  foreach(CompilerFlag CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE)
-    string(REPLACE "/RTC1" "" ${CompilerFlag} "${${CompilerFlag}}")
-  endforeach()
-
-  set(MSVC_USE_STATIC_RUNTIME ON CACHE BOOL "static build")
-endif()
-
-set(ZSTD_INCLUDE_DIR
-    ""
-    CACHE PATH "don't build folly with zstd" FORCE)
-
-set(THRIFT_COMPILER_ONLY
-    ON
-    CACHE BOOL "only build thrift compiler")
-
-# TODO: this is due to a bug in folly's Portability.h
-add_compile_definitions(FOLLY_CFG_NO_COROUTINES)
-
-add_compile_definitions(GLOG_NO_ABBREVIATED_SEVERITIES NOMINMAX NOGDI)
-
-set(
-  CXX_STD "gnu++20"
-  CACHE STRING
-  "The C++ standard argument to pass to the compiler."
-)
-
-set(
-  MSVC_LANGUAGE_VERSION "c++20"
-  CACHE STRING
-  "The C++ standard argument to pass to the compiler."
-)
-
-add_subdirectory(folly EXCLUDE_FROM_ALL)                        # tebako -- was ... EXCLUDE_FROM_ALL SYSTEM ...  but it requires CMAKE 3.25
-                                                                # which requires installation on Alpine 3.18 which needs gcompat
-                                                                # that I would like to avoid
-add_subdirectory(fbthrift EXCLUDE_FROM_ALL)                     # tebako -- was ... EXCLUDE_FROM_ALL SYSTEM ...  but it requires CMAKE 3.25
-if(NOT (ZSTD_FOUND AND PREFER_SYSTEM_ZSTD))
-  set(ZSTD_BUILD_SHARED OFF)
-  add_subdirectory(zstd/build/cmake EXCLUDE_FROM_ALL)           # tebako -- was ... EXCLUDE_FROM_ALL SYSTEM ...  but it requires CMAKE 3.25
-endif()
-
-set_property(TARGET folly PROPERTY CXX_STANDARD 20)
-set_property(TARGET folly_base PROPERTY CXX_STANDARD 20)
-
-set(ZSTD_LIBRARY_RELEASE
-    "ZSTD_LIBRARY_RELEASE-NOTFOUND"
-    CACHE FILEPATH "don't build folly with zstd" FORCE)
-set(ZSTD_LIBRARY_DEBUG
-    "ZSTD_LIBRARY_DEBUG-NOTFOUND"
-    CACHE FILEPATH "don't build folly with zstd" FORCE)
-
-if(WITH_TESTS)
-  if(NOT PREFER_SYSTEM_GTEST)
-    include(FetchContent)
-    FetchContent_Declare(
-      googletest
-      GIT_REPOSITORY ${GOOGLETEST_GIT_REPO}
-      GIT_TAG v1.13.0
-      OVERRIDE_FIND_PACKAGE
-    )
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(googletest)
-  endif()
-
-  enable_testing()
-  include(GoogleTest)
-endif()
-
-if(NOT
-   (XXHASH_FOUND
-    AND XXHASH_VERSION_OK
-    AND PREFER_SYSTEM_XXHASH))
-  add_library(xxhash xxHash/xxhash.c)
-
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
-     "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    target_compile_options(
-      xxhash
-      PRIVATE -Wall
-              -Wextra
-              -Wconversion
-              -Wcast-qual
-              -Wcast-align
-              -Wshadow
-              -Wstrict-aliasing=1
-              -Wswitch-enum
-              -Wdeclaration-after-statement
-              -Wstrict-prototypes
-              -Wundef
-              -Wpointer-arith
-              -Wformat-security
-              -Wvla
-              -Wformat=2
-              -Winit-self
-              -Wfloat-equal
-              -Wwrite-strings
-              -Wredundant-decls
-              -Wstrict-overflow=2)
-  endif()
-endif()
-
-list(
-  APPEND
-  LIBDWARFS_SRC
-  src/dwarfs/block_cache.cpp
-  src/dwarfs/block_compressor.cpp
-  src/dwarfs/block_manager.cpp
-  src/dwarfs/block_range.cpp
-  src/dwarfs/builtin_script.cpp
-  src/dwarfs/cached_block.cpp
-  src/dwarfs/checksum.cpp
-  src/dwarfs/chmod_transformer.cpp
-  src/dwarfs/console_writer.cpp
-  src/dwarfs/entry.cpp
-  src/dwarfs/error.cpp
-  src/dwarfs/file_scanner.cpp
-  src/dwarfs/file_stat.cpp
-  src/dwarfs/file_type.cpp
-  src/dwarfs/filesystem_extractor.cpp
-  src/dwarfs/filesystem_v2.cpp
-  src/dwarfs/filesystem_writer.cpp
-  src/dwarfs/fstypes.cpp
-  src/dwarfs/fs_section.cpp
-  src/dwarfs/global_entry_data.cpp
-  src/dwarfs/inode_manager.cpp
-  src/dwarfs/inode_reader_v2.cpp
-  src/dwarfs/logger.cpp
-  src/dwarfs/metadata_types.cpp
-  src/dwarfs/metadata_v2.cpp
-  src/dwarfs/mmap.cpp
-  src/dwarfs/nilsimsa.cpp
-  src/dwarfs/option_map.cpp
-  src/dwarfs/options.cpp
-  src/dwarfs/os_access_generic.cpp
-  src/dwarfs/performance_monitor.cpp
-  src/dwarfs/progress.cpp
-  src/dwarfs/safe_main.cpp
-  src/dwarfs/scanner.cpp
-  src/dwarfs/similarity.cpp
-  src/dwarfs/string_table.cpp
-  src/dwarfs/terminal.cpp
-  src/dwarfs/util.cpp
-  src/dwarfs/wcwidth.c
-  src/dwarfs/worker_group.cpp)
-
-if(DWARFS_GIT_BUILD)
-  list(APPEND LIBDWARFS_SRC ${CMAKE_CURRENT_BINARY_DIR}/src/dwarfs/version.cpp)
-  include_directories(dwarfs PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
-else()
-  list(APPEND LIBDWARFS_SRC src/dwarfs/version.cpp)
-endif()
-
-list(APPEND LIBDWARFS_COMPRESSION_SRC src/dwarfs/compression/null.cpp)
-list(APPEND LIBDWARFS_COMPRESSION_SRC src/dwarfs/compression/zstd.cpp)
-
-if(LIBLZMA_FOUND)
-  list(APPEND LIBDWARFS_COMPRESSION_SRC src/dwarfs/compression/lzma.cpp)
-endif()
-
-if(LIBLZ4_FOUND)
-  list(APPEND LIBDWARFS_COMPRESSION_SRC src/dwarfs/compression/lz4.cpp)
-endif()
-
-if(LIBBROTLIDEC_FOUND AND LIBBROTLIENC_FOUND AND LIBBROTLICOMMON_FOUND)
-  list(APPEND LIBDWARFS_COMPRESSION_SRC src/dwarfs/compression/brotli.cpp)
-endif()
-
-add_library(dwarfs ${LIBDWARFS_SRC})
-add_library(dwarfs_compression ${LIBDWARFS_COMPRESSION_SRC})
-add_library(dwarfs_tool src/dwarfs/tool.cpp)
-
-# [maxirmx] For me it does not make sense but is required on Ubuntu 20.04 (gcc 10.5)
-target_link_libraries(dwarfs_tool dwarfs)
-
-target_compile_definitions(
-  dwarfs_tool PRIVATE PRJ_BUILD_ID="${CMAKE_SYSTEM_PROCESSOR}, ${CMAKE_SYSTEM}, ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
-)
-
-if(STATIC_BUILD_DO_NOT_USE)
-  add_link_options(-static -static-libgcc)
-endif(STATIC_BUILD_DO_NOT_USE)
-
-if("${TEBAKO_BUILD_SCOPE}" STREQUAL "ALL" OR
-   "${TEBAKO_BUILD_SCOPE}" STREQUAL "MKD")
-   add_library(mkdwarfs_main src/mkdwarfs_main.cpp)
-
-   add_executable(mkdwarfs src/mkdwarfs.cpp)
-   target_link_libraries(mkdwarfs mkdwarfs_main)
-
-   list(APPEND BINARY_TARGETS mkdwarfs)
-   list(APPEND MAIN_TARGETS mkdwarfs_main)
-
-   install(TARGETS mkdwarfs RUNTIME DESTINATION bin)
-endif()
-
-if("${TEBAKO_BUILD_SCOPE}" STREQUAL "ALL")
-  add_library(dwarfsck_main src/dwarfsck_main.cpp)
-  add_library(dwarfsbench_main src/dwarfsbench_main.cpp)
-  add_library(dwarfsextract_main src/dwarfsextract_main.cpp)
-
-  add_executable(dwarfsck src/dwarfsck.cpp)
-  add_executable(dwarfsbench src/dwarfsbench.cpp)
-  add_executable(dwarfsextract src/dwarfsextract.cpp)
-  add_executable(dwarfsuniversal src/universal.cpp)
-
-  target_link_libraries(dwarfsck dwarfsck_main)
-  target_link_libraries(dwarfsbench dwarfsbench_main)
-  target_link_libraries(dwarfsextract dwarfsextract_main)
-  target_link_libraries(dwarfsuniversal mkdwarfs_main dwarfsck_main
-        dwarfsextract_main)
-  set_target_properties(dwarfsuniversal PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY universal
-        OUTPUT_NAME dwarfs-universal)
-
-  install(TARGETS dwarfsck dwarfsbench dwarfsextract RUNTIME DESTINATION bin)
-
-  list(APPEND BINARY_TARGETS dwarfsck dwarfsbench dwarfsextract)
-  list(APPEND BINARY_TARGETS dwarfsuniversal)
-  list(APPEND MAIN_TARGETS dwarfsck_main dwarfsbench_main
-        dwarfsextract_main)
-  if(FUSE3_FOUND OR WINFSP)
-    add_library(dwarfs_main src/dwarfs_main.cpp)
-    target_compile_definitions(dwarfs_main PRIVATE _FILE_OFFSET_BITS=64)
-    if(WINFSP)
-      target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=32
-                                                   DWARFS_FUSE_LOWLEVEL=0)
-      target_include_directories(dwarfs_main PRIVATE "${WINFSP_PATH}/inc")
-      target_link_libraries(dwarfs_main ${WINFSP})
-      target_link_libraries(dwarfsuniversal delayimp.lib)
-      target_link_options(dwarfsuniversal PRIVATE /DELAYLOAD:winfsp-x64.dll)
-    else(WINFSP)
-      target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=35)
-      target_link_libraries(dwarfs_main PkgConfig::FUSE3)
-    endif(WINFSP)
-    add_executable(dwarfs-bin src/dwarfs.cpp)
-    target_link_libraries(dwarfs-bin dwarfs_main)
-    set_target_properties(dwarfs-bin PROPERTIES OUTPUT_NAME dwarfs)
-    target_link_libraries(dwarfsuniversal dwarfs_main)
-    if(WINFSP)
-      install(TARGETS dwarfs-bin RUNTIME DESTINATION bin)
-    else(WINFSP)
-      add_custom_command(OUTPUT  mount.dwarfs
-                       COMMAND ${CMAKE_COMMAND} -E create_symlink dwarfs mount.dwarfs
-                       DEPENDS dwarfs-bin)
-      list(APPEND SYMLINKS mount.dwarfs)
-      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mount.dwarfs DESTINATION sbin)
-      install(TARGETS dwarfs-bin RUNTIME DESTINATION sbin)
-    endif(WINFSP)
-    list(APPEND BINARY_TARGETS dwarfs-bin)
-    list(APPEND MAIN_TARGETS dwarfs_main)
-  endif(FUSE3_FOUND OR WINFSP)
-
-if(FUSE_FOUND AND (WITH_LEGACY_FUSE OR NOT FUSE3_FOUND))
-  add_library(dwarfs2_main src/dwarfs_main.cpp)
-  target_compile_definitions(dwarfs2_main PRIVATE _FILE_OFFSET_BITS=64
-                                                  FUSE_USE_VERSION=29)
-  target_link_libraries(dwarfs2_main PkgConfig::FUSE)
-  add_executable(dwarfs2-bin src/dwarfs.cpp)
-  target_link_libraries(dwarfs2-bin dwarfs2_main)
-    if(NOT FUSE3_FOUND)
-      target_link_libraries(dwarfsuniversal dwarfs2_main)
-    endif(NOT FUSE3_FOUND)
-    set_target_properties(dwarfs2-bin PROPERTIES OUTPUT_NAME dwarfs2)
-    add_custom_command(OUTPUT  mount.dwarfs2
-                       COMMAND ${CMAKE_COMMAND} -E create_symlink dwarfs2 mount.dwarfs2
-                       DEPENDS dwarfs2-bin)
-    list(APPEND SYMLINKS mount.dwarfs2)
-    install(TARGETS dwarfs2-bin RUNTIME DESTINATION sbin)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mount.dwarfs2 DESTINATION sbin)
-    list(APPEND BINARY_TARGETS dwarfs2-bin)
-    list(APPEND MAIN_TARGETS dwarfs2_main)
-  endif(FUSE_FOUND AND (WITH_LEGACY_FUSE OR NOT FUSE3_FOUND))
-endif("${TEBAKO_BUILD_SCOPE}" STREQUAL "ALL")
-
-add_custom_target(symlinks ALL DEPENDS ${SYMLINKS})
-
-if(WITH_TESTS OR WITH_BENCHMARKS)
-  add_library(test_helpers test/test_helpers.cpp test/test_strings.cpp
-                           test/loremipsum.cpp test/test_dirtree.cpp
-                           test/filter_test_data.cpp)
-  target_link_libraries(test_helpers dwarfs folly)
-  set_property(TARGET test_helpers PROPERTY CXX_STANDARD 20)
-endif()
-
-if(WITH_TESTS)
-  add_executable(dwarfs_test test/dwarfs.cpp)
-  add_executable(dwarfs_compat_test test/dwarfs_compat.cpp)
-  add_executable(dwarfs_badfs_test test/dwarfs_badfs.cpp)
-  if(FUSE3_FOUND OR WINFSP OR FUSE_FOUND)
-    add_executable(dwarfs_tools_test test/dwarfs_tools.cpp)
-  endif()
-  add_executable(dwarfs_utils_test test/utils_test.cpp)
-
-  target_link_libraries(dwarfs_test test_helpers gtest gtest_main)
-  target_link_libraries(dwarfs_compat_test gtest gtest_main)
-  target_link_libraries(dwarfs_badfs_test gtest gtest_main)
-  if(FUSE3_FOUND OR WINFSP OR FUSE_FOUND)
-    target_link_libraries(dwarfs_tools_test test_helpers gtest gtest_main)
-  endif()
-  target_link_libraries(dwarfs_utils_test gtest gtest_main)
-
-  list(APPEND BINARY_TARGETS dwarfs_test dwarfs_compat_test dwarfs_badfs_test
-       dwarfs_utils_test)
-
-  if(FUSE3_FOUND OR WINFSP OR FUSE_FOUND)
-    list(APPEND BINARY_TARGETS dwarfs_tools_test)
-  endif()
-
-  gtest_discover_tests(dwarfs_test DISCOVERY_TIMEOUT 120)
-  gtest_discover_tests(dwarfs_compat_test DISCOVERY_TIMEOUT 120)
-  gtest_discover_tests(dwarfs_badfs_test DISCOVERY_TIMEOUT 120)
-  if(FUSE3_FOUND OR WINFSP OR FUSE_FOUND)
-    gtest_discover_tests(dwarfs_tools_test DISCOVERY_TIMEOUT 120)
-  endif()
-  gtest_discover_tests(dwarfs_utils_test DISCOVERY_TIMEOUT 120)
-
-  target_compile_definitions(dwarfs_compat_test
-                             PRIVATE TEST_DATA_DIR=\"${CMAKE_SOURCE_DIR}/test\")
-
-  target_compile_definitions(dwarfs_badfs_test
-                             PRIVATE TEST_DATA_DIR=\"${CMAKE_SOURCE_DIR}/test\")
-
-  if(FUSE3_FOUND OR WINFSP OR FUSE_FOUND)
-    target_compile_definitions(
-      dwarfs_tools_test
-      PRIVATE TEST_DATA_DIR=\"${CMAKE_SOURCE_DIR}/test\"
-              TOOLS_BIN_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\")
-  endif()
-endif()
-
-if(WITH_BENCHMARKS)
-  pkg_check_modules(BENCHMARK IMPORTED_TARGET benchmark)
-  add_executable(dwarfs_benchmark test/dwarfs_benchmark.cpp)
-  target_link_libraries(dwarfs_benchmark test_helpers PkgConfig::BENCHMARK)
-  list(APPEND BINARY_TARGETS dwarfs_benchmark)
+  list(APPEND PKG_CONFIG_EXECUTABLE "--static")
 endif()
 
 if(WITH_MAN_PAGES)
-  list(REMOVE_DUPLICATES MAN_DIRS)
-  add_custom_target(manpages ALL DEPENDS ${MAN_PAGES})
-endif()
-
-list(
-  APPEND
-  FROZEN_THRIFT_SRC
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_data.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_data.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_types.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_types.tcc
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_types.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_types_custom_protocol.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_constants.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_constants.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_metadata.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_metadata.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_visitation.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_for_each_field.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_visit_union.h)
-
-list(
-  APPEND
-  METADATA_THRIFT_SRC
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_clients.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_constants.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_constants.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_data.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_data.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_for_each_field.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_handlers.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_layouts.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_layouts.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_metadata.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_metadata.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_types.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_types.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_types.tcc
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_types_custom_protocol.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_visit_by_thrift_field_metadata.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_visit_union.h
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_visitation.h)
-
-add_custom_command(
-  OUTPUT thrift/lib/thrift/_keep
-  COMMAND ${CMAKE_COMMAND} -E make_directory thrift/lib/thrift
-  COMMAND ${CMAKE_COMMAND} -E touch thrift/lib/thrift/_keep
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-add_custom_command(
-  OUTPUT ${FROZEN_THRIFT_SRC}
-  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/thrift/frozen.thrift
-              ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/
-  COMMAND ${CMAKE_CURRENT_BINARY_DIR}/bin/thrift1
-              -I ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift
-              -o ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift
-              --gen mstch_cpp2
-              frozen.thrift
-  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bin/thrift1
-          ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/_keep
-          ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/thrift/frozen.thrift
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift
-)
-
-add_custom_command(
-  OUTPUT thrift/dwarfs/_keep
-  COMMAND ${CMAKE_COMMAND} -E make_directory thrift/dwarfs
-  COMMAND ${CMAKE_COMMAND} -E touch thrift/dwarfs/_keep
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-add_custom_command(
-  OUTPUT ${METADATA_THRIFT_SRC}
-  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/thrift/metadata.thrift
-              ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/metadata.thrift
-  COMMAND ${CMAKE_CURRENT_BINARY_DIR}/bin/thrift1
-              -I ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift
-              -o ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs
-              --gen mstch_cpp2:frozen2
-              metadata.thrift
-  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bin/thrift1
-          ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/_keep
-          ${CMAKE_CURRENT_SOURCE_DIR}/thrift/metadata.thrift
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs
-)
-
-list(
-  APPEND
-  INCLUDE_DIRS
-  ${CMAKE_CURRENT_BINARY_DIR}/folly
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift
-  ${CMAKE_CURRENT_SOURCE_DIR}/folly
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift
-  ${CMAKE_CURRENT_BINARY_DIR})
-
-if(NOT (ZSTD_FOUND AND PREFER_SYSTEM_ZSTD))
-  list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/zstd/lib)
-endif()
-
-if(NOT
-   (XXHASH_FOUND
-    AND XXHASH_VERSION_OK
-    AND PREFER_SYSTEM_XXHASH))
-  list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/xxHash)
-endif()
-
-set(DWARFS_USE_EXCEPTION_TRACER OFF)
-if(NOT STATIC_BUILD_DO_NOT_USE AND NOT FOLLY_NO_EXCEPTION_TRACER)
-  if(TARGET folly_exception_tracer)
-    message(STATUS "Folly exception tracer enabled")
-    set(DWARFS_USE_EXCEPTION_TRACER ON)
+  include("cmake/ensure_mistletoe.cmake")
+  include("cmake/manpage.cmake")
+  if(WITH_LIBDWARFS)
+    list(APPEND DWARFS_MANPAGES dwarfs-format.5 dwarf-env.7)
   endif()
-endif()
-
-add_library(
-  thrift_light
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/FieldRef.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/Protocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/CompactProtocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/BinaryProtocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/DebugProtocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/JSONProtocolCommon.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/JSONProtocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp/protocol/TProtocolException.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp/util/VarintUtils.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/gen/module_types_cpp.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/frozen/Frozen.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/frozen/FrozenUtil.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/frozen/schema/MemorySchema.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_data.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/lib/thrift/gen-cpp2/frozen_types.cpp)
-
-set_property(TARGET thrift_light PROPERTY CXX_STANDARD 20)
-target_link_libraries(thrift_light folly)
-
-target_include_directories(thrift_light PRIVATE ${INCLUDE_DIRS})
-
-add_library(
-  metadata_thrift
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_layouts.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_types.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/thrift/dwarfs/gen-cpp2/metadata_data.cpp)
-
-set_property(TARGET metadata_thrift PROPERTY CXX_STANDARD 20)
-
-target_include_directories(metadata_thrift PRIVATE ${INCLUDE_DIRS})
-
-target_link_libraries(metadata_thrift thrift_light)
-
-foreach(tgt dwarfs dwarfs_compression dwarfs_tool ${BINARY_TARGETS} ${MAIN_TARGETS})
-  target_include_directories(
-    ${tgt} SYSTEM
-    PRIVATE ${Boost_INCLUDE_DIRS} ${Python3_INCLUDE_DIRS} ${INCLUDE_DIRS}
-            ${CMAKE_CURRENT_SOURCE_DIR}/parallel-hashmap)
-
-  target_include_directories(${tgt} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-  target_compile_definitions(
-    ${tgt}
-    PRIVATE DWARFS_HAVE_LIBZSTD
-            DWARFS_STATIC_BUILD=${STATIC_BUILD_DO_NOT_USE}
-            $<$<BOOL:${USE_JEMALLOC}>:DWARFS_USE_JEMALLOC>
-            $<$<BOOL:${LIBLZ4_FOUND}>:DWARFS_HAVE_LIBLZ4>
-            $<$<BOOL:${LIBLZMA_FOUND}>:DWARFS_HAVE_LIBLZMA>
-            $<$<AND:$<BOOL:${LIBBROTLIDEC_FOUND}>,$<BOOL:${LIBBROTLIENC_FOUND}>>:DWARFS_HAVE_LIBBROTLI>
-  )
-
-  if(DWARFS_USE_EXCEPTION_TRACER)
-    target_compile_definitions(${tgt} PRIVATE DWARFS_USE_EXCEPTION_TRACER)
+  if(WITH_TOOLS)
+    list(APPEND DWARFS_MANPAGES mkdwarfs.1 dwarfsck.1 dwarfsextract.1)
   endif()
-
-  if(ENABLE_PERFMON)
-    target_compile_definitions(${tgt} PRIVATE DWARFS_PERFMON_ENABLED=1)
+  if(WITH_FUSE_DRIVER)
+    list(APPEND DWARFS_MANPAGES dwarfs.1)
   endif()
-
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
-     "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    target_compile_options(${tgt} PRIVATE -Wall -Wextra -pedantic)
-  endif()
-
-  set_property(TARGET ${tgt} PROPERTY CXX_STANDARD 20)
-  set_property(TARGET ${tgt} PROPERTY CXX_STANDARD_REQUIRED ON)
-  set_property(TARGET ${tgt} PROPERTY CXX_EXTENSIONS OFF)
-
-  add_dependencies(${tgt} metadata_thrift)
-  if (NOT ("${OSTYPE_TXT}" MATCHES "Windows"))
-    add_dependencies(${tgt} ${LIBARCHIVE_PRJ})
-  endif()
-
-  if(ENABLE_ASAN)
-    target_compile_options(${tgt} PRIVATE -fsanitize=address
-                                          -fno-omit-frame-pointer)
-    target_link_options(${tgt} PRIVATE -fsanitize=address)
-  endif()
-
-  if(ENABLE_TSAN)
-    target_compile_options(${tgt} PRIVATE -fsanitize=thread
-                                          -fno-omit-frame-pointer)
-    target_link_options(${tgt} PRIVATE -fsanitize=thread)
-  endif()
-
-  if(ENABLE_UBSAN)
-    target_compile_options(${tgt} PRIVATE -fsanitize=undefined
-                                          -fno-omit-frame-pointer)
-    target_link_options(${tgt} PRIVATE -fsanitize=undefined)
-  endif()
-
-  if(ENABLE_COVERAGE)
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-      target_compile_options(${tgt} PRIVATE --coverage -fno-omit-frame-pointer)
-      target_link_options(${tgt} PRIVATE --coverage)
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-      target_compile_options(
-        ${tgt} PRIVATE -fprofile-instr-generate -fcoverage-mapping
-                       -fno-omit-frame-pointer)
-      target_link_options(${tgt} PRIVATE -fprofile-instr-generate
-                          -fcoverage-mapping)
-    endif()
-  endif()
-endforeach()
-
-# not sure why exactly, copied from fsst/CMakeLists.txt
-if(CMAKE_BUILD_TYPE STREQUAL Release)
-  set_source_files_properties(fsst/fsst_avx512.cpp PROPERTIES COMPILE_FLAGS -O1)
-endif()
-
-add_library(
-  fsst
-  fsst/libfsst.cpp fsst/fsst_avx512.cpp fsst/fsst_avx512_unroll1.inc
-  fsst/fsst_avx512_unroll2.inc fsst/fsst_avx512_unroll3.inc
-  fsst/fsst_avx512_unroll4.inc)
-
-target_include_directories(dwarfs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/fsst)
-
-list(APPEND LIBRARIES
-  dwarfs
-  dwarfs_tool
-  metadata_thrift
-  thrift_light
-  folly
-  ${WINSOCK}
-  fsst
-  ${Boost_LIBRARIES}
-)
-
-if (IS_MSYS)
-  list(APPEND LIBRARIES glog gflags)
-endif()
-
-if(NOT PREFER_SYSTEM_LIBFMT)
-  list(APPEND LIBRARIES fmt)
-endif()
-
-if(LIBLZ4_FOUND)
-  list(APPEND LIBRARIES PkgConfig::LIBLZ4)
-endif()
-
-if(LIBLZMA_FOUND)
-  list(APPEND LIBRARIES PkgConfig::LIBLZMA)
-endif()
-
-if(LIBBROTLIDEC_FOUND AND LIBBROTLIENC_FOUND AND LIBBROTLICOMMON_FOUND)
-  list(APPEND LIBRARIES PkgConfig::LIBBROTLIDEC PkgConfig::LIBBROTLIENC PkgConfig::LIBBROTLICOMMON)
-endif()
-
-if(NOT STATIC_BUILD_DO_NOT_USE)
-  if(MSVC)
-    list(APPEND LIBRARIES PkgConfig::LIBARCHIVE)
-  else(MSVC)
-    list(APPEND LIBRARIES _LIBARCHIVE)
-  endif(MSVC)
-endif(NOT STATIC_BUILD_DO_NOT_USE)
-
-if(ZSTD_FOUND AND PREFER_SYSTEM_ZSTD)
-  list(APPEND LIBRARIES PkgConfig::ZSTD)
-else()
-  list(APPEND LIBRARIES libzstd_static)
-endif()
-
-if(XXHASH_FOUND
-   AND XXHASH_VERSION_OK
-   AND PREFER_SYSTEM_XXHASH)
-   list(APPEND LIBRARIES PkgConfig::XXHASH)
-else()
-  list(APPEND LIBRARIES xxhash)
-endif()
-
-foreach(tgt ${BINARY_TARGETS} ${MAIN_TARGETS})
-  target_link_libraries(${tgt} "$<LINK_LIBRARY:WHOLE_ARCHIVE,dwarfs_compression>")
-  if(MSVC)
-    target_link_libraries(${tgt} ${LIBRARIES} PkgConfig::LIBARCHIVE)
-  else(MSVC)
-    target_link_libraries(${tgt} ${LIBRARIES} _LIBARCHIVE)
-  endif(MSVC)
-  if(USE_JEMALLOC)
-    target_link_libraries(${tgt} PkgConfig::JEMALLOC)
-  endif(USE_JEMALLOC)
-  if(DWARFS_USE_EXCEPTION_TRACER)
-    target_link_libraries(${tgt} "$<LINK_LIBRARY:WHOLE_ARCHIVE,folly_exception_tracer_base>")
-  endif()
-endforeach()
-
-
-if(STATIC_BUILD_DO_NOT_USE)
-  # ...................................................................
-  # Each library name given to the NAMES option is first considered as a library
-  # file name and then considered with platform-specific prefixes (e.g. lib) and
-  # suffixes (e.g. .so).
-  # ...................................................................
-
-  function(IMPORT_STATIC_LIB TARGET NAME)
-    find_library(_TMP_LIB_LOC_${TARGET} ${NAME} NO_CACHE REQUIRED)
-    add_library(${TARGET} STATIC IMPORTED)
-    set_target_properties(${TARGET} PROPERTIES IMPORTED_LOCATION
-                                               ${_TMP_LIB_LOC_${TARGET}})
-  endfunction()
-
-  import_static_lib(static_libglog "libglog.a")
-  if(PREFER_SYSTEM_LIBFMT)
-    import_static_lib(static_libfmt "libfmt.a")
-  endif()
-  import_static_lib(static_libdoubleconv "libdouble-conversion.a")
-  import_static_lib(static_libgflags "libgflags.a")
-  import_static_lib(static_libevent "libevent.a")
-  import_static_lib(static_libacl "libacl.a")
-  import_static_lib(static_libxml2 "libxml2.a")
-  import_static_lib(static_libcrypto "libcrypto.a")
-  import_static_lib(static_libz "libz.a")
-  import_static_lib(static_libpthread "libpthread.a")
-  import_static_lib(static_libdl "libdl.a")
-  import_static_lib(static_libm "libm.a")
-  import_static_lib(static_librt "librt.a")
-  import_static_lib(static_libssl "libssl.a")
-  import_static_lib(static_libunwind "libunwind.a")
-  import_static_lib(static_libarchive "libarchive.a")
-
-  set_target_properties(static_libunwind PROPERTIES INTERFACE_LINK_LIBRARIES
-                                                    PkgConfig::LIBLZMA)
-  set_target_properties(static_libglog PROPERTIES INTERFACE_LINK_LIBRARIES
-                                                  static_libgflags)
-  set_target_properties(static_librt PROPERTIES INTERFACE_LINK_LIBRARIES
-                                                static_libgflags)
-
-
-  foreach(tgt ${BINARY_TARGETS})
-    if(PREFER_SYSTEM_LIBFMT)
-      target_link_libraries(
-        ${tgt}
-        static_libfmt)
-    endif()
-
-    # ...................................................................
-    # -static-libgcc above and gcc_eh below is all together an ugly trick to
-    # enforce static linking
-    # ...................................................................
-    target_link_libraries(
-      ${tgt}
-      static_libdoubleconv
-      static_libglog
-      static_libgflags
-      static_libarchive
-      static_libevent
-      static_libacl
-      static_libssl
-      static_libcrypto
-      static_libpthread
-      static_libdl
-      static_libz
-      static_libm
-      static_librt
-      gcc_eh
-      static_libunwind)
+  foreach(man ${DWARFS_MANPAGES})
+    add_manpage(${man})
   endforeach()
-endif(STATIC_BUILD_DO_NOT_USE)
-
-add_custom_target(
-  realclean
-  COMMAND
-    COMMAND ${CMAKE_MAKE_PROGRAM} clean
-  COMMAND
-    ${CMAKE_COMMAND} -E rm -rf
-        CMakeCache.txt CMakeFiles
-        cmake_install.cmake install_manifest.txt
-        dwarfs_install.cmake package_version.cmake
-        CPackConfig.cmake CPackSourceConfig.cmake _CPack_Packages
-        CTestTestfile.cmake Testing
-        "dwarfs_badfs_test[1]_include.cmake"
-        "dwarfs_compat_test[1]_include.cmake"
-        "dwarfs_test[1]_include.cmake"
-        "dwarfs_tools_test[1]_include.cmake"
-        "dwarfs_utils_test[1]_include.cmake"
-        fbthrift folly zstd
-        include src thrift universal bin lib man1 man5
-        vcpkg-manifest-install.log
-        dwarfs.exe.manifest dwarfsbench.exe.manifest
-        dwarfsck.exe.manifest dwarfsextract.exe.manifest
-        dwarfs_badfs_test.exe.manifest dwarfs_compat_test.exe.manifest
-        dwarfs_test.exe.manifest dwarfs_tools_test.exe.manifest
-        dwarfs_utils_test.exe.manifest mkdwarfs.exe.manifest
-        install_manifest_dev.txt install_manifest_gmock.txt
-        install_manifest_gtest.txt install_manifest_Unspecified.txt
-        build.ninja .ninja_deps
-        Makefile
-)
-
-add_custom_target(
-  distclean
-  COMMAND
-    COMMAND ${CMAKE_MAKE_PROGRAM} realclean
-  COMMAND
-    ${CMAKE_COMMAND} -E rm -rf _deps
-)
-
-file(GLOB_RECURSE ALL_SOURCES LIST_DIRECTORIES false
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/test/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp)
-
-add_custom_target(
-  format
-  COMMAND clang-format -i ${ALL_SOURCES})
-
-foreach(man_dir ${MAN_DIRS})
-  install(DIRECTORY "${man_dir}" DESTINATION share/man)
-endforeach()
-
-# TODO: There's currently no point installing the library + headers, as these
-# have dependencies on the bundled folly/thrift/... which we don't install.
-if(FALSE)
-  if(NOT STATIC_BUILD_DO_NOT_USE)
-    install(
-      TARGETS dwarfs
-      RUNTIME DESTINATION bin
-      LIBRARY DESTINATION lib
-      ARCHIVE DESTINATION lib)
-    install(DIRECTORY include/dwarfs DESTINATION include)
-  endif()
 endif()
 
-if(STATIC_BUILD_DO_NOT_USE AND NOT WIN32)
-  foreach(tgt ${BINARY_TARGETS})
-    list(APPEND FILES_TO_STRIP $<TARGET_FILE:${tgt}>)
-  endforeach()
-  add_custom_target(strip COMMAND strip -s ${FILES_TO_STRIP})
+include(FetchContent)
+include(GNUInstallDirs)
+
+# Header-only libraries - vcpkg-aware
+if(WITH_TESTS)
+  include(cmake/vcpkg/gtest.cmake)
 endif()
 
-if(STATIC_BUILD_DO_NOT_USE OR (WIN32 AND NOT IS_MSYS AND "${TEBAKO_BUILD_SCOPE}" STREQUAL "ALL"))
-  find_program(UPX_EXE upx upx.exe PATHS "c:/bin" DOC "ultimate packer for executables" REQUIRED)
+include(cmake/vcpkg/fmt.cmake)
+include(cmake/vcpkg/range_v3.cmake)
+include(cmake/vcpkg/json.cmake)
+include(cmake/vcpkg/utf8cpp.cmake)
 
-  set(UNIVERSAL_PACKED
-          "dwarfs-universal-${PRJ_VERSION_FULL}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}${CMAKE_EXECUTABLE_SUFFIX}")
+if(WITH_LIBDWARFS)
+  include(cmake/vcpkg/phmap.cmake)
 
-  add_custom_command(
-    OUTPUT ${UNIVERSAL_PACKED}
-    COMMAND ${UPX_EXE} -o ${UNIVERSAL_PACKED} $<TARGET_FILE:dwarfsuniversal>
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  )
+  # BZip2 must be found BEFORE Boost (required by boost-iostreams)
+  include(cmake/vcpkg/bzip2.cmake)
 
-  add_custom_target(universal_upx DEPENDS ${UNIVERSAL_PACKED})
+  find_package(Boost ${BOOST_REQUIRED_VERSION} REQUIRED CONFIG
+               COMPONENTS chrono program_options
+               OPTIONAL_COMPONENTS process)
 
-  if(DEFINED ENV{GITHUB_REF_TYPE})
-    if("$ENV{GITHUB_REF_TYPE}" STREQUAL "tag")
-      set(ARTIFACTS_SUBDIR "releases/$ENV{GITHUB_REF_NAME}@${PRJ_GIT_REV}")
-    else()
-      set(ARTIFACTS_SUBDIR "builds/${PRJ_VERSION_FULL}")
+  if(APPLE)
+    if(USE_HOMEBREW_LIBARCHIVE)
+      find_program(HOMEBREW_EXE brew)
+      execute_process(
+        COMMAND ${HOMEBREW_EXE} --prefix libarchive
+        OUTPUT_VARIABLE LIBARCHIVE_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+      list(PREPEND CMAKE_PREFIX_PATH ${LIBARCHIVE_PREFIX})
     endif()
-
-    set(ARTIFACTS_FULL_PATH "${DWARFS_ARTIFACTS_DIR}/${ARTIFACTS_SUBDIR}")
-
-    if(WIN32)
-      set(PACKAGE_EXT ".7z")
-    else()
-      set(PACKAGE_EXT ".tar.zst")
-    endif()
-
-    add_custom_target(copy_artifacts
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${ARTIFACTS_FULL_PATH}
-      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${PRJ_VERSION_FULL}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}${PACKAGE_EXT} ${ARTIFACTS_FULL_PATH}
-      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${UNIVERSAL_PACKED} ${ARTIFACTS_FULL_PATH}
-    )
-
-    add_custom_target(copy_source_artifacts
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${ARTIFACTS_FULL_PATH}
-      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${PRJ_VERSION_FULL}${PACKAGE_EXT} ${ARTIFACTS_FULL_PATH}
-    )
-  endif()
-endif()
-
-if(NOT "${PRJ_VERSION_FULL}" STREQUAL "")
-  if(DWARFS_GIT_BUILD)
-    configure_file("${PROJECT_SOURCE_DIR}/cmake/dwarfs_install.cmake.in" dwarfs_install.cmake @ONLY)
-    set(CPACK_INSTALL_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/dwarfs_install.cmake")
   endif()
 
-  if(WIN32)
-    # set(CPACK_GENERATOR "NSIS;ZIP;7Z")
-    set(CPACK_GENERATOR "7Z")
+  if(ENABLE_STACKTRACE)
+    find_package(cpptrace REQUIRED CONFIG)
+  endif()
+
+  # ============================================================================
+  # Dependency Discovery - Modular vcpkg-aware
+  # ============================================================================
+
+  # Standard libraries - always required
+  include(cmake/vcpkg/openssl.cmake)
+  include(cmake/vcpkg/libarchive.cmake)
+  include(cmake/vcpkg/xxhash.cmake)
+  include(cmake/vcpkg/zstd.cmake)
+
+  # Compression libraries - MANDATORY for static builds
+  include(cmake/vcpkg/lz4.cmake)
+  include(cmake/vcpkg/lzma.cmake)
+  include(cmake/vcpkg/brotli.cmake)
+  include(cmake/vcpkg/flac.cmake)
+
+  # Memory allocator - MANDATORY for static builds
+  include(cmake/vcpkg/jemalloc.cmake)
+
+  # mimalloc is alternative (mutually exclusive with jemalloc)
+  if(USE_MIMALLOC)
+    find_package(mimalloc ${MIMALLOC_REQUIRED_VERSION} REQUIRED CONFIG)
+  endif()
+
+  # Metadata serialization configuration - MUST BE FIRST
+  # This defines DWARFS_WITH_EXPERIMENTAL_THRIFT option before we check it
+  include(cmake/metadata_serialization.cmake)
+
+  # folly and fbthrift - include AFTER metadata_serialization
+  # These are only included when DWARFS_WITH_EXPERIMENTAL_THRIFT is enabled
+  if(DWARFS_GIT_BUILD AND DWARFS_WITH_EXPERIMENTAL_THRIFT)
+    # In git builds, we can build folly/fbthrift from submodules
+    include(cmake/folly.cmake)
+    include(cmake/thrift_library.cmake)
+    include(cmake/thrift.cmake)
+  endif()
+
+  # If Experimental Thrift was enabled but targets don't exist yet (non-git build),
+  # try to build from submodules as fallback
+  if(DWARFS_WITH_EXPERIMENTAL_THRIFT AND NOT TARGET folly)
+    include(cmake/folly.cmake)
+    include(cmake/thrift_library.cmake)
+    include(cmake/thrift.cmake)
+    # Note: metadata_serialization.cmake already included above at line 306
+    # No need to re-include it here as the detection logic will pick up the newly available targets
+  endif()
+
+  # ============================================================================
+  # WORKAROUND: Fix CMake 4.x + vcpkg generator expression bug
+  # ============================================================================
+  # CMake 4.1.2 + vcpkg toolchain doesn't evaluate $<LINK_ONLY:Threads::Threads>
+  # properly in link commands, causing literal generator expressions in link.txt
+  # files. This workaround removes them after Threads is found (via Folly/FBThrift).
+  #
+  # See: Session 94 - Modern Thrift Testing
+  # TODO: Remove when CMake/vcpkg is fixed upstream
+  # NOTE: This must come AFTER the Folly/Thrift includes above (lines 302-304 or 339-341)
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
+    message(STATUS "Applying CMake 4.x + vcpkg generator expression workaround...")
+    # The issue is that vcpkg targets use $<LINK_ONLY:Threads::Threads> in their
+    # INTERFACE_LINK_LIBRARIES, but CMake 4.x doesn't evaluate these properly.
+    # We need to find and fix all vcpkg targets that have this issue.
+    set(_fixed_count 0)
+    get_cmake_property(_all_targets ALL_TARGETS)
+    foreach(_target ${_all_targets})
+      if(TARGET ${_target})
+        get_target_property(_target_type ${_target} TYPE)
+        if("${_target_type}" STREQUAL "INTERFACE_LIBRARY" OR "${_target_type}" STREQUAL "STATIC_LIBRARY")
+          get_target_property(_link_libs ${_target} INTERFACE_LINK_LIBRARIES)
+          if(_link_libs AND "${_link_libs}" MATCHES "\\$<LINK_ONLY:Threads::Threads>")
+            # Remove generator expressions from INTERFACE_LINK_LIBRARIES
+            string(REGEX REPLACE "\\$<LINK_ONLY:Threads::Threads>" "" _link_libs_clean "${_link_libs}")
+            set_target_properties(${_target} PROPERTIES INTERFACE_LINK_LIBRARIES "${_link_libs_clean}")
+            math(EXPR _fixed_count "${_fixed_count} + 1")
+            message(STATUS "  Fixed: ${_target}")
+          endif()
+        endif()
+      endif()
+    endforeach()
+    message(STATUS "Applied CMake 4.x generator expression workaround: fixed ${_fixed_count} targets")
+  endif()
+  # ============================================================================
+
+  if(ENABLE_RICEPP)
+    # TODO: support FetchContent
+    add_subdirectory(ricepp)
+  endif()
+
+  include(cmake/libdwarfs.cmake)
+
+  # Tool support library (CLI utilities for all tools)
+  include(cmake/tool_support.cmake)
+
+  set(DWARFS_HAVE_CPPTRACE ${cpptrace_FOUND})
+  set(DWARFS_HAVE_LIBZSTD ON)
+  set(DWARFS_HAVE_RICEPP ${ENABLE_RICEPP})
+  set(DWARFS_HAVE_LIBMAGIC ${LIBMAGIC_FOUND})
+  set(DWARFS_HAVE_LIBLZ4 ${LIBLZ4_FOUND})
+  set(DWARFS_HAVE_LIBLZMA ${LIBLZMA_FOUND})
+  if(${LIBBROTLIDEC_FOUND} AND ${LIBBROTLIENC_FOUND})
+    set(DWARFS_HAVE_LIBBROTLI ON)
   else()
-    # use TZST and later re-pack as TXZ
-    set(CPACK_GENERATOR "TZST")
+    set(DWARFS_HAVE_LIBBROTLI OFF)
   endif()
-  set(CPACK_SOURCE_GENERATOR "${CPACK_GENERATOR}")
-  set(CPACK_PACKAGE_VERSION_MAJOR "${PRJ_VERSION_MAJOR}")
-  set(CPACK_PACKAGE_VERSION_MINOR "${PRJ_VERSION_MINOR}")
-  set(CPACK_PACKAGE_VERSION_PATCH "${PRJ_VERSION_PATCH}")
-  set(CPACK_SOURCE_PACKAGE_FILE_NAME
-      "${CMAKE_PROJECT_NAME}-${PRJ_VERSION_FULL}")
-  set(CPACK_PACKAGE_FILE_NAME
-      "${CMAKE_PROJECT_NAME}-${PRJ_VERSION_FULL}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
-  set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
-      "dwarfs - A high compression read-only file system")
-  set(CPACK_PACKAGE_VENDOR "Marcus Holland-Moritz <github@mhxnet.de>")
-  set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
-  set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
-  list(APPEND CPACK_SOURCE_IGNORE_FILES
-    "\\.git/"
-    "${CMAKE_SOURCE_DIR}/build.*"
-    "${CMAKE_SOURCE_DIR}/@"
-    "/\\."
-    ".*~$"
-    "${CMAKE_SOURCE_DIR}/doc/.*\\.png$"
-    "${CMAKE_SOURCE_DIR}/doc/.*\\.gif$"
-  )
-  set(CPACK_VERBATIM_VARIABLES YES)
-  set(CPACK_STRIP_FILES YES)
+  set(DWARFS_HAVE_FLAC ${FLAC_FOUND})
+  set(DWARFS_BUILTIN_MANPAGE ${WITH_MAN_OPTION})
+  set(DWARFS_PERFMON_ENABLED ${ENABLE_PERFMON})
+  set(DWARFS_STACKTRACE_ENABLED ${ENABLE_STACKTRACE})
+  set(DWARFS_FILESYSTEM_EXTRACTOR_NO_OPEN_FORMAT ${DISABLE_FILESYSTEM_EXTRACTOR_FORMAT})
 
-  include(CPack)
+  # Set FUSE-T flag if using FUSE-T on macOS
+  if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t")
+    set(DWARFS_USE_FUSE_T ON)
+  endif()
+
+  configure_file(cmake/config.h.in include/dwarfs/config.h @ONLY)
+else()
+  find_package(dwarfs ${PRJ_VERSION_MAJOR}.${PRJ_VERSION_MINOR}.${PRJ_VERSION_PATCH} EXACT REQUIRED CONFIG)
+  add_library(dwarfs_common ALIAS dwarfs::dwarfs_common)
+  add_library(dwarfs_reader ALIAS dwarfs::dwarfs_reader)
+  add_library(dwarfs_writer ALIAS dwarfs::dwarfs_writer)
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+    add_library(dwarfs_rewrite ALIAS dwarfs::dwarfs_rewrite)
+  endif()
+  add_library(dwarfs_extractor ALIAS dwarfs::dwarfs_extractor)
+endif()
+
+include(cmake/libdwarfs_tool.cmake)
+
+# ============================================================================
+# Include Modular CMake Files
+# ============================================================================
+
+if(WITH_TOOLS OR WITH_FUSE_DRIVER OR WITH_PXATTR OR WITH_EXAMPLE)
+  include(cmake/tools.cmake)
+endif()
+
+if(WITH_TESTS OR WITH_BENCHMARKS OR WITH_FUZZ)
+  include(cmake/tests.cmake)
+endif()
+
+# ============================================================================
+# Homebrew Compatibility Tests
+# ============================================================================
+
+if(WITH_TESTS)
+  option(WITH_COMPAT_TESTS "Enable Homebrew compatibility tests" ON)
+  if(WITH_COMPAT_TESTS)
+    add_subdirectory(test/compat)
+  endif()
+endif()
+
+include(cmake/compiler_flags.cmake)
+include(cmake/packaging.cmake)
+
+# ============================================================================
+# FINAL WORKAROUND: Fix CMake 4.x + vcpkg generator expression bug
+# ============================================================================
+# This runs at the very end of configuration, after all vcpkg targets are created
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
+  message(STATUS "Applying FINAL CMake 4.x + vcpkg generator expression workaround...")
+  set(_fixed_count 0)
+  # List of known vcpkg targets that have generator expressions
+  # (from grep results: libxml2, glog, liblzma, boost_atomic, boost_thread, etc.)
+  set(_known_targets
+    Boost::atomic Boost::thread Boost::chrono Boost::context
+    glog::glog
+    liblzma::liblzma
+    LibXml2::LibXml2 Iconv::Iconv
+    BZip2::BZip2 ZLIB::ZLIB
+  )
+  foreach(_target ${_known_targets})
+    if(TARGET ${_target})
+      get_target_property(_link_libs ${_target} INTERFACE_LINK_LIBRARIES)
+      if(_link_libs AND "${_link_libs}" MATCHES "\\$<LINK_ONLY:Threads::Threads>")
+        # Remove generator expressions
+        string(REGEX REPLACE "\\$<LINK_ONLY:Threads::Threads>" "" _link_libs_clean "${_link_libs}")
+        set_target_properties(${_target} PROPERTIES INTERFACE_LINK_LIBRARIES "${_link_libs_clean}")
+        math(EXPR _fixed_count "${_fixed_count} + 1")
+        message(STATUS "  Fixed: ${_target}")
+      endif()
+    endif()
+  endforeach()
+  message(STATUS "FINAL workaround: fixed ${_fixed_count} targets")
+
+  # Also patch the build.ninja file to remove generator expressions
+  # This is needed because CMake 4.x doesn't evaluate them properly
+  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
+  if(EXISTS "${_build_ninja}")
+    message(STATUS "Patching build.ninja to remove generator expressions...")
+    execute_process(
+      COMMAND sed -i.bak "s/\\$<LINK_ONLY:Threads::Threads>//g" "${_build_ninja}"
+      RESULT_VARIABLE _sed_result
+      ERROR_QUIET
+    )
+    if(_sed_result EQUAL 0)
+      message(STATUS "  Successfully patched build.ninja")
+    endif()
+  endif()
 endif()
