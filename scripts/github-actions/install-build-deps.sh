@@ -36,6 +36,9 @@ case "$RUNNER_OS" in
     # Essential build tools
     brew install ninja cmake pkg-config
 
+    # Autoconf tools (for building vcpkg dependencies from source)
+    brew install autoconf autoconf-archive automake libtool
+
     # FUSE support for tests
     if [[ "$WITH_FUSE" == "true" ]]; then
       if ! brew list macfuse 2>/dev/null && ! brew list fuse-t 2>/dev/null; then
