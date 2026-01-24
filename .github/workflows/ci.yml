@@ -45,7 +45,6 @@ jobs:
       triplet: x64-linux
       config: production
       vcpkg-manifest: vcpkg-production.json
-      cache-key-prefix: ci
 
   # ========================================================================
   # Experimental Build (May Fail - Known Issues with folly/fbthrift)
@@ -58,7 +57,6 @@ jobs:
       triplet: x64-linux
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json
-      cache-key-prefix: ci
       continue-on-error: true  # Experimental code may be unstable
 
   # ========================================================================
@@ -72,7 +70,6 @@ jobs:
       triplet: x64-linux-dynamic
       config: production
       vcpkg-manifest: vcpkg-production.json
-      cache-key-prefix: ci
 
   # ========================================================================
   # Summary

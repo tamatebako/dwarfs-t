@@ -242,8 +242,6 @@ runs:
 
           [[ "${{ inputs.with-fuse }}" == "true" ]] && \
             (pkg-config --modversion fuse3 || echo "::warning::fuse3 not found")
-
-          pkg-config --modversion xxhash || echo "::warning::xxhash not found"
         fi
 
         echo "::endgroup::"

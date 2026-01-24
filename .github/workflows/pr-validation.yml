@@ -29,4 +29,3 @@ jobs:
       triplet: x64-linux
       config: production
       vcpkg-manifest: vcpkg-production.json
-      cache-key-prefix: pr

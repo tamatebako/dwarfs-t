@@ -40,11 +40,6 @@ on:
         required: false
         type: string
         default: ''
-      cache-key-prefix:
-        description: 'Optional cache key prefix for busting'
-        required: false
-        type: string
-        default: ''
       upload-artifacts:
         description: 'Upload build artifacts'
         required: false
@@ -94,7 +89,6 @@ jobs:
           vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
-          cacheKeyValue: ${{ inputs.cache-key-prefix }}-${{ inputs.triplet }}-${{ inputs.config }}
 
       - name: 🔨 Setup build dependencies
         uses: ./.github/actions/setup-build-deps
