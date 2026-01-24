@@ -11,7 +11,8 @@ set(VCPKG_POLICY_SKIP_MISPLACED_CMAKE_FILES_CHECK enabled)
 
 if(VCPKG_TARGET_IS_WINDOWS)
     # Use native CMake build on Windows (autotools doesn't work with MSVC)
-    vcpkg_cmake_configure(
+    # Configure CMake
+    vcpkg_configure_cmake(
         SOURCE_PATH "${SOURCE_PATH}"
         OPTIONS
             -DJEMALLOC_BUILD_STATIC=ON
@@ -22,9 +23,8 @@ if(VCPKG_TARGET_IS_WINDOWS)
             -DJEMALLOC_ENABLE_DOC=OFF
     )
 
-    vcpkg_cmake_build()
-
-    vcpkg_cmake_install()
+    # Build and install using CMake
+    vcpkg_install_cmake()
 
     # Copy MSVC compatibility headers if they exist
     if(EXISTS "${SOURCE_PATH}/include/msvc_compat/strings.h")
@@ -54,7 +54,7 @@ if(VCPKG_TARGET_IS_WINDOWS)
     endif()
 else()
     # Build without je_ prefix for Folly compatibility on Unix
-    vcpkg_cmake_configure(
+    vcpkg_configure_cmake(
         SOURCE_PATH "${SOURCE_PATH}"
         OPTIONS
             -DJEMALLOC_BUILD_STATIC=ON
@@ -66,9 +66,7 @@ else()
             -DJEMALLOC_PREFIX=""
     )
 
-    vcpkg_cmake_build()
-
-    vcpkg_cmake_install()
+    vcpkg_install_cmake()
 endif()
 
 vcpkg_fixup_pkgconfig()
