@@ -403,72 +403,75 @@ git branch -d release/0.9.0
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
-│  │  PR          │    │  CI Main     │    │  Release     │     │
-│  │  Validation  │    │  (Comprehensive)│  │  (Release)   │     │
+│  │  PR          │    │  CI          │    │  CI Matrix   │     │
+│  │  Validation  │    │  (Linux x64) │    │  (All Plats) │     │
 │  └──────────────┘    └──────────────┘    └──────────────┘     │
 │         │                     │                     │           │
 │         ▼                     ▼                     ▼           │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
-│  │  Fast (15m)  │    │  Full (45m)  │    │  Release     │     │
-│  │  Ubuntu x64  │    │  All configs │    │  All plats   │     │
+│  │  Fast (15m)  │    │  Main (60m)  │    │  Full (2-3h) │     │
+│  │  Production  │    │  3 configs   │    │  17 configs  │     │
 │  └──────────────┘    └──────────────┘    └──────────────┘     │
+│         │                     │                     │           │
+│         └─────────────────────┴─────────────────────┘           │
+│                               │                                 │
+│                               ▼                                 │
+│                    ┌──────────────────┐                         │
+│                    │  _build.yml      │                         │
+│                    │  (Reusable Core) │                         │
+│                    └──────────────────┘                         │
 │                                                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Current CI Matrix (2025-01-22)
+### Workflow Architecture (2025-01-24)
 
-**Status**: Currently tests only Ubuntu x64 with 2 configurations
+DwarFS uses a **MECE** (Mutually Exclusive, Collectively Exhaustive) workflow structure:
 
-| Job | Platform | Triplet | Config | Status |
-|-----|----------|---------|--------|--------|
-| test-ubuntu-production | ubuntu-latest | x64-linux | production | ✅ Active |
-| test-ubuntu-experimental | ubuntu-latest | x64-linux | experimental | ✅ Active |
+| Workflow | Purpose | Trigger | Jobs | Runtime |
+|----------|---------|---------|------|--------|
+| `pr-validation.yml` | Fast PR feedback | Pull requests | 1 | ~15 min |
+| `ci.yml` | Main CI validation | Push to main, feature/** | 3 | ~60 min |
+| `ci-matrix.yml` | Full cross-platform matrix | Push to main, manual | 17 | ~2-3 hours |
+| `release.yml` | Release artifacts | Git tags (v*) | Variable | ~30 min |
 
-**TODO**: Expand to full matrix (see below)
+**Reusable Core:**
+| Workflow | Purpose | Used By |
+|----------|---------|---------|
+| `_build.yml` | Core build/test logic | All CI workflows |
 
-### Proposed CI Matrix (Future)
+### CI Matrix Coverage
 
-**Status**: Needs to be implemented
+**ci-matrix.yml** tests all supported triplets across platforms:
 
-```yaml
-strategy:
-  fail-fast: false
-  matrix:
-    include:
-      # Linux x64
-      - runner: ubuntu-latest
-        triplet: x64-linux
-        config: production
-      - runner: ubuntu-latest
-        triplet: x64-linux
-        config: experimental
+| Platform | Jobs | Configurations |
+|----------|------|----------------|
+| **Linux** | 6 | x64 (production/experimental/dynamic), ARM64 (production/experimental) |
+| **macOS** | 5 | x64 (production/dynamic), ARM64 (production/experimental/dynamic) |
+| **Windows** | 6 | x64 (static/dynamic/MSYS/MinGW), ARM64 (static) |
 
-      # macOS x64
-      - runner: macos-13
-        triplet: x64-osx
-        config: production
-
-      # macOS ARM64
-      - runner: macos-latest
-        triplet: arm64-osx
-        config: production
-
-      # Windows x64
-      - runner: windows-latest
-        triplet: x64-windows-static
-        config: production
-```
+**Total: 17 jobs** in full matrix (manual or push to main)
 
 ### CI Workflow Files
 
 | File | Purpose | Trigger | Runtime |
 |------|---------|---------|---------|
-| `pr-validation.yml` | Fast PR feedback | Pull request | ~15 min |
-| `build.yml` | Main CI (Linux x64 only) | Push to main | ~1h |
+| `_build.yml` | Reusable core workflow | Called by others | N/A |
+| `pr-validation.yml` | Fast PR feedback (Linux x64 production) | Pull request | ~15 min |
+| `ci.yml` | Main CI (Linux x64 all configs) | Push to main, feature/** | ~60 min |
+| `ci-matrix.yml` | Full cross-platform matrix | Push to main, workflow_dispatch | ~2-3 hours |
 | `release.yml` | Release builds | Git tag (v*) | ~30 min |
 
-**NOTE**: `ci-main.yml` and `ci-matrix.yml` mentioned elsewhere do **not exist**. Only `build.yml` is used for main CI.
+### Experimental Build Issues
+
+**Issue**: Experimental build fails
+**Explanation**: The experimental configuration builds Modern Thrift (fbthrift) which depends on folly, fizz, mvfst, and wangle. These are complex dependencies that may fail to compile.
+
+**Status**: Experimental jobs are marked with `continue-on-error: true` so they don't block CI. The production build must pass.
+
+**Affected Jobs**:
+- `ci.yml` → `experimental` job
+- `ci-matrix.yml` → All jobs with "Experimental" in name
 
 ## Tebako-DwarFS Integration
 

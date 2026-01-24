@@ -12,14 +12,8 @@ This document provides comprehensive information about testing DwarFS, including
   - [Benchmark Tests](#benchmark-tests)
 - [Running Tests](#running-tests)
   - [Local Testing](#local-testing)
-  - [CI/CD Testing](#cicd-testing)
+- [CI/CD Testing](#cicd-testing)
 - [Compatibility Test Framework](#compatibility-test-framework)
-  - [Purpose](#purpose)
-  - [Architecture](#architecture)
-  - [Test Fixtures](#test-fixtures)
-  - [Fixture Cache](#fixture-cache)
-  - [Homebrew Detection](#homebrew-detection)
-- [Platform Matrix Testing](#platform-matrix-testing)
 - [Writing Tests](#writing-tests)
 - [Troubleshooting](#troubleshooting)
 
@@ -48,10 +42,9 @@ The easiest way to test DwarFS is using the **unified build system** with one-st
 **What it does:**
 1. ✅ Detects build environment (vcpkg vs system packages)
 2. ✅ Verifies Tebako jemalloc overlay port
-3. ✅ Tests FlatBuffers-only configuration
-4. ✅ Tests Both-formats configuration (FlatBuffers + Thrift)
-5. ✅ Runs all unit tests
-6. ⏭️  Optionally runs benchmarks (prompts first)
+3. ✅ Tests production configuration (FlatBuffers + Legacy Thrift)
+4. ✅ Runs all unit tests
+5. ⏭️  Optionally runs benchmarks (prompts first)
 
 **For backward compatibility, the old paths still work:**
 ```bash
@@ -80,17 +73,6 @@ ctest --verbose
 
 ## Developer Workflow
 
-### Prerequisites
-
-**CRITICAL**: DwarFS requires **Tebako's fork of jemalloc 5.5.0**, NOT the upstream jemalloc!
-
-| Build Mode | jemalloc Source | How to Get It |
-|------------|----------------|--------------|
-| **vcpkg (Recommended)** | Tebako 5.5.0 | Auto-installed via vcpkg overlay port |
-| **System Packages** | ⚠️ Incompatible | Homebrew has 5.3.0 (won't work) |
-
-**Recommended**: Use vcpkg mode for all builds.
-
 ### One-Step Process for Developers
 
 ```bash
@@ -104,7 +86,7 @@ git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
 export VCPKG_ROOT="$HOME/vcpkg"
 
 # Run all tests (one command!)
-./scripts/test-everything.sh
+./scripts/one-step/test-everything.sh
 ```
 
 That's it! The script will:
@@ -123,18 +105,8 @@ That's it! The script will:
 ./scripts/test-all-configs.sh --vcpkg
 
 # Quick validation before release
-./scripts/test-everything.sh --quick
+./scripts/one-step/test-everything.sh --quick
 ```
-
-### Available Test Scripts
-
-| Script | Purpose | Usage |
-|--------|---------|-------|
-| `test-everything.sh` | **One-stop testing** | `./scripts/test-everything.sh` |
-| `build-all-and-test.sh` | Full CI simulation | `./scripts/build-all-and-test.sh --vcpkg` |
-| `test-all-configs.sh` | Configuration matrix | `./scripts/test-all-configs.sh --vcpkg` |
-| `clean-build.sh` | Clean rebuild | `BUILD_DIR=build ./scripts/clean-build.sh -y` |
-| `benchmark-all.sh` | Performance tests | `./scripts/benchmark-all.sh` |
 
 ## Test Suites
 
@@ -214,87 +186,117 @@ ctest -R metadata
 ./test/compat/read_homebrew_files_test --gtest_print_time=1
 ```
 
-### CI/CD Testing
+## CI/CD Testing
 
-#### Actual CI/CD Architecture (2025-01-24)
+### Workflow Architecture (2025-01-24)
 
-**WARNING**: Previous documentation claimed workflows that don't exist (`ci-main.yml`, `scheduled.yml`, `manual.yml`). This section reflects **actual** CI configuration.
-
-**Workflows that actually exist:**
+DwarFS uses a **MECE** (Mutually Exclusive, Collectively Exhaustive) workflow structure:
 
 | Workflow | Purpose | Trigger | Jobs | Runtime |
-|----------|---------|---------|------|--------|
-| `pr-validation.yml` | Fast PR feedback | Pull request | 2 | ~15 min |
-| `build.yml` | Main CI (not `ci-main.yml`) | Push to main | 2 | ~1h |
-| `release.yml` | Release artifacts | Git tag (v*) | 5 | ~30 min |
+|----------|---------|--------|------|--------|
+| `pr-validation.yml` | Fast PR feedback | Pull requests | 1 | ~15 min |
+| `ci.yml` | Main CI validation | Push to main, feature/** | 3 | ~60 min |
+| `ci-matrix.yml` | Full cross-platform matrix | Push to main, manual | 17 | ~2-3 hours |
+| `release.yml` | Release artifacts | Git tags (v*) | Variable | ~30 min |
 
-**Reusable Workflows:**
-
+**Reusable Core:**
 | Workflow | Purpose | Used By |
 |----------|---------|---------|
-| `_build-test-reusable.yml` | Core build/test | `pr-validation.yml`, `build.yml` |
-| `_build-release-reusable.yml` | Release builds | `release.yml` |
+| `_build.yml` | Core build/test logic | All CI workflows |
 
-**CRITICAL GAP**: Only 2 of 40+ CMakePresets are tested in CI!
+### Workflow Details
 
-| Platform | Preset | CI Status |
-|----------|--------|-----------|
-| Linux x64 | x64-linux-production | ✅ Tested |
-| Linux x64 | x64-linux-experimental | ✅ Tested |
-| Linux x64 dynamic | x64-linux-dynamic-* | ❌ NOT tested |
-| Linux ARM64 | arm64-linux-* | ❌ NOT tested |
-| macOS | All macOS presets | ❌ NOT tested |
-| Windows | All Windows presets | ❌ NOT tested |
+#### pr-validation.yml - Fast PR Feedback
 
-#### GitHub Actions
+**Trigger:** Pull requests to main or feature branches
 
-Tests run automatically on:
-- Pull requests → `pr-validation.yml` (fast feedback, 2 jobs)
-- Pushes to main branch → `build.yml` (2 jobs)
-- Git tags (v*) → `release.yml` (create release)
+**Jobs:**
+- Linux x64 Production (1 job)
 
-**TODO**: Expand CI to test all triplets (see `ci-matrix.yml` planned workflow).
+**Purpose:** Provide quick feedback to developers before merging. Tests only the stable production configuration.
 
-#### CI/CD Matrix Testing
+#### ci.yml - Main CI
 
-**build.yml** tests only **2 configurations**:
+**Trigger:** Push to main or feature branches
 
-| Platform | Runner | Triplet | Config | Status |
-|----------|--------|---------|--------|--------|
-| **Linux** | ubuntu-latest | x64-linux | production | ✅ Active |
-| **Linux** | ubuntu-latest | x64-linux | experimental | ✅ Active |
+**Jobs:**
+- 📦 Linux x64 Production (must pass)
+- 🧪 Linux x64 Experimental (may fail - known folly issues)
+- 🔧 Linux x64 Dynamic (must pass)
 
-**Total: 2 CI jobs** (out of 40+ presets defined in CMakePresets.json)
+**Purpose:** Validate every commit to main branches. Production builds must pass. Experimental builds are allowed to fail due to known issues with folly/fbthrift dependencies.
 
-**Configuration Matrix:**
+#### ci-matrix.yml - Full Cross-Platform Matrix
 
-| Configuration | Metadata Formats | File Extensions | Purpose |
-|--------------|------------------|-----------------|---------|
-| `production` | FlatBuffers + Legacy Thrift | .dff, .dft | Modern default, stable |
-| `experimental` | FlatBuffers + Legacy Thrift + Modern Thrift | .dff, .dft | All formats, max compatibility |
+**Trigger:** Push to main branch, or manual dispatch
 
-**Reusable Workflow:**
+**Platform Coverage:**
+- **Linux** (6 jobs): x64 (production/experimental/dynamic), ARM64 (production/experimental)
+- **macOS** (5 jobs): x64 (production/dynamic), ARM64 (production/experimental/dynamic)
+- **Windows** (5 jobs): x64 (static/dynamic/MSYS/MinGW), ARM64 (static)
 
-The CI uses `.github/workflows/_build-test-reusable.yml` which can be called by other workflows:
+**Total: 17 jobs**
 
-```yaml
-jobs:
-  test:
-    uses: ./.github/workflows/_build-test-reusable.yml
-    with:
-      triplet: ${{ matrix.triplet }}
-      config: ${{ matrix.config }}
-      runner: ${{ matrix.runner }}
-      with-fuse: false
+**Purpose:** Comprehensive cross-platform validation. Tests all supported triplets to ensure DwarFS works everywhere.
+
+**Manual Usage:**
+```bash
+# Trigger via GitHub CLI
+gh workflow run ci-matrix.yml
+
+# With platform filter
+gh workflow run ci-matrix.yml -f platform=macos
 ```
 
-**Composite Actions:**
+#### _build.yml - Reusable Core
 
-The CI uses reusable composite actions (`.github/actions/`):
-- `setup-vcpkg/` - vcpkg setup with overlay ports
-- `setup-build-deps/` - Build dependencies installation
-- `configure-cmake/` - CMake configuration
-- `run-ctest/` - Test execution with result upload
+**Purpose:** Single-source-of-truth for build logic. Called by all other workflows.
+
+**Features:**
+- Uses lukka/run-vcpkg for vcpkg setup with binary caching
+- Uses lukka/run-cmake for CMakePresets-based building
+- Supports all triplets and configurations
+- Shared caching across all workflows
+
+### GitHub Actions Usage
+
+Tests run automatically on:
+- **Pull requests** → `pr-validation.yml` (fast feedback)
+- **Pushes to main** → `ci.yml` (production + experimental)
+- **Pushes to main** → `ci-matrix.yml` (full matrix)
+- **Git tags** → `release.yml` (create release)
+
+**Manual Trigger:**
+```bash
+# Run specific workflow
+gh workflow run pr-validation.yml
+gh workflow run ci.yml
+gh workflow run ci-matrix.yml
+
+# With platform filter
+gh workflow run ci-matrix.yml -f platform=windows
+```
+
+### CI Triplet Coverage
+
+| Platform | Triplet | Config | CI Status |
+|----------|---------|--------|-----------|
+| **Linux x64** | x64-linux | production | ✅ pr-validation, ci, ci-matrix |
+| **Linux x64** | x64-linux | experimental | ✅ ci, ci-matrix |
+| **Linux x64** | x64-linux-dynamic | production | ✅ ci, ci-matrix |
+| **Linux x64** | x64-linux-dynamic | experimental | ✅ ci-matrix |
+| **Linux ARM64** | arm64-linux | production | ✅ ci-matrix |
+| **Linux ARM64** | arm64-linux | experimental | ✅ ci-matrix |
+| **macOS x64** | x64-osx | production | ✅ ci-matrix |
+| **macOS x64** | x64-osx-dynamic | production | ✅ ci-matrix |
+| **macOS ARM64** | arm64-osx | production | ✅ ci-matrix |
+| **macOS ARM64** | arm64-osx | experimental | ✅ ci-matrix |
+| **macOS ARM64** | arm64-osx-dynamic | production | ✅ ci-matrix |
+| **Windows x64** | x64-windows-static | production | ✅ ci-matrix |
+| **Windows x64** | x64-windows-dynamic | production | ✅ ci-matrix |
+| **Windows x64** | x64-windows-msys | production | ✅ ci-matrix |
+| **Windows x64** | x64-windows-mingw | production | ✅ ci-matrix |
+| **Windows ARM64** | arm64-windows-static | production | ✅ ci-matrix |
 
 ## Compatibility Test Framework
 
@@ -325,94 +327,6 @@ The compatibility test framework ensures that Tebako DwarFS can:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Test Fixtures
-
-Test fixtures are DwarFS filesystem images (`.dft` files) used for compatibility testing.
-
-**Naming Convention:**
-```
-dwarfs-v{version}-{platform}-{arch}.dft
-```
-
-Examples:
-- `dwarfs-v0.14.1-darwin-arm64.dft`
-- `dwarfs-vlatest-linux-x86_64.dft`
-
-**Fixture Contents:**
-- Test files (random data)
-- Directories
-- Symlinks
-- Metadata (permissions, timestamps, etc.)
-
-### Fixture Cache
-
-The fixture cache manages test fixtures:
-
-```cpp
-// Create cache
-auto cache = std::make_shared<FixtureCache>("/path/to/cache");
-
-// Store fixture with checksum
-cache->store(spec, data);
-
-// Load fixture
-auto data = cache->load(spec);
-
-// Validate checksum
-bool valid = cache->validate_checksum(spec);
-
-// List fixtures
-auto fixtures = cache->list_fixtures();
-```
-
-### Homebrew Detection
-
-The framework automatically detects Homebrew dwarfs installation:
-
-```cpp
-// Detect Homebrew installation
-auto detector = std::make_shared<HomebrewDetector>();
-HomebrewInfo info = detector->detect();
-
-// Check detection results
-if (info.is_complete()) {
-    std::cout << "mkdwarfs: " << info.mkdwarfs_path << std::endl;
-    std::cout << "version: " << info.version << std::endl;
-}
-```
-
-**Supported Platforms:**
-- macOS: `/opt/homebrew` (arm64), `/usr/local` (x86_64)
-- Linux: `/home/linuxbrew/.linuxbrew`, `~/.linuxbrew`
-
-## Platform Matrix Testing
-
-### Local Testing
-
-To test on your current platform:
-
-```bash
-cd build
-./test/compat/read_homebrew_files_test
-```
-
-### CI/CD Matrix
-
-GitHub Actions runs tests across multiple platforms:
-
-```yaml
-strategy:
-  matrix:
-    os: [macos-latest, ubuntu-latest]
-    arch: [arm64, x86_64]
-```
-
-### Cross-Platform Considerations
-
-1. **macOS**: FUSE reader (`dwarfs`) not available, only `mkdwarfs`
-2. **Linux**: Full toolchain available (`mkdwarfs`, `dwarfs`, `dwarfsextract`)
-3. **Windows**: Requires WSL or native port (in development)
-
 ## Writing Tests
 
 ### Unit Test Example
@@ -429,29 +343,6 @@ TEST(MyTestSuite, TestName) {
 
     // Assert
     EXPECT_EQ(actual, expected);
-}
-```
-
-### Compatibility Test Example
-
-```cpp
-TEST_F(ReadHomebrewFilesTest, ReadBasicFixture) {
-    if (!info_.is_complete()) {
-        GTEST_SKIP() << "Homebrew dwarfs not available";
-    }
-
-    auto spec = create_test_spec();
-
-    // Generate fixture if not cached
-    if (!cache_->has_valid_fixture(spec)) {
-        std::string fixture_path = generator_->generate(spec);
-        std::vector<uint8_t> data = read_file_to_bytes(fixture_path);
-        cache_->store(spec, data);
-    }
-
-    // Load and verify
-    std::vector<uint8_t> data = cache_->load(spec);
-    EXPECT_FALSE(data.empty());
 }
 ```
 
@@ -477,75 +368,23 @@ protected:
 
 ## Troubleshooting
 
-### Tests Being Skipped
+### Common Developer Issues
 
-**Problem:** "Homebrew dwarfs not available"
+**Issue**: Tests fail locally but pass on CI
+**Solution**: Ensure you're using vcpkg mode, not system packages
 
-**Solution:**
-1. Verify Homebrew is installed: `which brew`
-2. Verify mkdwarfs is installed: `brew list dwarfs`
-3. Check detection: `/opt/homebrew/bin/mkdwarfs --version`
+**Issue**: "jemalloc not found"
+**Solution**: The project requires Tebako jemalloc 5.5.0, not upstream 5.3.0
 
-### Checksum Mismatches
+**Issue**: CI timeout
+**Solution**: Use `--quick` mode for faster iteration
 
-**Problem:** "Checksum validation failed"
+### Experimental Build Issues
 
-**Solution:**
-1. Clear fixture cache: `rm -rf /tmp/dwarfs-compat-*`
-2. Regenerate fixtures
-3. Verify mkdwarfs version matches expected
+**Issue**: Experimental build fails
+**Explanation**: The experimental configuration builds Modern Thrift (fbthrift) which depends on folly, fizz, mvfst, and wangle. These are complex dependencies that may fail to compile.
 
-### mkdwarfs Errors
-
-**Problem:** "mkdwarfs failed with exit code: 1"
-
-**Solution:**
-1. Check if output file exists (use `--force` flag)
-2. Verify input directory exists
-3. Check mkdwarfs logs
-
-### Build Failures
-
-**Problem:** "undefined reference to..."
-
-**Solution:**
-1. Clean build: `BUILD_DIR=build ./scripts/clean-build.sh -y`
-2. Check dependencies: `vcpkg list`
-3. Verify CMake configuration
-
-## Continuous Integration
-
-### GitHub Actions Workflows
-
-**Location:** `.github/workflows/`
-
-**Workflows that actually exist:**
-- `pr-validation.yml`: Fast PR validation (2 jobs)
-- `build.yml`: Main CI pipeline (2 jobs)
-- `release.yml`: Release workflow
-- `_build-test-reusable.yml`: Reusable build/test template
-
-**WARNING**: `ci.yml` mentioned in some documentation **does not exist**.
-
-### Triggering CI
-
-```bash
-# On PR
-git push origin feature-branch
-
-# Manual trigger
-gh workflow run pr-validation.yml
-gh workflow run build.yml
-```
-
-**Note**: There is no `ci.yml` or `scheduled.yml` workflow currently implemented.
-
-### Test Artifacts
-
-Test artifacts are stored for:
-- Failed test logs
-- Fixture files
-- Coverage reports (if enabled)
+**Status**: Experimental jobs are marked with `continue-on-error: true` so they don't block CI. The production build must pass.
 
 ## Best Practices
 
@@ -571,4 +410,6 @@ When adding new features:
 - **Google Test Documentation**: https://google.github.io/googletest/
 - **CMake Documentation**: https://cmake.org/documentation/
 - **vcpkg Documentation**: https://vcpkg.io/en/
-- **Project ARCHITECTURE.md**: Detailed architecture documentation
+- **DEVELOPER_WORKFLOW.md**: Developer and release manager workflows
+- **BUILD_SYSTEM_ARCHITECTURE.md**: Build system details
+- **README.md**: Project overview
