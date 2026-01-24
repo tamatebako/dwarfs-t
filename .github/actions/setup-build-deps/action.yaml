@@ -19,106 +19,110 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install dependencies (Windows)
-      shell: powershell
-      run: |
-        Write-Host "Installing Windows build dependencies..."
-
-        # WinFsp for FUSE support
-        if ("${{ inputs.with-fuse }}" -eq "true") {
-          choco install winfsp -y
-        }
-
-        Write-Host "✓ Windows dependencies installed"
-
-    - name: Install dependencies (macOS)
+    - name: Install platform dependencies
       shell: bash
       run: |
-        set -x
-        echo "Installing macOS build dependencies..."
+        echo "Installing build dependencies for $RUNNER_OS..."
 
-        # Essential build tools
-        brew install ninja cmake pkg-config
-
-        # FUSE support for tests
-        if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-          if ! brew list macfuse 2>/dev/null && ! brew list fuse-t 2>/dev/null; then
-            echo "::warning::No FUSE package found. Install macFUSE or FUSE-T manually."
-          fi
-        fi
-
-        echo "✓ macOS dependencies installed"
-
-    - name: Install dependencies (Linux)
-      shell: bash
-      run: |
-        set -x
-        echo "Installing Linux build dependencies..."
-
-        # Detect package manager
-        if command -v apt-get &> /dev/null; then
-          PKG_MANAGER="apt"
-        elif command -v yum &> /dev/null; then
-          PKG_MANAGER="yum"
-        elif command -v apk &> /dev/null; then
-          PKG_MANAGER="apk"
-        else
-          echo "::warning::Unable to detect package manager"
-          exit 0
-        fi
-
-        case "$PKG_MANAGER" in
-          apt)
-            sudo apt-get update
-            sudo apt-get install -y \
-              build-essential \
-              git \
-              ninja-build \
-              pkg-config \
-              autoconf \
-              autoconf-archive \
-              automake \
-              libtool
+        case "$RUNNER_OS" in
+          Windows)
+            # Windows dependencies
+            echo "Installing Windows build dependencies..."
 
             if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-              sudo apt-get install -y libfuse3-dev fuse3
+              choco install winfsp -y
             fi
+
+            echo "✓ Windows dependencies installed"
             ;;
 
-          yum)
-            sudo yum install -y \
-              gcc-c++ \
-              git \
-              ninja-build \
-              pkgconfig \
-              autoconf \
-              autoconf-archive \
-              automake \
-              libtool
+          macOS)
+            # macOS dependencies
+            echo "Installing macOS build dependencies..."
 
+            # Essential build tools
+            brew install ninja cmake pkg-config
+
+            # FUSE support for tests
             if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-              sudo yum install -y fuse3-devel
+              if ! brew list macfuse 2>/dev/null && ! brew list fuse-t 2>/dev/null; then
+                echo "::warning::No FUSE package found. Install macFUSE or FUSE-T manually."
+              fi
             fi
+
+            echo "✓ macOS dependencies installed"
             ;;
 
-          apk)
-            apk add --no-cache \
-              build-base \
-              git \
-              ninja \
-              pkgconf \
-              autoconf \
-              autoconf-archive \
-              automake \
-              libtool
+          Linux)
+            # Linux dependencies
+            echo "Installing Linux build dependencies..."
 
-            if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-              apk add --no-cache fuse3-dev fuse3
+            # Detect package manager
+            if command -v apt-get &> /dev/null; then
+              PKG_MANAGER="apt"
+            elif command -v yum &> /dev/null; then
+              PKG_MANAGER="yum"
+            elif command -v apk &> /dev/null; then
+              PKG_MANAGER="apk"
+            else
+              echo "::warning::Unable to detect package manager"
+              exit 0
             fi
+
+            case "$PKG_MANAGER" in
+              apt)
+                sudo apt-get update
+                sudo apt-get install -y \
+                  build-essential \
+                  git \
+                  ninja-build \
+                  pkg-config \
+                  autoconf \
+                  autoconf-archive \
+                  automake \
+                  libtool
+
+                if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
+                  sudo apt-get install -y libfuse3-dev fuse3
+                fi
+                ;;
+
+              yum)
+                sudo yum install -y \
+                  gcc-c++ \
+                  git \
+                  ninja-build \
+                  pkgconfig \
+                  autoconf \
+                  autoconf-archive \
+                  automake \
+                  libtool
+
+                if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
+                  sudo yum install -y fuse3-devel
+                fi
+                ;;
+
+              apk)
+                apk add --no-cache \
+                  build-base \
+                  git \
+                  ninja \
+                  pkgconf \
+                  autoconf \
+                  autoconf-archive \
+                  automake \
+                  libtool
+
+                if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
+                  apk add --no-cache fuse3-dev fuse3
+                fi
+                ;;
+            esac
+
+            echo "✓ Linux dependencies installed"
             ;;
         esac
-
-        echo "✓ Linux dependencies installed"
 
     - name: Create FUSE mount directory
       if: inputs.with-fuse == 'true'
