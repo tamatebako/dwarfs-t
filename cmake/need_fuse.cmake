@@ -45,6 +45,27 @@ else()
       if(FUSE_T_FOUND)
         set(FUSE_IMPLEMENTATION "fuse-t")
         set(FUSE_FOUND TRUE)
+        # Fix include directories for FUSE-T (pkg-config may point to wrong path)
+        # FUSE-T installs to /usr/local/include/fuse-t/ not /usr/local/include/fuse/
+        if(FUSE_T_INCLUDE_DIRS)
+          list(FILTER FUSE_T_INCLUDE_DIRS EXISTS REGEX ".*/fuse-t$" INCLUDES_EXIST)
+          if(INCLUDES_EXIST)
+            set(FUSE_T_INCLUDE_DIRS "${INCLUDES_EXIST}")
+          else()
+            # Fallback: try to find the actual fuse-t include directory
+            find_path(FUSE_T_INCLUDE_DIR fuse/fuse.h
+              PATHS
+                /usr/local/include/fuse-t
+                /usr/local/include
+              NO_DEFAULT_PATH
+              NO_CMAKE_FIND_ROOT_PATH
+            )
+            if(FUSE_T_INCLUDE_DIR)
+              get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" DIRECTORY)
+              set(FUSE_T_INCLUDE_DIRS "${FUSE_T_INCLUDE_DIR}")
+            endif()
+          endif()
+        endif()
         # Create alias for consistency with other platforms (only if not already exists)
         if(NOT TARGET PkgConfig::FUSE)
           add_library(PkgConfig::FUSE ALIAS PkgConfig::FUSE_T)
