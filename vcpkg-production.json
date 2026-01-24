@@ -90,8 +90,7 @@
     },
     {
       "name": "jemalloc",
-      "version>=": "5.5.0",
-      "platform": "!windows"
+      "version>=": "5.5.0"
     },
     {
       "name": "libsodium",
