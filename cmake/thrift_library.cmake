@@ -135,6 +135,7 @@ function(add_cpp2_thrift_library idlfile)
       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${idlfile}
       ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}/${_THRIFTNAME}.thrift
       COMMAND ${THRIFT1_COMPILER}
+                  VERBATIM
                   -I ${_THRIFT_INCLUDE_PATH}
                   -o ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}
                   --gen ${_THRIFT_GEN} ${_THRIFTNAME}.thrift
