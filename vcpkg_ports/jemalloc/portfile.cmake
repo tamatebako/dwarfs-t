@@ -4,54 +4,50 @@ vcpkg_from_github(
     REF 5.5.0
     SHA512 c24539d845f57290916fae7ed5892cc9f07a347580f65db71bee0c2f11c482004b7f8c27a082c889d7604c14fa5cf6b3be77eb1cf579af2949495865c1d7ed7f
     HEAD_REF master
-    # Suppress policy warnings for misplaced CMake files (autotools build installs CMake files during build)
-    VCPKG_POLICY_SKIP_MISPLACED_CMAKE_FILES_CHECK
 )
 
+# Suppress policy warnings for misplaced CMake files (autotools build installs CMake files during build)
+set(VCPKG_POLICY_SKIP_MISPLACED_CMAKE_FILES_CHECK enabled)
+
 if(VCPKG_TARGET_IS_WINDOWS)
-    # Use CMake on Windows (Tebako jemalloc has CMake support)
-    vcpkg_cmake_configure(
-        SOURCE_PATH "${SOURCE_PATH}"
-    )
+    set(opts "ac_cv_search_log=none required" "--without-private-namespace")
+else()
+    # Build without je_ prefix for Folly compatibility
+    # Set version in jemalloc's expected format
+    set(opts "--with-jemalloc-prefix=" "--with-version=5.5.0-0-g0000000000000000000000000000000000000000")
+endif()
 
-    vcpkg_cmake_build()
-    vcpkg_cmake_install()
+vcpkg_make_configure(
+    AUTORECONF
+    SOURCE_PATH "${SOURCE_PATH}"
+    DISABLE_MSVC_WRAPPERS
+    DISABLE_MSVC_TRANSFORMATIONS
+    OPTIONS ${opts}
+)
 
-    # Copy MSVC compatibility headers
+vcpkg_make_install()
+
+if(VCPKG_TARGET_IS_WINDOWS)
     file(COPY "${SOURCE_PATH}/include/msvc_compat/strings.h" DESTINATION "${CURRENT_PACKAGES_DIR}/include/jemalloc/msvc_compat")
     vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h" "<strings.h>" "\"msvc_compat/strings.h\"")
-
-    # Handle dynamic library DLL placement
     if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
         file(COPY "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/lib/jemalloc.lib" DESTINATION "${CURRENT_PACKAGES_DIR}/lib")
         file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/bin")
         file(RENAME "${CURRENT_PACKAGES_DIR}/lib/jemalloc.dll" "${CURRENT_PACKAGES_DIR}/bin/jemalloc.dll")
-        if(NOT VCPKG_BUILD_TYPE)
+    endif()
+    if(NOT VCPKG_BUILD_TYPE)
+        if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
             file(COPY "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-dbg/lib/jemalloc.lib" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib")
             file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/debug/bin")
             file(RENAME "${CURRENT_PACKAGES_DIR}/debug/lib/jemalloc.dll" "${CURRENT_PACKAGES_DIR}/debug/bin/jemalloc.dll")
         endif()
-    endif
-
-    # Fix pkgconfig file for static linkage
+    endif()
     if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
         vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/jemalloc.pc" "install_suffix=" "install_suffix=_s")
         if(NOT VCPKG_BUILD_TYPE)
             vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/jemalloc.pc" "install_suffix=" "install_suffix=_s")
         endif()
     endif()
-else()
-    # Build without je_ prefix for Folly compatibility
-    # Set version in jemalloc's expected format
-    set(opts "--with-jemalloc-prefix=" "--with-version=5.5.0-0-g0000000000000000000000000000000000000000")
-
-    vcpkg_make_configure(
-        AUTORECONF
-        SOURCE_PATH "${SOURCE_PATH}"
-        OPTIONS ${opts}
-    )
-
-    vcpkg_make_install()
 endif()
 
 vcpkg_fixup_pkgconfig()
@@ -85,15 +81,11 @@ jemalloc_install_cmake_config()
 
 # Fix JEMALLOC_USABLE_SIZE_CONST issue when using empty prefix
 if(NOT VCPKG_TARGET_IS_WINDOWS)
-    # Check if the pattern exists before attempting replacement
-    file(READ "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h" JEHEADER)
-    if("${JEHEADER}" MATCHES "#undef JEMALLOC_USABLE_SIZE_CONST")
-        vcpkg_replace_string(
-            "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
-            "#undef JEMALLOC_USABLE_SIZE_CONST"
-            "#undef JEMALLOC_USABLE_SIZE_CONST\n#define JEMALLOC_USABLE_SIZE_CONST const"
-        )
-    endif()
+    vcpkg_replace_string(
+        "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
+        "#undef JEMALLOC_USABLE_SIZE_CONST"
+        "#undef JEMALLOC_USABLE_SIZE_CONST\n#define JEMALLOC_USABLE_SIZE_CONST const"
+    )
 endif()
 
 vcpkg_copy_pdbs()
