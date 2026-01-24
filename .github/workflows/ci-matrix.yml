@@ -4,11 +4,10 @@
 # Tests Linux, macOS, and Windows with multiple configurations.
 #
 # Use this for:
+# - PR validation (comprehensive testing across all platforms)
 # - Pre-release validation
 # - Manual cross-platform verification (workflow_dispatch)
 # - Comprehensive testing (push to main)
-#
-# For faster PR feedback, use pr-validation.yml instead.
 #
 # Platform Coverage:
 # - Linux: x64 (static/dynamic), ARM64 (static), experimental variants
@@ -18,6 +17,8 @@
 name: CI Matrix
 
 on:
+  pull_request:
+    branches: [main, feature/*]
   push:
     branches: [main]
     paths-ignore:
