@@ -24,6 +24,10 @@ if(NOT DWARFS_WITH_FUSE)
   return()
 endif()
 
+# Initialize FUSE_FOUND and FUSE_IMPLEMENTATION
+set(FUSE_FOUND FALSE)
+set(FUSE_IMPLEMENTATION "")
+
 # Conditional minimum version for tebako compatibility
 
 if(WIN32)
