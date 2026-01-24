@@ -16,6 +16,14 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
+# Option to disable FUSE support (useful for CI/builds without FUSE)
+option(DWARFS_WITH_FUSE "Enable FUSE support for filesystem mounting" ON)
+
+if(NOT DWARFS_WITH_FUSE)
+  message(STATUS "FUSE support disabled by DWARFS_WITH_FUSE=OFF")
+  return()
+endif()
+
 # Conditional minimum version for tebako compatibility
 
 if(WIN32)
@@ -55,7 +63,7 @@ else()
     endif()
 
     if(NOT FUSE_FOUND)
-      message(FATAL_ERROR "No FUSE implementation found on macOS. Install FUSE-T (brew install fuse-t) or macFUSE (brew install --cask macfuse).")
+      message(FATAL_ERROR "No FUSE implementation found on macOS. Install FUSE-T (brew install fuse-t) or macFUSE (brew install --cask macfuse), or set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
     endif()
   else()
     # Linux: Try FUSE3 first, then FUSE2
@@ -67,7 +75,7 @@ else()
     elseif(FUSE_FOUND)
       set(FUSE_IMPLEMENTATION "fuse2")
     else()
-      message(FATAL_ERROR "No FUSE or FUSE3 library found")
+      message(FATAL_ERROR "No FUSE or FUSE3 library found. Install FUSE development packages, or set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
     endif()
   endif()
 endif()

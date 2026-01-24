@@ -26,7 +26,8 @@
         "TRY_ENABLE_LZ4": "ON",
         "TRY_ENABLE_LZMA": "ON",
         "ENABLE_RICEPP": "ON",
-        "USE_JEMALLOC": "ON"
+        "USE_JEMALLOC": "ON",
+        "DWARFS_WITH_FUSE": "OFF"
       },
       "warnings": {
         "dev": true,
