@@ -1,5 +1,8 @@
 # Minimal build dependencies action for DwarFS CI
 #
+# This composite action simply calls the installation script.
+# All logic is in scripts/github-actions/install-build-deps.sh for easy testing.
+#
 # Since we use vcpkg for ALL dependencies, we only need:
 # 1. Essential build tools (cmake, ninja, git, pkg-config for vcpkg's use)
 # 2. FUSE libraries (for tests, when requested)
@@ -19,126 +22,8 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install platform dependencies
+    - name: Install build dependencies
       shell: bash
       run: |
-        echo "Installing build dependencies for $RUNNER_OS..."
-
-        case "$RUNNER_OS" in
-          Windows)
-            # Windows dependencies
-            echo "Installing Windows build dependencies..."
-
-            if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-              choco install winfsp -y
-            fi
-
-            echo "✓ Windows dependencies installed"
-            ;;
-
-          macOS)
-            # macOS dependencies
-            echo "Installing macOS build dependencies..."
-
-            # Essential build tools
-            brew install ninja cmake pkg-config
-
-            # FUSE support for tests
-            if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-              if ! brew list macfuse 2>/dev/null && ! brew list fuse-t 2>/dev/null; then
-                echo "::warning::No FUSE package found. Install macFUSE or FUSE-T manually."
-              fi
-            fi
-
-            echo "✓ macOS dependencies installed"
-            ;;
-
-          Linux)
-            # Linux dependencies
-            echo "Installing Linux build dependencies..."
-
-            # Detect package manager
-            if command -v apt-get &> /dev/null; then
-              PKG_MANAGER="apt"
-            elif command -v yum &> /dev/null; then
-              PKG_MANAGER="yum"
-            elif command -v apk &> /dev/null; then
-              PKG_MANAGER="apk"
-            else
-              echo "::warning::Unable to detect package manager"
-              exit 0
-            fi
-
-            case "$PKG_MANAGER" in
-              apt)
-                sudo apt-get update
-                sudo apt-get install -y \
-                  build-essential \
-                  git \
-                  ninja-build \
-                  pkg-config \
-                  autoconf \
-                  autoconf-archive \
-                  automake \
-                  libtool
-
-                if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-                  sudo apt-get install -y libfuse3-dev fuse3
-                fi
-                ;;
-
-              yum)
-                sudo yum install -y \
-                  gcc-c++ \
-                  git \
-                  ninja-build \
-                  pkgconfig \
-                  autoconf \
-                  autoconf-archive \
-                  automake \
-                  libtool
-
-                if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-                  sudo yum install -y fuse3-devel
-                fi
-                ;;
-
-              apk)
-                apk add --no-cache \
-                  build-base \
-                  git \
-                  ninja \
-                  pkgconf \
-                  autoconf \
-                  autoconf-archive \
-                  automake \
-                  libtool
-
-                if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-                  apk add --no-cache fuse3-dev fuse3
-                fi
-                ;;
-            esac
-
-            echo "✓ Linux dependencies installed"
-            ;;
-        esac
-
-    - name: Create FUSE mount directory
-      if: inputs.with-fuse == 'true'
-      shell: bash
-      run: |
-        # Create temporary directory for FUSE mounts
-        sudo mkdir -p /tmp/dwarfs-test-mount
-        sudo chmod 777 /tmp/dwarfs-test-mount
-        echo "✓ Created FUSE mount directory: /tmp/dwarfs-test-mount"
-
-    - name: Set environment variables
-      shell: bash
-      run: |
-        # FUSE mount point for tests
-        if [[ "${{ inputs.with-fuse }}" == "true" ]]; then
-          echo "DWARFS_TEST_MOUNT_DIR=/tmp/dwarfs-test-mount" >> $GITHUB_ENV
-        fi
-
-        echo "✓ Environment variables set"
+        WITH_FUSE="${{ inputs.with-fuse }}" \
+          bash ${{ github.action_path }}/../../../scripts/github-actions/install-build-deps.sh
