@@ -56,9 +56,15 @@ else()
         # Fix include directories for FUSE-T (pkg-config may point to wrong path)
         # FUSE-T installs to /usr/local/include/fuse-t/ not /usr/local/include/fuse/
         if(FUSE_T_INCLUDE_DIRS)
-          list(FILTER FUSE_T_INCLUDE_DIRS EXISTS REGEX ".*/fuse-t$" INCLUDES_EXIST)
-          if(INCLUDES_EXIST)
-            set(FUSE_T_INCLUDE_DIRS "${INCLUDES_EXIST}")
+          # Filter include directories to keep only ones that exist (CMake 4.x compatible)
+          set(_filtered_include_dirs "")
+          foreach(_dir IN LISTS FUSE_T_INCLUDE_DIRS)
+            if(EXISTS "${_dir}")
+              list(APPEND _filtered_include_dirs "${_dir}")
+            endif()
+          endforeach()
+          if(_filtered_include_dirs)
+            set(FUSE_T_INCLUDE_DIRS "${_filtered_include_dirs}")
           else()
             # Fallback: try to find the actual fuse-t include directory
             find_path(FUSE_T_INCLUDE_DIR fuse/fuse.h
