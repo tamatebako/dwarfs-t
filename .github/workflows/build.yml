@@ -4,6 +4,7 @@
 # Uses CMakePresets.json for consistent, cache-friendly builds.
 #
 # For fast PR validation, use pr-validation.yml instead.
+# For full matrix testing, use ci-matrix.yml or workflow_dispatch.
 
 name: Build
 
@@ -22,14 +23,16 @@ on:
       - 'doc/**'
   workflow_dispatch:
     inputs:
-      config:
-        description: 'Configuration to test'
+      platforms:
+        description: 'Platforms to test (comma-separated: linux,macos,windows)'
         required: false
-        type: choice
-        options:
-          - production
-          - experimental
-        default: production
+        type: string
+        default: 'linux'
+      configs:
+        description: 'Configs to test (comma-separated: production,experimental)'
+        required: false
+        type: string
+        default: 'production,experimental'
 
 concurrency:
   group: build-${{ github.ref }}
@@ -39,26 +42,115 @@ permissions:
   contents: read
 
 jobs:
-  # Ubuntu x64 - production (PRIMARY TEST)
-  test-ubuntu-production:
+  # ========================================================================
+  # Linux x64 - Production (Primary test - always runs)
+  # ========================================================================
+  linux-x64-production:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: production
 
-  # Ubuntu x64 - experimental
-  test-ubuntu-experimental:
+  # ========================================================================
+  # Linux x64 - Experimental
+  # ========================================================================
+  linux-x64-experimental:
     uses: ./.github/workflows/_build-test-reusable.yml
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: experimental
 
+  # ========================================================================
+  # Additional Linux configurations (triggered by workflow_dispatch)
+  # ========================================================================
+  linux-x64-dynamic-production:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux-dynamic
+      config: production
+
+  linux-arm64-production:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-24.04-arm64
+      triplet: arm64-linux
+      config: production
+
+  linux-arm64-experimental:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: ubuntu-24.04-arm64
+      triplet: arm64-linux
+      config: experimental
+
+  # ========================================================================
+  # macOS configurations (triggered by workflow_dispatch)
+  # ========================================================================
+  macos-x64-production:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-13
+      triplet: x64-osx
+      config: production
+
+  macos-arm64-production:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-latest
+      triplet: arm64-osx
+      config: production
+
+  macos-arm64-experimental:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: macos-latest
+      triplet: arm64-osx
+      config: experimental
+
+  # ========================================================================
+  # Windows configurations (triggered by workflow_dispatch)
+  # ========================================================================
+  windows-x64-static-production:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: windows-latest
+      triplet: x64-windows-static
+      config: production
+
+  windows-arm64-static-production:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/_build-test-reusable.yml
+    with:
+      runner: windows-latest
+      triplet: arm64-windows-static
+      config: production
+
+  # ========================================================================
   # Summary job
+  # ========================================================================
   summary:
     name: CI Summary
-    needs: [test-ubuntu-production, test-ubuntu-experimental]
+    needs:
+      - linux-x64-production
+      - linux-x64-experimental
+      - linux-x64-dynamic-production
+      - linux-arm64-production
+      - linux-arm64-experimental
+      - macos-x64-production
+      - macos-arm64-production
+      - macos-arm64-experimental
+      - windows-x64-static-production
+      - windows-arm64-static-production
     runs-on: ubuntu-latest
     if: always()
 
@@ -72,18 +164,44 @@ jobs:
 
       - name: Display summary
         run: |
-          echo "=== CI Main Workflow Summary ==="
+          echo "=== CI Build Workflow Summary ==="
           echo ""
           echo "Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           echo "Run: ${{ github.run_number }}"
           echo "Commit: ${{ github.sha }}"
           echo "Branch: ${{ github.ref_name }}"
+          echo "Trigger: ${{ github.event_name }}"
           echo ""
           echo "Job Status:"
-          echo "  Ubuntu production: ${{ needs.test-ubuntu-production.result }}"
-          echo "  Ubuntu experimental: ${{ needs.test-ubuntu-experimental.result }}"
+          echo "  Linux x64 production:      ${{ needs.linux-x64-production.result }}"
+          echo "  Linux x64 experimental:    ${{ needs.linux-x64-experimental.result }}"
+          if [ "${{ needs.linux-x64-dynamic-production.result }}" != "skipped" ]; then
+            echo "  Linux x64 dynamic:         ${{ needs.linux-x64-dynamic-production.result }}"
+          fi
+          if [ "${{ needs.linux-arm64-production.result }}" != "skipped" ]; then
+            echo "  Linux ARM64 production:    ${{ needs.linux-arm64-production.result }}"
+          fi
+          if [ "${{ needs.linux-arm64-experimental.result }}" != "skipped" ]; then
+            echo "  Linux ARM64 experimental:  ${{ needs.linux-arm64-experimental.result }}"
+          fi
+          if [ "${{ needs.macos-x64-production.result }}" != "skipped" ]; then
+            echo "  macOS x64 production:      ${{ needs.macos-x64-production.result }}"
+          fi
+          if [ "${{ needs.macos-arm64-production.result }}" != "skipped" ]; then
+            echo "  macOS ARM64 production:    ${{ needs.macos-arm64-production.result }}"
+          fi
+          if [ "${{ needs.macos-arm64-experimental.result }}" != "skipped" ]; then
+            echo "  macOS ARM64 experimental:  ${{ needs.macos-arm64-experimental.result }}"
+          fi
+          if [ "${{ needs.windows-x64-static-production.result }}" != "skipped" ]; then
+            echo "  Windows x64 static:        ${{ needs.windows-x64-static-production.result }}"
+          fi
+          if [ "${{ needs.windows-arm64-static-production.result }}" != "skipped" ]; then
+            echo "  Windows ARM64 static:      ${{ needs.windows-arm64-static-production.result }}"
+          fi
           echo ""
-          echo "View results in the Actions tab for detailed logs."
+          echo "For full matrix testing, use workflow_dispatch or ci-matrix.yml."
+          echo "View detailed logs in the Actions tab."
 
           echo "### Benchmark Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

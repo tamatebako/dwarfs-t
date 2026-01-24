@@ -216,60 +216,62 @@ ctest -R metadata
 
 ### CI/CD Testing
 
-#### Unified CI/CD Architecture (2025-01-19)
+#### Actual CI/CD Architecture (2025-01-24)
 
-DwarFS uses a **unified CI/CD architecture** with clear separation of concerns:
+**WARNING**: Previous documentation claimed workflows that don't exist (`ci-main.yml`, `scheduled.yml`, `manual.yml`). This section reflects **actual** CI configuration.
 
-**Workflows:**
+**Workflows that actually exist:**
 
 | Workflow | Purpose | Trigger | Jobs | Runtime |
-|----------|---------|--------|------|--------|
-| `pr-validation.yml` | Fast PR feedback | Pull request | 4 | ~15 min |
-| `ci-main.yml` | Comprehensive CI | Push to main | 10 | ~45 min |
+|----------|---------|---------|------|--------|
+| `pr-validation.yml` | Fast PR feedback | Pull request | 2 | ~15 min |
+| `build.yml` | Main CI (not `ci-main.yml`) | Push to main | 2 | ~1h |
 | `release.yml` | Release artifacts | Git tag (v*) | 5 | ~30 min |
-| `scheduled.yml` | Weekly comprehensive | Weekly + manual | 24+ | 2-3 hours |
-| `manual.yml` | On-demand testing | Manual dispatch | Variable | Variable |
 
 **Reusable Workflows:**
 
 | Workflow | Purpose | Used By |
 |----------|---------|---------|
-| `_build-test-reusable.yml` | Core build/test | All CI workflows |
+| `_build-test-reusable.yml` | Core build/test | `pr-validation.yml`, `build.yml` |
 | `_build-release-reusable.yml` | Release builds | `release.yml` |
-| `_compat-test-reusable.yml` | Compatibility tests | `ci-main.yml`, `scheduled.yml` |
-| `_benchmark-reusable.yml` | Benchmarks | `scheduled.yml`, `manual.yml` |
 
-**See `.github/CI_CD_ARCHITECTURE_PROPOSAL.md` for complete architecture details.**
+**CRITICAL GAP**: Only 2 of 40+ CMakePresets are tested in CI!
+
+| Platform | Preset | CI Status |
+|----------|--------|-----------|
+| Linux x64 | x64-linux-production | ✅ Tested |
+| Linux x64 | x64-linux-experimental | ✅ Tested |
+| Linux x64 dynamic | x64-linux-dynamic-* | ❌ NOT tested |
+| Linux ARM64 | arm64-linux-* | ❌ NOT tested |
+| macOS | All macOS presets | ❌ NOT tested |
+| Windows | All Windows presets | ❌ NOT tested |
 
 #### GitHub Actions
 
 Tests run automatically on:
-- Pull requests → `pr-validation.yml` (fast feedback)
-- Pushes to main branch → `ci-main.yml` (comprehensive)
+- Pull requests → `pr-validation.yml` (fast feedback, 2 jobs)
+- Pushes to main branch → `build.yml` (2 jobs)
 - Git tags (v*) → `release.yml` (create release)
-- Weekly schedule → `scheduled.yml` (comprehensive + benchmarks)
-- Manual dispatch → `manual.yml` (on-demand)
+
+**TODO**: Expand CI to test all triplets (see `ci-matrix.yml` planned workflow).
 
 #### CI/CD Matrix Testing
 
-**ci-main.yml** tests across **5 platforms** and **2 configurations**:
+**build.yml** tests only **2 configurations**:
 
-| Platform | Runner | Architecture | Triplet | Jobs |
-|----------|--------|--------------|---------|------|
-| **Linux** | ubuntu-latest | x64 | x64-linux | 2 (FB-only, Both) |
-| **Linux** | ubuntu-24.04-arm64 | ARM64 | arm64-linux | 2 (FB-only, Both) |
-| **macOS** | macos-13 | x64 | x64-osx | 2 (FB-only, Both) |
-| **macOS** | macos-14 | ARM64 | arm64-osx | 2 (FB-only, Both) |
-| **Windows** | windows-latest | x64 | x64-windows-static | 2 (FB-only, Both) |
+| Platform | Runner | Triplet | Config | Status |
+|----------|--------|---------|--------|--------|
+| **Linux** | ubuntu-latest | x64-linux | production | ✅ Active |
+| **Linux** | ubuntu-latest | x64-linux | experimental | ✅ Active |
+
+**Total: 2 CI jobs** (out of 40+ presets defined in CMakePresets.json)
 
 **Configuration Matrix:**
 
 | Configuration | Metadata Formats | File Extensions | Purpose |
 |--------------|------------------|-----------------|---------|
-| `flatbuffers-only` | FlatBuffers | .dff | Modern default, stable |
-| `both-formats` | FlatBuffers + Legacy Thrift + Modern Thrift | .dff, .dft | All formats, max compatibility |
-
-**Total CI Jobs:** 10+ test matrix combinations
+| `production` | FlatBuffers + Legacy Thrift | .dff, .dft | Modern default, stable |
+| `experimental` | FlatBuffers + Legacy Thrift + Modern Thrift | .dff, .dft | All formats, max compatibility |
 
 **Reusable Workflow:**
 
@@ -517,9 +519,13 @@ protected:
 
 **Location:** `.github/workflows/`
 
-**Workflows:**
-- `ci.yml`: Main CI pipeline
-- `compat-matrix.yml`: Compatibility test matrix (planned)
+**Workflows that actually exist:**
+- `pr-validation.yml`: Fast PR validation (2 jobs)
+- `build.yml`: Main CI pipeline (2 jobs)
+- `release.yml`: Release workflow
+- `_build-test-reusable.yml`: Reusable build/test template
+
+**WARNING**: `ci.yml` mentioned in some documentation **does not exist**.
 
 ### Triggering CI
 
@@ -528,8 +534,11 @@ protected:
 git push origin feature-branch
 
 # Manual trigger
-gh workflow run ci.yml
+gh workflow run pr-validation.yml
+gh workflow run build.yml
 ```
+
+**Note**: There is no `ci.yml` or `scheduled.yml` workflow currently implemented.
 
 ### Test Artifacts
 

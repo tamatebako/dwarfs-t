@@ -136,7 +136,64 @@ Created reusable workflow templates:
 
 ## Remaining Items
 
-### 4. ⚠️ Benchmarks (PARTIAL - Infrastructure Ready)
+### 1. ⚠️ CI Matrix (NOT COMPLETE - Only 2 of 40+ presets tested)
+
+**Status**: CRITICAL GAP - CMakePresets.json defines 40+ configurations, but CI only tests 2.
+
+**Current CI (build.yml)**:
+- test-ubuntu-production: x64-linux production ✓
+- test-ubuntu-experimental: x64-linux experimental ✓
+
+**MISSING from CI** (defined in CMakePresets.json):
+- Linux: arm64, musl, dynamic, release-dbg (8 presets)
+- macOS: x64, arm64 (static/dynamic variants, 12 presets)
+- Windows: x64, arm64 (static/dynamic/msys/mingw, 14 presets)
+
+**Required Action**: Create `ci-matrix.yml` workflow to test all triplets.
+
+### 2. ⚠️ Documentation Outdated (CRITICAL)
+
+**TESTING.md claims workflows that DON'T exist**:
+- `ci-main.yml` - Claims 10 jobs, doesn't exist
+- `scheduled.yml` - Claims weekly benchmarks, doesn't exist
+- `manual.yml` - Claims on-demand testing, doesn't exist
+
+**What actually exists**:
+- `pr-validation.yml` - 2 jobs (not 4 as documented)
+- `build.yml` - 2 jobs (not `ci-main.yml`)
+- `release.yml` - Release workflow
+
+**Required Action**: Update TESTING.md to reflect actual CI configuration.
+
+### 3. ⚠️ No macOS/Windows CI (CRITICAL)
+
+Despite having CMakePresets for:
+- macOS x64/arm64 (static/dynamic)
+- Windows x64/arm64 (static/dynamic/msys/mingw)
+
+**No CI jobs exist for these platforms.**
+
+**Required Action**: Add macOS and Windows jobs to ci-matrix.yml.
+
+### 4. ⚠️ No ARM64 Linux CI
+
+Despite having presets for `arm64-linux-production` and `arm64-linux-experimental`, **no CI jobs exist**.
+
+**Required Action**: Add ARM64 jobs to ci-matrix.yml.
+
+### 5. ⚠️ No Dynamic Build CI
+
+Linux dynamic presets (`x64-linux-dynamic-*`) exist but **not tested in CI**.
+
+### 6. ⚠️ No Musl CI
+
+Alpine Linux presets (`x64-linux-musl-*`) exist but **not tested in CI**.
+
+### 7. ⚠️ No RelWithDebInfo CI
+
+Release+Debug presets (`x64-linux-release-dbg-*`) exist but **not tested in CI**.
+
+### 8. 📝 Benchmarks (PARTIAL - Infrastructure Ready)
 
 **Status**: Benchmark infrastructure is in place, but requires vcpkg build with Tebako jemalloc.
 
@@ -165,7 +222,7 @@ export VCPKG_ROOT=~/vcpkg
 3. Update performance section in README.md
 4. Add benchmark comparison tables
 
-### 8. 📝 Directory Structure Cleanup (IN PROGRESS)
+### 9. 📝 Directory Structure Cleanup (IN PROGRESS)
 
 Reference: `/Users/mulgogi/src/external/xz` (clean directory structure)
 
@@ -179,7 +236,7 @@ Reference: `/Users/mulgogi/src/external/xz` (clean directory structure)
 - Consider consolidating header files
 - Review and remove deprecated code
 
-### 9. 📝 Additional DRY Workflows (OPTIONAL)
+### 10. 📝 Additional DRY Workflows (OPTIONAL)
 
 **Completed:**
 - Reusable workflow template created
@@ -213,56 +270,69 @@ export VCPKG_ROOT="$HOME/vcpkg"
 | Metadata Formats | ✅ Complete | FB, Legacy Thrift, Modern Thrift |
 | Legacy Thrift Tests | ✅ Complete | Compatibility test suite created |
 | Unified Build System | ✅ Complete | Orchestrator + libs + one-step scripts |
-| vcpkg Triplets | ✅ Complete | 18+ triplets across platforms |
+| vcpkg Triplets | ✅ Complete | 40+ presets defined in CMakePresets.json |
 | Scripts Organization | ✅ Complete | MECE structure with backward compat |
-| CI/CD Workflows | ✅ Complete | Reusable workflows + composite actions |
 | Tebako jemalloc | ✅ Complete | Overlay port + auto-verification |
-| TESTING Documentation | ✅ Complete | Comprehensive testing guide |
-| DEVELOPER_WORKFLOW | ✅ Complete | Step-by-step developer/release guide |
-| CI Matrix (All Triplets) | ✅ Complete | Tests Linux/macOS/Windows |
+| TESTING Documentation | ⚠️ Outdated | Claims workflows that don't exist |
+| DEVELOPER_WORKFLOW | ⚠️ Needs Review | May reference non-existent workflows |
+| CI Matrix (All Triplets) | ❌ Incomplete | Only 2 of 40+ presets tested |
 | Benchmarks | ⚠️ Partial | Infrastructure ready, requires full build |
 | Directory Cleanup | 📝 In Progress | Scripts done, source code pending |
 | Full DRY Workflows | 📝 Optional | Core done, legacy workflows pending |
 
-## CI/CD Matrix Status (2025-01-22)
+## CI/CD Matrix Status (2025-01-24)
 
-### Current CI Workflows
+### Current CI Workflows (ACTUAL - Not Aspiration)
 
-| Workflow | Purpose | Trigger | Platforms | Runtime |
-|----------|---------|---------|-----------|---------|
-| `pr-validation.yml` | Fast PR feedback | Pull request | Ubuntu x64 (2 configs) | ~15 min |
-| `ci-main.yml` | Main CI (current branch) | Push to main | Ubuntu x64 (2 configs) | ~1h |
-| `ci-matrix.yml` | **FULL matrix** | Push to main | Linux/macOS/Windows | ~3h |
-| `release.yml` | Release builds | Git tag (v*) | All platforms | ~30 min |
+| Workflow | Purpose | Trigger | Platforms | Jobs | Status |
+|----------|---------|---------|-----------|------|--------|
+| `pr-validation.yml` | Fast PR feedback | Pull request | Linux x64 | 2 | ✅ Active |
+| `build.yml` | Main CI (current branch) | Push to main | Linux x64 | 2 | ✅ Active |
+| `release.yml` | Release builds | Git tag (v*) | Variable | 5 | ✅ Active |
 
-### CI Matrix Coverage
+### CI Matrix Coverage (ACTUAL - Not Aspiration)
 
-The new `ci-matrix.yml` workflow tests all supported triplets:
+**Currently tested (build.yml + pr-validation.yml):**
 
 | Platform | Runner | Triplet | Config | Status |
-|----------|--------|---------|---------|--------|
+|----------|--------|---------|--------|--------|
 | **Linux x64** | ubuntu-latest | x64-linux | production | ✅ Active |
 | **Linux x64** | ubuntu-latest | x64-linux | experimental | ✅ Active |
-| **Linux x64** | ubuntu-latest | x64-linux-dynamic | production | ✅ Active |
-| **macOS x64** | macos-13 | x64-osx | production | ✅ Active |
-| **macOS ARM64** | macos-latest | arm64-osx | production | ✅ Active |
-| **macOS x64** | macos-13 | x64-osx-dynamic | production | ✅ Active |
-| **macOS ARM64** | macos-latest | arm64-osx-dynamic | production | ✅ Active |
-| **Windows x64** | windows-latest | x64-windows-static | production | ✅ Active |
-| **Windows ARM64** | windows-latest | arm64-windows-static | production | ✅ Active |
-| **Windows x64** | windows-latest | x64-windows-dynamic | production | ✅ Active |
-| **Windows ARM64** | windows-latest | arm64-windows-dynamic | production | ✅ Active |
 
-**Total: 11 CI jobs** (3 Linux + 4 macOS + 4 Windows)
+**Total: 2 CI jobs** (not 11 as previously claimed)
+
+### Presets Available but NOT Tested in CI
+
+| Platform | Triplet | Configs | CI Status |
+|----------|---------|---------|-----------|
+| Linux x64 dynamic | x64-linux-dynamic | production, experimental | ❌ Not tested |
+| Linux x64 RelWithDebInfo | x64-linux-release-dbg | production, experimental | ❌ Not tested |
+| Linux x64 musl | x64-linux-musl | production, experimental | ❌ Not tested |
+| Linux ARM64 | arm64-linux | production, experimental | ❌ Not tested |
+| macOS x64 | x64-osx | production, experimental | ❌ Not tested |
+| macOS x64 dynamic | x64-osx-dynamic | production, experimental | ❌ Not tested |
+| macOS x64 static | x64-osx-static | production, experimental | ❌ Not tested |
+| macOS ARM64 | arm64-osx | production, experimental | ❌ Not tested |
+| macOS ARM64 dynamic | arm64-osx-dynamic | production, experimental | ❌ Not tested |
+| macOS ARM64 static | arm64-osx-static | production, experimental | ❌ Not tested |
+| Windows x64 | x64-windows | production, experimental | ❌ Not tested |
+| Windows x64 static | x64-windows-static | production, experimental | ❌ Not tested |
+| Windows x64 static-md | x64-windows-static-md | production, experimental | ❌ Not tested |
+| Windows x64 dynamic | x64-windows-dynamic | production, experimental | ❌ Not tested |
+| Windows ARM64 static | arm64-windows-static | production, experimental | ❌ Not tested |
+| Windows x64 msys | x64-windows-msys | production, experimental | ❌ Not tested |
+| Windows x64 mingw | x64-windows-mingw | production, experimental | ❌ Not tested |
+
+**Total presets defined: 40+ | Currently tested: 2 (5%)**
 
 ### Documentation
 
 | Document | Purpose | Status |
 |----------|---------|--------|
-| `TESTING.md` | Comprehensive testing guide | ✅ Complete |
-| `DEVELOPER_WORKFLOW.md` | Developer & release manager workflows | ✅ Complete |
+| `TESTING.md` | Comprehensive testing guide | ⚠️ Outdated - claims non-existent workflows |
+| `DEVELOPER_WORKFLOW.md` | Developer & release manager workflows | ⚠️ Needs Review |
 | `BUILD_SYSTEM_ARCHITECTURE.md` | Build system details | ✅ Complete |
 | `README.md` | Project overview | ✅ Complete |
 
-**Last Updated**: 2025-01-22
-**Overall Status**: Production-ready build system with comprehensive CI/CD matrix
+**Last Updated**: 2025-01-24
+**Overall Status**: CI matrix is INCOMPLETE - only 2 of 40+ presets tested. Documentation needs updating.

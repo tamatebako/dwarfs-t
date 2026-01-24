@@ -133,14 +133,13 @@ Edit files as needed. The project uses:
 # Clean build
 BUILD_DIR=build ./scripts/clean-build.sh -y
 
-# Configure
+# Configure for production (FlatBuffers + Legacy Thrift)
 cmake -B build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_OVERLAY_PORTS=$PWD/vcpkg_ports \
   -DVCPKG_OVERLAY_TRIPLETS=$PWD/vcpkg_triplets \
   -DVCPKG_TARGET_TRIPLET=$(scripts/lib/vcpkg_helper.sh auto_triplet) \
-  -DDWARFS_WITH_FLATBUFFERS=ON \
-  -DDWARFS_WITH_THRIFT=OFF \
+  -DDWARFS_WITH_EXPERIMENTAL_THRIFT=OFF \
   -DWITH_TESTS=ON
 
 # Build
@@ -208,10 +207,10 @@ gh pr create --title "feat(metadata): add new serialization option" \
 - Improves performance by 20%
 
 ## Test plan
-- [x] All unit tests pass
-- [x] All integration tests pass
+- [x] All unit tests pass (Linux x64 production)
+- [x] All unit tests pass (Linux x64 experimental)
 - [x] Compatibility tests pass
-- [x] Manual testing on macOS ARM64
+- [ ] Manual testing on other platforms (if applicable)
 
 ## Checklist
 - [x] Documentation updated
@@ -466,9 +465,10 @@ strategy:
 | File | Purpose | Trigger | Runtime |
 |------|---------|---------|---------|
 | `pr-validation.yml` | Fast PR feedback | Pull request | ~15 min |
-| `ci-main.yml` | Main CI (ubuntu only) | Push to main | ~1h |
-| `ci-matrix.yml` | **FULL matrix (TODO)** | Push to main | ~3h |
+| `build.yml` | Main CI (Linux x64 only) | Push to main | ~1h |
 | `release.yml` | Release builds | Git tag (v*) | ~30 min |
+
+**NOTE**: `ci-main.yml` and `ci-matrix.yml` mentioned elsewhere do **not exist**. Only `build.yml` is used for main CI.
 
 ## Tebako-DwarFS Integration
 
@@ -524,8 +524,7 @@ cmake -B build-static \
   -DVCPKG_OVERLAY_TRIPLETS=$PWD/vcpkg_triplets \
   -DVCPKG_TARGET_TRIPLET=$(scripts/lib/vcpkg_helper.sh auto_triplet)-static \
   -DBUILD_SHARED_LIBS=OFF \
-  -DDWARFS_WITH_FLATBUFFERS=ON \
-  -DDWARFS_WITH_THRIFT=OFF \
+  -DDWARFS_WITH_EXPERIMENTAL_THRIFT=OFF \
   -DWITH_TESTS=OFF \
   -DWITH_TOOLS=OFF \
   -DWITH_LIBDWARFS=ON
