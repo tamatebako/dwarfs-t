@@ -32,9 +32,9 @@ if(VCPKG_TARGET_IS_WINDOWS)
         vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h" "<strings.h>" "\"msvc_compat/strings.h\"")
     endif()
 
-    # Handle library naming
+    # Handle library naming for Windows
     if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
-        # Static library - rename to jemalloc if needed
+        # Static library - the CMake build produces jemalloc_static.lib
         if(EXISTS "${CURRENT_PACKAGES_DIR}/lib/jemalloc_static.lib")
             file(RENAME "${CURRENT_PACKAGES_DIR}/lib/jemalloc_static.lib" "${CURRENT_PACKAGES_DIR}/lib/jemalloc.lib")
         endif()
@@ -70,33 +70,6 @@ else()
 endif()
 
 vcpkg_fixup_pkgconfig()
-
-# Install CMake config files
-function(jemalloc_install_cmake_config)
-    # Configure and install the CMake config file
-    configure_file("${CMAKE_CURRENT_LIST_DIR}/jemallocConfig.cmake.in"
-        "${CURRENT_PACKAGES_DIR}/share/jemalloc/jemallocConfig.cmake"
-        @ONLY
-    )
-
-    # Create version file
-    file(WRITE "${CURRENT_PACKAGES_DIR}/share/jemalloc/jemallocConfigVersion.cmake"
-"
-set(PACKAGE_VERSION \"5.5.0\")
-
-if(PACKAGE_VERSION VERSION_LESS PACKAGE_FIND_VERSION)
-    set(PACKAGE_VERSION_COMPATIBLE FALSE)
-else()
-    set(PACKAGE_VERSION_COMPATIBLE TRUE)
-    if(PACKAGE_FIND_VERSION STREQUAL PACKAGE_VERSION)
-        set(PACKAGE_VERSION_EXACT TRUE)
-    endif()
-endif()
-"
-    )
-endfunction()
-
-jemalloc_install_cmake_config()
 
 # Fix JEMALLOC_USABLE_SIZE_CONST issue when using empty prefix
 if(NOT VCPKG_TARGET_IS_WINDOWS)
