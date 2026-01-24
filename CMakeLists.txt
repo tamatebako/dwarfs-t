@@ -192,6 +192,7 @@ endif()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "cmake/modules")
 
 find_package(PkgConfig)
+include(cmake/need_fuse.cmake)
 
 if(STATIC_BUILD_DO_NOT_USE)
   set(CMAKE_FIND_LIBRARY_SUFFIXES
