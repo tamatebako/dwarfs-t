@@ -65,13 +65,13 @@ jobs:
     if: (contains(github.event.inputs.platform || 'all', 'linux') || github.event_name == 'push')
     name: 🧪 Linux · x64 · Experimental
     uses: ./.github/workflows/_build.yml
-    continue-on-error: true  # Experimental may fail
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json
       cache-key-prefix: matrix
+      continue-on-error: true  # Experimental may fail
 
   linux-x64-dynamic-production:
     if: contains(github.event.inputs.platform || 'all', 'linux') || github.event_name == 'push'
@@ -88,13 +88,13 @@ jobs:
     if: contains(github.event.inputs.platform || 'all', 'linux') || github.event_name == 'push'
     name: 🧪 Linux · x64 · Dynamic · Experimental
     uses: ./.github/workflows/_build.yml
-    continue-on-error: true  # Experimental may fail
     with:
       runner: ubuntu-latest
       triplet: x64-linux-dynamic
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json
       cache-key-prefix: matrix
+      continue-on-error: true  # Experimental may fail
 
   linux-arm64-production:
     if: contains(github.event.inputs.platform || 'all', 'linux') || github.event_name == 'push'
@@ -111,13 +111,13 @@ jobs:
     if: contains(github.event.inputs.platform || 'all', 'linux') || github.event_name == 'push'
     name: 🧪 Linux · ARM64 · Experimental
     uses: ./.github/workflows/_build.yml
-    continue-on-error: true  # Experimental may fail
     with:
       runner: ubuntu-24.04-arm64
       triplet: arm64-linux
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json
       cache-key-prefix: matrix
+      continue-on-error: true  # Experimental may fail
 
   # ========================================================================
   # macOS Jobs
@@ -159,13 +159,13 @@ jobs:
     if: contains(github.event.inputs.platform || 'all', 'macos') || github.event_name == 'push'
     name: 🧪 macOS · ARM64 · Experimental
     uses: ./.github/workflows/_build.yml
-    continue-on-error: true  # Experimental may fail
     with:
       runner: macos-latest
       triplet: arm64-osx
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json
       cache-key-prefix: matrix
+      continue-on-error: true  # Experimental may fail
 
   macos-arm64-dynamic-production:
     if: contains(github.event.inputs.platform || 'all', 'macos') || github.event_name == 'push'

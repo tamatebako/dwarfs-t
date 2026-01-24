@@ -53,13 +53,13 @@ jobs:
   experimental:
     name: 🧪 Linux x64 · Experimental
     uses: ./.github/workflows/_build.yml
-    continue-on-error: true  # Experimental code may be unstable
     with:
       runner: ubuntu-latest
       triplet: x64-linux
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json
       cache-key-prefix: ci
+      continue-on-error: true  # Experimental code may be unstable
 
   # ========================================================================
   # Dynamic Production Build

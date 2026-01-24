@@ -50,6 +50,11 @@ on:
         required: false
         type: boolean
         default: false
+      continue-on-error:
+        description: 'Whether to continue if this job fails (for experimental builds)'
+        required: false
+        type: boolean
+        default: false
 
     outputs:
       build-status:
@@ -60,6 +65,7 @@ jobs:
   build:
     name: ${{ inputs.runner }} · ${{ inputs.triplet }} · ${{ inputs.config }}
     runs-on: ${{ inputs.runner }}
+    continue-on-error: ${{ inputs.continue-on-error }}
 
     permissions:
       contents: read
