@@ -44,10 +44,13 @@ case "$RUNNER_OS" in
     echo "Installing macOS build dependencies..."
 
     # Essential build tools
-    brew install ninja cmake pkg-config
+    brew install ninja cmake pkg-config python3
 
     # Autoconf tools (for building vcpkg dependencies from source)
     brew install autoconf autoconf-archive automake libtool
+
+    # Python packages for manpage generation
+    pip3 install mistletoe || pip install mistletoe
 
     # FUSE support for tests and compilation
     if [[ "$WITH_FUSE" == "true" ]]; then
