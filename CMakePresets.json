@@ -216,6 +216,7 @@
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "VCPKG_TRIPLET": "x64-osx",
         "USE_HOMEBREW_LIBARCHIVE": "ON"
       }
     },
@@ -246,6 +247,7 @@
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "VCPKG_TRIPLET": "x64-osx-dynamic",
         "BUILD_SHARED_LIBS": "ON",
         "USE_HOMEBREW_LIBARCHIVE": "ON"
       }
