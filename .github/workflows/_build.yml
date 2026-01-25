@@ -69,6 +69,7 @@ jobs:
       status: ${{ steps.status.outputs.result }}
 
     env:
+      VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
 
@@ -88,16 +89,28 @@ jobs:
           vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
-          runVcpkgInstall: false
           doNotCache: true
 
-      - name: 📥 Install vcpkg dependencies
+      - name: 🔍 Verify triplet and install vcpkg dependencies
         shell: bash
         run: |
-          echo "Installing vcpkg dependencies for triplet: ${{ inputs.triplet }}"
-          VCPKG_ROOT="${{ github.workspace }}/../vcpkg"
-          "$VCPKG_ROOT/vcpkg" install --triplet "${{ inputs.triplet }}" --recurse
+          echo "=== Triplet Debug Info ==="
+          echo "VCPKG_DEFAULT_TRIPLET: $VCPKG_DEFAULT_TRIPLET"
+          echo "VCPKG_OVERLAY_PORTS: $VCPKG_OVERLAY_PORTS"
+          echo "VCPKG_OVERLAY_TRIPLETS: $VCPKG_OVERLAY_TRIPLETS"
+          echo "Target triplet: ${{ inputs.triplet }}"
+          echo "=== Running vcpkg ==="
+          cd "${{ github.workspace }}"
+          if [ -f "../vcpkg/vcpkg" ]; then
+            ../vcpkg/vcpkg version
+            VCPKG_DEFAULT_TRIPLET="${{ inputs.triplet }}" ../vcpkg/vcpkg install --triplet "${{ inputs.triplet }}" --recurse
+          else
+            echo "ERROR: vcpkg not found at ../vcpkg/vcpkg"
+            ls -la ../vcpkg/ || true
+            exit 1
+          fi
         env:
+          VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
           VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
           VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
 
