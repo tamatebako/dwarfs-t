@@ -69,7 +69,6 @@ jobs:
       status: ${{ steps.status.outputs.result }}
 
     env:
-      VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
 
@@ -89,7 +88,17 @@ jobs:
           vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
+          runVcpkgInstall: false
           doNotCache: true
+
+      - name: 📥 Install vcpkg dependencies
+        shell: bash
+        run: |
+          echo "Installing vcpkg dependencies for triplet: ${{ inputs.triplet }}"
+          ${{ github.workspace }}/../vcpkg/vcpkg install --triplet "${{ inputs.triplet }}" --recurse
+        env:
+          VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+          VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
 
       - name: 🔨 Setup build dependencies
         uses: ./.github/actions/setup-build-deps
