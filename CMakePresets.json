@@ -73,8 +73,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "gcc",
-        "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_CXX_FLAGS": "-Wno-error=except-spec"
+        "CMAKE_CXX_COMPILER": "g++"
       }
     },
     {
@@ -103,8 +102,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "BUILD_SHARED_LIBS": "ON",
-        "CMAKE_CXX_FLAGS": "-Wno-error=except-spec"
+        "BUILD_SHARED_LIBS": "ON"
       }
     },
     {
@@ -160,8 +158,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "gcc",
-        "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_CXX_FLAGS": "-Wno-error=except-spec"
+        "CMAKE_CXX_COMPILER": "g++"
       }
     },
     {
@@ -190,8 +187,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_MAKE_PROGRAM": "ninja",
-        "CMAKE_CXX_FLAGS": "-Wno-error=except-spec"
+        "CMAKE_MAKE_PROGRAM": "ninja"
       }
     },
     {
