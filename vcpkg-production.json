@@ -93,8 +93,7 @@
       "version>=": "5.5.0"
     },
     {
-      "name": "libsodium",
-      "version>=": "1.0.21"
+      "name": "libsodium"
     },
     {
       "name": "gtest",
