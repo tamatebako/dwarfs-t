@@ -61,12 +61,10 @@ else()
               list(APPEND _filtered_include_dirs "${_dir}")
             endif()
           endforeach()
-          if(_filtered_include_dirs)
-            # Update the imported target's include directories
-            set_target_properties(PkgConfig::FUSE_T PROPERTIES
-              INTERFACE_INCLUDE_DIRECTORIES "${_filtered_include_dirs}")
-          else()
-            # Fallback: try to find the actual fuse-t include directory
+
+          # Always update the target properties, even if empty (removes bad paths)
+          if(NOT _filtered_include_dirs)
+            # No valid directories found, search manually
             find_path(FUSE_T_INCLUDE_DIR fuse/fuse.h
               PATHS
                 /usr/local/include/fuse-t
@@ -78,9 +76,14 @@ else()
             )
             if(FUSE_T_INCLUDE_DIR)
               get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" DIRECTORY)
-              set_target_properties(PkgConfig::FUSE_T PROPERTIES
-                INTERFACE_INCLUDE_DIRECTORIES "${FUSE_T_INCLUDE_DIR}")
+              set(_filtered_include_dirs "${FUSE_T_INCLUDE_DIR}")
             endif()
+          endif()
+
+          # Update the imported target's include directories
+          if(TARGET PkgConfig::FUSE_T)
+            set_target_properties(PkgConfig::FUSE_T PROPERTIES
+              INTERFACE_INCLUDE_DIRECTORIES "${_filtered_include_dirs}")
           endif()
         endif()
         message(STATUS "Using FUSE-T on macOS (version ${FUSE_T_VERSION})")
