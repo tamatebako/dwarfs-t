@@ -72,6 +72,8 @@ jobs:
       VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+      # Disable FUSE on macOS - FUSE-T from Homebrew has different header structure
+      DWARFS_WITH_FUSE: ${{ contains(runner.os, 'macOS') && 'OFF' || 'ON' }}
 
     steps:
       - name: 📥 Checkout
