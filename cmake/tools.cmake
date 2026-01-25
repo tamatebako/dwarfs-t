@@ -162,8 +162,7 @@ if(WITH_FUSE_DRIVER)
     target_compile_definitions(dwarfs_reader PRIVATE _FILE_OFFSET_BITS=64)
     if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=31 DWARFS_USE_FUSE_T)
-      # FUSE-T include directories are provided by PkgConfig::FUSE_T target
-      # Don't use hard-coded paths - let pkg-config provide the correct paths
+      target_include_directories(dwarfs_reader BEFORE PRIVATE "/Library/Application Support/fuse-t/include/fuse")
     elseif(FUSE3_FOUND)
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=35)
     elseif(FUSE_FOUND)
@@ -191,8 +190,9 @@ if(WITH_FUSE_DRIVER)
     target_compile_definitions(dwarfs_main PRIVATE _FILE_OFFSET_BITS=64)
     if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t")
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=31 DWARFS_USE_FUSE_T)
-      # FUSE-T include directories are provided by PkgConfig::FUSE_T target
-      # Don't use hard-coded paths - let pkg-config provide the correct paths
+      # FUSE-T uses /usr/local/include/fuse but old macFUSE headers may also be there
+      # Use the actual FUSE-T library path instead
+      target_include_directories(dwarfs_main BEFORE PRIVATE "/Library/Application Support/fuse-t/include/fuse")
     elseif(FUSE3_FOUND)
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=35)
     endif()
