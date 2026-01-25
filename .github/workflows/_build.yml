@@ -95,8 +95,9 @@ jobs:
         shell: bash
         run: |
           echo "Installing vcpkg dependencies for triplet: ${{ inputs.triplet }}"
-          VCPKG_DEFAULT_TRIPLET="${{ inputs.triplet }}" vcpkg install --triplet "${{ inputs.triplet }}"
+          vcpkg install --triplet "${{ inputs.triplet }}" --vcpkg-root "${VCPKG_ROOT}"
         env:
+          VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
           VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
           VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
 
