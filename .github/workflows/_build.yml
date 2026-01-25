@@ -89,7 +89,7 @@ jobs:
           vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
-          cacheKeySuffix: ${{ inputs.triplet }}
+          runVcpkgFormatString: "vcpkg install {packages} --triplet ${{ inputs.triplet }} --recurse"
 
       - name: 🔨 Setup build dependencies
         uses: ./.github/actions/setup-build-deps
