@@ -62,19 +62,24 @@ else()
             endif()
           endforeach()
           if(_filtered_include_dirs)
-            set(FUSE_T_INCLUDE_DIRS "${_filtered_include_dirs}")
+            # Update the imported target's include directories
+            set_target_properties(PkgConfig::FUSE_T PROPERTIES
+              INTERFACE_INCLUDE_DIRECTORIES "${_filtered_include_dirs}")
           else()
             # Fallback: try to find the actual fuse-t include directory
             find_path(FUSE_T_INCLUDE_DIR fuse/fuse.h
               PATHS
                 /usr/local/include/fuse-t
                 /usr/local/include
+                /opt/homebrew/include/fuse-t
+                /opt/homebrew/include
               NO_DEFAULT_PATH
               NO_CMAKE_FIND_ROOT_PATH
             )
             if(FUSE_T_INCLUDE_DIR)
               get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" DIRECTORY)
-              set(FUSE_T_INCLUDE_DIRS "${FUSE_T_INCLUDE_DIR}")
+              set_target_properties(PkgConfig::FUSE_T PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES "${FUSE_T_INCLUDE_DIR}")
             endif()
           endif()
         endif()
