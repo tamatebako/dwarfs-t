@@ -4,8 +4,8 @@
 # Tests x64 (Intel) and ARM64 (Apple Silicon) with static/dynamic builds.
 #
 # Platform Coverage:
-# - x64-osx (static/dynamic) on macos-15 (Intel)
-# - arm64-osx (static/dynamic/experimental) on macos-latest (Apple Silicon)
+# - x64-osx (static/dynamic) on macos-15-intel (Intel)
+# - arm64-osx (static/dynamic/experimental) on macos-15 (Apple Silicon)
 
 name: macOS Matrix
 
@@ -41,7 +41,7 @@ jobs:
     name: 🍎 x64 · Production
     uses: ./.github/workflows/_build.yml
     with:
-      runner: macos-15
+      runner: macos-15-intel
       triplet: x64-osx
       config: production
       vcpkg-manifest: vcpkg-production.json
@@ -50,7 +50,7 @@ jobs:
     name: 🔧 x64 · Dynamic
     uses: ./.github/workflows/_build.yml
     with:
-      runner: macos-15
+      runner: macos-15-intel
       triplet: x64-osx-dynamic
       config: production
       vcpkg-manifest: vcpkg-production.json
@@ -62,7 +62,7 @@ jobs:
     name: 🍎 ARM64 · Production
     uses: ./.github/workflows/_build.yml
     with:
-      runner: macos-latest
+      runner: macos-15
       triplet: arm64-osx
       config: production
       vcpkg-manifest: vcpkg-production.json
@@ -71,7 +71,7 @@ jobs:
     name: 🔧 ARM64 · Dynamic
     uses: ./.github/workflows/_build.yml
     with:
-      runner: macos-latest
+      runner: macos-15
       triplet: arm64-osx-dynamic
       config: production
       vcpkg-manifest: vcpkg-production.json
@@ -80,7 +80,7 @@ jobs:
     name: 🧪 ARM64 · Experimental
     uses: ./.github/workflows/_build.yml
     with:
-      runner: macos-latest
+      runner: macos-15
       triplet: arm64-osx
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json
