@@ -79,11 +79,14 @@ else()
             if(FUSE_T_INCLUDE_BASE_DIR)
               # get_filename_component returns the dir containing fuse.h, which is what we want
               set(_filtered_include_dirs "${FUSE_T_INCLUDE_BASE_DIR}")
+            else()
+              # Manual search also failed - keep original behavior but warn
+              message(WARNING "Could not find valid FUSE-T include directories, FUSE support may be broken")
             endif()
           endif()
 
           # Update the imported target's include directories
-          if(TARGET PkgConfig::FUSE_T)
+          if(TARGET PkgConfig::FUSE_T AND _filtered_include_dirs)
             set_target_properties(PkgConfig::FUSE_T PROPERTIES
               INTERFACE_INCLUDE_DIRECTORIES "${_filtered_include_dirs}")
           endif()
