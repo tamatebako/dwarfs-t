@@ -17,6 +17,5 @@
   "overlay-triplets": ["vcpkg_triplets"],
   "overlay-ports": [
     "vcpkg_ports"
-  ],
-  "binary-sources": null
+  ]
 }
