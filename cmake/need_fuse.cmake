@@ -65,18 +65,20 @@ else()
           # Always update the target properties, even if empty (removes bad paths)
           if(NOT _filtered_include_dirs)
             # No valid directories found, search manually
-            find_path(FUSE_T_INCLUDE_DIR fuse/fuse.h
+            # FUSE-T installs headers to fuse-t/ subdirectory
+            find_path(FUSE_T_INCLUDE_BASE_DIR
+              NAMES fuse/fuse.h
               PATHS
                 /usr/local/include/fuse-t
-                /usr/local/include
                 /opt/homebrew/include/fuse-t
+                /usr/local/include
                 /opt/homebrew/include
               NO_DEFAULT_PATH
               NO_CMAKE_FIND_ROOT_PATH
             )
-            if(FUSE_T_INCLUDE_DIR)
-              get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" DIRECTORY)
-              set(_filtered_include_dirs "${FUSE_T_INCLUDE_DIR}")
+            if(FUSE_T_INCLUDE_BASE_DIR)
+              # get_filename_component returns the dir containing fuse.h, which is what we want
+              set(_filtered_include_dirs "${FUSE_T_INCLUDE_BASE_DIR}")
             endif()
           endif()
 
