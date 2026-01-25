@@ -91,6 +91,11 @@ jobs:
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
           doNotCache: true
 
+      - name: 🔨 Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
+        with:
+          with-fuse: ${{ contains(runner.os, 'macOS') || contains(runner.os, 'Linux') }}
+
       - name: 🔍 Install vcpkg dependencies
         shell: bash
         run: |
@@ -100,11 +105,6 @@ jobs:
           VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
           VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
           VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
-
-      - name: 🔨 Setup build dependencies
-        uses: ./.github/actions/setup-build-deps
-        with:
-          with-fuse: ${{ contains(runner.os, 'macOS') || contains(runner.os, 'Linux') }}
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
