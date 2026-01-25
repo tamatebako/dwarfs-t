@@ -95,7 +95,8 @@ jobs:
         shell: bash
         run: |
           echo "Installing vcpkg dependencies for triplet: ${{ inputs.triplet }}"
-          ${{ github.workspace }}/../vcpkg/vcpkg install --triplet "${{ inputs.triplet }}" --recurse
+          VCPKG_ROOT="${{ github.workspace }}/../vcpkg"
+          "$VCPKG_ROOT/vcpkg" install --triplet "${{ inputs.triplet }}" --recurse
         env:
           VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
           VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
