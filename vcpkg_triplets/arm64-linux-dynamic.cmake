@@ -10,8 +10,6 @@ set(VCPKG_CMAKE_SYSTEM_NAME Linux)
 # Use GNU compiler on Linux
 set(VCPKG_PLATFORM_TOOLSET arm64)
 
-# Enable position-independent code
-set(VCPKG_CMAKE_CONFIGURE_OPTIONS -PIC)
-
-# Use system libraries where available
-set(VCPKG_USE_SYSTEM_LIBRARIES ON)
+# Compiler flags for position-independent code
+set(VCPKG_C_FLAGS "-fPIC")
+set(VCPKG_CXX_FLAGS "-fPIC")
