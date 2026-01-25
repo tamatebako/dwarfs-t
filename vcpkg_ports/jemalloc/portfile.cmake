@@ -54,11 +54,18 @@ if(VCPKG_TARGET_IS_WINDOWS)
     endif()
 else()
     # Build without je_ prefix for Folly compatibility on Unix
+    # Determine if we should build shared library
+    if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
+        set(BUILD_SHARED_OPTION "ON")
+    else()
+        set(BUILD_SHARED_OPTION "OFF")
+    endif()
+
     vcpkg_configure_cmake(
         SOURCE_PATH "${SOURCE_PATH}"
         OPTIONS
             -DJEMALLOC_BUILD_STATIC=ON
-            -DJEMALLOC_BUILD_SHARED=$<STREQUAL:${VCPKG_LIBRARY_LINKAGE},dynamic>
+            -DJEMALLOC_BUILD_SHARED=${BUILD_SHARED_OPTION}
             -DJEMALLOC_ENABLE_PROF=OFF
             -DJEMALLOC_ENABLE_STATS=ON
             -DJEMALLOC_ENABLE_CXX=OFF
