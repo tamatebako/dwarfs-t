@@ -100,12 +100,6 @@ jobs:
         shell: bash
         run: |
           echo "Installing vcpkg dependencies for triplet: ${{ inputs.triplet }}"
-          # Disable FUSE on macOS - FUSE-T from Homebrew has different header structure
-          if [[ "${{ runner.os }}" == "macOS" ]]; then
-            echo "DWARFS_WITH_FUSE=OFF" >> $GITHUB_ENV
-          else
-            echo "DWARFS_WITH_FUSE=ON" >> $GITHUB_ENV
-          fi
           vcpkg install --triplet "${{ inputs.triplet }}" --vcpkg-root "${VCPKG_ROOT}"
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
