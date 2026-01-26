@@ -13,6 +13,7 @@ vcpkg_from_github(
         fix-deps.patch
         fix-unistd-include.patch
         fix-absolute-dir.patch
+        fix-mm-malloc-include.patch
 )
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
@@ -39,19 +40,6 @@ if(NOT VCPKG_TARGET_IS_WINDOWS)
     )
 endif()
 
-# Fix conflict with GCC's mm_malloc.h which declares posix_memalign with throw()
-# while jemalloc declares it with __attribute__((nothrow)). When fast_float includes
-# SSE headers, it pulls in mm_malloc.h, causing C++20 compilation error.
-# Solution: Define _MM_MALLOC_H to prevent mm_malloc.h from declaring conflicting symbols.
-# Folly uses jemalloc's memory allocator, so we must use jemalloc's posix_memalign.
-# Cache-bust: 2025-01-26-rebuild2
-set(EXTRA_CXX_FLAGS)
-set(EXTRA_C_FLAGS)
-if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
-    list(APPEND EXTRA_CXX_FLAGS "-D_MM_MALLOC_H")
-    list(APPEND EXTRA_C_FLAGS "-D_MM_MALLOC_H")
-endif()
-
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
@@ -66,8 +54,6 @@ vcpkg_cmake_configure(
         -DVCPKG_LOCK_FIND_PACKAGE_ZLIB=ON
         ${FEATURE_OPTIONS}
         ${JEMALLOC_CMAKE_ARGS}
-        -DCMAKE_CXX_FLAGS="${EXTRA_CXX_FLAGS}"
-        -DCMAKE_C_FLAGS="${EXTRA_C_FLAGS}"
     MAYBE_UNUSED_VARIABLES
         MSVC_USE_STATIC_RUNTIME
 )

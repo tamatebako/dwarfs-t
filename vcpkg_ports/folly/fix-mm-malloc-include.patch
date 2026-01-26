@@ -1,0 +1,17 @@
+--- a/CMake/folly-deps.cmake
++++ b/CMake/folly-deps.cmake
+@@ -309,6 +309,13 @@ endif()
+ 
+ add_library(folly_deps INTERFACE)
+ 
++# Fix conflict with GCC's mm_malloc.h which declares posix_memalign with throw()
++# while jemalloc declares it with __attribute__((nothrow)). When fast_float includes
++# SSE headers, it pulls in mm_malloc.h, causing C++20 compilation error.
++# Solution: Define _MM_MALLOC_H to prevent mm_malloc.h from being included.
++if(UNIX AND NOT APPLE AND NOT ANDROID)
++  target_compile_definitions(folly_deps INTERFACE _MM_MALLOC_H)
++endif()
++
+ find_package(fmt CONFIG)
+ if (NOT DEFINED fmt_CONFIG)
+     # Fallback on a normal search on the current system

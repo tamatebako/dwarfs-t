@@ -1,7 +1,7 @@
 {
   "name": "jemalloc",
   "version": "5.5.0",
-  "port-version": 2,
+  "port-version": 3,
   "description": "jemalloc is a general purpose malloc(3) implementation that emphasizes fragmentation avoidance and scalable concurrency support. Tebako fork for DwarFS: configured without je_ prefix for Folly compatibility.",
   "homepage": "https://github.com/tamatebako/jemalloc",
   "license": "BSD-2-Clause",
