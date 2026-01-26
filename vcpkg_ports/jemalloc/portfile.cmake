@@ -105,27 +105,24 @@ endif()
 # 2. Users who need je_posix_memalign can include jemalloc.h first
 # 3. System posix_memalign is still available via standard C library
 if(NOT VCPKG_TARGET_IS_WINDOWS AND NOT VCPKG_TARGET_IS_ANDROID)
-    # Guard je_posix_memalign declaration
+    # Guard the je_posix_memalign -> posix_memalign macro in JEMALLOC_NO_RENAME section
+    # This macro at line ~94 declares: #  define je_posix_memalign posix_memalign
+    # When je_ prefix is used, this macro causes jemalloc to provide an unprefixed
+    # posix_memalign, which conflicts with GCC's mm_malloc.h declaration.
+    # Solution: Only define this macro if mm_malloc.h hasn't been included.
+    vcpkg_replace_string(
+        "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
+"#  define je_posix_memalign posix_memalign"
+"#  if !defined(_MM_MALLOC_H) && !defined(__MM_MALLOC_H)\n#    define je_posix_memalign posix_memalign\n#  endif"
+    )
+
+    # Guard je_posix_memalign function declaration (lines 281-283)
     vcpkg_replace_string(
         "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
 "JEMALLOC_EXPORT int JEMALLOC_SYS_NOTHROW je_posix_memalign(
     void **memptr, size_t alignment, size_t size) JEMALLOC_CXX_THROW
     JEMALLOC_ATTR(nonnull(1));"
-"#if !defined(_MM_MALLOC_H) && !defined(__MM_MALLOC_H)
-JEMALLOC_EXPORT int JEMALLOC_SYS_NOTHROW je_posix_memalign(
-    void **memptr, size_t alignment, size_t size) JEMALLOC_CXX_THROW
-    JEMALLOC_ATTR(nonnull(1));
-#endif
-"
-    )
-
-    # Also guard unprefixed posix_memalign declaration (compatibility alias)
-    # This declares: #define posix_memalign je_posix_memalign
-    # We need to wrap this in the same guard
-    vcpkg_replace_string(
-        "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
-"#define posix_memalign je_posix_memalign"
-"#if !defined(_MM_MALLOC_H) && !defined(__MM_MALLOC_H)\n#define posix_memalign je_posix_memalign\n#endif"
+"#if !defined(_MM_MALLOC_H) && !defined(__MM_MALLOC_H)\nJEMALLOC_EXPORT int JEMALLOC_SYS_NOTHROW je_posix_memalign(\n    void **memptr, size_t alignment, size_t size) JEMALLOC_CXX_THROW\n    JEMALLOC_ATTR(nonnull(1));\n#endif"
     )
 endif()
 
