@@ -49,7 +49,7 @@ else()
     find_path(FUSE_T_INCLUDE_DIR
       NAMES fuse.h
       PATHS
-        /Library/Application Support/fuse-t/include/fuse
+        "/Library/Application Support/fuse-t/include/fuse"
       NO_DEFAULT_PATH
       NO_CMAKE_FIND_ROOT_PATH
     )
