@@ -101,16 +101,17 @@ jobs:
         run: |
           echo "Installing vcpkg dependencies for triplet: ${{ inputs.triplet }}"
 
-          # On Windows, delete vcpkg's broken cached ninja and use the one from get-cmake
+          # On Windows, force vcpkg to use the get-cmake ninja instead of downloading its own
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            NINJA_PATH=$(find /d/a/_temp -name ninja.exe 2>/dev/null | head -1)
-            if [[ -n "$NINJA_PATH" ]]; then
-              NINJA_DIR=$(dirname "$NINJA_PATH")
-              echo "Found ninja at: $NINJA_PATH"
+            # get-cmake installs ninja to temp dir but doesn't propagate to next step
+            # Find it and add to PATH, then tell vcpkg to use system binaries
+            NINJA_DIR=$(find "$RUNNER_TEMP" -name ninja.exe -exec dirname {} \; 2>/dev/null | head -1)
+            if [[ -n "$NINJA_DIR" ]]; then
+              echo "Found ninja at: $NINJA_DIR/ninja.exe"
               echo "Adding to PATH: $NINJA_DIR"
               export PATH="$NINJA_DIR:$PATH"
-              # Delete vcpkg's broken cached ninja so it uses the one from PATH
-              rm -rf "${VCPKG_ROOT}/downloads/tools/ninja-"*
+              # Tell vcpkg to use system binaries (ninja from PATH) instead of downloading
+              export VCPKG_FORCE_SYSTEM_BINARIES=1
             fi
           fi
 
