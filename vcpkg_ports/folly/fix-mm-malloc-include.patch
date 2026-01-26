@@ -17,3 +17,6 @@ index 1234567..abcdef 100644
  find_package(fmt CONFIG)
  if (NOT DEFINED fmt_CONFIG)
      # Fallback on a normal search on the current system
+     find_package(Fmt MODULE REQUIRED)
+ endif()
+ target_link_libraries(folly_deps INTERFACE fmt::fmt)
