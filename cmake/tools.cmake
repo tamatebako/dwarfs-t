@@ -162,17 +162,10 @@ if(WITH_FUSE_DRIVER)
     target_compile_definitions(dwarfs_reader PRIVATE _FILE_OFFSET_BITS=64)
     if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=31 DWARFS_USE_FUSE_T)
-      # FUSE-T can be installed in different locations:
-      # - Official installer: /Library/Application Support/fuse-t/include/fuse
-      # - Homebrew x64: /usr/local/include/fuse-t
-      # - Homebrew ARM64: /opt/homebrew/include/fuse-t
-      # Try to detect the correct location dynamically
+      # FUSE-T (via Homebrew or official installer) installs to:
+      # /Library/Application Support/fuse-t/include/fuse
       if(EXISTS "/Library/Application Support/fuse-t/include/fuse")
         target_include_directories(dwarfs_reader BEFORE PRIVATE "/Library/Application Support/fuse-t/include/fuse")
-      elseif(EXISTS "/usr/local/include/fuse-t/fuse")
-        target_include_directories(dwarfs_reader BEFORE PRIVATE "/usr/local/include/fuse-t")
-      elseif(EXISTS "/opt/homebrew/include/fuse-t/fuse")
-        target_include_directories(dwarfs_reader BEFORE PRIVATE "/opt/homebrew/include/fuse-t")
       endif()
     elseif(FUSE3_FOUND)
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=35)
@@ -201,17 +194,10 @@ if(WITH_FUSE_DRIVER)
     target_compile_definitions(dwarfs_main PRIVATE _FILE_OFFSET_BITS=64)
     if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t")
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=31 DWARFS_USE_FUSE_T)
-      # FUSE-T can be installed in different locations:
-      # - Official installer: /Library/Application Support/fuse-t/include/fuse
-      # - Homebrew x64: /usr/local/include/fuse-t
-      # - Homebrew ARM64: /opt/homebrew/include/fuse-t
-      # Try to detect the correct location dynamically
+      # FUSE-T (via Homebrew or official installer) installs to:
+      # /Library/Application Support/fuse-t/include/fuse
       if(EXISTS "/Library/Application Support/fuse-t/include/fuse")
         target_include_directories(dwarfs_main BEFORE PRIVATE "/Library/Application Support/fuse-t/include/fuse")
-      elseif(EXISTS "/usr/local/include/fuse-t/fuse")
-        target_include_directories(dwarfs_main BEFORE PRIVATE "/usr/local/include/fuse-t")
-      elseif(EXISTS "/opt/homebrew/include/fuse-t/fuse")
-        target_include_directories(dwarfs_main BEFORE PRIVATE "/opt/homebrew/include/fuse-t")
       endif()
     elseif(FUSE3_FOUND)
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=35)

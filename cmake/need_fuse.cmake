@@ -65,16 +65,12 @@ else()
           # Always update the target properties, even if empty (removes bad paths)
           if(NOT _filtered_include_dirs)
             # No valid directories found, search manually
-            # FUSE-T installs to different locations:
-            # - Official installer: /Library/Application Support/fuse-t/include/fuse
-            # - Homebrew x64: /usr/local/include/fuse-t
-            # - Homebrew ARM64: /opt/homebrew/include/fuse-t
+            # FUSE-T (via Homebrew or official installer) installs to:
+            # /Library/Application Support/fuse-t/include
             find_path(FUSE_T_INCLUDE_BASE_DIR
               NAMES fuse.h
               PATHS
                 /Library/Application Support/fuse-t/include
-                /usr/local/include/fuse-t
-                /opt/homebrew/include/fuse-t
               NO_DEFAULT_PATH
               NO_CMAKE_FIND_ROOT_PATH
             )
