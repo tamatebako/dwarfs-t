@@ -44,28 +44,31 @@ else()
   if(APPLE)
     # On macOS, we ONLY use FUSE-T
     # NOTE: FUSE-T does NOT provide pkg-config, so we search directly
-    # FUSE-T is installed to: /Library/Application Support/fuse-t/include/fuse/fuse.h
-    # The code includes <fuse.h>, so we need to set include dir to:
-    # /Library/Application Support/fuse-t/include
+    # FUSE-T installs headers to multiple possible locations:
+    # - /usr/local/include/fuse (Homebrew default)
+    # - /opt/homebrew/include/fuse (Apple Silicon Homebrew)
+    # - /Library/Application Support/fuse-t/include/fuse (Official installer)
+    # The code includes <fuse.h>, so we need to find the parent include dir
 
-    # Search for the fuse/ directory and use its parent as include dir
+    # Search for the fuse/ directory in multiple locations
     find_path(FUSE_T_INCLUDE_BASE_DIR
-      NAMES fuse
+      NAMES fuse.h
       PATHS
-        /Library/Application Support/fuse-t/include
+        /usr/local/include/fuse
+        /opt/homebrew/include/fuse
+        /Library/Application Support/fuse-t/include/fuse
       NO_DEFAULT_PATH
       NO_CMAKE_FIND_ROOT_PATH
     )
     if(FUSE_T_INCLUDE_BASE_DIR)
-      # Get parent directory (include dir) from the fuse/ subdirectory path
-      get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_BASE_DIR}" DIRECTORY)
-      # Export the include directory for use in tools.cmake and tool_support.cmake
-      set(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" CACHE INTERNAL "FUSE-T include directory")
+      # FUSE_T_INCLUDE_BASE_DIR is the fuse/ directory containing fuse.h
+      # Export it directly for use in tools.cmake and tool_support.cmake
+      set(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_BASE_DIR}" CACHE INTERNAL "FUSE-T include directory")
       set(FUSE_IMPLEMENTATION "fuse-t")
       set(FUSE_FOUND TRUE)
-      message(STATUS "Found FUSE-T at: ${FUSE_T_INCLUDE_DIR}")
+      message(STATUS "Found FUSE-T headers at: ${FUSE_T_INCLUDE_DIR}")
     else()
-      message(FATAL_ERROR "FUSE-T not found at /Library/Application Support/fuse-t/include. Install FUSE-T: brew install fuse-t. Set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
+      message(FATAL_ERROR "FUSE-T headers not found. Searched in: /usr/local/include/fuse, /opt/homebrew/include/fuse, /Library/Application Support/fuse-t/include/fuse. Install FUSE-T: brew install fuse-t. Set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
     endif()
   else()
     # Linux: Try FUSE3 first, then FUSE2
