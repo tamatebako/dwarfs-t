@@ -1,3 +1,5 @@
+diff --git a/CMake/folly-deps.cmake b/CMake/folly-deps.cmake
+index 1234567..abcdef 100644
 --- a/CMake/folly-deps.cmake
 +++ b/CMake/folly-deps.cmake
 @@ -309,6 +309,13 @@ endif()
