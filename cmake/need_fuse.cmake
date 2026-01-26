@@ -82,6 +82,9 @@ else()
             endif()
           endif()
 
+          # Export the include directory for use in other parts of the build
+          set(FUSE_T_INCLUDE_DIR "${_filtered_include_dirs}" CACHE INTERNAL "FUSE-T include directory")
+
           # Update the imported target's include directories
           if(TARGET PkgConfig::FUSE_T AND _filtered_include_dirs)
             set_target_properties(PkgConfig::FUSE_T PROPERTIES

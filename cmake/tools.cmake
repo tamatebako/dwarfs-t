@@ -162,10 +162,9 @@ if(WITH_FUSE_DRIVER)
     target_compile_definitions(dwarfs_reader PRIVATE _FILE_OFFSET_BITS=64)
     if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=31 DWARFS_USE_FUSE_T)
-      # FUSE-T (via Homebrew or official installer) installs to:
-      # /Library/Application Support/fuse-t/include/fuse
-      if(EXISTS "/Library/Application Support/fuse-t/include/fuse")
-        target_include_directories(dwarfs_reader BEFORE PRIVATE "/Library/Application Support/fuse-t/include/fuse")
+      # FUSE_T_INCLUDE_DIR is set by need_fuse.cmake
+      if(FUSE_T_INCLUDE_DIR)
+        target_include_directories(dwarfs_reader BEFORE PRIVATE "${FUSE_T_INCLUDE_DIR}")
       endif()
     elseif(FUSE3_FOUND)
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=35)
@@ -196,8 +195,8 @@ if(WITH_FUSE_DRIVER)
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=31 DWARFS_USE_FUSE_T)
       # FUSE-T (via Homebrew or official installer) installs to:
       # /Library/Application Support/fuse-t/include/fuse
-      if(EXISTS "/Library/Application Support/fuse-t/include/fuse")
-        target_include_directories(dwarfs_main BEFORE PRIVATE "/Library/Application Support/fuse-t/include/fuse")
+      if(FUSE_T_INCLUDE_DIR)
+        target_include_directories(dwarfs_main BEFORE PRIVATE "${FUSE_T_INCLUDE_DIR}")
       endif()
     elseif(FUSE3_FOUND)
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=35)
