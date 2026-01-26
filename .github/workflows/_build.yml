@@ -100,6 +100,17 @@ jobs:
         shell: bash
         run: |
           echo "Installing vcpkg dependencies for triplet: ${{ inputs.triplet }}"
+
+          # On Windows, find ninja installed by get-cmake and set NINJA env var
+          # vcpkg can't find it in the temp directory otherwise
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            NINJA_PATH=$(find /d/a/_temp -name ninja.exe 2>/dev/null | head -1)
+            if [[ -n "$NINJA_PATH" ]]; then
+              export NINJA="$NINJA_PATH"
+              echo "Found ninja at: $NINJA"
+            fi
+          fi
+
           vcpkg install --triplet "${{ inputs.triplet }}" --vcpkg-root "${VCPKG_ROOT}"
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
