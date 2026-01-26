@@ -42,47 +42,30 @@ if(WIN32)
   endif()
 else()
   if(APPLE)
-    # On macOS, try FUSE-T first (default), then macFUSE/osxfuse
+    # On macOS, we ONLY use FUSE-T
     # NOTE: FUSE-T does NOT provide pkg-config, so we search directly
-    option(USE_FUSE_T "Prefer FUSE-T over macFUSE on macOS" ON)
+    # FUSE-T is installed to: /Library/Application Support/fuse-t/include/fuse/fuse.h
+    # The code includes <fuse.h>, so we need to set include dir to:
+    # /Library/Application Support/fuse-t/include
 
-    if(USE_FUSE_T)
-      # FUSE-T is installed to a known path:
-      # /Library/Application Support/fuse-t/include/fuse/fuse.h
-      # The code includes <fuse.h>, so we need to set include dir to:
-      # /Library/Application Support/fuse-t/include
-      # Search for the fuse/ directory and use its parent as include dir
-      find_path(FUSE_T_INCLUDE_BASE_DIR
-        NAMES fuse
-        PATHS
-          /Library/Application Support/fuse-t/include
-        NO_DEFAULT_PATH
-        NO_CMAKE_FIND_ROOT_PATH
-      )
-      if(FUSE_T_INCLUDE_BASE_DIR)
-        # Get parent directory (include dir) from the fuse/ subdirectory path
-        get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_BASE_DIR}" DIRECTORY)
-        # Export the include directory for use in tools.cmake and tool_support.cmake
-        set(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" CACHE INTERNAL "FUSE-T include directory")
-        set(FUSE_IMPLEMENTATION "fuse-t")
-        set(FUSE_FOUND TRUE)
-        message(STATUS "Found FUSE-T at: ${FUSE_T_INCLUDE_DIR}")
-      else()
-        message(STATUS "FUSE-T not found at /Library/Application Support/fuse-t/include, trying macFUSE/osxfuse...")
-      endif()
-    endif()
-
-    # Fallback to macFUSE/osxfuse if FUSE-T not found or not preferred
-    if(NOT FUSE_FOUND)
-      pkg_check_modules(FUSE IMPORTED_TARGET fuse>=2.9.9)
-      if(FUSE_FOUND)
-        set(FUSE_IMPLEMENTATION "macos-fuse")
-        message(STATUS "Using macFUSE/osxfuse on macOS (version ${FUSE_VERSION})")
-      endif()
-    endif()
-
-    if(NOT FUSE_FOUND)
-      message(FATAL_ERROR "No FUSE implementation found on macOS. Install FUSE-T (brew install fuse-t) or macFUSE (brew install --cask macfuse) for FUSE driver support. Set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
+    # Search for the fuse/ directory and use its parent as include dir
+    find_path(FUSE_T_INCLUDE_BASE_DIR
+      NAMES fuse
+      PATHS
+        /Library/Application Support/fuse-t/include
+      NO_DEFAULT_PATH
+      NO_CMAKE_FIND_ROOT_PATH
+    )
+    if(FUSE_T_INCLUDE_BASE_DIR)
+      # Get parent directory (include dir) from the fuse/ subdirectory path
+      get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_BASE_DIR}" DIRECTORY)
+      # Export the include directory for use in tools.cmake and tool_support.cmake
+      set(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" CACHE INTERNAL "FUSE-T include directory")
+      set(FUSE_IMPLEMENTATION "fuse-t")
+      set(FUSE_FOUND TRUE)
+      message(STATUS "Found FUSE-T at: ${FUSE_T_INCLUDE_DIR}")
+    else()
+      message(FATAL_ERROR "FUSE-T not found at /Library/Application Support/fuse-t/include. Install FUSE-T: brew install fuse-t. Set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
     endif()
   else()
     # Linux: Try FUSE3 first, then FUSE2
