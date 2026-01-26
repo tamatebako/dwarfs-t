@@ -44,6 +44,7 @@ endif()
 # SSE headers, it pulls in mm_malloc.h, causing C++20 compilation error.
 # Solution: Define _MM_MALLOC_H to prevent mm_malloc.h from declaring conflicting symbols.
 # Folly uses jemalloc's memory allocator, so we must use jemalloc's posix_memalign.
+# Cache-bust: 2025-01-26-force-rebuild
 set(EXTRA_CXX_FLAGS)
 if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
     list(APPEND EXTRA_CXX_FLAGS "-D_MM_MALLOC_H")
@@ -64,6 +65,7 @@ vcpkg_cmake_configure(
         ${FEATURE_OPTIONS}
         ${JEMALLOC_CMAKE_ARGS}
         -DCMAKE_CXX_FLAGS="${EXTRA_CXX_FLAGS}"
+        -DCMAKE_C_FLAGS="${EXTRA_CXX_FLAGS}"
     MAYBE_UNUSED_VARIABLES
         MSVC_USE_STATIC_RUNTIME
 )
