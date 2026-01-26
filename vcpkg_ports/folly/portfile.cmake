@@ -42,9 +42,19 @@ endif()
 # Fix conflict with GCC's mm_malloc.h which declares posix_memalign with throw()
 # while jemalloc declares it with __attribute__((nothrow)). When fast_float includes
 # SSE headers, it pulls in mm_malloc.h, causing C++2020 compilation error.
-# Solution: Define _MM_MALLOC_H before CMake configuration to prevent mm_malloc.h inclusion.
+# Solution: Add _MM_MALLOC_H compile definition to folly_deps target in CMakeLists.txt
 if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
-    list(APPEND VCPKG_CXX_FLAGS "-D_MM_MALLOC_H")
+    vcpkg_replace_string(
+        "${SOURCE_PATH}/CMake/folly-deps.cmake"
+"add_library(folly_deps INTERFACE)"
+"add_library(folly_deps INTERFACE)
+
+# Fix conflict with GCC's mm_malloc.h which declares posix_memalign with throw()
+# while jemalloc declares it with __attribute__((nothrow)). When fast_float includes
+# SSE headers, it pulls in mm_malloc.h, causing C++2020 compilation error.
+# Solution: Define _MM_MALLOC_H to prevent mm_malloc.h from being included.
+target_compile_definitions(folly_deps INTERFACE _MM_MALLOC_H)"
+    )
 endif()
 
 vcpkg_cmake_configure(
