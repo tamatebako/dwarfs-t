@@ -44,7 +44,8 @@ else()
   if(APPLE)
     # On macOS, we ONLY use FUSE-T
     # FUSE-T installs headers to: /Library/Application Support/fuse-t/include/fuse/
-    # The code includes <fuse.h>, so we search for the fuse.h file directly
+    # The code includes <fuse/fuse_lowlevel.h>, so we need the parent directory
+    # of the fuse/ directory for the include path
 
     find_path(FUSE_T_INCLUDE_DIR
       NAMES fuse.h
@@ -54,6 +55,8 @@ else()
       NO_CMAKE_FIND_ROOT_PATH
     )
     if(FUSE_T_INCLUDE_DIR)
+      # Get parent directory for include path (code includes <fuse/fuse_lowlevel.h>)
+      get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" DIRECTORY)
       set(FUSE_IMPLEMENTATION "fuse-t")
       set(FUSE_FOUND TRUE)
       message(STATUS "Found FUSE-T headers at: ${FUSE_T_INCLUDE_DIR}")
