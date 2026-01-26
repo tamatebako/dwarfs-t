@@ -43,32 +43,22 @@ if(WIN32)
 else()
   if(APPLE)
     # On macOS, we ONLY use FUSE-T
-    # NOTE: FUSE-T does NOT provide pkg-config, so we search directly
-    # FUSE-T installs headers to multiple possible locations:
-    # - /usr/local/include/fuse (Homebrew default)
-    # - /opt/homebrew/include/fuse (Apple Silicon Homebrew)
-    # - /Library/Application Support/fuse-t/include/fuse (Official installer)
-    # The code includes <fuse.h>, so we need to find the parent include dir
+    # FUSE-T installs headers to: /Library/Application Support/fuse-t/include/fuse/
+    # The code includes <fuse.h>, so we search for the fuse.h file directly
 
-    # Search for the fuse/ directory in multiple locations
-    find_path(FUSE_T_INCLUDE_BASE_DIR
+    find_path(FUSE_T_INCLUDE_DIR
       NAMES fuse.h
       PATHS
-        /usr/local/include/fuse
-        /opt/homebrew/include/fuse
         /Library/Application Support/fuse-t/include/fuse
       NO_DEFAULT_PATH
       NO_CMAKE_FIND_ROOT_PATH
     )
-    if(FUSE_T_INCLUDE_BASE_DIR)
-      # FUSE_T_INCLUDE_BASE_DIR is the fuse/ directory containing fuse.h
-      # Export it directly for use in tools.cmake and tool_support.cmake
-      set(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_BASE_DIR}" CACHE INTERNAL "FUSE-T include directory")
+    if(FUSE_T_INCLUDE_DIR)
       set(FUSE_IMPLEMENTATION "fuse-t")
       set(FUSE_FOUND TRUE)
       message(STATUS "Found FUSE-T headers at: ${FUSE_T_INCLUDE_DIR}")
     else()
-      message(FATAL_ERROR "FUSE-T headers not found. Searched in: /usr/local/include/fuse, /opt/homebrew/include/fuse, /Library/Application Support/fuse-t/include/fuse. Install FUSE-T: brew install fuse-t. Set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
+      message(FATAL_ERROR "FUSE-T headers not found at /Library/Application Support/fuse-t/include/fuse. Install FUSE-T: brew install fuse-t. Set DWARFS_WITH_FUSE=OFF to disable FUSE support.")
     endif()
   else()
     # Linux: Try FUSE3 first, then FUSE2
