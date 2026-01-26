@@ -96,9 +96,6 @@ jobs:
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
           runVcpkgInstall: true
-        env:
-          # Add ninja from get-cmake to PATH so vcpkg can find it
-          PATH: ${{ steps.cmake.outputs.ninja-path }}:${{ env.PATH }}
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
