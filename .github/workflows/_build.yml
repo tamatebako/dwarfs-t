@@ -101,13 +101,16 @@ jobs:
         run: |
           echo "Installing vcpkg dependencies for triplet: ${{ inputs.triplet }}"
 
-          # On Windows, find ninja installed by get-cmake and set NINJA env var
-          # vcpkg can't find it in the temp directory otherwise
+          # On Windows, delete vcpkg's broken cached ninja and use the one from get-cmake
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             NINJA_PATH=$(find /d/a/_temp -name ninja.exe 2>/dev/null | head -1)
             if [[ -n "$NINJA_PATH" ]]; then
-              export NINJA="$NINJA_PATH"
-              echo "Found ninja at: $NINJA"
+              NINJA_DIR=$(dirname "$NINJA_PATH")
+              echo "Found ninja at: $NINJA_PATH"
+              echo "Adding to PATH: $NINJA_DIR"
+              export PATH="$NINJA_DIR:$PATH"
+              # Delete vcpkg's broken cached ninja so it uses the one from PATH
+              rm -rf "${VCPKG_ROOT}/downloads/tools/ninja-"*
             fi
           fi
 
