@@ -13,10 +13,14 @@ vcpkg_from_github(
         fix-deps.patch
         fix-unistd-include.patch
         fix-absolute-dir.patch
+        include-jemalloc-first-in-Conv.patch
 )
 
-# Note: posix_memalign conflict with GCC's mm_malloc.h is resolved in the
-# jemalloc port itself (jemalloc source template patched to guard declaration)
+# Note: posix_memalign conflict with GCC's mm_malloc.h is resolved by:
+# 1. Patching jemalloc source template to guard posix_memalign declaration
+# 2. Patching folly/Conv.cpp to include jemalloc.h BEFORE any other includes
+# This ensures jemalloc's posix_memalign declaration comes first, and when
+# mm_malloc.h is included later (via fast_float), its declaration is skipped.
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
 

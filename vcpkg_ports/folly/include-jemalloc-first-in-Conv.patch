@@ -1,0 +1,14 @@
+diff --git a/folly/Conv.cpp b/folly/Conv.cpp
+index 11111..22222 100644
+--- a/folly/Conv.cpp
++++ b/folly/Conv.cpp
+@@ -14,6 +14,9 @@
+  * limitations under the License.
+  */
+
++// Include jemalloc.h first before any other headers to prevent
++// posix_memalign declaration conflict with GCC's mm_malloc.h
++#include <jemalloc/jemalloc.h>
++
+ #include <folly/Conv.h>
+ #include <folly/CPortability.h>
