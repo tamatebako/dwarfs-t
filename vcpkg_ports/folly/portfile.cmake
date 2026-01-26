@@ -15,25 +15,9 @@ vcpkg_from_github(
         fix-absolute-dir.patch
 )
 
-# Fix conflict with GCC's mm_malloc.h which declares posix_memalign with throw()
-# while jemalloc declares it with __attribute__((nothrow)). When fast_float includes
-# SSE headers, it pulls in mm_malloc.h, causing C++20 compilation error.
-# Solution: Define _MM_MALLOC_H before including jemalloc.h to prevent
-# jemalloc from declaring posix_memalign (so mm_malloc.h can declare it without conflict)
-if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
-    vcpkg_replace_string(
-        "${SOURCE_PATH}/folly/Conv.cpp"
-" * limitations under the License.
- */"
-" * limitations under the License.
- */
-
-// Define _MM_MALLOC_H to prevent jemalloc from declaring posix_memalign
-// This allows mm_malloc.h to declare it without conflicting exception specifiers
-#define _MM_MALLOC_H
-#include <jemalloc/jemalloc.h>"
-    )
-endif()
+# Note: posix_memalign conflict with GCC's mm_malloc.h is now resolved by:
+# the jemalloc port which removes the posix_memalign declaration from jemalloc.h
+# This prevents conflicts when mm_malloc.h is included via fast_float/SSE headers
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
 
