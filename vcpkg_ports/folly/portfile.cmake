@@ -13,14 +13,25 @@ vcpkg_from_github(
         fix-deps.patch
         fix-unistd-include.patch
         fix-absolute-dir.patch
-        include-jemalloc-first-in-Conv.patch
 )
 
-# Note: posix_memalign conflict with GCC's mm_malloc.h is resolved by:
-# 1. Patching jemalloc source template to guard posix_memalign declaration
-# 2. Patching folly/Conv.cpp to include jemalloc.h BEFORE any other includes
-# This ensures jemalloc's posix_memalign declaration comes first, and when
-# mm_malloc.h is included later (via fast_float), its declaration is skipped.
+# Fix conflict with GCC's mm_malloc.h which declares posix_memalign with throw()
+# while jemalloc declares it with __attribute__((nothrow)). When fast_float includes
+# SSE headers, it pulls in mm_malloc.h, causing C++20 compilation error.
+# Solution: Include jemalloc.h at the very beginning of folly/Conv.cpp before any other includes
+if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
+    vcpkg_replace_string(
+        "${SOURCE_PATH}/folly/Conv.cpp"
+" * limitations under the License.
+ */"
+" * limitations under the License.
+ */
+
+// Include jemalloc.h first before any other headers to prevent
+// posix_memalign declaration conflict with GCC's mm_malloc.h
+#include <jemalloc/jemalloc.h>"
+    )
+endif()
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
 
