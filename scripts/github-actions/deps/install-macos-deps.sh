@@ -19,6 +19,18 @@ brew install fuse-t || {
   echo "::error::FUSE-T installation failed! FUSE-T is REQUIRED for macOS builds."
   exit 1
 }
-echo "✓ FUSE-T installed successfully"
 
+# Verify FUSE-T installation
+echo "Verifying FUSE-T installation..."
+if [[ -d "/Library/Application Support/fuse-t/include/fuse" ]]; then
+  echo "✓ FUSE-T headers found at: /Library/Application Support/fuse-t/include/fuse"
+  ls -la "/Library/Application Support/fuse-t/include/fuse/" | head -10
+else
+  echo "::error::FUSE-T headers NOT found at /Library/Application Support/fuse-t/include/fuse after installation!"
+  echo "Listing /Library/Application Support/fuse-t/:"
+  ls -la "/Library/Application Support/fuse-t/" || echo "Directory does not exist"
+  exit 1
+fi
+
+echo "✓ FUSE-T installed successfully"
 echo "✓ macOS dependencies installed"
