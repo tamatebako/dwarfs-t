@@ -54,6 +54,14 @@ if(VCPKG_TARGET_IS_WINDOWS)
     endif()
 else()
     # Build without je_ prefix for Folly compatibility on Unix
+    # Exception: On Linux with GCC, use je_ prefix to avoid conflict with GCC's mm_malloc.h
+    # which also declares posix_memalign (with different exception specifier)
+    if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
+        set(JEMALLOC_PREFIX_OPTION "je_")
+    else()
+        set(JEMALLOC_PREFIX_OPTION "")
+    endif()
+
     # Determine if we should build shared library
     if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
         set(BUILD_SHARED_OPTION "ON")
@@ -70,7 +78,7 @@ else()
             -DJEMALLOC_ENABLE_STATS=ON
             -DJEMALLOC_ENABLE_CXX=OFF
             -DJEMALLOC_ENABLE_DOC=OFF
-            -DJEMALLOC_PREFIX=""
+            -DJEMALLOC_PREFIX=${JEMALLOC_PREFIX_OPTION}
     )
 
     vcpkg_cmake_install()
