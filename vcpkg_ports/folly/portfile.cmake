@@ -13,7 +13,6 @@ vcpkg_from_github(
         fix-deps.patch
         fix-unistd-include.patch
         fix-absolute-dir.patch
-        fix-mm-malloc-include.patch
 )
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
@@ -62,6 +61,27 @@ vcpkg_cmake_install()
 vcpkg_copy_pdbs()
 vcpkg_fixup_pkgconfig()
 vcpkg_cmake_config_fixup()
+
+# Fix conflict with GCC's mm_malloc.h which declares posix_memalign with throw()
+# while jemalloc declares it with __attribute__((nothrow)). When fast_float includes
+# SSE headers, it pulls in mm_malloc.h, causing C++2020 compilation error.
+# Solution: Add _MM_MALLOC_H to folly_deps target compile definitions.
+# This modifies the installed CMake config to add the compile definition.
+if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
+    vcpkg_replace_string(
+        "${CURRENT_PACKAGES_DIR}/share/folly/folly-deps.cmake"
+"add_library(folly_deps INTERFACE)"
+"add_library(folly_deps INTERFACE)
+
+# Fix conflict with GCC's mm_malloc.h which declares posix_memalign with throw()
+# while jemalloc declares it with __attribute__((nothrow)). When fast_float includes
+# SSE headers, it pulls in mm_malloc.h, causing C++2020 compilation error.
+# Solution: Define _MM_MALLOC_H to prevent mm_malloc.h from being included.
+if(UNIX AND NOT APPLE AND NOT ANDROID)
+  target_compile_definitions(folly_deps INTERFACE _MM_MALLOC_H)
+endif()"
+    )
+endif()
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 
