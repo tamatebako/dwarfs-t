@@ -83,12 +83,12 @@ else()
     # libc already provides posix_memalign, so we don't need jemalloc's declaration
     # This prevents "different exception specifier" errors when mm_malloc.h is included
     if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
-        vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc_protos.h.in"
-"JEMALLOC_EXPORT int JEMALLOC_SYS_NOTHROW @je_@posix_memalign(
-    void **memptr, size_t alignment, size_t size) JEMALLOC_CXX_THROW
-    JEMALLOC_ATTR(nonnull(1));"
-"// posix_memalign declaration removed to avoid conflict with GCC's mm_malloc.h
-// libc provides posix_memalign, so we don't need this declaration")
+        # The declaration is in the installed jemalloc.h, not the template file
+        # We need to comment out the posix_memalign declaration
+        vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
+"JEMALLOC_EXPORT int JEMALLOC_SYS_NOTHROW posix_memalign("
+"// JEMALLOC_EXPORT int JEMALLOC_SYS_NOTHROW posix_memalign("
+            )
     endif()
 endif()
 
