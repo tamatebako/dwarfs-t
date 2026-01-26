@@ -51,50 +51,35 @@ else()
       if(FUSE_T_FOUND)
         set(FUSE_IMPLEMENTATION "fuse-t")
         set(FUSE_FOUND TRUE)
-        # Fix include directories for FUSE-T (pkg-config may point to wrong path)
-        # FUSE-T installs to /usr/local/include/fuse-t/ not /usr/local/include/fuse/
-        if(FUSE_T_INCLUDE_DIRS)
-          # Filter include directories to keep only ones that exist (CMake 4.x compatible)
-          set(_filtered_include_dirs "")
-          foreach(_dir IN LISTS FUSE_T_INCLUDE_DIRS)
-            if(EXISTS "${_dir}")
-              list(APPEND _filtered_include_dirs "${_dir}")
-            endif()
-          endforeach()
 
-          # Always update the target properties, even if empty (removes bad paths)
-          if(NOT _filtered_include_dirs)
-            # No valid directories found, search manually
-            # FUSE-T (via Homebrew or official installer) installs to:
-            # /Library/Application Support/fuse-t/include/fuse/
-            # The code includes <fuse.h>, so we search for the fuse/ directory
-            # and set the include dir to its parent
-            find_path(FUSE_T_INCLUDE_BASE_DIR
-              NAMES fuse
-              PATHS
-                /Library/Application Support/fuse-t/include
-              NO_DEFAULT_PATH
-              NO_CMAKE_FIND_ROOT_PATH
-            )
-            if(FUSE_T_INCLUDE_BASE_DIR)
-              # Get parent directory (include dir) from the fuse/ subdirectory path
-              get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_BASE_DIR}" DIRECTORY)
-              set(_filtered_include_dirs "${FUSE_T_INCLUDE_DIR}")
-            else()
-              # Manual search also failed - keep original behavior but warn
-              message(WARNING "Could not find valid FUSE-T include directories, FUSE support may be broken")
-            endif()
-          endif()
-
-          # Export the include directory for use in other parts of the build
-          set(FUSE_T_INCLUDE_DIR "${_filtered_include_dirs}" CACHE INTERNAL "FUSE-T include directory")
-
-          # Update the imported target's include directories
-          if(TARGET PkgConfig::FUSE_T AND _filtered_include_dirs)
-            set_target_properties(PkgConfig::FUSE_T PROPERTIES
-              INTERFACE_INCLUDE_DIRECTORIES "${_filtered_include_dirs}")
-          endif()
+        # FUSE-T is installed to a known path:
+        # /Library/Application Support/fuse-t/include/fuse/fuse.h
+        # The code includes <fuse.h>, so we need to set include dir to:
+        # /Library/Application Support/fuse-t/include
+        # Search for the fuse/ directory and use its parent as include dir
+        find_path(FUSE_T_INCLUDE_BASE_DIR
+          NAMES fuse
+          PATHS
+            /Library/Application Support/fuse-t/include
+          NO_DEFAULT_PATH
+          NO_CMAKE_FIND_ROOT_PATH
+        )
+        if(FUSE_T_INCLUDE_BASE_DIR)
+          # Get parent directory (include dir) from the fuse/ subdirectory path
+          get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_BASE_DIR}" DIRECTORY)
+          # Export the include directory for use in tools.cmake and tool_support.cmake
+          set(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_DIR}" CACHE INTERNAL "FUSE-T include directory")
+          message(STATUS "Found FUSE-T include directory: ${FUSE_T_INCLUDE_DIR}")
+        else()
+          message(WARNING "Could not find FUSE-T include directory at /Library/Application Support/fuse-t/include")
         endif()
+
+        # Update the imported target's include directories if found
+        if(TARGET PkgConfig::FUSE_T AND FUSE_T_INCLUDE_DIR)
+          set_target_properties(PkgConfig::FUSE_T PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${FUSE_T_INCLUDE_DIR}")
+        endif()
+
         message(STATUS "Using FUSE-T on macOS (version ${FUSE_T_VERSION})")
       endif()
     endif()
