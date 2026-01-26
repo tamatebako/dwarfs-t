@@ -4,6 +4,8 @@ vcpkg_from_github(
     REF ea8e7eee91b6c9b291b15f4cf8b173400ec5c8f1
     SHA512 22a08ca229c5600bc003847585edbba3afa48266cd15170a149265d12dfc639e965734584e0400a8a2a22620a53b1ddff38806addcde41390df18189e82e0637
     HEAD_REF master
+    PATCHES
+        fix-posix_memalign-mm_malloc-conflict.patch
 )
 
 # Suppress policy warnings for misplaced CMake files (autotools build installs CMake files during build)

@@ -1,8 +1,8 @@
 {
   "name": "jemalloc",
   "version": "5.5.0",
-  "port-version": 7,
-  "description": "jemalloc is a general purpose malloc(3) implementation that emphasizes fragmentation avoidance and scalable concurrency support. Tebako fork for DwarFS: builds without je_ prefix on all platforms for Folly compatibility. The posix_memalign conflict with GCC's mm_malloc.h is resolved by defining _MM_MALLOC_H in the Folly portfile.",
+  "port-version": 8,
+  "description": "jemalloc is a general purpose malloc(3) implementation that emphasizes fragmentation avoidance and scalable concurrency support. Tebako fork for DwarFS: builds without je_ prefix on all platforms for Folly compatibility. The posix_memalign conflict with GCC's mm_malloc.h is resolved by guarding posix_memalign declaration in jemalloc source template with _MM_MALLOC_H checks.",
   "homepage": "https://github.com/tamatebako/jemalloc",
   "license": "BSD-2-Clause",
   "dependencies": [
