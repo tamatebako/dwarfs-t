@@ -66,16 +66,20 @@ else()
           if(NOT _filtered_include_dirs)
             # No valid directories found, search manually
             # FUSE-T (via Homebrew or official installer) installs to:
-            # /Library/Application Support/fuse-t/include
+            # /Library/Application Support/fuse-t/include/fuse/
+            # The code includes <fuse.h>, so we search for the fuse/ directory
+            # and set the include dir to its parent
             find_path(FUSE_T_INCLUDE_BASE_DIR
-              NAMES fuse.h
+              NAMES fuse
               PATHS
                 /Library/Application Support/fuse-t/include
               NO_DEFAULT_PATH
               NO_CMAKE_FIND_ROOT_PATH
             )
             if(FUSE_T_INCLUDE_BASE_DIR)
-              set(_filtered_include_dirs "${FUSE_T_INCLUDE_BASE_DIR}")
+              # Get parent directory (include dir) from the fuse/ subdirectory path
+              get_filename_component(FUSE_T_INCLUDE_DIR "${FUSE_T_INCLUDE_BASE_DIR}" DIRECTORY)
+              set(_filtered_include_dirs "${FUSE_T_INCLUDE_DIR}")
             else()
               # Manual search also failed - keep original behavior but warn
               message(WARNING "Could not find valid FUSE-T include directories, FUSE support may be broken")
