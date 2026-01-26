@@ -99,12 +99,13 @@ endif()
 # When fast_float includes SSE headers, it pulls in mm_malloc.h which declares
 # posix_memalign with throw(), causing C++20 compilation error with jemalloc's
 # __attribute__((nothrow)) declaration after symbol de-mangling.
-# Solution: Conditionally declare je_posix_memalign only if mm_malloc.h hasn't
-# been included yet. This is safe for Tebako users because:
+# Solution: Conditionally declare je_posix_memalign and unprefixed posix_memalign
+# only if mm_malloc.h hasn't been included yet. This is safe for Tebako users because:
 # 1. The check is at compile-time - no behavior change if mm_malloc.h isn't included
 # 2. Users who need je_posix_memalign can include jemalloc.h first
 # 3. System posix_memalign is still available via standard C library
 if(NOT VCPKG_TARGET_IS_WINDOWS AND NOT VCPKG_TARGET_IS_ANDROID)
+    # Guard je_posix_memalign declaration
     vcpkg_replace_string(
         "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
 "JEMALLOC_EXPORT int JEMALLOC_SYS_NOTHROW je_posix_memalign(
@@ -116,6 +117,15 @@ JEMALLOC_EXPORT int JEMALLOC_SYS_NOTHROW je_posix_memalign(
     JEMALLOC_ATTR(nonnull(1));
 #endif
 "
+    )
+
+    # Also guard unprefixed posix_memalign declaration (compatibility alias)
+    # This declares: #define posix_memalign je_posix_memalign
+    # We need to wrap this in the same guard
+    vcpkg_replace_string(
+        "${CURRENT_PACKAGES_DIR}/include/jemalloc/jemalloc.h"
+"#define posix_memalign je_posix_memalign"
+"#if !defined(_MM_MALLOC_H) && !defined(__MM_MALLOC_H)\n#define posix_memalign je_posix_memalign\n#endif"
     )
 endif()
 
