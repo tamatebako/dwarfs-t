@@ -13,8 +13,26 @@ vcpkg_from_github(
         fix-deps.patch
         fix-unistd-include.patch
         fix-absolute-dir.patch
-        force-jemalloc-include-first.patch
 )
+
+# Fix conflict with GCC's mm_malloc.h which declares posix_memalign with throw()
+# while jemalloc declares it with __attribute__((nothrow)). When fast_float includes
+# SSE headers, it pulls in mm_malloc.h, causing C++2020 compilation error.
+# Solution: Include jemalloc.h at the very beginning of folly/Conv.cpp before any other includes
+if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
+    vcpkg_replace_string(
+        "${SOURCE_PATH}/folly/Conv.cpp"
+" * limitations under the License.
+ */"
+" * limitations under the License.
+ */
+
+// Include jemalloc.h before fast_float to prevent mm_malloc.h conflict
+// When fast_float includes SSE headers (xmmintrin.h), it pulls in mm_malloc.h
+// which declares posix_memalign with throw(), conflicting with jemalloc's declaration
+#include <jemalloc/jemalloc.h>"
+    )
+endif()
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
 
