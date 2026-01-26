@@ -12,7 +12,7 @@ set(VCPKG_POLICY_SKIP_MISPLACED_CMAKE_FILES_CHECK enabled)
 if(VCPKG_TARGET_IS_WINDOWS)
     # Use native CMake build on Windows (autotools doesn't work with MSVC)
     # Configure CMake
-    vcpkg_configure_cmake(
+    vcpkg_cmake_configure(
         SOURCE_PATH "${SOURCE_PATH}"
         OPTIONS
             -DJEMALLOC_BUILD_STATIC=ON
@@ -24,7 +24,7 @@ if(VCPKG_TARGET_IS_WINDOWS)
     )
 
     # Build and install using CMake
-    vcpkg_install_cmake()
+    vcpkg_cmake_install()
 
     # Copy MSVC compatibility headers if they exist
     if(EXISTS "${SOURCE_PATH}/include/msvc_compat/strings.h")
@@ -61,7 +61,7 @@ else()
         set(BUILD_SHARED_OPTION "OFF")
     endif()
 
-    vcpkg_configure_cmake(
+    vcpkg_cmake_configure(
         SOURCE_PATH "${SOURCE_PATH}"
         OPTIONS
             -DJEMALLOC_BUILD_STATIC=ON
@@ -73,7 +73,7 @@ else()
             -DJEMALLOC_PREFIX=""
     )
 
-    vcpkg_install_cmake()
+    vcpkg_cmake_install()
 endif()
 
 vcpkg_fixup_pkgconfig()
