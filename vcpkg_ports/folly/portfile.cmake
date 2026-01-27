@@ -14,6 +14,7 @@ vcpkg_from_github(
         fix-unistd-include.patch
         fix-absolute-dir.patch
         fix-posix-memalign-conflict.patch
+        define-FOLLY_USE_JEMALLOC-on-macos.patch
 )
 
 # Note: posix_memalign conflict with GCC's mm_malloc.h is fixed via patch
