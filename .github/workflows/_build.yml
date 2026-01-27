@@ -8,14 +8,18 @@
 # - CMake builds: Lukka/run-cmake with buildCache property
 # - ccache: Chocobo1/setup-ccache-action for compiler object caching
 #
-# Workflow Structure (following boyle pattern):
+# Workflow Structure (following boyle pattern with DwarFS-specific deps):
 # 1. Checkout (with submodules)
-# 2. Setup MSVC (Windows only)
-# 3. Setup vcpkg
-# 4. Install CMake and Ninja
-# 5. Setup ccache
-# 6. Build + Test with CMakePresets
-# 7. Upload artifacts
+# 2. Platform-specific dependencies (macOS/Linux/Windows)
+# 3. Setup MSVC (Windows only)
+# 4. Setup gcc version (Linux only)
+# 5. Setup vcpkg
+# 6. Install CMake and Ninja
+# 7. Install common dependencies (Python packages)
+# 8. Setup ccache
+# 9. Create FUSE mount directory (Linux only)
+# 10. Build + Test with CMakePresets
+# 11. Upload artifacts
 
 name: Build
 
@@ -82,12 +86,21 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # macOS: Install build dependencies (autoconf, bison, fuse-t, etc.) via Brewfile
-      - name: 🍎 Install macOS dependencies
-        if: runner.os == 'macOS'
-        run: |
-          bash scripts/github-actions/deps/install-macos-deps.sh
+      # Platform-specific dependencies (must be before vcpkg)
+      - name: 🔨 Setup platform-specific dependencies
         shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            macOS)
+              bash scripts/github-actions/deps/install-macos-deps.sh
+              ;;
+            Linux)
+              bash scripts/github-actions/deps/install-linux-deps.sh
+              ;;
+            Windows)
+              bash scripts/github-actions/deps/install-windows-deps.sh
+              ;;
+          esac
 
       # Windows: Setup MSVC before vcpkg
       - name: 🪟 Setup MSVC Developer Environment
@@ -117,6 +130,12 @@ jobs:
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
 
+      # Common dependencies (Python packages for manpage generation)
+      - name: 📦 Install common dependencies
+        shell: bash
+        run: |
+          bash scripts/github-actions/deps/install-common-deps.sh
+
       - name: 💾 Setup ccache
         uses: Chocobo1/setup-ccache-action@v1
         with:
@@ -124,6 +143,16 @@ jobs:
           restore_cache: false
           remove_stale_cache: true
           override_cache_key: ccache_${{ inputs.triplet }}_${{ inputs.config }}
+
+      # Create FUSE mount directory for Linux tests
+      - name: 🔌 Create FUSE mount directory
+        if: runner.os == 'Linux'
+        run: |
+          sudo mkdir -p /tmp/dwarfs-test-mount
+          sudo chmod 777 /tmp/dwarfs-test-mount
+          echo "DWARFS_TEST_MOUNT_DIR=/tmp/dwarfs-test-mount" >> $GITHUB_ENV
+          echo "✓ Created FUSE mount directory: /tmp/dwarfs-test-mount"
+        shell: bash
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
