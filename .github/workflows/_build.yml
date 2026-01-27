@@ -94,8 +94,17 @@ jobs:
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
 
+      - name: 🪟 Setup MSVC Developer Environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ contains(inputs.triplet, 'arm64') && 'arm64' || 'x64' }}
+
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
+        env:
+          # Ensure our vcpkg is used, not MSVC's built-in vcpkg
+          VCPKG_ROOT: ${{ github.workspace }}/../vcpkg
         with:
           configurePreset: ${{ inputs.triplet }}-${{ inputs.config }}
           buildPreset: ${{ inputs.triplet }}-${{ inputs.config }}
