@@ -162,7 +162,8 @@ if(WITH_FUSE_DRIVER)
     target_compile_definitions(dwarfs_reader PRIVATE _FILE_OFFSET_BITS=64)
     if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
       # FUSE-T uses FUSE2 API (version 29) with headers at fuse/fuse_lowlevel.h
-      target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=29 DWARFS_USE_FUSE_T)
+      # Use high-level API (DWARFS_FUSE_LOWLEVEL=0) to avoid lowlevel header complications
+      target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=29 DWARFS_USE_FUSE_T DWARFS_FUSE_LOWLEVEL=0)
       # FUSE_T_INCLUDE_DIR is set by need_fuse.cmake
       if(FUSE_T_INCLUDE_DIR)
         target_include_directories(dwarfs_reader BEFORE PRIVATE "${FUSE_T_INCLUDE_DIR}")
@@ -194,7 +195,8 @@ if(WITH_FUSE_DRIVER)
     target_compile_definitions(dwarfs_main PRIVATE _FILE_OFFSET_BITS=64)
     if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t")
       # FUSE-T uses FUSE2 API (version 29) with headers at fuse/fuse_lowlevel.h
-      target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=29 DWARFS_USE_FUSE_T)
+      # Use high-level API (DWARFS_FUSE_LOWLEVEL=0) to avoid lowlevel header complications
+      target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=29 DWARFS_USE_FUSE_T DWARFS_FUSE_LOWLEVEL=0)
       # FUSE-T (via Homebrew or official installer) installs to:
       # /Library/Application Support/fuse-t/include/fuse
       if(FUSE_T_INCLUDE_DIR)
