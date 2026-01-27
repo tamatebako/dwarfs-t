@@ -13,6 +13,10 @@ brew install ninja cmake pkg-config python3
 # Autoconf tools (for building vcpkg dependencies from source)
 brew install autoconf autoconf-archive automake libtool
 
+# Python packages for manpage generation
+echo "Installing Python packages from requirements.txt..."
+pip3 install -r "$(cd "${BASH_SOURCE[0]}" && pwd)/../../../requirements.txt"
+
 # FUSE-T - REQUIRED for macOS builds
 echo "Installing FUSE-T (REQUIRED for FUSE support)..."
 brew install fuse-t || {

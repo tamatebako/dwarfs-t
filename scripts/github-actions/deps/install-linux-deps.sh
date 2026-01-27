@@ -42,25 +42,31 @@ fi
 case "$PKG_MANAGER" in
   apt)
     sudo apt-get update
-    sudo apt-get install -y build-essential $COMMON_PACKAGES
+    sudo apt-get install -y build-essential $COMMON_PACKAGES python3-pip
     if [[ -n "$FUSE_PACKAGES" ]]; then
       sudo apt-get install -y $FUSE_PACKAGES
     fi
     ;;
 
   yum)
-    sudo yum install -y gcc-c++ $COMMON_PACKAGES
+    sudo yum install -y gcc-c++ $COMMON_PACKAGES python3-pip
     if [[ -n "$FUSE_PACKAGES" ]]; then
       sudo yum install -y ${FUSE_PACKAGES%-devel}-devel
     fi
     ;;
 
   apk)
-    apk add --no-cache build-base $COMMON_PACKAGES
+    apk add --no-cache build-base $COMMON_PACKAGES py3-pip
     if [[ -n "$FUSE_PACKAGES" ]]; then
       apk add --no-cache ${FUSE_PACKAGES%-dev}-dev
     fi
     ;;
 esac
+
+# Install Python packages from requirements.txt
+echo "Installing Python packages from requirements.txt..."
+pip3 install -r "$(cd "${BASH_SOURCE[0]}" && pwd)/../../../requirements.txt" || {
+  echo "::warning::Failed to install Python packages, continuing anyway..."
+}
 
 echo "✓ Linux dependencies installed"
