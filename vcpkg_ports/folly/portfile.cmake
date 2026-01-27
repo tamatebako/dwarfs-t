@@ -13,13 +13,11 @@ vcpkg_from_github(
         fix-deps.patch
         fix-unistd-include.patch
         fix-absolute-dir.patch
+        fix-posix-memalign-conflict.patch
 )
 
-# Note: posix_memalign conflict with GCC's mm_malloc.h
-# jemalloc declares posix_memalign with __attribute__((throw)) → noexcept in C++20
-# mm_malloc.h declares it with throw() (deprecated in C++20)
-# Solution: Pass -D_MM_MALLOC_H through CMAKE_CXX_FLAGS to prevent mm_malloc.h
-# from being included, ensuring jemalloc's declaration is used consistently
+# Note: posix_memalign conflict with GCC's mm_malloc.h is fixed via patch
+# See fix-posix-memalign-conflict.patch for details
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
 
@@ -42,13 +40,6 @@ if(NOT VCPKG_TARGET_IS_WINDOWS)
         "-DCMAKE_REQUIRED_INCLUDES=${CURRENT_INSTALLED_DIR}/include"
         "-DCMAKE_EXE_LINKER_FLAGS=-L${CURRENT_INSTALLED_DIR}/lib -ljemalloc"
         "-DCMAKE_SHARED_LINKER_FLAGS=-L${CURRENT_INSTALLED_DIR}/lib -ljemalloc"
-    )
-endif()
-
-# Add -D_MM_MALLOC_H for Linux to prevent posix_memalign conflict with mm_malloc.h
-if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
-    list(APPEND JEMALLOC_CMAKE_ARGS
-        "-DCMAKE_CXX_FLAGS=-Wno-error=deprecated-declarations -D_MM_MALLOC_H"
     )
 endif()
 
