@@ -17,12 +17,6 @@ description: 'Install minimal build dependencies for vcpkg-based DwarFS builds'
 runs:
   using: 'composite'
   steps:
-    - name: Install common dependencies
-      shell: bash
-      run: |
-        SCRIPT_DIR="$(cd "${{ github.action_path }}/../../../scripts/github-actions" && pwd)"
-        bash "$SCRIPT_DIR/deps/install-common-deps.sh"
-
     - name: Install platform-specific dependencies
       shell: bash
       run: |
@@ -38,6 +32,12 @@ runs:
             bash "$SCRIPT_DIR/deps/install-windows-deps.sh"
             ;;
         esac
+
+    - name: Install common dependencies
+      shell: bash
+      run: |
+        SCRIPT_DIR="$(cd "${{ github.action_path }}/../../../scripts/github-actions" && pwd)"
+        bash "$SCRIPT_DIR/deps/install-common-deps.sh"
 
     - name: Create FUSE mount directory
       shell: bash

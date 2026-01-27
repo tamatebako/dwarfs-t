@@ -17,11 +17,19 @@ if [[ "${VCPKG_DEFAULT_TRIPLET:-}" == *"mingw"* ]] || [[ "${VCPKG_DEFAULT_TRIPLE
   echo "✓ MinGW-w64 installed"
 fi
 
-# Install WinFsp for FUSE support on Windows
-choco install winfsp -y
+# Check if Chocolatey is installed
+if ! command -v choco &> /dev/null; then
+  echo "::error::Chocolatey is not installed"
+  exit 1
+fi
 
-# Install Python packages from requirements.txt
-echo "Installing Python packages from requirements.txt..."
-pip3 install -r "$(cd "${BASH_SOURCE[0]}" && pwd)/../../../requirements.txt"
+# Install WinFsp for FUSE support on Windows
+echo "Installing WinFsp through Chocolatey..."
+choco install winfsp -y
+if [[ $? -ne 0 ]]; then
+  echo "::error::Failed to install WinFsp via Chocolatey"
+  exit 1
+fi
+echo "✓ WinFsp installed"
 
 echo "✓ Windows dependencies installed"

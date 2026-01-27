@@ -21,6 +21,7 @@ FUSE_PACKAGES="fuse3"
 
 echo "Installing Linux build dependencies..."
 
+echo "Detected package manager and installing dependencies..."
 # Detect package manager
 if command -v apt-get &> /dev/null; then
   PKG_MANAGER="apt"
@@ -30,7 +31,7 @@ elif command -v apk &> /dev/null; then
   PKG_MANAGER="apk"
 else
   echo "::warning::Unable to detect package manager"
-  exit 0
+  exit 1
 fi
 
 case "$PKG_MANAGER" in
@@ -56,9 +57,6 @@ case "$PKG_MANAGER" in
     fi
     ;;
 esac
-
-# Install Python packages from requirements.txt
-echo "Installing Python packages from requirements.txt..."
-pip3 install -r "$(cd "${BASH_SOURCE[0]}" && pwd)/../../../requirements.txt"
+echo "✓ System packages installed"
 
 echo "✓ Linux dependencies installed"
