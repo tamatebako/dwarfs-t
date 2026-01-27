@@ -36,18 +36,27 @@
 
 #include <dwarfs/config.h>
 
+// Default to low-level API (1) unless overridden by CMake
+// For FUSE-T, CMake sets DWARFS_FUSE_LOWLEVEL=0 to use high-level API
 #ifndef DWARFS_FUSE_LOWLEVEL
-#define DWARFS_FUSE_LOWLEVEL 1
+#define DWARFS_FUSE_LOWLEVEL 0
 #endif
 
-#if FUSE_USE_VERSION >= 30
+// Check for FUSE-T first, as it has hybrid API
+#ifdef DWARFS_USE_FUSE_T
+#if DWARFS_FUSE_LOWLEVEL
+#include <fuse/fuse_lowlevel.h>
+#else
+#include <fuse/fuse.h>
+#endif
+#elif FUSE_USE_VERSION >= 30
 #if DWARFS_FUSE_LOWLEVEL
 #include <fuse3/fuse_lowlevel.h>
 #else
 #include <fuse3/fuse.h>
 #endif
 #else
-// FUSE-T uses the same header paths as regular FUSE (it's API-compatible)
+// FUSE2 uses the standard fuse.h
 #include <fuse.h>
 #if DWARFS_FUSE_LOWLEVEL
 #if __has_include(<fuse/fuse_lowlevel.h>)
@@ -64,15 +73,6 @@
 #include <delayimp.h>
 
 #include <fuse3/winfsp_fuse.h>
-#endif
-
-// FUSE-T compatibility: undefine versioned macros right after FUSE headers
-#ifdef DWARFS_USE_FUSE_T
-#undef fuse_parse_cmdline
-// Declare the actual function FUSE-T provides
-extern "C" {
-int fuse_parse_cmdline(struct fuse_args *args, struct fuse_cmdline_opts *opts);
-}
 #endif
 
 #include <fmt/format.h>

@@ -35,11 +35,20 @@
 
 #include <dwarfs/config.h>
 
+// Default to low-level API (1) unless overridden by CMake
+// For FUSE-T, CMake sets DWARFS_FUSE_LOWLEVEL=0 to use high-level API
 #ifndef DWARFS_FUSE_LOWLEVEL
-#define DWARFS_FUSE_LOWLEVEL 1
+#define DWARFS_FUSE_LOWLEVEL 0
 #endif
 
-#if FUSE_USE_VERSION >= 30
+// Check for FUSE-T first, as it has hybrid API
+#ifdef DWARFS_USE_FUSE_T
+#if DWARFS_FUSE_LOWLEVEL
+#include <fuse/fuse_lowlevel.h>
+#else
+#include <fuse/fuse.h>
+#endif
+#elif FUSE_USE_VERSION >= 30
 #if DWARFS_FUSE_LOWLEVEL
 #include <fuse3/fuse_lowlevel.h>
 #else
@@ -54,21 +63,6 @@
 #include <fuse_lowlevel.h>
 #endif
 #endif
-#endif
-
-// FUSE-T compatibility: undefine versioned macros
-#ifdef DWARFS_USE_FUSE_T
-#undef fuse_session_new
-#undef fuse_session_loop_mt
-#undef fuse_parse_cmdline
-// Declare the actual functions FUSE-T provides
-extern "C" {
-struct fuse_session* fuse_session_new(struct fuse_args *args,
-                                      const struct fuse_lowlevel_ops *op,
-                                      size_t op_size, void *userdata);
-int fuse_session_loop_mt(struct fuse_session *se, int clone_fd);
-int fuse_parse_cmdline(struct fuse_args *args, struct fuse_cmdline_opts *opts);
-}
 #endif
 
 #include <dwarfs/error.h>
@@ -232,11 +226,14 @@ int run_fuse_session(fuse_args& args,
 
 int run_fuse_session(fuse_args& args, std::string const& mountpoint, int mt,
                      int fg, reader::fuse_driver& driver, logger& lgr) {
+  int err;
+
+#if DWARFS_FUSE_LOWLEVEL
   fuse_lowlevel_ops fsops{};
 
   driver.setup_operations(fsops);
 
-  int err = 1;
+  err = 1;
 
   // Traditional FUSE 2.x only
   if (auto ch = fuse_mount(mountpoint.c_str(), &args)) {
@@ -247,7 +244,6 @@ int run_fuse_session(fuse_args& args, std::string const& mountpoint, int mt,
           fuse_session_add_chan(se, ch);
           err = mt ? fuse_session_loop_mt(se) : fuse_session_loop(se);
           fuse_remove_signal_handlers(se);
-          fuse_session_remove_chan(ch);
         }
       }
       fuse_session_destroy(se);
@@ -256,6 +252,18 @@ int run_fuse_session(fuse_args& args, std::string const& mountpoint, int mt,
   } else {
     check_fusermount(lgr);
   }
+#else
+  // High-level API for FUSE 2.x
+  fuse_operations fsops{};
+
+  driver.setup_operations(fsops);
+
+  err = fuse_main(args.argc, args.argv, &fsops, driver.get_userdata());
+
+  if (err != 0) {
+    check_fusermount(lgr);
+  }
+#endif
 
   fuse_opt_free_args(&args);
 

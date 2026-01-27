@@ -38,7 +38,8 @@ if(WITH_TOOLS)
     target_link_libraries(${tgt} PRIVATE ${tgt}_main)
     target_link_libraries(${tgt} PRIVATE dwarfs_tool)
     if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
-      # FUSE-T doesn't provide pkg-config files
+      # FUSE-T doesn't always provide pkg-config files, link directly
+      target_link_libraries(${tgt}_main PRIVATE "${FUSE_T_LIBRARY}")
     elseif(FUSE3_FOUND)
       target_link_libraries(${tgt}_main PRIVATE PkgConfig::FUSE3)
     elseif(FUSE_FOUND AND NOT WIN32)
@@ -179,7 +180,8 @@ if(WITH_FUSE_DRIVER)
 
     # Link FUSE library to dwarfs_reader
     if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
-      # FUSE-T doesn't provide pkg-config files
+      # FUSE-T doesn't always provide pkg-config files, link directly
+      target_link_libraries(dwarfs_reader PRIVATE "${FUSE_T_LIBRARY}")
     elseif(TARGET PkgConfig::FUSE3)
       target_link_libraries(dwarfs_reader PRIVATE PkgConfig::FUSE3)
     elseif(TARGET PkgConfig::FUSE)
@@ -209,8 +211,8 @@ if(WITH_FUSE_DRIVER)
     endif()
     target_link_libraries(dwarfs_main PRIVATE dwarfs_tool dwarfs_reader dwarfs_tool_support)
     if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
-      # FUSE-T doesn't provide pkg-config files
-      # The system will find -lfuse via standard library search paths
+      # FUSE-T doesn't always provide pkg-config files, link directly
+      target_link_libraries(dwarfs_main PRIVATE "${FUSE_T_LIBRARY}")
     elseif(FUSE3_FOUND)
       target_link_libraries(dwarfs_main PRIVATE PkgConfig::FUSE3)
     elseif(FUSE_FOUND AND NOT WIN32)
