@@ -6,14 +6,14 @@
 # Caching Strategy:
 # - vcpkg: Lukka/run-vcpkg with GitHub Actions cache
 # - CMake builds: Lukka/run-cmake with buildCache property
-# - Shared vcpkg directory: ${{ github.workspace }}/../vcpkg
+# - ccache: Chocobo1/setup-ccache-action for compiler object caching
 #
-# Workflow Structure:
+# Workflow Structure (following boyle pattern):
 # 1. Checkout (with submodules)
-# 2. Install CMake/Ninja (cached)
-# 3. Setup vcpkg (with binary cache)
-# 4. Configure environment
-# 5. Setup platform deps (FUSE on Linux)
+# 2. Setup MSVC (Windows only)
+# 3. Setup vcpkg
+# 4. Install CMake and Ninja
+# 5. Setup ccache
 # 6. Build + Test with CMakePresets
 # 7. Upload artifacts
 
@@ -73,37 +73,44 @@ jobs:
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
       VCPKG_COMMIT: f14401ca0f2754347c3864da7488a9b955b4e47a
+      GCC_VERSION: '14'
 
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: 🔨 Setup build dependencies
-        uses: ./.github/actions/setup-build-deps
-
+      # Windows: Setup MSVC before vcpkg
       - name: 🪟 Setup MSVC Developer Environment
         if: runner.os == 'Windows'
         uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
           arch: ${{ contains(inputs.triplet, 'arm64') && 'arm64' || 'x64' }}
 
-      - name: 🔧 Install CMake and Ninja
+      # Linux: Setup gcc version via update-alternatives
+      - name: 🔧 Install gcc on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${{ env.GCC_VERSION }} ${{ env.GCC_VERSION }}
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${{ env.GCC_VERSION }} ${{ env.GCC_VERSION }}
+          sudo update-alternatives --set gcc /usr/bin/gcc-${{ env.GCC_VERSION }}
+          sudo update-alternatives --set g++ /usr/bin/g++-${{ env.GCC_VERSION }}
+        shell: bash
+
+      - name: 📦 Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+
+      - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
 
       - name: 💾 Setup ccache
         uses: Chocobo1/setup-ccache-action@v1
         with:
-          override-cache-key: ccache_${{ inputs.triplet }}_${{ inputs.config }}
-
-      - name: 📦 Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-          vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
-          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
-          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
+          store_cache: false
+          restore_cache: false
+          remove_stale_cache: true
+          override_cache_key: ccache_${{ inputs.triplet }}_${{ inputs.config }}
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
