@@ -19,21 +19,20 @@
 #define DWARFS_FUSE_LOWLEVEL 1
 #endif
 
-#if FUSE_USE_VERSION >= 30
 #ifdef DWARFS_USE_FUSE_T
-// FUSE-T uses fuse/ not fuse3/ headers
+// FUSE-T on macOS uses FUSE2 API with headers at fuse/fuse.h
+// Headers are included from fuse/ subdirectory but provide FUSE2 API
 #if DWARFS_FUSE_LOWLEVEL
 #include <fuse/fuse_lowlevel.h>
 #else
 #include <fuse/fuse.h>
 #endif
-#else
-// macFUSE and FUSE3 use fuse3/ headers
+#elif FUSE_USE_VERSION >= 30
+// FUSE3 or macFUSE with FUSE3 API
 #if DWARFS_FUSE_LOWLEVEL
 #include <fuse3/fuse_lowlevel.h>
 #else
 #include <fuse3/fuse.h>
-#endif
 #endif
 #else
 // FUSE2 compatibility
