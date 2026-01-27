@@ -5,19 +5,14 @@
 #
 # Since we use vcpkg for ALL dependencies, we only need:
 # 1. Essential build tools (cmake, ninja, git, pkg-config for vcpkg's use)
-# 2. FUSE libraries (for tests, when requested)
+# 2. FUSE libraries (ALWAYS installed for tests)
 # 3. Autoconf tools (for building vcpkg dependencies from source if needed)
+# 4. Python packages (from requirements.txt)
 #
 # No system libraries (openssl, boost, xxhash, etc.) - vcpkg provides everything!
 
 name: 'Setup Build Dependencies'
 description: 'Install minimal build dependencies for vcpkg-based DwarFS builds'
-
-inputs:
-  with-fuse:
-    description: 'Install FUSE libraries for tests'
-    required: false
-    default: 'false'
 
 runs:
   using: 'composite'
@@ -34,18 +29,17 @@ runs:
         SCRIPT_DIR="$(cd "${{ github.action_path }}/../../../scripts/github-actions" && pwd)"
         case "$RUNNER_OS" in
           macOS)
-            WITH_FUSE="${{ inputs.with-fuse }}" bash "$SCRIPT_DIR/deps/install-macos-deps.sh"
+            bash "$SCRIPT_DIR/deps/install-macos-deps.sh"
             ;;
           Linux)
-            WITH_FUSE="${{ inputs.with-fuse }}" bash "$SCRIPT_DIR/deps/install-linux-deps.sh"
+            bash "$SCRIPT_DIR/deps/install-linux-deps.sh"
             ;;
           Windows)
-            WITH_FUSE="${{ inputs.with-fuse }}" bash "$SCRIPT_DIR/deps/install-windows-deps.sh"
+            bash "$SCRIPT_DIR/deps/install-windows-deps.sh"
             ;;
         esac
 
     - name: Create FUSE mount directory
-      if: inputs.with-fuse == 'true'
       shell: bash
       run: |
         if [[ "$RUNNER_OS" == "Linux" ]]; then

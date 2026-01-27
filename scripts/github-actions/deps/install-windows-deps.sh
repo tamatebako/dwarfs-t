@@ -5,8 +5,6 @@
 
 set -e
 
-WITH_FUSE="${WITH_FUSE:-false}"
-
 echo "Installing Windows build dependencies..."
 
 # Install MinGW-w64 for MinGW/MSYS triplets
@@ -19,8 +17,11 @@ if [[ "${VCPKG_DEFAULT_TRIPLET:-}" == *"mingw"* ]] || [[ "${VCPKG_DEFAULT_TRIPLE
   echo "✓ MinGW-w64 installed"
 fi
 
-if [[ "$WITH_FUSE" == "true" ]]; then
-  choco install winfsp -y
-fi
+# Install WinFsp for FUSE support on Windows
+choco install winfsp -y
+
+# Install Python packages from requirements.txt
+echo "Installing Python packages from requirements.txt..."
+pip3 install -r "$(cd "${BASH_SOURCE[0]}" && pwd)/../../../requirements.txt"
 
 echo "✓ Windows dependencies installed"

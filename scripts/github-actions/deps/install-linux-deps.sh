@@ -6,8 +6,6 @@
 
 set -e
 
-WITH_FUSE="${WITH_FUSE:-false}"
-
 # Common packages across all package managers
 COMMON_PACKAGES="
   git
@@ -19,11 +17,7 @@ COMMON_PACKAGES="
   libtool
 "
 
-FUSE_PACKAGES=""
-
-if [[ "$WITH_FUSE" == "true" ]]; then
-  FUSE_PACKAGES="fuse3"
-fi
+FUSE_PACKAGES="fuse3"
 
 echo "Installing Linux build dependencies..."
 
@@ -65,8 +59,6 @@ esac
 
 # Install Python packages from requirements.txt
 echo "Installing Python packages from requirements.txt..."
-pip3 install -r "$(cd "${BASH_SOURCE[0]}" && pwd)/../../../requirements.txt" || {
-  echo "::warning::Failed to install Python packages, continuing anyway..."
-}
+pip3 install -r "$(cd "${BASH_SOURCE[0]}" && pwd)/../../../requirements.txt"
 
 echo "✓ Linux dependencies installed"

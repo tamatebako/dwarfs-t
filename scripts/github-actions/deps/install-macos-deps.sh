@@ -17,7 +17,7 @@ brew install autoconf autoconf-archive automake libtool
 echo "Installing Python packages from requirements.txt..."
 pip3 install -r "$(cd "${BASH_SOURCE[0]}" && pwd)/../../../requirements.txt"
 
-# FUSE-T - REQUIRED for macOS builds
+# FUSE-T - REQUIRED for macOS builds and tests
 echo "Installing FUSE-T (REQUIRED for FUSE support)..."
 brew install fuse-t || {
   echo "::error::FUSE-T installation failed! FUSE-T is REQUIRED for macOS builds."

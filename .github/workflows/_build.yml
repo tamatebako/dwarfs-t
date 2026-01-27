@@ -82,8 +82,6 @@ jobs:
 
       - name: 🔨 Setup build dependencies
         uses: ./.github/actions/setup-build-deps
-        with:
-          with-fuse: ${{ contains(runner.os, 'macOS') || contains(runner.os, 'Linux') }}
 
       - name: 🔧 Install CMake and Ninja
         uses: lukka/get-cmake@latest
