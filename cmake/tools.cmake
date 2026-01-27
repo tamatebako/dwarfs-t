@@ -41,7 +41,7 @@ if(WITH_TOOLS)
       # FUSE-T doesn't provide pkg-config files
     elseif(FUSE3_FOUND)
       target_link_libraries(${tgt}_main PRIVATE PkgConfig::FUSE3)
-    elseif(FUSE_FOUND)
+    elseif(FUSE_FOUND AND NOT WIN32)
       target_link_libraries(${tgt}_main PRIVATE PkgConfig::FUSE)
     endif()
 
@@ -211,7 +211,7 @@ if(WITH_FUSE_DRIVER)
       # The system will find -lfuse via standard library search paths
     elseif(FUSE3_FOUND)
       target_link_libraries(dwarfs_main PRIVATE PkgConfig::FUSE3)
-    elseif(FUSE_FOUND)
+    elseif(FUSE_FOUND AND NOT WIN32)
       target_link_libraries(dwarfs_main PRIVATE PkgConfig::FUSE)
     endif()
     add_executable(dwarfs-bin tools/src/dwarfs.cpp)
