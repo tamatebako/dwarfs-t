@@ -28,7 +28,7 @@ else
   exit 1
 fi
 
-$PIP_CMD install -r "$REQUIREMENTS_FILE"
+$PIP_CMD install --break-system-packages -r "$REQUIREMENTS_FILE"
 
 if [[ $? -ne 0 ]]; then
   echo "⚠️  Failed to install Python packages"
