@@ -16,13 +16,18 @@ vcpkg_from_github(
 )
 
 # Note: posix_memalign conflict with GCC's mm_malloc.h
-# jemalloc declares posix_memalign with __attribute__((nothrow))
-# mm_malloc_h declares it with throw() (deprecated in C++20)
-# Solution: Keep jemalloc's declaration and add compiler flags to handle the mismatch
+# jemalloc declares posix_memalign with __attribute__((nothrow)) → noexcept in C++20
+# mm_malloc.h declares it with throw() (deprecated in C++20)
+# Solution: Define _MM_MALLOC_H to prevent mm_malloc.h from declaring posix_memalign
+# This ensures jemalloc's declaration is used consistently
 
-# Add compiler flags to allow the build to succeed despite exception specifier mismatch
+# Add compiler flags and definitions to prevent exception specifier conflict
 if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=deprecated-declarations")
+    # Define _MM_MALLOC_H to prevent mm_malloc.h from declaring posix_memalign
+    list(APPEND JEMALLOC_CMAKE_ARGS
+        "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -D_MM_MALLOC_H"
+    )
 endif()
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
