@@ -13,11 +13,11 @@ vcpkg_from_github(
         fix-deps.patch
         fix-unistd-include.patch
         fix-absolute-dir.patch
-        fix-posix_memalign-conflict.patch
+        fix-posix-memalign-conflict.patch
 )
 
 # Note: posix_memalign conflict with GCC's mm_malloc.h is fixed via patch
-# See fix-posix_memalign-conflict.patch for details
+# See fix-posix-memalign-conflict.patch for details
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
 
