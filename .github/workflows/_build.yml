@@ -82,11 +82,11 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # macOS: Install build dependencies (autoconf, bison, etc.)
+      # macOS: Install build dependencies (autoconf, bison, etc.) and FUSE-T
       - name: 🍎 Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install autoconf automake libtool bison
+          brew install autoconf automake libtool bison fuse-t
         shell: bash
 
       # Windows: Setup MSVC before vcpkg
