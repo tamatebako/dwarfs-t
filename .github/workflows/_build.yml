@@ -117,7 +117,7 @@ jobs:
           $vsPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise"
           $vcToolsVersion = Get-ChildItem "$vsPath\VC\Tools\MSVC" | Select-Object -First 1 -ExpandProperty Name
 
-          if "${{ contains(inputs.triplet, 'arm64') }}" -eq "true" {
+          if ("${{ contains(inputs.triplet, 'arm64') }}" -eq "true") {
             # Building for ARM64 (cross-compile from x64 host)
             $binPath = "$vsPath\VC\Tools\MSVC\$vcToolsVersion\bin\HostX64\arm64"
           } else {
