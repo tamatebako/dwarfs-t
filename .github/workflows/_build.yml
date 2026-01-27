@@ -102,11 +102,6 @@ jobs:
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
-        env:
-          # Unset VCPKG_ROOT to prevent run-cmake from running vcpkg env
-          # (which would pick up MSVC's vcpkg instead of our custom one)
-          # run-vcpkg has already configured the toolchain file correctly
-          VCPKG_ROOT: ""
         with:
           configurePreset: ${{ inputs.triplet }}-${{ inputs.config }}
           buildPreset: ${{ inputs.triplet }}-${{ inputs.config }}
