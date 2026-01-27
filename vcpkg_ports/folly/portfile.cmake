@@ -13,12 +13,11 @@ vcpkg_from_github(
         fix-deps.patch
         fix-unistd-include.patch
         fix-absolute-dir.patch
-        fix-posix-memalign-conflict.patch
-        define-FOLLY_USE_JEMALLOC-on-macos.patch
+        fix-posix_memalign-conflict.patch
 )
 
 # Note: posix_memalign conflict with GCC's mm_malloc.h is fixed via patch
-# See fix-posix-memalign-conflict.patch for details
+# See fix-posix_memalign-conflict.patch for details
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
 
@@ -42,6 +41,19 @@ if(NOT VCPKG_TARGET_IS_WINDOWS)
         "-DCMAKE_EXE_LINKER_FLAGS=-L${CURRENT_INSTALLED_DIR}/lib -ljemalloc"
         "-DCMAKE_SHARED_LINKER_FLAGS=-L${CURRENT_INSTALLED_DIR}/lib -ljemalloc"
     )
+    # Define FOLLY_USE_JEMALLOC when jemalloc is found (for macOS and Linux)
+    # This ensures Folly's Malloc.h uses jemalloc functions like nallocx and sdallocx
+    if(APPLE)
+        list(APPEND JEMALLOC_CMAKE_ARGS
+            "-DCMAKE_C_FLAGS=-DFOLLY_USE_JEMALLOC"
+            "-DCMAKE_CXX_FLAGS=-DFOLLY_USE_JEMALLOC"
+        )
+    elseif(UNIX)
+        list(APPEND JEMALLOC_CMAKE_ARGS
+            "-DCMAKE_C_FLAGS=-DFOLLY_USE_JEMALLOC"
+            "-DCMAKE_CXX_FLAGS=-DFOLLY_USE_JEMALLOC"
+        )
+    endif()
 endif()
 
 
