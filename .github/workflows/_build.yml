@@ -96,7 +96,7 @@ jobs:
 
       - name: 🪟 Setup MSVC Developer Environment
         if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
           arch: ${{ contains(inputs.triplet, 'arm64') && 'arm64' || 'x64' }}
 
