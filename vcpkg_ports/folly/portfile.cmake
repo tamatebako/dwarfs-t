@@ -23,11 +23,7 @@ vcpkg_from_github(
 
 # Add compiler flags and definitions to prevent exception specifier conflict
 if(VCPKG_TARGET_IS_LINUX AND NOT VCPKG_TARGET_IS_ANDROID)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=deprecated-declarations")
-    # Define _MM_MALLOC_H to prevent mm_malloc.h from declaring posix_memalign
-    list(APPEND JEMALLOC_CMAKE_ARGS
-        "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -D_MM_MALLOC_H"
-    )
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=deprecated-declarations -D_MM_MALLOC_H")
 endif()
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
