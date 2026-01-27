@@ -1,8 +1,7 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -114,6 +114,16 @@ if(NOT CMAKE_CXX_STANDARD)
-   set(CMAKE_CXX_STANDARD 20)
+@@ -84,6 +84,30 @@ if(NOT CMAKE_CXX_STANDARD)
    set(CMAKE_CXX_STANDARD_REQUIRED ON)
    message(STATUS "setting C++ standard to C++${CMAKE_CXX_STANDARD}")
  endif()
