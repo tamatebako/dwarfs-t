@@ -83,22 +83,27 @@ jobs:
       - name: 🔨 Setup build dependencies
         uses: ./.github/actions/setup-build-deps
 
-      - name: 🔧 Install CMake and Ninja
-        uses: lukka/get-cmake@latest
-
-      - name: 📦 Setup vcpkg
-        uses: lukka/run-vcpkg@main
-        with:
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-          vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
-          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
-          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
-
       - name: 🪟 Setup MSVC Developer Environment
         if: runner.os == 'Windows'
         uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
           arch: ${{ contains(inputs.triplet, 'arm64') && 'arm64' || 'x64' }}
+
+      - name: 🔧 Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: 💾 Setup ccache
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          override-cache-key: ccache_${{ inputs.triplet }}_${{ inputs.config }}
+
+      - name: 📦 Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
+          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
