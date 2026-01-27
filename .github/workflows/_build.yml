@@ -100,6 +100,11 @@ jobs:
         with:
           arch: ${{ contains(inputs.triplet, 'arm64') && 'arm64' || 'x64' }}
 
+      - name: 🔧 Ensure correct vcpkg in PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "${{ github.workspace }}/../vcpkg" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
+
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
         with:
