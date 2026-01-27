@@ -1,0 +1,17 @@
+# Brewfile for DwarFS macOS CI dependencies
+# Install with: brew bundle --file=Brewfile
+
+# Essential build tools
+ninja
+cmake
+pkg-config
+python3
+
+# Autoconf tools (for building vcpkg dependencies from source)
+autoconf
+autoconf-archive
+automake
+libtool
+
+# FUSE-T - REQUIRED for macOS builds and tests
+fuse-t
