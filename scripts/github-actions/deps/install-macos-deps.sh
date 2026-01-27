@@ -30,3 +30,19 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 echo "✓ macOS dependencies installed"
+
+# Verify FUSE-T installation
+echo "Verifying FUSE-T installation..."
+FUSE_T_INCLUDE_PATH="/Library/Application Support/fuse-t/include/fuse/fuse.h"
+if [[ -f "$FUSE_T_INCLUDE_PATH" ]]; then
+  echo "✓ FUSE-T headers found at: $FUSE_T_INCLUDE_PATH"
+else
+  echo "::warning::FUSE-T headers NOT found at $FUSE_T_INCLUDE_PATH"
+  echo "::warning::Attempting to locate fuse.h..."
+  FUSE_H=$(find /Library -name "fuse.h" 2>/dev/null | head -1)
+  if [[ -n "$FUSE_H" ]]; then
+    echo "✓ Found fuse.h at: $FUSE_H"
+  else
+    echo "::error::fuse.h not found anywhere in /Library"
+  fi
+fi
