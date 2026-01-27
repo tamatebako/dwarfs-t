@@ -82,11 +82,11 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # macOS: Install build dependencies (autoconf, bison, etc.) and FUSE-T
+      # macOS: Install build dependencies (autoconf, bison, fuse-t, etc.) via Brewfile
       - name: 🍎 Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install autoconf automake libtool bison fuse-t
+          bash scripts/github-actions/deps/install-macos-deps.sh
         shell: bash
 
       # Windows: Setup MSVC before vcpkg
