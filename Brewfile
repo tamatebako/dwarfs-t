@@ -5,7 +5,7 @@
 brew "ninja"
 brew "cmake"
 brew "pkg-config"
-brew "python3"
+brew "python3", break_system_packages: true
 
 # Autoconf tools (for building vcpkg dependencies from source)
 brew "autoconf"
