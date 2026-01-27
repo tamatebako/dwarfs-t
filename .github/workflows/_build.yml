@@ -100,6 +100,10 @@ jobs:
 
       - name: 📦 Setup vcpkg
         uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
+          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
