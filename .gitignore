@@ -22,7 +22,6 @@ CMakeSettings.json
 
 # Tebako
 .vscode/
-deps
 include/dwarfs/version.h
 src/dwarfs/version.cpp
 /benchmarks/results
@@ -32,6 +31,7 @@ vcpkg_installed/
 buildtrees/
 vcpkg-triplets-osx-*/
 .claude/
+
 # Example build artifacts
 example/*/*/build/
 example/*/*/CMakeCache.txt
