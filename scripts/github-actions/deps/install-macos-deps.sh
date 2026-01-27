@@ -29,6 +29,4 @@ if [[ $? -ne 0 ]]; then
   echo "::error::Failed to install Homebrew dependencies"
   exit 1
 fi
-echo "✓ Homebrew dependencies installed"
-
 echo "✓ macOS dependencies installed"

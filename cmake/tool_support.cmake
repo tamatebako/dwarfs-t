@@ -123,8 +123,9 @@ if(WITH_FUSE_DRIVER)
 
   # Detect FUSE implementation and set appropriate version
   if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t")
+    # FUSE-T uses FUSE2 API (version 29) with headers at fuse/fuse_lowlevel.h
     target_compile_definitions(dwarfs_tool_support PRIVATE
-      FUSE_USE_VERSION=31
+      FUSE_USE_VERSION=29
       DWARFS_USE_FUSE_T
     )
     # FUSE_T_INCLUDE_DIR is set by need_fuse.cmake
