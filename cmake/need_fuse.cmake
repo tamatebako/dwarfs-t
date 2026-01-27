@@ -19,6 +19,12 @@
 # Option to disable FUSE support (useful for CI/builds without FUSE)
 option(DWARFS_WITH_FUSE "Enable FUSE support for filesystem mounting" ON)
 
+# Include guard to prevent double processing
+if(DWARFS_FUSE_CONFIGURED)
+  return()
+endif()
+set(DWARFS_FUSE_CONFIGURED TRUE CACHE INTERNAL "FUSE configuration has been processed")
+
 if(NOT DWARFS_WITH_FUSE)
   message(STATUS "FUSE support disabled by DWARFS_WITH_FUSE=OFF")
   return()
