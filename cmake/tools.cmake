@@ -31,7 +31,8 @@ function(link_fuse_library TARGET_NAME)
     # FUSE-T doesn't always provide pkg-config files, link directly
     target_link_libraries(${TARGET_NAME} PRIVATE "${FUSE_T_LIBRARY}")
     # Set RPATH for FUSE-T library directory so dyld can find it at runtime
-    if(FUSE_T_LIBRARY_DIRS)
+    # RPATH is only needed on macOS/Unix, not Windows
+    if(APPLE AND FUSE_T_LIBRARY_DIRS)
       target_link_options(${TARGET_NAME} PRIVATE
         "LINKER:-rpath,${FUSE_T_LIBRARY_DIRS}"
       )
@@ -193,6 +194,7 @@ if(WITH_FUSE_DRIVER)
       endif()
     elseif(FUSE3_FOUND)
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=35 DWARFS_FUSE_LOWLEVEL=1)
+      target_compile_definitions(dwarfs_tool_support PRIVATE FUSE_USE_VERSION=35 DWARFS_FUSE_LOWLEVEL=1)
     elseif(FUSE_FOUND)
       target_compile_definitions(dwarfs_reader PRIVATE FUSE_USE_VERSION=29)
     elseif(WIN32 AND WINFSP)
@@ -220,6 +222,7 @@ if(WITH_FUSE_DRIVER)
       endif()
     elseif(FUSE3_FOUND)
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=35 DWARFS_FUSE_LOWLEVEL=1)
+      target_compile_definitions(dwarfs_tool_support PRIVATE FUSE_USE_VERSION=35 DWARFS_FUSE_LOWLEVEL=1)
     endif()
     target_link_libraries(dwarfs_main PRIVATE dwarfs_tool dwarfs_reader dwarfs_tool_support)
     # Link FUSE library using the DRY helper function

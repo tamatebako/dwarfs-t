@@ -26,7 +26,8 @@
 # This is needed because static libraries don't propagate RPATH to dependent executables
 # Usage: add_fuse_rpath_to_tests(target1 target2 ...)
 function(add_fuse_rpath_to_tests)
-  if(FUSE_IMPLEMENTATION STREQUAL "fuse-t" AND FUSE_T_LIBRARY_DIRS)
+  # RPATH is only needed on macOS/Unix, not Windows
+  if(APPLE AND FUSE_IMPLEMENTATION STREQUAL "fuse-t" AND FUSE_T_LIBRARY_DIRS)
     foreach(TARGET_NAME ${ARGV})
       if(TARGET ${TARGET_NAME})
         target_link_options(${TARGET_NAME} PRIVATE
