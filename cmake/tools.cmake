@@ -19,6 +19,33 @@
 # Conditional minimum version for tebako compatibility
 
 # ============================================================================
+# FUSE Library Linking Helper (DRY function)
+# ============================================================================
+
+# Function to link FUSE library to a target with proper RPATH
+# Usage: link_fuse_library(target_name)
+# Parameters:
+#   target_name - The target to link FUSE to
+function(link_fuse_library TARGET_NAME)
+  if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
+    # FUSE-T doesn't always provide pkg-config files, link directly
+    target_link_libraries(${TARGET_NAME} PRIVATE "${FUSE_T_LIBRARY}")
+    # Set RPATH for FUSE-T library directory so dyld can find it at runtime
+    if(FUSE_T_LIBRARY_DIRS)
+      target_link_options(${TARGET_NAME} PRIVATE
+        "LINKER:-rpath,${FUSE_T_LIBRARY_DIRS}"
+      )
+    endif()
+  elseif(TARGET PkgConfig::FUSE3)
+    target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::FUSE3)
+  elseif(TARGET PkgConfig::FUSE)
+    target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::FUSE)
+  elseif(WINFSP)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${WINFSP})
+  endif()
+endfunction()
+
+# ============================================================================
 # Tool Targets (mkdwarfs, dwarfsck, dwarfsextract)
 # ============================================================================
 
@@ -37,14 +64,8 @@ if(WITH_TOOLS)
     add_executable(${tgt} tools/src/${tgt}.cpp)
     target_link_libraries(${tgt} PRIVATE ${tgt}_main)
     target_link_libraries(${tgt} PRIVATE dwarfs_tool)
-    if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
-      # FUSE-T doesn't always provide pkg-config files, link directly
-      target_link_libraries(${tgt}_main PRIVATE "${FUSE_T_LIBRARY}")
-    elseif(FUSE3_FOUND)
-      target_link_libraries(${tgt}_main PRIVATE PkgConfig::FUSE3)
-    elseif(FUSE_FOUND AND NOT WIN32)
-      target_link_libraries(${tgt}_main PRIVATE PkgConfig::FUSE)
-    endif()
+    # Link FUSE library using the DRY helper function
+    link_fuse_library(${tgt}_main)
 
     list(APPEND MAIN_TARGETS ${tgt}_main)
     list(APPEND BINARY_TARGETS ${tgt})
@@ -179,16 +200,7 @@ if(WITH_FUSE_DRIVER)
     endif()
 
     # Link FUSE library to dwarfs_reader
-    if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
-      # FUSE-T doesn't always provide pkg-config files, link directly
-      target_link_libraries(dwarfs_reader PRIVATE "${FUSE_T_LIBRARY}")
-    elseif(TARGET PkgConfig::FUSE3)
-      target_link_libraries(dwarfs_reader PRIVATE PkgConfig::FUSE3)
-    elseif(TARGET PkgConfig::FUSE)
-      target_link_libraries(dwarfs_reader PRIVATE PkgConfig::FUSE)
-    elseif(WINFSP)
-      target_link_libraries(dwarfs_reader PRIVATE ${WINFSP})
-    endif()
+    link_fuse_library(dwarfs_reader)
   endif()
 
   file(RELATIVE_PATH relative_sbindir_to_bindir "${CMAKE_INSTALL_FULL_SBINDIR}" "${CMAKE_INSTALL_FULL_BINDIR}")
@@ -210,14 +222,8 @@ if(WITH_FUSE_DRIVER)
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=35)
     endif()
     target_link_libraries(dwarfs_main PRIVATE dwarfs_tool dwarfs_reader dwarfs_tool_support)
-    if(FUSE_IMPLEMENTATION STREQUAL "fuse-t")
-      # FUSE-T doesn't always provide pkg-config files, link directly
-      target_link_libraries(dwarfs_main PRIVATE "${FUSE_T_LIBRARY}")
-    elseif(FUSE3_FOUND)
-      target_link_libraries(dwarfs_main PRIVATE PkgConfig::FUSE3)
-    elseif(FUSE_FOUND AND NOT WIN32)
-      target_link_libraries(dwarfs_main PRIVATE PkgConfig::FUSE)
-    endif()
+    # Link FUSE library using the DRY helper function
+    link_fuse_library(dwarfs_main)
     add_executable(dwarfs-bin tools/src/dwarfs.cpp)
     target_link_libraries(dwarfs-bin PRIVATE dwarfs_main)
     target_link_libraries(dwarfs-bin PRIVATE dwarfs_tool)

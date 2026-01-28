@@ -19,6 +19,25 @@
 # Conditional minimum version for tebako compatibility
 
 # ============================================================================
+# FUSE-T RPATH Helper for Test Targets
+# ============================================================================
+
+# Function to add FUSE-T RPATH to test targets
+# This is needed because static libraries don't propagate RPATH to dependent executables
+# Usage: add_fuse_rpath_to_tests(target1 target2 ...)
+function(add_fuse_rpath_to_tests)
+  if(FUSE_IMPLEMENTATION STREQUAL "fuse-t" AND FUSE_T_LIBRARY_DIRS)
+    foreach(TARGET_NAME ${ARGV})
+      if(TARGET ${TARGET_NAME})
+        target_link_options(${TARGET_NAME} PRIVATE
+          "LINKER:-rpath,${FUSE_T_LIBRARY_DIRS}"
+        )
+      endif()
+    endforeach()
+  endif()
+endfunction()
+
+# ============================================================================
 # Test Helpers Library
 # ============================================================================
 
@@ -105,6 +124,8 @@ if(WITH_TESTS)
     TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test"
     TOOLS_BIN_DIR="${CMAKE_CURRENT_BINARY_DIR}"
   )
+  # Add FUSE-T RPATH for test targets that link to dwarfs_reader
+  add_fuse_rpath_to_tests(dwarfs_filesystem_tests)
   gtest_discover_tests(dwarfs_filesystem_tests)
 endif()
 
@@ -278,6 +299,20 @@ if(WITH_TESTS)
     PRIVATE dwarfs_test_helpers GTest::gtest_main
   )
   list(APPEND DWARFS_TESTS dwarfs_compression_benchmark)
+
+  # Add FUSE-T RPATH to all test targets that link to dwarfs_reader
+  # This is needed because static libraries don't propagate RPATH to executables
+  add_fuse_rpath_to_tests(
+    dwarfs_filesystem_tests
+    dwarfs_segmenter_tests
+    dwarfs_filter_tests
+    dwarfs_compression_tests
+    dwarfs_unit_tests
+    dwarfs_categorizer_tests
+    dwarfs_expensive_tests
+    dwarfs_compressor_tests
+    dwarfs_compression_benchmark
+  )
 endif()
 
 # ============================================================================
@@ -321,6 +356,15 @@ if(WITH_LIBDWARFS AND WITH_BENCHMARKS)
     endif()
 
     list(APPEND BENCHMARK_TARGETS ${BENCHMARK_TARGETS})
+
+    # Add FUSE-T RPATH for benchmark targets that link to dwarfs_reader
+    add_fuse_rpath_to_tests(
+      dwarfs_benchmark
+      segmenter_benchmark
+      multiversioning_benchmark
+      converter_benchmark
+      nilsimsa_benchmark
+    )
   endif()
 endif()
 
@@ -334,6 +378,14 @@ if(WITH_LIBDWARFS AND WITH_BENCHMARKS)
 
   # Add targets to benchmark list (for convenience)
   list(APPEND BENCHMARK_TARGETS
+    single_file_bench
+    multiple_files_bench
+    full_extract_bench
+    random_access_bench
+  )
+
+  # Add FUSE-T RPATH for libdwarfs API benchmarks that link to dwarfs_reader
+  add_fuse_rpath_to_tests(
     single_file_bench
     multiple_files_bench
     full_extract_bench
@@ -357,6 +409,12 @@ if(WITH_LIBDWARFS AND WITH_FUZZ)
   add_executable(fuzz_reader test/fuzz_reader.cpp)
   target_link_libraries(fuzz_reader PRIVATE dwarfs_reader)
   list(APPEND BINARY_TARGETS fuzz_reader)
+
+  # Add FUSE-T RPATH for fuzz targets that link to dwarfs_reader
+  add_fuse_rpath_to_tests(
+    fuzz_mkdwarfs
+    fuzz_reader
+  )
 endif()
 
 # ============================================================================
