@@ -147,9 +147,7 @@ jobs:
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
 
       - name: 🔨 Install CMake and Ninja
-        uses: lukka/get-cmake@v10.4
-        with:
-          cmakeVersion: 3.28.x
+        uses: lukka/get-cmake@latest
 
       # Common dependencies (Python packages for manpage generation)
       - name: 📦 Install common dependencies
