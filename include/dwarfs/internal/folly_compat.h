@@ -605,6 +605,7 @@ inline bool setThreadName(std::string_view name) {
   return pthread_setname_np(std::string(name).c_str()) == 0;
 #elif defined(_WIN32)
   // Windows thread naming requires Win32 API
+  (void)name;
   return false; // Not critical - just skip
 #else
   (void)name;
@@ -619,6 +620,12 @@ inline bool setThreadName(std::string_view name) {
 //==============================================================================
 
 namespace stats {
+
+// Undef Windows min/max macros to avoid conflicts with method names
+#ifdef _MSC_VER
+#undef min
+#undef max
+#endif
 
 // Simple histogram implementation (when Folly unavailable)
 template<typename T>
