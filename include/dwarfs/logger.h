@@ -44,6 +44,11 @@
 #include <dwarfs/detail/logging_class_factory.h>
 #include <dwarfs/source_location.h>
 
+// Windows.h defines ERROR as a macro which conflicts with our enum value
+#ifdef _WIN32
+#undef ERROR
+#endif
+
 namespace dwarfs {
 
 class terminal;
