@@ -109,7 +109,16 @@ void scoped_env::restore() {
 
 void scoped_env::ensure_saved(std::string const& name) {
   if (!original_.contains(name)) {
+#ifdef _MSC_VER
+    // MSVC warns about getenv being unsafe, but this is read-only and we're
+    // immediately copying the result, so it's safe
+#pragma warning(push)
+#pragma warning(disable : 4996)
     if (auto const* orig = std::getenv(name.c_str())) {
+#pragma warning(pop)
+#else
+    if (auto const* orig = std::getenv(name.c_str())) {
+#endif
       original_[name] = std::string(orig);
     } else {
       original_[name] = std::nullopt;
