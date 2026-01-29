@@ -36,7 +36,7 @@ class logger;
 }
 
 namespace dwarfs::metadata::domain {
-struct metadata;
+class metadata;
 struct chunk;
 }
 

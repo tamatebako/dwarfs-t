@@ -277,7 +277,6 @@ class FrozenSchemaSerializer::Reader {
 
       // Check if this byte could be a field header
       uint8_t delta = next_byte >> 4;
-      uint8_t type = next_byte & 0x0F;
       uint16_t potential_field_id = delta;  // simplified check
 
       // If delta is 0, we'd need to read the field ID, which is complex

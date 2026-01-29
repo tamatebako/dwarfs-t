@@ -445,8 +445,6 @@ public:
 
     // Field 4: packed_index (bool)
     // Check if field 4 exists (even with layout_id=0)
-    bool has_field_4 = layout_->fields.get(4) != nullptr;
-
     auto packed_field = layout_->fields.get(4);
     if (packed_field) {
       table.packed_index = field_reader(4).read_bool();
