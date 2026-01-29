@@ -161,6 +161,8 @@ inline std::string exceptionStr(std::exception const& e) {
 #include <io.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+// Windows doesn't have ssize_t by default
+typedef SSIZE_T ssize_t;
 #else
 #include <fcntl.h>
 #include <pthread.h>
