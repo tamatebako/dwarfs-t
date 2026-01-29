@@ -879,7 +879,14 @@ inline ssize_t readFull(int fd, void* buf, size_t count) {
   size_t remaining = count;
 
   while (remaining > 0) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)
     ssize_t n = ::read(fd, ptr, remaining);
+#pragma warning(pop)
+#else
+    ssize_t n = ::read(fd, ptr, remaining);
+#endif
     if (n < 0) {
       if (errno == EINTR) continue;
       return -1;
@@ -897,7 +904,14 @@ inline ssize_t writeFull(int fd, void const* buf, size_t count) {
   size_t remaining = count;
 
   while (remaining > 0) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)
     ssize_t n = ::write(fd, ptr, remaining);
+#pragma warning(pop)
+#else
+    ssize_t n = ::write(fd, ptr, remaining);
+#endif
     if (n < 0) {
       if (errno == EINTR) continue;
       return -1;
