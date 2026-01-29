@@ -1017,6 +1017,7 @@ public:
                 }
 
               } catch (std::exception const& e) {
+                (void)e;
                 // Fall through to plain buffer extraction
               }
             } else if (!meta.compact_names->buffer.empty()) {

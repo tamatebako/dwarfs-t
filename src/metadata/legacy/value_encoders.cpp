@@ -143,6 +143,7 @@ uint32_t VectorEncoder::encode_with_element_layout(
   SchemaLayout const& element_layout,
   void const* value) const {
 
+  (void)element_layout;
   // Validate: null pointer check
   if (!value) {
     throw std::invalid_argument("VectorEncoder::encode_with_element_layout: value pointer is null");
@@ -213,6 +214,7 @@ uint32_t VectorEncoder::encode_directories(
   SchemaLayout const& element_layout,
   void const* value) const {
 
+  (void)element_layout;
   // Validate: null pointer check
   if (!value) {
     throw std::invalid_argument("VectorEncoder::encode_directories: value pointer is null");
@@ -283,6 +285,7 @@ uint32_t VectorEncoder::encode_inodes(
   SchemaLayout const& element_layout,
   void const* value) const {
 
+  (void)element_layout;
   // Validate: null pointer check
   if (!value) {
     throw std::invalid_argument("VectorEncoder::encode_inodes: value pointer is null");
@@ -394,6 +397,7 @@ uint32_t StringEncoder::encode(
   SchemaLayout const& layout,
   void const* value) const {
 
+  (void)layout;
   // Validate: null pointer check
   if (!value) {
     throw std::invalid_argument("StringEncoder::encode: value pointer is null");
