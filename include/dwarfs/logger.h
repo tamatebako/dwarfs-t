@@ -44,9 +44,10 @@
 #include <dwarfs/detail/logging_class_factory.h>
 #include <dwarfs/source_location.h>
 
-// Windows.h defines ERROR as a macro which conflicts with our enum value
+// Windows.h defines macros that conflict with our enum values
 #ifdef _WIN32
 #undef ERROR
+#undef WARN
 #endif
 
 namespace dwarfs {

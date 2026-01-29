@@ -44,6 +44,12 @@
 
 #include <dwarfs/internal/folly_compat.h>
 
+// Windows.h defines macros that conflict with our enum values
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
+
 #include <boost/chrono/thread_clock.hpp>
 
 #include <dwarfs/config.h>
