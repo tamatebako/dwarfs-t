@@ -394,11 +394,14 @@ public:
                 try {
                   buffer_size = field2_reader.read_u64();
                 } catch (std::exception const& e3) {
+                  (void)e3;
                 }
               }
             } catch (std::exception const& e2) {
+              (void)e2;
             }
           } catch (std::exception const& e) {
+            (void)e;
           }
         }
       } else {
@@ -428,6 +431,7 @@ public:
             } else {
             }
           } catch (std::exception const& e) {
+            (void)e;
             table.symtab = symtab_reader.field_reader(2).read_string();
           }
         }
@@ -817,6 +821,7 @@ public:
               [](Reader const& r) { return r.read_dir_entry(); });
         }
       } catch (std::exception const& e) {
+        (void)e;
       }
     }
 
@@ -899,6 +904,7 @@ public:
                 // Debug: Show the buffer structure to determine format
                 for (size_t i = 0; i < std::min(size_t(50), meta.compact_names->buffer.size()); ++i) {
                   unsigned char c = static_cast<unsigned char>(meta.compact_names->buffer[i]);
+                  (void)c;
                 }
                 for (size_t i = 0; i < std::min(size_t(50), meta.compact_names->buffer.size()); ++i) {
                   unsigned char c = static_cast<unsigned char>(meta.compact_names->buffer[i]);
@@ -1051,6 +1057,7 @@ public:
         } else {
         }
       } catch (std::exception const& e) {
+        (void)e;
       }
     }
 
@@ -1065,6 +1072,7 @@ public:
         } else {
         }
       } catch (std::exception const& e) {
+        (void)e;
       }
     }
 
@@ -1079,6 +1087,7 @@ public:
         } else {
         }
       } catch (std::exception const& e) {
+        (void)e;
       }
     }
 

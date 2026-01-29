@@ -27,7 +27,7 @@
 #include <memory>
 
 namespace dwarfs::metadata::domain {
-  struct metadata;
+  class metadata;
 }
 
 namespace dwarfs::metadata::legacy {
