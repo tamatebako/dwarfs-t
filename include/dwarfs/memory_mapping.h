@@ -36,6 +36,12 @@
 #include <dwarfs/file_range.h>
 #include <dwarfs/io_advice.h>
 
+// Undef Windows min/max macros to avoid conflicts with std::numeric_limits::max()
+#ifdef _MSC_VER
+#undef min
+#undef max
+#endif
+
 namespace dwarfs {
 
 namespace detail {

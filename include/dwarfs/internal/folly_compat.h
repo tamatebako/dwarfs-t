@@ -621,12 +621,6 @@ inline bool setThreadName(std::string_view name) {
 
 namespace stats {
 
-// Undef Windows min/max macros to avoid conflicts with method names
-#ifdef _MSC_VER
-#undef min
-#undef max
-#endif
-
 // Simple histogram implementation (when Folly unavailable)
 template<typename T>
 class Histogram {
@@ -669,8 +663,8 @@ public:
 
   uint64_t count() const { return count_; }
   T sum() const { return sum_; }
-  T min() const { return min_val_; }
-  T max() const { return max_val_; }
+  T min_value() const { return min_val_; }
+  T max_value() const { return max_val_; }
   double avg() const { return count_ > 0 ? static_cast<double>(sum_) / count_ : 0.0; }
 
 private:

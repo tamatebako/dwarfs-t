@@ -316,7 +316,14 @@ class performance_monitor_impl final : public performance_monitor {
                       [](auto const& a, auto const& b) { return a.ts < b.ts; });
 
     bool first = true;
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996) // getpid: deprecated, use _getpid
     auto const pid = ::getpid();
+#pragma warning(pop)
+#else
+    auto const pid = ::getpid();
+#endif
 
     auto& os = output->os();
 
