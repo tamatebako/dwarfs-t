@@ -163,6 +163,8 @@ inline std::string exceptionStr(std::exception const& e) {
 #include <sys/stat.h>
 // Windows doesn't have ssize_t by default
 typedef SSIZE_T ssize_t;
+// Undefine Windows macros that conflict with common identifiers
+#undef ERROR
 #else
 #include <fcntl.h>
 #include <pthread.h>
