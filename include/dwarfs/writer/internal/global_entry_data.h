@@ -119,7 +119,7 @@ class global_entry_data {
   uid_type next_uid_index_{0};
   gid_type next_gid_index_{0};
   mode_type next_mode_index_{0};
-  uint64_t timestamp_base_{std::numeric_limits<uint64_t>::max()};
+  uint64_t timestamp_base_{(std::numeric_limits<uint64_t>::max())};
   metadata_options const& options_;
 };
 

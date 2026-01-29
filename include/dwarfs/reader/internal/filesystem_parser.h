@@ -51,7 +51,7 @@ class filesystem_parser {
  public:
   filesystem_parser(
       logger& lgr, file_view const& mm, file_off_t image_offset = 0,
-      file_off_t image_size = std::numeric_limits<file_off_t>::max());
+      file_off_t image_size = (std::numeric_limits<file_off_t>::max)());
 
   void rewind() { impl_->rewind(); }
 

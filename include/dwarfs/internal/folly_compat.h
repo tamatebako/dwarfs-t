@@ -785,7 +785,7 @@ struct Bits {
     size_t bits_read = 0;
 
     while (bits_read < num_bits) {
-      size_t bits_in_block = std::min(num_bits - bits_read, bitsPerBlock - start_bit);
+      size_t bits_in_block = (std::min)(num_bits - bits_read, bitsPerBlock - start_bit);
       T mask = (T(1) << bits_in_block) - 1;
       value |= ((data[start_block] >> start_bit) & mask) << bits_read;
 
@@ -819,7 +819,7 @@ struct Bits {
     size_t bits_written = 0;
 
     while (bits_written < num_bits) {
-      size_t bits_in_block = std::min(num_bits - bits_written, bitsPerBlock - start_bit);
+      size_t bits_in_block = (std::min)(num_bits - bits_written, bitsPerBlock - start_bit);
       T mask = (T(1) << bits_in_block) - 1;
 
       data[start_block] &= ~(mask << start_bit);  // Clear bits
