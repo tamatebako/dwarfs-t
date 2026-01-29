@@ -188,3 +188,143 @@ If DenseMap::get() returns `std::optional<T>` by value instead of `T*`, the poin
 
 ### 1-based vs 0-based Indexing
 DenseMap uses 1-based keys (1, 2, 3, ...), NOT 0-based (0, 1, 2, ...). When accessing field N, use `fields.get(N)`, not `fields.get(N-1)`.
+
+## Iterating on Windows CI Errors
+
+### Overview
+Windows CI builds often fail due to conflicts between Windows macros and C++ code. The most common issues are:
+
+1. **ERROR macro conflict** - Windows.h defines `ERROR` as a macro (typically 0)
+2. **WARN macro conflict** - Windows.h may define `WARN` as a macro in some contexts
+3. **min/max macro conflicts** - Windows defines `min` and `max` as macros
+4. **C4996 deprecation warnings** - POSIX function names like `::read`, `::write`, `getenv`
+
+### Debugging Workflow
+
+1. **Check CI status:**
+   ```bash
+   gh run list --limit 5 --json databaseId,status,conclusion,displayTitle,headSha --jq '.[] | select(.displayTitle | contains("Windows Matrix")) | {displayTitle, status, conclusion}'
+   ```
+
+2. **Fetch logs automatically:**
+   ```bash
+   ruby scripts/fetch_windows_ci_logs_octokit.rb
+   ```
+
+   This downloads and organizes logs into `tmp/windows_ci_logs/run_<id>_<sha>/` with:
+   - One subdirectory per job
+   - Logs organized by step/group
+   - Index file showing all sections
+
+3. **Check CMake build errors:**
+   ```bash
+   grep -E "error C" tmp/windows_ci_logs/run_*/__x64___Static___windows-latest___x64-windows-static___production/group_39_Build_with_CMake.log
+   ```
+
+4. **Fix errors ONE BY ONE** - NO SED!
+
+### Common Windows Macro Conflicts
+
+#### ERROR Macro
+**Problem:** Windows.h defines `ERROR` as a macro (value 0), conflicting with enum value.
+
+**Error pattern:**
+```
+error C2079: 'log_level_map' uses undefined class 'dwarfs::logger::level_type'
+error C2059: syntax error: 'constant'
+```
+
+**Solution:** Add `#undef ERROR` before enum definition or usage:
+```cpp
+// In header files (before enum):
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
+
+// In source files (after includes but before usage):
+#ifdef _WIN32
+#undef ERROR
+#endif
+```
+
+**Files affected:**
+- `include/dwarfs/logger.h` - has enum with ERROR value
+- `src/logger.cpp` - uses `logger::ERROR` and bare `ERROR` in switch
+
+#### NOMINMAX
+**Problem:** Windows defines `min`/`max` as macros, breaking template syntax.
+
+**Error pattern:**
+```
+error C3878: syntax error: unexpected token ')' following 'simple-type-specifier'
+```
+
+**Solution:** `NOMINMAX` is defined globally in `cmake/compile.cmake` for all MSVC builds:
+```cmake
+add_compile_definitions(_WIN32_WINNT=0x0601 WINVER=0x0601 NOMINMAX)
+```
+
+#### C4996 Deprecation Warnings
+**Problem:** POSIX function names are deprecated on MSVC (`::read`, `::write`, `getenv`).
+
+**Error pattern:**
+```
+warning C4996: 'read': The POSIX name for this item is deprecated
+error C2220: the following warning is treated as an error
+```
+
+**Solution:** Use pragma warning suppression in source:
+```cpp
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)
+    ssize_t n = ::read(fd, ptr, remaining);
+#pragma warning(pop)
+#else
+    ssize_t n = ::read(fd, ptr, remaining);
+#endif
+```
+
+**Location:** `include/dwarfs/internal/folly_compat.h` - readFull() and writeFull() functions
+
+### Scripts for Windows CI Debugging
+
+1. **fetch_windows_ci_logs_octokit.rb** - Main log fetcher using Octokit gem
+   - Downloads latest failed Windows Matrix run logs
+   - Organizes by job and step/group
+   - Saves to `tmp/windows_ci_logs/run_<id>_<sha>/`
+
+2. **check_windows_ci.rb** - Quick CI status checker
+   - Checks latest Windows Matrix run status
+   - Automatically fetches logs if failed
+
+3. **fetch_windows_ci_logs_grouped.rb** - Alternative grouped log fetcher
+
+### Example Debugging Session
+
+```bash
+# 1. Check CI status
+ruby scripts/check_windows_ci.rb
+
+# 2. Fetch logs (automatically done by check_windows_ci.rb)
+ruby scripts/fetch_windows_ci_logs_octokit.rb
+
+# 3. Examine specific error
+grep -E "error C" tmp/windows_ci_logs/run_*/__x64___Static__*/group_39_Build_with_CMake.log | head -30
+
+# 4. Fix the issue (edit file, commit, push)
+
+# 5. Repeat until all jobs pass
+```
+
+### Windows Build Jobs
+
+The Windows Matrix tests these configurations:
+- `x64-windows-static` (MSVC static) - Main target
+- `x64-windows-dynamic` (MSVC dynamic)
+- `x64-windows-msys` (MSYS2 with GCC)
+- `x64-windows-mingw` (MinGW with GCC)
+- `arm64-windows-static` (ARM64 MSVC static)
+
+All MSVC builds should have the same errors if macro-related. MSYS/MinGW use GCC and may have different issues.
