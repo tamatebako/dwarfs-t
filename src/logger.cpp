@@ -73,17 +73,18 @@
 
 namespace dwarfs {
 
+// Windows.h defines macros that conflict with our enum values
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
+
 namespace {
 
 constexpr std::array<std::pair<std::string_view, logger::level_type>, 6>
-    log_level_map = {{
-        {"error", logger::ERROR},
-        {"warn", logger::WARN},
-        {"info", logger::INFO},
-        {"verbose", logger::VERBOSE},
-        {"debug", logger::DEBUG},
-        {"trace", logger::TRACE},
-    }};
+    log_level_map = {{"error", logger::ERROR}, {"warn", logger::WARN},
+                     {"info", logger::INFO}, {"verbose", logger::VERBOSE},
+                     {"debug", logger::DEBUG}, {"trace", logger::TRACE}};
 
 }
 
