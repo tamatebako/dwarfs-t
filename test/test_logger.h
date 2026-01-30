@@ -53,8 +53,8 @@ class test_logger : public ::dwarfs::logger {
       : threshold_{threshold ? *threshold : default_threshold()}
       , output_threshold_{output_threshold(default_threshold())}
       , output_{::dwarfs::getenv_is_enabled("DWARFS_TEST_LOGGER_OUTPUT")} {
-    if (threshold_ >= level_type::DEBUG ||
-        (output_ && output_threshold_ >= level_type::DEBUG)) {
+    if (threshold_ >= LOGGER_LEVEL_DEBUG ||
+        (output_ && output_threshold_ >= LOGGER_LEVEL_DEBUG)) {
       set_policy<debug_logger_policy>();
     } else {
       set_policy<prod_logger_policy>();
@@ -94,7 +94,7 @@ class test_logger : public ::dwarfs::logger {
   void clear() { log_.clear(); }
 
  private:
-  static level_type default_threshold() { return level_type::INFO; }
+  static level_type default_threshold() { return LOGGER_LEVEL_INFO; }
 
   static level_type output_threshold(level_type default_level) {
     if (auto var = std::getenv("DWARFS_TEST_LOGGER_LEVEL")) {
