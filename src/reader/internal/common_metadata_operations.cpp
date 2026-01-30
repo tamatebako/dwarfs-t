@@ -208,7 +208,7 @@ common_metadata_operations::get_block_category(size_t block_number) const {
 }
 
 std::optional<nlohmann::json>
-common_metadata_operations::get_block_category_metadata(size_t block_number) const {
+common_metadata_operations::get_block_category_metadata([[maybe_unused]] size_t block_number) const {
   // TODO: Implement block category metadata lookup from domain model
   return std::nullopt;
 }
@@ -704,7 +704,7 @@ file_stat common_metadata_operations::getattr(inode_view iv,
       }
     } else if (stbuf.is_symlink()) {
       // Symlink size is the link target length
-      uint32_t link_inode = inode - inode_offset_;
+      [[maybe_unused]] uint32_t link_inode = inode - inode_offset_;
       // Find symlink offset
       // TODO: Need to calculate symlink inode offset properly
       if (!domain_meta_.symlink_table.empty()) {
@@ -1105,13 +1105,14 @@ chunk_range common_metadata_operations::get_chunks(int inode,
 }
 
 nlohmann::json common_metadata_operations::get_inode_info(inode_view iv,
-                                                           size_t max_chunks) const {
+                                                           [[maybe_unused]] size_t max_chunks) const {
   // TODO: Implement get_inode_info using domain model
   return nlohmann::json::object();
 }
 
 void common_metadata_operations::dump(
-    std::ostream& os, fsinfo_options const& opts, filesystem_info const* fsinfo,
+    std::ostream& os, fsinfo_options const& opts,
+    [[maybe_unused]] filesystem_info const* fsinfo,
     std::function<void(std::string const&, uint32_t)> const& icb) const {
   // Recursive dump starting from root
   std::function<void(std::string const&, dir_entry_view const&)> dump_entry =
@@ -1327,7 +1328,7 @@ nlohmann::json common_metadata_operations::as_json() const {
   return result;
 }
 
-std::string common_metadata_operations::serialize_as_json(bool simple) const {
+std::string common_metadata_operations::serialize_as_json([[maybe_unused]] bool simple) const {
   // Convert domain model back to Thrift format for serialization
   // This requires the domain→Thrift converter from Session 28
   // For now, throw as not yet fully implemented
