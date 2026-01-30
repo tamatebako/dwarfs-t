@@ -22,7 +22,7 @@
 #pragma once
 
 namespace dwarfs::metadata::domain {
-struct fs_options;
+class fs_options;
 }
 
 namespace dwarfs {
