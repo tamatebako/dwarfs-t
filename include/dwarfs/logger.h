@@ -49,6 +49,7 @@
 #include <utility>
 
 #include <dwarfs/detail/logging_class_factory.h>
+#include <dwarfs/logger_level.h>
 #include <dwarfs/source_location.h>
 
 // Windows.h defines macros that conflict with our enum values
@@ -63,7 +64,7 @@ namespace dwarfs {
 class terminal;
 
 // Windows.h defines macros that conflict with our enum values
-// Must undefine here, right before the enum definition
+// Must undefine here, right before the class definition
 #ifdef _WIN32
 #undef ERROR
 #undef WARN
@@ -76,25 +77,8 @@ class terminal;
 
 class logger {
  public:
-#ifdef _WIN32
-// Undefine ALL potentially conflicting macros before enum definition
-#undef ERROR
-#undef WARN
-#undef FATAL
-#undef INFO
-#undef VERBOSE
-#undef DEBUG
-#undef TRACE
-#endif
-  enum level_type : unsigned {
-    FATAL = 0,
-    LVL_ERROR = 1,
-    LVL_WARN = 2,
-    INFO = 3,
-    VERBOSE = 4,
-    DEBUG = 5,
-    TRACE = 6
-  };
+  // Type alias for backward compatibility
+  using level_type = logger_level_type;
 
   static char level_char(level_type level);
 
@@ -122,11 +106,11 @@ class logger {
   std::string_view policy_name_;
 };
 
-std::ostream& operator<<(std::ostream& os, logger::level_type const& optval);
-std::istream& operator>>(std::istream& is, logger::level_type& optval);
+std::ostream& operator<<(std::ostream& os, logger_level_type const& optval);
+std::istream& operator>>(std::istream& is, logger_level_type& optval);
 
 struct logger_options {
-  logger::level_type threshold{logger::LVL_WARN};
+  logger_level_type threshold{LOGGER_LEVEL_WARN};
   std::optional<bool> with_context{};
 };
 
@@ -170,7 +154,7 @@ class null_logger : public logger {
   null_logger();
 
   void write(level_type, std::string_view, source_location) override {}
-  level_type threshold() const override { return FATAL; }
+  level_type threshold() const override { return LOGGER_LEVEL_FATAL; }
 };
 
 class level_log_entry {
@@ -254,7 +238,7 @@ class MinimumLogLevelPolicy {
   template <unsigned Level>
   using timed_logger_type = detail::timed_logger_type<Level <= MinLogLevel>;
 
-  static constexpr bool is_enabled_for(logger::level_type level) {
+  static constexpr bool is_enabled_for(logger_level_type level) {
     return level <= MinLogLevel;
   }
 };
@@ -270,109 +254,109 @@ class log_proxy {
     return LogPolicy::is_enabled_for(level);
   }
 
-  bool logger_is_enabled_for(logger::level_type level) const {
+  bool logger_is_enabled_for(logger_level_type level) const {
     return level <= threshold_;
   }
 
   auto fatal(source_location loc) const {
-    return level_log_entry(lgr_, logger::FATAL, loc);
+    return level_log_entry(lgr_, LOGGER_LEVEL_FATAL, loc);
   }
 
   auto error(source_location loc) const {
-    return typename LogPolicy::template logger_type<logger::LVL_ERROR>(
-        lgr_, logger::LVL_ERROR, loc);
+    return typename LogPolicy::template logger_type<LOGGER_LEVEL_ERROR>(
+        lgr_, LOGGER_LEVEL_ERROR, loc);
   }
 
   auto warn(source_location loc) const {
-    return typename LogPolicy::template logger_type<logger::LVL_WARN>(
-        lgr_, logger::LVL_WARN, loc);
+    return typename LogPolicy::template logger_type<LOGGER_LEVEL_WARN>(
+        lgr_, LOGGER_LEVEL_WARN, loc);
   }
 
   auto info(source_location loc) const {
-    return typename LogPolicy::template logger_type<logger::INFO>(
-        lgr_, logger::INFO, loc);
+    return typename LogPolicy::template logger_type<LOGGER_LEVEL_INFO>(
+        lgr_, LOGGER_LEVEL_INFO, loc);
   }
 
   auto verbose(source_location loc) const {
-    return typename LogPolicy::template logger_type<logger::VERBOSE>(
-        lgr_, logger::VERBOSE, loc);
+    return typename LogPolicy::template logger_type<LOGGER_LEVEL_VERBOSE>(
+        lgr_, LOGGER_LEVEL_VERBOSE, loc);
   }
 
   auto debug(source_location loc) const {
-    return typename LogPolicy::template logger_type<logger::DEBUG>(
-        lgr_, logger::DEBUG, loc);
+    return typename LogPolicy::template logger_type<LOGGER_LEVEL_DEBUG>(
+        lgr_, LOGGER_LEVEL_DEBUG, loc);
   }
 
   auto trace(source_location loc) const {
-    return typename LogPolicy::template logger_type<logger::TRACE>(
-        lgr_, logger::TRACE, loc);
+    return typename LogPolicy::template logger_type<LOGGER_LEVEL_TRACE>(
+        lgr_, LOGGER_LEVEL_TRACE, loc);
   }
 
   auto timed_error(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::LVL_ERROR>(
-        lgr_, logger::LVL_ERROR, loc);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_ERROR>(
+        lgr_, LOGGER_LEVEL_ERROR, loc);
   }
 
   auto timed_warn(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::LVL_WARN>(
-        lgr_, logger::LVL_WARN, loc);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_WARN>(
+        lgr_, LOGGER_LEVEL_WARN, loc);
   }
 
   auto timed_info(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::INFO>(
-        lgr_, logger::INFO, loc);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_INFO>(
+        lgr_, LOGGER_LEVEL_INFO, loc);
   }
 
   auto timed_verbose(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::VERBOSE>(
-        lgr_, logger::VERBOSE, loc);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_VERBOSE>(
+        lgr_, LOGGER_LEVEL_VERBOSE, loc);
   }
 
   auto timed_debug(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::DEBUG>(
-        lgr_, logger::DEBUG, loc);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_DEBUG>(
+        lgr_, LOGGER_LEVEL_DEBUG, loc);
   }
 
   auto timed_trace(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::TRACE>(
-        lgr_, logger::TRACE, loc);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_TRACE>(
+        lgr_, LOGGER_LEVEL_TRACE, loc);
   }
 
   auto cpu_timed_error(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::LVL_ERROR>(
-        lgr_, logger::LVL_ERROR, loc, true);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_ERROR>(
+        lgr_, LOGGER_LEVEL_ERROR, loc, true);
   }
 
   auto cpu_timed_warn(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::LVL_WARN>(
-        lgr_, logger::LVL_WARN, loc, true);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_WARN>(
+        lgr_, LOGGER_LEVEL_WARN, loc, true);
   }
 
   auto cpu_timed_info(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::INFO>(
-        lgr_, logger::INFO, loc, true);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_INFO>(
+        lgr_, LOGGER_LEVEL_INFO, loc, true);
   }
 
   auto cpu_timed_verbose(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::VERBOSE>(
-        lgr_, logger::VERBOSE, loc, true);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_VERBOSE>(
+        lgr_, LOGGER_LEVEL_VERBOSE, loc, true);
   }
 
   auto cpu_timed_debug(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::DEBUG>(
-        lgr_, logger::DEBUG, loc, true);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_DEBUG>(
+        lgr_, LOGGER_LEVEL_DEBUG, loc, true);
   }
 
   auto cpu_timed_trace(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::TRACE>(
-        lgr_, logger::TRACE, loc, true);
+    return typename LogPolicy::template timed_logger_type<LOGGER_LEVEL_TRACE>(
+        lgr_, LOGGER_LEVEL_TRACE, loc, true);
   }
 
   logger& get_logger() const { return lgr_; }
 
  private:
   logger& lgr_;
-  logger::level_type threshold_;
+  logger_level_type threshold_;
 };
 
 #define LOG_DETAIL_LEVEL(level, lgr, method)                                   \
@@ -390,12 +374,12 @@ class log_proxy {
 #define LOG_PROXY_INIT(lgr) log_(lgr)
 #define LOG_GET_LOGGER log_.get_logger()
 #define LOG_FATAL log_.fatal(DWARFS_CURRENT_SOURCE_LOCATION)
-#define LOG_ERROR LOG_DETAIL_LEVEL(LVL_ERROR, log_, error)
-#define LOG_WARN LOG_DETAIL_LEVEL(LVL_WARN, log_, warn)
-#define LOG_INFO LOG_DETAIL_LEVEL(INFO, log_, info)
-#define LOG_VERBOSE LOG_DETAIL_LEVEL(VERBOSE, log_, verbose)
-#define LOG_DEBUG LOG_DETAIL_LEVEL(DEBUG, log_, debug)
-#define LOG_TRACE LOG_DETAIL_LEVEL(TRACE, log_, trace)
+#define LOG_ERROR LOG_DETAIL_LEVEL(LOGGER_LEVEL_ERROR, log_, error)
+#define LOG_WARN LOG_DETAIL_LEVEL(LOGGER_LEVEL_WARN, log_, warn)
+#define LOG_INFO LOG_DETAIL_LEVEL(LOGGER_LEVEL_INFO, log_, info)
+#define LOG_VERBOSE LOG_DETAIL_LEVEL(LOGGER_LEVEL_VERBOSE, log_, verbose)
+#define LOG_DEBUG LOG_DETAIL_LEVEL(LOGGER_LEVEL_DEBUG, log_, debug)
+#define LOG_TRACE LOG_DETAIL_LEVEL(LOGGER_LEVEL_TRACE, log_, trace)
 #define LOG_TIMED_ERROR log_.timed_error(DWARFS_CURRENT_SOURCE_LOCATION)
 #define LOG_TIMED_WARN log_.timed_warn(DWARFS_CURRENT_SOURCE_LOCATION)
 #define LOG_TIMED_INFO log_.timed_info(DWARFS_CURRENT_SOURCE_LOCATION)
@@ -410,12 +394,12 @@ class log_proxy {
 #define LOG_CPU_TIMED_DEBUG log_.cpu_timed_debug(DWARFS_CURRENT_SOURCE_LOCATION)
 #define LOG_CPU_TIMED_TRACE log_.cpu_timed_trace(DWARFS_CURRENT_SOURCE_LOCATION)
 
-class prod_logger_policy : public MinimumLogLevelPolicy<logger::VERBOSE> {
+class prod_logger_policy : public MinimumLogLevelPolicy<LOGGER_LEVEL_VERBOSE> {
  public:
   static std::string_view name() { return "prod"; }
 };
 
-class debug_logger_policy : public MinimumLogLevelPolicy<logger::TRACE> {
+class debug_logger_policy : public MinimumLogLevelPolicy<LOGGER_LEVEL_TRACE> {
  public:
   static std::string_view name() { return "debug"; }
 };

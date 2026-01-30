@@ -88,46 +88,46 @@ namespace {
 #undef WARN
 #endif
 
-constexpr std::array<std::pair<std::string_view, logger::level_type>, 6>
-    log_level_map = {{"error", logger::LVL_ERROR}, {"warn", logger::LVL_WARN},
-                     {"info", logger::INFO}, {"verbose", logger::VERBOSE},
-                     {"debug", logger::DEBUG}, {"trace", logger::TRACE}};
+constexpr std::array<std::pair<std::string_view, logger_level_type>, 6>
+    log_level_map = {{"error", LOGGER_LEVEL_ERROR}, {"warn", LOGGER_LEVEL_WARN},
+                     {"info", LOGGER_LEVEL_INFO}, {"verbose", LOGGER_LEVEL_VERBOSE},
+                     {"debug", LOGGER_LEVEL_DEBUG}, {"trace", LOGGER_LEVEL_TRACE}};
 
 }
 
 char logger::level_char(level_type level) {
   switch (level) {
-  case FATAL:
+  case LOGGER_LEVEL_FATAL:
     return 'F';
-  case LVL_ERROR:
+  case LOGGER_LEVEL_ERROR:
     return 'E';
-  case LVL_WARN:
+  case LOGGER_LEVEL_WARN:
     return 'W';
-  case INFO:
+  case LOGGER_LEVEL_INFO:
     return 'I';
-  case VERBOSE:
+  case LOGGER_LEVEL_VERBOSE:
     return 'V';
-  case DEBUG:
+  case LOGGER_LEVEL_DEBUG:
     return 'D';
-  case TRACE:
+  case LOGGER_LEVEL_TRACE:
     return 'T';
   }
   compat::lang::assume(false);
   return '?'; // Unreachable but satisfy compiler
 }
 
-std::ostream& operator<<(std::ostream& os, logger::level_type const& optval) {
+std::ostream& operator<<(std::ostream& os, logger_level_type const& optval) {
   return os << logger::level_name(optval);
 }
 
-std::istream& operator>>(std::istream& is, logger::level_type& optval) {
+std::istream& operator>>(std::istream& is, logger_level_type& optval) {
   std::string s;
   is >> s;
   optval = logger::parse_level(s);
   return is;
 }
 
-logger::level_type logger::parse_level(std::string_view level) {
+logger_level_type logger::parse_level(std::string_view level) {
   // don't parse FATAL here, it's a special case
   for (auto const& [name, lvl] : log_level_map) {
     if (level == name) {
@@ -172,7 +172,7 @@ stream_logger::stream_logger(std::shared_ptr<terminal const> term,
     , color_(term->is_tty(os) && term->is_fancy())
     , enable_stack_trace_{getenv_is_enabled("DWARFS_LOGGER_STACK_TRACE")}
     , with_context_(options.with_context ? options.with_context.value()
-                                         : options.threshold >= logger::VERBOSE)
+                                         : options.threshold >= LOGGER_LEVEL_VERBOSE)
     , term_{std::move(term)} {
   set_threshold(options.threshold);
 }
@@ -194,7 +194,7 @@ void stream_logger::write_nolock(std::string_view output) {
   }
 }
 
-logger::level_type stream_logger::threshold() const {
+logger_level_type stream_logger::threshold() const {
   return threshold_.load();
 }
 
@@ -346,7 +346,7 @@ class timed_level_log_entry::state {
  public:
   using thread_clock = boost::chrono::thread_clock;
 
-  state(logger& lgr, logger::level_type level, source_location loc,
+  state(logger& lgr, logger_level_type level, source_location loc,
         bool with_cpu)
       : lgr_{lgr}
       , level_{level}
@@ -376,14 +376,14 @@ class timed_level_log_entry::state {
   }
 
   logger& lgr_;
-  logger::level_type const level_;
+  logger_level_type const level_;
   std::chrono::time_point<std::chrono::high_resolution_clock> const start_time_;
   std::optional<thread_clock::time_point> const cpu_start_time_;
   source_location const loc_;
 };
 
 timed_level_log_entry::timed_level_log_entry(logger& lgr,
-                                             logger::level_type level,
+                                             logger_level_type level,
                                              source_location loc,
                                              bool with_cpu) {
   if (level <= lgr.threshold()) {

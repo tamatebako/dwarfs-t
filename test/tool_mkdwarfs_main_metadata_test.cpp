@@ -147,7 +147,7 @@ TEST(mkdwarfs_test, bug_sentinel_self_entry_nonzero) {
   {
     std::ostringstream oss;
     auto t = mkdwarfs_tester::create_empty();
-    t.add_stream_logger(oss, logger::INFO);
+    t.add_stream_logger(oss, LOGGER_LEVEL_INFO);
     auto fs = t.fs_from_data(bug_image_data);
     EXPECT_EQ(0, fs.check(reader::filesystem_check_level::INTEGRITY));
     EXPECT_THAT(
@@ -169,7 +169,7 @@ TEST(mkdwarfs_test, bug_sentinel_self_entry_nonzero) {
                 ::testing::HasSubstr("fixing inconsistent sentinel directory"));
 
     std::ostringstream oss;
-    t.add_stream_logger(oss, logger::INFO);
+    t.add_stream_logger(oss, LOGGER_LEVEL_INFO);
     auto fs = t.fs_from_stdout();
 
     EXPECT_EQ(0, fs.check(reader::filesystem_check_level::INTEGRITY));

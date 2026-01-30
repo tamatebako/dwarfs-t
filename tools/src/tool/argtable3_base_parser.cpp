@@ -128,7 +128,7 @@ void argtable3_base_parser::update_logger_options() {
   // Priority: --quiet > --log-level > --verbose
 
   if (quiet_opt_ && quiet_opt_->count > 0) {
-    logger_opts_.threshold = logger::LVL_ERROR;
+    logger_opts_.threshold = LOGGER_LEVEL_ERROR;
     return;
   }
 
@@ -146,9 +146,9 @@ void argtable3_base_parser::update_logger_options() {
   if (verbose_opt_ && verbose_opt_->count > 0) {
     // -v = INFO, -vv = VERBOSE
     if (verbose_opt_->count == 1) {
-      logger_opts_.threshold = logger::INFO;
+      logger_opts_.threshold = LOGGER_LEVEL_INFO;
     } else if (verbose_opt_->count >= 2) {
-      logger_opts_.threshold = logger::VERBOSE;
+      logger_opts_.threshold = LOGGER_LEVEL_VERBOSE;
     }
     return;
   }

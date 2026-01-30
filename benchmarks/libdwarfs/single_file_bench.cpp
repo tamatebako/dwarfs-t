@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
 
     // Setup logger
     logger_options log_opts;
-    log_opts.threshold = opts.verbose ? logger::VERBOSE : logger::LVL_WARN;
+    log_opts.threshold = opts.verbose ? LOGGER_LEVEL_VERBOSE : LOGGER_LEVEL_WARN;
     auto lgr = stream_logger(std::cerr, log_opts);
     LOG_PROXY(prod_logger_policy, lgr);
 

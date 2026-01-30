@@ -152,7 +152,7 @@ void add_common_options(po::options_description& opts,
   opts.add_options()
     ("log-level",
         po::value<logger::level_type>(&logopts.threshold)
-            ->default_value(logger::INFO),
+            ->default_value(LOGGER_LEVEL_INFO),
         log_level_desc.c_str())
     ("log-with-context",
         po::value<std::optional<bool>>(&logopts.with_context)->zero_tokens(),

@@ -1243,7 +1243,7 @@ fuse_driver::~fuse_driver() = default;
 
 #if DWARFS_FUSE_LOWLEVEL
 void fuse_driver::setup_operations(fuse_lowlevel_ops& ops) {
-  if (impl_->config.log_threshold >= logger::DEBUG) {
+  if (impl_->config.log_threshold >= LOGGER_LEVEL_DEBUG) {
     impl_->init_fuse_ops_impl<debug_logger_policy>(ops);
   } else {
     impl_->init_fuse_ops_impl<prod_logger_policy>(ops);
@@ -1251,7 +1251,7 @@ void fuse_driver::setup_operations(fuse_lowlevel_ops& ops) {
 }
 #else
 void fuse_driver::setup_operations(fuse_operations& ops) {
-  if (impl_->config.log_threshold >= logger::DEBUG) {
+  if (impl_->config.log_threshold >= LOGGER_LEVEL_DEBUG) {
     impl_->init_fuse_ops_impl<debug_logger_policy>(ops);
   } else {
     impl_->init_fuse_ops_impl<prod_logger_policy>(ops);
