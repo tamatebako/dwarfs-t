@@ -28,9 +28,12 @@
 
 #pragma once
 
-// Windows.h defines macros that conflict with our enum values
-// Must undefine BEFORE any includes that might bring in Windows.h
+// On Windows, include windows.h early with WIN32_LEAN_AND_MEAN to control
+// what macros get defined, then undefine problematic macros
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
 #undef ERROR
 #undef WARN
 #endif
