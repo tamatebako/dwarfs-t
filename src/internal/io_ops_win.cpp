@@ -190,7 +190,7 @@ get_file_extents(HANDLE h, uint64_t size, std::error_code& ec) {
     }
   }
 
-  if (last_end < size) {
+  if (static_cast<uint64_t>(last_end) < size) {
     extents.emplace_back(extent_kind::hole,
                          file_range{last_end, size - last_end});
   }
