@@ -179,9 +179,9 @@ uint32_t domain_metadata_impl::file_inode_to_chunk_index(int inode) const {
     // Count unique file sizes in order (by inode number)
     // This matches how the writer constructs the chunk_table based on deduplication
     for (uint32_t i = file_inode_offset_; i < meta_->inodes.size(); ++i) {
-      auto const& inode = meta_->inodes[i];
-      if (inode.mode_index < meta_->modes.size()) {
-        uint32_t mode = meta_->modes[inode.mode_index];
+      auto const& inode_entry = meta_->inodes[i];
+      if (inode_entry.mode_index < meta_->modes.size()) {
+        uint32_t mode = meta_->modes[inode_entry.mode_index];
         if ((mode & 0170000) == 0100000) {  // S_IFREG
           // Get file size for this inode
           uint64_t size = 0;
@@ -242,8 +242,8 @@ file_off_t domain_metadata_impl::get_file_size(uint32_t inode_index,
     }
 
     // Calculate link_offset using absolute inode numbers
-    uint32_t inode_num = inode_index + inode_offset_;
-    uint32_t link_offset = inode_num - first_link_inode_num;
+    uint32_t link_inode_num = inode_index + inode_offset_;
+    uint32_t link_offset = link_inode_num - first_link_inode_num;
 
     if (link_offset < meta_->symlink_table.size()) {
       uint32_t symlink_index = meta_->symlink_table[link_offset];
@@ -691,7 +691,7 @@ file_stat domain_metadata_impl::getattr(inode_view iv, getattr_options const& op
     // Set allocated size (0 for virtual filesystem)
     st.set_allocated_size(0);
 
-  } catch (std::exception const& e) {
+  } catch ([[maybe_unused]] std::exception const& e) {
     ec = std::make_error_code(std::errc::io_error);
   }
 
@@ -878,7 +878,7 @@ size_t domain_metadata_impl::dirsize(directory_view dir) const {
 
 // ========== Special Files ==========
 
-std::string domain_metadata_impl::readlink(inode_view iv, readlink_mode mode,
+std::string domain_metadata_impl::readlink(inode_view iv, [[maybe_unused]] readlink_mode mode,
                                              std::error_code& ec) const {
   ec.clear();
 
@@ -1026,7 +1026,7 @@ chunk_range domain_metadata_impl::get_chunks(int inode, std::error_code& ec) con
 #else
     return chunk_range{domain_chunk_range_impl{*meta_, 0, 0}};
 #endif
-  } catch (std::exception const& e) {
+  } catch ([[maybe_unused]] std::exception const& e) {
     ec = std::make_error_code(std::errc::io_error);
 #if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     return backend_adapter::make_chunk_range(*meta_, 0, 0);
@@ -1166,8 +1166,8 @@ nlohmann::json domain_metadata_impl::get_inode_info(inode_view iv,
 
 void domain_metadata_impl::dump(
     std::ostream& os, fsinfo_options const& opts,
-    filesystem_info const* fsinfo,
-    std::function<void(std::string const&, uint32_t)> const& icb) const {
+    [[maybe_unused]] filesystem_info const* fsinfo,
+    [[maybe_unused]] std::function<void(std::string const&, uint32_t)> const& icb) const {
   // Recursive dump starting from root
   std::function<void(std::string const&, dir_entry_view const&)> dump_entry =
       [&](std::string const& indent, dir_entry_view const& entry) {
@@ -1251,7 +1251,8 @@ void domain_metadata_impl::dump(
 }
 
 nlohmann::json domain_metadata_impl::info_as_json(
-    fsinfo_options const& opts, filesystem_info const* fsinfo) const {
+    [[maybe_unused]] fsinfo_options const& opts,
+    [[maybe_unused]] filesystem_info const* fsinfo) const {
   nlohmann::json j;
 
   j["inodes"] = meta_->inodes.size();

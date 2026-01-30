@@ -25,7 +25,7 @@
 namespace dwarfs::reader::internal {
 
 std::unique_ptr<dwarfs::metadata::domain::metadata>
-metadata_factory::load_metadata(logger& lgr, std::span<uint8_t const> data) {
+metadata_factory::load_metadata([[maybe_unused]] logger& lgr, std::span<uint8_t const> data) {
   using namespace dwarfs::metadata::serialization;
 
   // Initialize serializers (must be called before using registry)

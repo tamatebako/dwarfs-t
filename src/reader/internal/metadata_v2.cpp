@@ -51,7 +51,7 @@ metadata_v2::metadata_v2(
     logger& lgr, std::span<uint8_t const> schema,
     std::span<uint8_t const> data, metadata_options const& options,
     int inode_offset, bool force_consistency_check,
-    std::shared_ptr<performance_monitor const> const& perfmon) {
+    [[maybe_unused]] std::shared_ptr<performance_monitor const> const& perfmon) {
 
   // Use metadata_factory to load domain::metadata
   // The data parameter is the decompressed metadata section data
