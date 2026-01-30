@@ -36,6 +36,25 @@
 #include <numeric>
 #include <system_error>
 
+// Windows compatibility for POSIX macros
+#ifdef _WIN32
+#ifndef PATH_MAX
+#define PATH_MAX MAX_PATH
+#endif
+#ifndef F_OK
+#define F_OK 0
+#endif
+#ifndef R_OK
+#define R_OK 4
+#endif
+#ifndef W_OK
+#define W_OK 2
+#endif
+#ifndef X_OK
+#define X_OK 1
+#endif
+#endif
+
 #include <parallel_hashmap/phmap.h>
 
 #include <dwarfs/error.h>
@@ -110,7 +129,7 @@ common_metadata_operations::common_metadata_operations(
     metadata_options const& options,
     int inode_offset,
     bool force_consistency_check,
-    std::shared_ptr<performance_monitor const> const& perfmon)
+    [[maybe_unused]] std::shared_ptr<performance_monitor const> const& perfmon)
     : domain_meta_{std::move(domain_meta)}
     , lgr_{lgr}
     , options_{options}
