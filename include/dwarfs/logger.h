@@ -51,6 +51,13 @@
 #include <dwarfs/detail/logging_class_factory.h>
 #include <dwarfs/source_location.h>
 
+// Windows.h defines macros that conflict with our enum values
+// Undefine ALL potentially conflicting macros before any includes
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
+
 namespace dwarfs {
 
 class terminal;
@@ -60,13 +67,24 @@ class terminal;
 #ifdef _WIN32
 #undef ERROR
 #undef WARN
+#undef FATAL
+#undef INFO
+#undef VERBOSE
+#undef DEBUG
+#undef TRACE
 #endif
 
 class logger {
  public:
 #ifdef _WIN32
+// Undefine ALL potentially conflicting macros before enum definition
 #undef ERROR
 #undef WARN
+#undef FATAL
+#undef INFO
+#undef VERBOSE
+#undef DEBUG
+#undef TRACE
 #endif
   enum level_type : unsigned {
     FATAL = 0,
