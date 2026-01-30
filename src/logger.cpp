@@ -82,7 +82,7 @@ namespace dwarfs {
 namespace {
 
 constexpr std::array<std::pair<std::string_view, logger::level_type>, 6>
-    log_level_map = {{"error", logger::LOG_ERROR}, {"warn", logger::LOG_WARN},
+    log_level_map = {{"error", logger::LVL_ERROR}, {"warn", logger::LVL_WARN},
                      {"info", logger::INFO}, {"verbose", logger::VERBOSE},
                      {"debug", logger::DEBUG}, {"trace", logger::TRACE}};
 
@@ -92,9 +92,9 @@ char logger::level_char(level_type level) {
   switch (level) {
   case FATAL:
     return 'F';
-  case LOG_ERROR:
+  case LVL_ERROR:
     return 'E';
-  case LOG_WARN:
+  case LVL_WARN:
     return 'W';
   case INFO:
     return 'I';

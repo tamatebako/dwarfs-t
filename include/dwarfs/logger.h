@@ -59,23 +59,21 @@ class logger {
  public:
   enum level_type : unsigned {
     FATAL,
-    LOG_ERROR,
-    LOG_WARN,
+    LVL_ERROR,
+    LVL_WARN,
     INFO,
     VERBOSE,
     DEBUG,
     TRACE
   };
 
-  // Backwards compatibility - define macros after the enum
-  // These must be macros (not constexpr) because they need to work
-  // as compile-time constants in templates
+  // Backwards compatibility - undefine Windows macros first
 #ifdef _WIN32
 #undef ERROR
 #undef WARN
 #endif
-#define ERROR LOG_ERROR
-#define WARN LOG_WARN
+  static constexpr level_type ERROR = LVL_ERROR;
+  static constexpr level_type WARN = LVL_WARN;
 
   static char level_char(level_type level);
 
