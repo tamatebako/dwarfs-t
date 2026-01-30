@@ -89,9 +89,9 @@ namespace {
 #endif
 
 constexpr std::array<std::pair<std::string_view, logger_level_type>, 6>
-    log_level_map = {{{{"error", LOGGER_LEVEL_ERROR}}, {{"warn", LOGGER_LEVEL_WARN}},
-                      {{"info", LOGGER_LEVEL_INFO}}, {{"verbose", LOGGER_LEVEL_VERBOSE}},
-                      {{"debug", LOGGER_LEVEL_DEBUG}}, {{"trace", LOGGER_LEVEL_TRACE}}}};
+    log_level_map = {{"error", LOGGER_LEVEL_ERROR}, {"warn", LOGGER_LEVEL_WARN},
+                     {"info", LOGGER_LEVEL_INFO}, {"verbose", LOGGER_LEVEL_VERBOSE},
+                     {"debug", LOGGER_LEVEL_DEBUG}, {"trace", LOGGER_LEVEL_TRACE}};
 
 }
 
