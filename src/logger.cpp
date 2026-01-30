@@ -82,7 +82,7 @@ namespace dwarfs {
 namespace {
 
 constexpr std::array<std::pair<std::string_view, logger::level_type>, 6>
-    log_level_map = {{"error", logger::ERROR}, {"warn", logger::WARN},
+    log_level_map = {{"error", logger::LOG_ERROR}, {"warn", logger::LOG_WARN},
                      {"info", logger::INFO}, {"verbose", logger::VERBOSE},
                      {"debug", logger::DEBUG}, {"trace", logger::TRACE}};
 

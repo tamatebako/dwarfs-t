@@ -67,13 +67,15 @@ class logger {
     TRACE
   };
 
-  // Backwards compatibility - undefine Windows macros first
+  // Backwards compatibility - define macros after the enum
+  // These must be macros (not constexpr) because they need to work
+  // as compile-time constants in templates
 #ifdef _WIN32
 #undef ERROR
 #undef WARN
 #endif
-  static constexpr level_type ERROR = LOG_ERROR;
-  static constexpr level_type WARN = LOG_WARN;
+#define ERROR LOG_ERROR
+#define WARN LOG_WARN
 
   static char level_char(level_type level);
 
