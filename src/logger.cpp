@@ -92,9 +92,9 @@ char logger::level_char(level_type level) {
   switch (level) {
   case FATAL:
     return 'F';
-  case ERROR:
+  case LOG_ERROR:
     return 'E';
-  case WARN:
+  case LOG_WARN:
     return 'W';
   case INFO:
     return 'I';
