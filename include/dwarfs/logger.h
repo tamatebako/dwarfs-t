@@ -57,6 +57,12 @@ class terminal;
 
 class logger {
  public:
+// Windows.h defines macros that conflict with our enum values
+// Must undefine immediately before the enum definition
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
   enum level_type : unsigned {
     FATAL,
     ERROR,
