@@ -81,6 +81,12 @@ namespace dwarfs {
 
 namespace {
 
+// Ensure macros are undefined right before using the enum
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
+
 constexpr std::array<std::pair<std::string_view, logger::level_type>, 6>
     log_level_map = {{"error", logger::LVL_ERROR}, {"warn", logger::LVL_WARN},
                      {"info", logger::INFO}, {"verbose", logger::VERBOSE},
@@ -202,12 +208,12 @@ void stream_logger::write(level_type level, std::string_view output,
     if (color_) {
       switch (level) {
       case FATAL:
-      case ERROR:
+      case LVL_ERROR:
         prefix = term_->color(termcolor::BOLD_RED);
         suffix = term_->color(termcolor::NORMAL);
         break;
 
-      case WARN:
+      case LVL_WARN:
         prefix = term_->color(termcolor::BOLD_YELLOW);
         suffix = term_->color(termcolor::NORMAL);
         break;

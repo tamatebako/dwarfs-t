@@ -28,6 +28,13 @@
 
 #pragma once
 
+// Windows.h defines macros that conflict with our enum values
+// Must undefine BEFORE any includes that might bring in Windows.h
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
+
 #include <atomic>
 #include <cstddef>
 #include <iosfwd>
