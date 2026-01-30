@@ -32,7 +32,6 @@
 // what macros get defined, then undefine problematic macros
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #include <windows.h>
 #undef ERROR
 #undef WARN
