@@ -3,6 +3,7 @@
 
 require 'fileutils'
 require 'json'
+require 'optparse'
 require 'time'
 require 'octokit'
 require 'tmpdir'
@@ -10,20 +11,32 @@ require 'tmpdir'
 ##
 # Fetcher for Windows CI build logs from GitHub Actions using Octokit
 #
-# This script fetches the latest failed Windows Matrix workflow run,
+# This script fetches Windows Matrix workflow run logs,
 # downloads the full logs, and organizes them by group for easier inspection.
 #
 # Usage:
-#   ruby scripts/fetch_windows_ci_logs_octokit.rb
+#   ruby scripts/fetch_windows_ci_logs_octokit.rb [options]
+#
+# Options:
+#   --wait, -w              Poll and wait for CI to complete before fetching
+#   --poll-interval SECS    Seconds between polls (default: 30)
+#   --run-id ID            Fetch logs for specific run ID
+#   --latest, -l            Fetch logs for latest run (failed or success)
 #
 class WindowsCILogFetcher
   REPO = 'tamatebako/dwarfs'
   WORKFLOW_NAME = 'Windows Matrix'
   OUTPUT_DIR = 'tmp/windows_ci_logs'
+  DEFAULT_POLL_INTERVAL = 30
+  MAX_WAIT_TIME = 3600 # 1 hour max wait
 
-  def initialize
+  def initialize(options = {})
     @client = Octokit::Client.new(access_token: ENV.fetch('GITHUB_TOKEN') { `gh auth token`.strip })
     @output_run_dir = nil
+    @wait = options[:wait]
+    @poll_interval = options[:poll_interval] || DEFAULT_POLL_INTERVAL
+    @specific_run_id = options[:run_id]
+    @fetch_latest = options[:latest]
   end
 
   def run
@@ -31,9 +44,119 @@ class WindowsCILogFetcher
 
     FileUtils.mkdir_p(OUTPUT_DIR)
 
-    run = find_latest_failed_windows_run
-    return puts '⏳ No failed Windows build found yet (or still running)' unless run
+    run = if @specific_run_id
+            fetch_specific_run(@specific_run_id)
+          elsif @wait
+            wait_and_fetch_run
+          else
+            fetch_latest_run
+          end
 
+    return nil unless run
+
+    process_run(run)
+  rescue StandardError => e
+    puts "❌ Error: #{e.message}"
+    puts e.backtrace.first(10).join("\n")
+    exit 1
+  end
+
+  private
+
+  def fetch_specific_run(run_id)
+    puts "📍 Fetching specific run: #{run_id}"
+    @client.workflow_run(REPO, run_id)
+  rescue Octokit::NotFound
+    puts "❌ Run #{run_id} not found"
+    exit 1
+  end
+
+  def wait_and_fetch_run
+    workflow_id = find_windows_workflow_id
+    return nil unless workflow_id
+
+    puts "⏳ Waiting for Windows CI to complete..."
+    puts "   Polling every #{@poll_interval} seconds (max #{MAX_WAIT_TIME}s)"
+
+    start_time = Time.now
+    latest_run = nil
+
+    loop do
+      # Check for timeout
+      if Time.now - start_time > MAX_WAIT_TIME
+        puts "⏱️  Timeout after #{MAX_WAIT_TIME}s"
+        return nil
+      end
+
+      # Get latest run
+      runs_result = @client.workflow_runs(REPO, workflow_id, per_page: 1)
+      runs_list = runs_result[:workflow_runs] || runs_result['workflow_runs'] || []
+      latest_run = runs_list.first
+
+      unless latest_run
+        puts '⚠️  No runs found'
+        sleep @poll_interval
+        next
+      end
+
+      status = latest_run[:status] || latest_run['status']
+      conclusion = latest_run[:conclusion] || latest_run['conclusion']
+      run_id = latest_run[:id] || latest_run['id']
+
+      elapsed = (Time.now - start_time).to_i
+      mins = elapsed / 60
+      secs = elapsed % 60
+
+      if status == 'completed'
+        puts "✅ Run #{run_id} completed: #{conclusion}"
+        return latest_run
+      else
+        puts "   ⏳ [#{mins}m#{secs}s] Run #{run_id}: #{status}..."
+      end
+
+      sleep @poll_interval
+    end
+  end
+
+  def fetch_latest_run
+    workflow_id = find_windows_workflow_id
+    return nil unless workflow_id
+
+    # Get recent runs
+    runs_result = @client.workflow_runs(REPO, workflow_id, per_page: 5)
+    runs_list = runs_result[:workflow_runs] || runs_result['workflow_runs'] || []
+
+    # Find latest completed run (success or failure)
+    if @fetch_latest
+      runs_list.find do |run|
+        status = run[:status] || run['status']
+        status == 'completed'
+      end
+    else
+      runs_list.find do |run|
+        status = run[:status] || run['status']
+        conclusion = run[:conclusion] || run['conclusion']
+        status == 'completed' && conclusion == 'failure'
+      end
+    end
+  end
+
+  def find_windows_workflow_id
+    result = @client.workflows(REPO)
+
+    workflows_list = result[:workflows] || result['workflows'] || []
+
+    windows_workflow = workflows_list.find do |w|
+      name = w[:name] || w['name'] || (w.respond_to?(:name) ? w.name : nil)
+      name&.include?(WORKFLOW_NAME)
+    end
+
+    return nil unless windows_workflow
+
+    windows_workflow[:id] || windows_workflow['id'] || (windows_workflow.respond_to?(:id) ? windows_workflow.id : nil)
+  end
+
+  def process_run(run)
     run_id = run[:id] || run['id']
     run_sha = run[:head_sha] || run['head_sha'] || run[:sha] || run['sha']
     run_status = run[:status] || run['status']
@@ -42,13 +165,13 @@ class WindowsCILogFetcher
     @output_run_dir = File.join(OUTPUT_DIR, "run_#{run_id}_#{run_sha[0..7]}")
     FileUtils.mkdir_p(@output_run_dir)
 
-    puts "📦 Found run #{run_id}: #{run_status} - #{run_conclusion}"
+    puts "📦 Run #{run_id}: #{run_status} - #{run_conclusion}"
     puts "💾 Output directory: #{@output_run_dir}"
 
     # Save run metadata
     save_metadata(run)
 
-    if run_status == 'completed' && run_conclusion == 'failure'
+    if run_status == 'completed'
       # Fetch jobs for this run using the correct API
       jobs_result = @client.workflow_run_jobs(REPO, run_id)
 
@@ -61,45 +184,14 @@ class WindowsCILogFetcher
 
       puts "\n✅ Logs organized in: #{@output_run_dir}"
       list_organized_logs
-    elsif run_status == 'in_progress'
-      puts "⏳ Build still running (status: #{run.status})"
-      puts '   Run the script again later to fetch logs.'
+      @output_run_dir
     else
-      puts "ℹ️  Latest run status: #{run.status} - #{run.conclusion}"
+      puts "⏳ Run still in progress"
+      @output_run_dir
     end
   end
 
   private
-
-  def find_latest_failed_windows_run
-    # Find the Windows Matrix workflow - search by repository workflows
-    result = @client.workflows(REPO)
-
-    # workflows() returns a hash: {total_count: X, workflows: [...]}
-    workflows_list = result[:workflows] || result['workflows'] || []
-
-    windows_workflow = workflows_list.find do |w|
-      name = w[:name] || w['name'] || (w.respond_to?(:name) ? w.name : nil)
-      name&.include?(WORKFLOW_NAME)
-    end
-    return nil unless windows_workflow
-
-    # Get the workflow ID
-    workflow_id = windows_workflow[:id] || windows_workflow['id'] || (windows_workflow.respond_to?(:id) ? windows_workflow.id : nil)
-
-    # Get recent runs for this workflow
-    runs_result = @client.workflow_runs(REPO, workflow_id)
-
-    # workflow_runs() returns a hash: {total_count: X, workflow_runs: [...]}
-    runs_list = runs_result[:workflow_runs] || runs_result['workflow_runs'] || []
-
-    # Find latest failed run
-    runs_list.find do |run|
-      status = run[:status] || run['status'] || (run.respond_to?(:status) ? run.status : nil)
-      conclusion = run[:conclusion] || run['conclusion'] || (run.respond_to?(:conclusion) ? run.conclusion : nil)
-      status == 'completed' && conclusion == 'failure'
-    end
-  end
 
   def process_job(job)
     job_name = sanitize_filename(job[:name] || job.name)
@@ -317,13 +409,42 @@ class WindowsCILogFetcher
   end
 end
 
+# Parse options
+options = {}
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: ruby scripts/fetch_windows_ci_logs_octokit.rb [options]"
+
+  opts.on('-w', '--wait', 'Poll and wait for CI to complete before fetching') do
+    options[:wait] = true
+  end
+
+  opts.on('--poll-interval SECONDS', Integer, 'Seconds between polls (default: 30)') do |secs|
+    options[:poll_interval] = secs
+  end
+
+  opts.on('--run-id ID', Integer, 'Fetch logs for specific run ID') do |id|
+    options[:run_id] = id
+  end
+
+  opts.on('-l', '--latest', 'Fetch logs for latest completed run (success or failure)') do
+    options[:latest] = true
+  end
+
+  opts.on('-h', '--help', 'Show this help message') do
+    puts opts
+    exit
+  end
+end
+
+parser.parse!
+
 # Run the fetcher
 if __FILE__ == $PROGRAM_NAME
-  begin
-    WindowsCILogFetcher.new.run
-  rescue StandardError => e
-    puts "❌ Error: #{e.message}"
-    puts e.backtrace.first(10).join("\n")
-    exit 1
+  fetcher = WindowsCILogFetcher.new(options)
+  result = fetcher.run
+
+  # Output the result path for easy consumption
+  if result
+    puts result
   end
 end
