@@ -200,7 +200,7 @@ logger_level_type stream_logger::threshold() const {
 
 void stream_logger::write(level_type level, std::string_view output,
                           source_location loc) {
-  if (level <= threshold_ || level == FATAL) {
+  if (level <= threshold_ || level == LOGGER_LEVEL_FATAL) {
     auto t = get_current_time_string();
     std::string_view prefix;
     std::string_view suffix;
@@ -208,28 +208,28 @@ void stream_logger::write(level_type level, std::string_view output,
 
     if (color_) {
       switch (level) {
-      case FATAL:
-      case LVL_ERROR:
+      case LOGGER_LEVEL_FATAL:
+      case LOGGER_LEVEL_ERROR:
         prefix = term_->color(termcolor::BOLD_RED);
         suffix = term_->color(termcolor::NORMAL);
         break;
 
-      case LVL_WARN:
+      case LOGGER_LEVEL_WARN:
         prefix = term_->color(termcolor::BOLD_YELLOW);
         suffix = term_->color(termcolor::NORMAL);
         break;
 
-      case VERBOSE:
+      case LOGGER_LEVEL_VERBOSE:
         prefix = term_->color(termcolor::DIM_CYAN);
         suffix = term_->color(termcolor::NORMAL);
         break;
 
-      case DEBUG:
+      case LOGGER_LEVEL_DEBUG:
         prefix = term_->color(termcolor::DIM_YELLOW);
         suffix = term_->color(termcolor::NORMAL);
         break;
 
-      case TRACE:
+      case LOGGER_LEVEL_TRACE:
         prefix = term_->color(termcolor::GRAY);
         suffix = term_->color(termcolor::NORMAL);
         break;
@@ -243,7 +243,7 @@ void stream_logger::write(level_type level, std::string_view output,
     std::vector<std::string_view> st_lines;
     std::string stacktrace;
 
-    if (enable_stack_trace_ || level == FATAL) {
+    if (enable_stack_trace_ || level == LOGGER_LEVEL_FATAL) {
 #ifdef DWARFS_CPPTRACE_HAS_FORMATTING
       auto formatter = cpptrace::formatter{}
                            .header({})
@@ -327,7 +327,7 @@ void stream_logger::write(level_type level, std::string_view output,
     write_nolock(oss2.str());
   }
 
-  if (level == FATAL) {
+  if (level == LOGGER_LEVEL_FATAL) {
     std::abort();
   }
 }
@@ -335,7 +335,7 @@ void stream_logger::write(level_type level, std::string_view output,
 void stream_logger::set_threshold(level_type threshold) {
   threshold_ = threshold;
 
-  if (threshold >= level_type::DEBUG) {
+  if (threshold >= LOGGER_LEVEL_DEBUG) {
     set_policy<debug_logger_policy>();
   } else {
     set_policy<prod_logger_policy>();
