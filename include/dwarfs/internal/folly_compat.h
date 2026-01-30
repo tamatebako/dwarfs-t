@@ -165,6 +165,7 @@ inline std::string exceptionStr(std::exception const& e) {
 typedef SSIZE_T ssize_t;
 // Undefine Windows macros that conflict with common identifiers
 #undef ERROR
+#undef WARN
 #else
 #include <fcntl.h>
 #include <pthread.h>
