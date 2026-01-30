@@ -128,7 +128,7 @@ void argtable3_base_parser::update_logger_options() {
   // Priority: --quiet > --log-level > --verbose
 
   if (quiet_opt_ && quiet_opt_->count > 0) {
-    logger_opts_.threshold = logger::ERROR;
+    logger_opts_.threshold = logger::LVL_ERROR;
     return;
   }
 

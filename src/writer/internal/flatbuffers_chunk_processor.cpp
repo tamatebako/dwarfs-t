@@ -83,7 +83,7 @@ void flatbuffers_chunk_processor::gather_chunks(
       for (auto fp : ino->all()) {
         oss << "\n  " << fp->path_as_string();
       }
-      level_log_entry(lgr_, logger::ERROR, DWARFS_CURRENT_SOURCE_LOCATION)
+      level_log_entry(lgr_, logger::LVL_ERROR, DWARFS_CURRENT_SOURCE_LOCATION)
           << "inconsistent fragments in inode " << ino->num()
           << ", the following files will be empty:" << oss.str();
     }

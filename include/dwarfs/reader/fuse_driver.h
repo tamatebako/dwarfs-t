@@ -86,7 +86,7 @@ struct fuse_driver_config {
   std::shared_ptr<performance_monitor> perfmon;
 
   /** Logging threshold for operation selection */
-  logger::level_type log_threshold{logger::WARN};
+  logger::level_type log_threshold{logger::LVL_WARN};
 };
 
 /**

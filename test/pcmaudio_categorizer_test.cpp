@@ -291,7 +291,7 @@ TEST(pcmaudio_categorizer, requirements) {
 
     ASSERT_EQ(1, logger.get_log().size());
     auto const& ent = logger.get_log().front();
-    EXPECT_EQ(logger::WARN, ent.level);
+    EXPECT_EQ(logger::LVL_WARN, ent.level);
     EXPECT_THAT(
         ent.output,
         MatchesRegex(

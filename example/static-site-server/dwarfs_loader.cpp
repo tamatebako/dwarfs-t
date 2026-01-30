@@ -85,7 +85,7 @@ dwarfs_loader::create(dwarfs_loader_config const& config) {
   try {
     // Create logger (suppress warnings during normal operation)
     dwarfs::logger_options log_opts;
-    log_opts.threshold = dwarfs::logger::ERROR;
+    log_opts.threshold = dwarfs::logger::LVL_ERROR;
     auto lgr = std::make_unique<dwarfs::stream_logger>(log_opts);
 
     // Create OS access layer

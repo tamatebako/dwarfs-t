@@ -67,14 +67,6 @@ class logger {
     TRACE
   };
 
-  // Backwards compatibility - undefine Windows macros first
-#ifdef _WIN32
-#undef ERROR
-#undef WARN
-#endif
-  static constexpr level_type ERROR = LVL_ERROR;
-  static constexpr level_type WARN = LVL_WARN;
-
   static char level_char(level_type level);
 
   virtual ~logger() = default;
@@ -105,7 +97,7 @@ std::ostream& operator<<(std::ostream& os, logger::level_type const& optval);
 std::istream& operator>>(std::istream& is, logger::level_type& optval);
 
 struct logger_options {
-  logger::level_type threshold{logger::WARN};
+  logger::level_type threshold{logger::LVL_WARN};
   std::optional<bool> with_context{};
 };
 
@@ -258,13 +250,13 @@ class log_proxy {
   }
 
   auto error(source_location loc) const {
-    return typename LogPolicy::template logger_type<logger::ERROR>(
-        lgr_, logger::ERROR, loc);
+    return typename LogPolicy::template logger_type<logger::LVL_ERROR>(
+        lgr_, logger::LVL_ERROR, loc);
   }
 
   auto warn(source_location loc) const {
-    return typename LogPolicy::template logger_type<logger::WARN>(
-        lgr_, logger::WARN, loc);
+    return typename LogPolicy::template logger_type<logger::LVL_WARN>(
+        lgr_, logger::LVL_WARN, loc);
   }
 
   auto info(source_location loc) const {
@@ -288,13 +280,13 @@ class log_proxy {
   }
 
   auto timed_error(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::ERROR>(
-        lgr_, logger::ERROR, loc);
+    return typename LogPolicy::template timed_logger_type<logger::LVL_ERROR>(
+        lgr_, logger::LVL_ERROR, loc);
   }
 
   auto timed_warn(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::WARN>(
-        lgr_, logger::WARN, loc);
+    return typename LogPolicy::template timed_logger_type<logger::LVL_WARN>(
+        lgr_, logger::LVL_WARN, loc);
   }
 
   auto timed_info(source_location loc) const {
@@ -318,13 +310,13 @@ class log_proxy {
   }
 
   auto cpu_timed_error(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::ERROR>(
-        lgr_, logger::ERROR, loc, true);
+    return typename LogPolicy::template timed_logger_type<logger::LVL_ERROR>(
+        lgr_, logger::LVL_ERROR, loc, true);
   }
 
   auto cpu_timed_warn(source_location loc) const {
-    return typename LogPolicy::template timed_logger_type<logger::WARN>(
-        lgr_, logger::WARN, loc, true);
+    return typename LogPolicy::template timed_logger_type<logger::LVL_WARN>(
+        lgr_, logger::LVL_WARN, loc, true);
   }
 
   auto cpu_timed_info(source_location loc) const {
@@ -369,8 +361,8 @@ class log_proxy {
 #define LOG_PROXY_INIT(lgr) log_(lgr)
 #define LOG_GET_LOGGER log_.get_logger()
 #define LOG_FATAL log_.fatal(DWARFS_CURRENT_SOURCE_LOCATION)
-#define LOG_ERROR LOG_DETAIL_LEVEL(ERROR, log_, error)
-#define LOG_WARN LOG_DETAIL_LEVEL(WARN, log_, warn)
+#define LOG_ERROR LOG_DETAIL_LEVEL(LVL_ERROR, log_, error)
+#define LOG_WARN LOG_DETAIL_LEVEL(LVL_WARN, log_, warn)
 #define LOG_INFO LOG_DETAIL_LEVEL(INFO, log_, info)
 #define LOG_VERBOSE LOG_DETAIL_LEVEL(VERBOSE, log_, verbose)
 #define LOG_DEBUG LOG_DETAIL_LEVEL(DEBUG, log_, debug)
