@@ -69,13 +69,13 @@ class logger {
 #undef WARN
 #endif
   enum level_type : unsigned {
-    FATAL,
-    LVL_ERROR,
-    LVL_WARN,
-    INFO,
-    VERBOSE,
-    DEBUG,
-    TRACE
+    FATAL = 0,
+    LVL_ERROR = 1,
+    LVL_WARN = 2,
+    INFO = 3,
+    VERBOSE = 4,
+    DEBUG = 5,
+    TRACE = 6
   };
 
   static char level_char(level_type level);
