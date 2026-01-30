@@ -297,7 +297,8 @@ class io_ops_win : public io_ops {
   }
 
   void
-  virtual_free(void* addr, size_t size, std::error_code& ec) const override {
+  virtual_free([[maybe_unused]] void* addr, [[maybe_unused]] size_t size,
+               std::error_code& ec) const override {
     if (!::VirtualFree(addr, 0, MEM_RELEASE)) {
       ec = std::error_code(::GetLastError(), std::system_category());
     }
