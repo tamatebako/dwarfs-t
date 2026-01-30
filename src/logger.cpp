@@ -43,6 +43,7 @@
 #pragma warning(disable : 26812)
 #endif
 
+#include <array>
 #include <chrono>
 #include <cstring>
 #include <exception>
