@@ -64,6 +64,10 @@ class terminal;
 
 class logger {
  public:
+#ifdef _WIN32
+#undef ERROR
+#undef WARN
+#endif
   enum level_type : unsigned {
     FATAL,
     LVL_ERROR,
