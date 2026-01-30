@@ -93,7 +93,7 @@ filesystem_loader::load(logger& lgr, os_access& os,
   // LOG_PROXY(prod_logger_policy, lgr);
 
   // auto ti = LOG_TIMED_INFO;
-  auto& opts = config;
+  [[maybe_unused]] auto& opts = config;
 
   // Canonicalize the image path
   auto fsimage = os.canonical(config.image_path);
