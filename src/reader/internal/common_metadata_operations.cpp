@@ -39,7 +39,7 @@
 // Windows compatibility for POSIX macros
 #ifdef _WIN32
 #ifndef PATH_MAX
-#define PATH_MAX MAX_PATH
+#define PATH_MAX 260  // Windows MAX_PATH value
 #endif
 #ifndef F_OK
 #define F_OK 0
