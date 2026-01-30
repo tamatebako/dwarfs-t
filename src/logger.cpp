@@ -89,12 +89,13 @@ namespace {
 #endif
 
 constexpr std::array<std::pair<std::string_view, logger_level_type>, 6>
-    log_level_map = {std::make_pair<std::string_view, logger_level_type>("error", LOGGER_LEVEL_ERROR),
-                     std::make_pair<std::string_view, logger_level_type>("warn", LOGGER_LEVEL_WARN),
-                     std::make_pair<std::string_view, logger_level_type>("info", LOGGER_LEVEL_INFO),
-                     std::make_pair<std::string_view, logger_level_type>("verbose", LOGGER_LEVEL_VERBOSE),
-                     std::make_pair<std::string_view, logger_level_type>("debug", LOGGER_LEVEL_DEBUG),
-                     std::make_pair<std::string_view, logger_level_type>("trace", LOGGER_LEVEL_TRACE)};
+get_log_level_map() {
+  return {{{"error", LOGGER_LEVEL_ERROR}, {"warn", LOGGER_LEVEL_WARN},
+           {"info", LOGGER_LEVEL_INFO}, {"verbose", LOGGER_LEVEL_VERBOSE},
+           {"debug", LOGGER_LEVEL_DEBUG}, {"trace", LOGGER_LEVEL_TRACE}}};
+}
+
+constexpr auto log_level_map = get_log_level_map();
 
 }
 
