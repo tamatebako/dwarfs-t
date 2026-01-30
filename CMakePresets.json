@@ -401,7 +401,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
       }
     },
     {
@@ -430,7 +431,8 @@
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
       }
     },
     {
@@ -460,7 +462,8 @@
         "BUILD_SHARED_LIBS": "OFF",
         "MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL",
         "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
       }
     },
     {
@@ -489,7 +492,8 @@
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_SHARED_LIBS": "ON",
         "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
       }
     },
     {
@@ -518,7 +522,8 @@
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "WITH_FUSE_DRIVER": "OFF"
       }
     },
     {
