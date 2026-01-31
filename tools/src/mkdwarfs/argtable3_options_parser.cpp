@@ -44,6 +44,7 @@
 #include <dwarfs/sorted_array_map.h>
 #include <dwarfs/string.h>
 #include <dwarfs/tool/iolayer.h>
+#include <dwarfs/tool/sys_char.h>
 #include <dwarfs/util.h>
 #include <dwarfs/writer/console_writer.h>
 #include <dwarfs/writer/filter_debug.h>

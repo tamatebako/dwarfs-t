@@ -38,6 +38,7 @@
 
 #include <dwarfs/conv.h>
 #include <dwarfs/error.h>
+#include <dwarfs/tool/sys_char.h>
 #include <dwarfs/util.h>
 
 namespace dwarfs::tool::dwarfsextract {
