@@ -40,7 +40,7 @@
 
 extern "C" {
 
-#ifndef FILE_FULL_EA_INFORMATION
+#if defined(_WIN32) && defined(_MSC_VER)
 typedef struct _FILE_FULL_EA_INFORMATION {
   ULONG NextEntryOffset;
   UCHAR Flags;
@@ -48,9 +48,7 @@ typedef struct _FILE_FULL_EA_INFORMATION {
   USHORT EaValueLength;
   CHAR EaName[1];
 } FILE_FULL_EA_INFORMATION, *PFILE_FULL_EA_INFORMATION;
-#endif
 
-#ifndef FILE_GET_EA_INFORMATION
 typedef struct _FILE_GET_EA_INFORMATION {
   ULONG NextEntryOffset;
   UCHAR EaNameLength;
