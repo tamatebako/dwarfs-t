@@ -34,25 +34,34 @@ class WindowsCILogFetcher
     @client = Octokit::Client.new(access_token: ENV.fetch('GITHUB_TOKEN') { `gh auth token`.strip })
     @output_run_dir = nil
     @wait = options[:wait]
+    @poll_only = options[:poll_only]
     @poll_interval = options[:poll_interval] || DEFAULT_POLL_INTERVAL
     @specific_run_id = options[:run_id]
     @fetch_latest = options[:latest]
+    @show_status = options[:show_status]
   end
 
   def run
+    if @show_status
+      show_current_status
+      return
+    end
+
     puts "🔍 Fetching Windows CI logs..."
 
     FileUtils.mkdir_p(OUTPUT_DIR)
 
     run = if @specific_run_id
             fetch_specific_run(@specific_run_id)
-          elsif @wait
+          elsif @wait || @poll_only
             wait_and_fetch_run
           else
             fetch_latest_run
           end
 
     return nil unless run
+
+    return run if @poll_only
 
     process_run(run)
   rescue StandardError => e
@@ -62,6 +71,45 @@ class WindowsCILogFetcher
   end
 
   private
+
+  def show_current_status
+    workflow_id = find_windows_workflow_id
+    return unless workflow_id
+
+    puts "📊 Windows CI Status:"
+    puts
+
+    # Get recent runs
+    runs_result = @client.workflow_runs(REPO, workflow_id, per_page: 5)
+    runs_list = runs_result[:workflow_runs] || runs_result['workflow_runs'] || []
+
+    runs_list.each_with_index do |run, idx|
+      run_id = run[:id] || run['id']
+      status = run[:status] || run['status']
+      conclusion = run[:conclusion] || run['conclusion']
+      branch = run[:head_branch] || run['head_branch']
+      sha = run[:head_sha] || run['head_sha'] || run[:sha] || run['sha']
+      title = run[:display_title] || run['display_title'] || run[:name] || run['name']
+      created = run[:created_at] || run['created_at']
+      updated = run[:updated_at] || run['updated_at']
+
+      status_icon = case status
+                    when 'completed' then conclusion == 'success' ? '✅' : '❌'
+                    when 'in_progress' then '⏳'
+                    when 'queued' then '🔄'
+                    else '❓'
+                    end
+
+      puts "  #{status_icon} Run #{run_id}: #{status}"
+      puts "     Conclusion: #{conclusion || 'N/A'}"
+      puts "     Branch: #{branch}"
+      puts "     Commit: #{sha[0..7]}"
+      puts "     Title: #{title}"
+      puts "     Created: #{created}"
+      puts "     Updated: #{updated}"
+      puts unless idx == runs_list.size - 1
+    end
+  end
 
   def fetch_specific_run(run_id)
     puts "📍 Fetching specific run: #{run_id}"
@@ -102,16 +150,28 @@ class WindowsCILogFetcher
       status = latest_run[:status] || latest_run['status']
       conclusion = latest_run[:conclusion] || latest_run['conclusion']
       run_id = latest_run[:id] || latest_run['id']
+      branch = latest_run[:head_branch] || latest_run['head_branch']
+      sha = latest_run[:head_sha] || latest_run['head_sha'] || latest_run[:sha] || latest_run['sha']
+      title = latest_run[:display_title] || latest_run['display_title']
 
       elapsed = (Time.now - start_time).to_i
       mins = elapsed / 60
       secs = elapsed % 60
 
+      status_icon = case status
+                    when 'completed' then conclusion == 'success' ? '✅' : '❌'
+                    when 'in_progress' then '⏳'
+                    when 'queued' then '🔄'
+                    else '❓'
+                    end
+
       if status == 'completed'
         puts "✅ Run #{run_id} completed: #{conclusion}"
+        puts "   Branch: #{branch}, Commit: #{sha[0..7]}"
+        puts "   Title: #{title[0..80]}..." if title && title.length > 80
         return latest_run
       else
-        puts "   ⏳ [#{mins}m#{secs}s] Run #{run_id}: #{status}..."
+        puts "   #{status_icon} [#{mins}m#{secs}s] Run #{run_id}: #{status} (#{branch} @ #{sha[0..7]})"
       end
 
       sleep @poll_interval
@@ -416,6 +476,14 @@ parser = OptionParser.new do |opts|
 
   opts.on('-w', '--wait', 'Poll and wait for CI to complete before fetching') do
     options[:wait] = true
+  end
+
+  opts.on('--poll-only', 'Only poll for status without fetching logs') do
+    options[:poll_only] = true
+  end
+
+  opts.on('--show-status', 'Show current CI status and exit') do
+    options[:show_status] = true
   end
 
   opts.on('--poll-interval SECONDS', Integer, 'Seconds between polls (default: 30)') do |secs|
