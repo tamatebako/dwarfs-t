@@ -70,65 +70,69 @@ TEST_F(FilesystemBasicTest, root_access_github204) {
 
 #ifdef _WIN32
   static constexpr int const x_ok{1};
+  static constexpr int const r_ok{4};
+  static constexpr int const w_ok{2};
 #else
   static constexpr int const x_ok{X_OK};
+  static constexpr int const r_ok{R_OK};
+  static constexpr int const w_ok{W_OK};
 #endif
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 1000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_group, R_OK, 1000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_user, R_OK, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_group, r_ok, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_user, r_ok, 1000, 100));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, W_OK, 1000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_group, W_OK, 1000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_user, W_OK, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_other, w_ok, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_group, w_ok, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_user, w_ok, 1000, 100));
 
   EXPECT_TRUE(filesystem_->access(iv_other, x_ok, 1000, 100));
   EXPECT_TRUE(filesystem_->access(iv_group, x_ok, 1000, 100));
   EXPECT_TRUE(filesystem_->access(iv_user, x_ok, 1000, 100));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 1000, 0));
-  EXPECT_TRUE(filesystem_->access(iv_group, R_OK, 1000, 0));
-  EXPECT_TRUE(filesystem_->access(iv_user, R_OK, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_group, r_ok, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_user, r_ok, 1000, 0));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, W_OK, 1000, 0));
-  EXPECT_TRUE(filesystem_->access(iv_group, W_OK, 1000, 0));
-  EXPECT_TRUE(filesystem_->access(iv_user, W_OK, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_other, w_ok, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_group, w_ok, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_user, w_ok, 1000, 0));
 
   EXPECT_TRUE(filesystem_->access(iv_other, x_ok, 1000, 0));
   EXPECT_TRUE(filesystem_->access(iv_group, x_ok, 1000, 0));
   EXPECT_TRUE(filesystem_->access(iv_user, x_ok, 1000, 0));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 2000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_group, R_OK, 2000, 100));
-  EXPECT_FALSE(filesystem_->access(iv_user, R_OK, 2000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 2000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_group, r_ok, 2000, 100));
+  EXPECT_FALSE(filesystem_->access(iv_user, r_ok, 2000, 100));
 
-  EXPECT_FALSE(filesystem_->access(iv_other, W_OK, 2000, 100));
-  EXPECT_FALSE(filesystem_->access(iv_group, W_OK, 2000, 100));
-  EXPECT_FALSE(filesystem_->access(iv_user, W_OK, 2000, 100));
+  EXPECT_FALSE(filesystem_->access(iv_other, w_ok, 2000, 100));
+  EXPECT_FALSE(filesystem_->access(iv_group, w_ok, 2000, 100));
+  EXPECT_FALSE(filesystem_->access(iv_user, w_ok, 2000, 100));
 
   EXPECT_TRUE(filesystem_->access(iv_other, x_ok, 2000, 100));
   EXPECT_TRUE(filesystem_->access(iv_group, x_ok, 2000, 100));
   EXPECT_FALSE(filesystem_->access(iv_user, x_ok, 2000, 100));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 2000, 200));
-  EXPECT_FALSE(filesystem_->access(iv_group, R_OK, 2000, 200));
-  EXPECT_FALSE(filesystem_->access(iv_user, R_OK, 2000, 200));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_group, r_ok, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_user, r_ok, 2000, 200));
 
-  EXPECT_FALSE(filesystem_->access(iv_other, W_OK, 2000, 200));
-  EXPECT_FALSE(filesystem_->access(iv_group, W_OK, 2000, 200));
-  EXPECT_FALSE(filesystem_->access(iv_user, W_OK, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_other, w_ok, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_group, w_ok, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_user, w_ok, 2000, 200));
 
   EXPECT_TRUE(filesystem_->access(iv_other, x_ok, 2000, 200));
   EXPECT_FALSE(filesystem_->access(iv_group, x_ok, 2000, 200));
   EXPECT_FALSE(filesystem_->access(iv_user, x_ok, 2000, 200));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 0, 0));
-  EXPECT_TRUE(filesystem_->access(iv_group, R_OK, 0, 0));
-  EXPECT_TRUE(filesystem_->access(iv_user, R_OK, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_group, r_ok, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_user, r_ok, 0, 0));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, W_OK, 0, 0));
-  EXPECT_TRUE(filesystem_->access(iv_group, W_OK, 0, 0));
-  EXPECT_TRUE(filesystem_->access(iv_user, W_OK, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_other, w_ok, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_group, w_ok, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_user, w_ok, 0, 0));
 
   EXPECT_TRUE(filesystem_->access(iv_other, x_ok, 0, 0));
   EXPECT_TRUE(filesystem_->access(iv_group, x_ok, 0, 0));
@@ -147,61 +151,61 @@ TEST_F(FilesystemBasicTest, root_access_github204) {
   iv_group = group->inode();
   iv_user = user->inode();
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 1000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_group, R_OK, 1000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_user, R_OK, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_group, r_ok, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_user, r_ok, 1000, 100));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, W_OK, 1000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_group, W_OK, 1000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_user, W_OK, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_other, w_ok, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_group, w_ok, 1000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_user, w_ok, 1000, 100));
 
   EXPECT_FALSE(filesystem_->access(iv_other, x_ok, 1000, 100));
   EXPECT_FALSE(filesystem_->access(iv_group, x_ok, 1000, 100));
   EXPECT_FALSE(filesystem_->access(iv_user, x_ok, 1000, 100));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 1000, 0));
-  EXPECT_TRUE(filesystem_->access(iv_group, R_OK, 1000, 0));
-  EXPECT_TRUE(filesystem_->access(iv_user, R_OK, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_group, r_ok, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_user, r_ok, 1000, 0));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, W_OK, 1000, 0));
-  EXPECT_TRUE(filesystem_->access(iv_group, W_OK, 1000, 0));
-  EXPECT_TRUE(filesystem_->access(iv_user, W_OK, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_other, w_ok, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_group, w_ok, 1000, 0));
+  EXPECT_TRUE(filesystem_->access(iv_user, w_ok, 1000, 0));
 
   EXPECT_FALSE(filesystem_->access(iv_other, x_ok, 1000, 0));
   EXPECT_FALSE(filesystem_->access(iv_group, x_ok, 1000, 0));
   EXPECT_FALSE(filesystem_->access(iv_user, x_ok, 1000, 0));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 2000, 100));
-  EXPECT_TRUE(filesystem_->access(iv_group, R_OK, 2000, 100));
-  EXPECT_FALSE(filesystem_->access(iv_user, R_OK, 2000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 2000, 100));
+  EXPECT_TRUE(filesystem_->access(iv_group, r_ok, 2000, 100));
+  EXPECT_FALSE(filesystem_->access(iv_user, r_ok, 2000, 100));
 
-  EXPECT_FALSE(filesystem_->access(iv_other, W_OK, 2000, 100));
-  EXPECT_FALSE(filesystem_->access(iv_group, W_OK, 2000, 100));
-  EXPECT_FALSE(filesystem_->access(iv_user, W_OK, 2000, 100));
+  EXPECT_FALSE(filesystem_->access(iv_other, w_ok, 2000, 100));
+  EXPECT_FALSE(filesystem_->access(iv_group, w_ok, 2000, 100));
+  EXPECT_FALSE(filesystem_->access(iv_user, w_ok, 2000, 100));
 
   EXPECT_FALSE(filesystem_->access(iv_other, x_ok, 2000, 100));
   EXPECT_FALSE(filesystem_->access(iv_group, x_ok, 2000, 100));
   EXPECT_FALSE(filesystem_->access(iv_user, x_ok, 2000, 100));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 2000, 200));
-  EXPECT_FALSE(filesystem_->access(iv_group, R_OK, 2000, 200));
-  EXPECT_FALSE(filesystem_->access(iv_user, R_OK, 2000, 200));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_group, r_ok, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_user, r_ok, 2000, 200));
 
-  EXPECT_FALSE(filesystem_->access(iv_other, W_OK, 2000, 200));
-  EXPECT_FALSE(filesystem_->access(iv_group, W_OK, 2000, 200));
-  EXPECT_FALSE(filesystem_->access(iv_user, W_OK, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_other, w_ok, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_group, w_ok, 2000, 200));
+  EXPECT_FALSE(filesystem_->access(iv_user, w_ok, 2000, 200));
 
   EXPECT_FALSE(filesystem_->access(iv_other, x_ok, 2000, 200));
   EXPECT_FALSE(filesystem_->access(iv_group, x_ok, 2000, 200));
   EXPECT_FALSE(filesystem_->access(iv_user, x_ok, 2000, 200));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, R_OK, 0, 0));
-  EXPECT_TRUE(filesystem_->access(iv_group, R_OK, 0, 0));
-  EXPECT_TRUE(filesystem_->access(iv_user, R_OK, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_other, r_ok, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_group, r_ok, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_user, r_ok, 0, 0));
 
-  EXPECT_TRUE(filesystem_->access(iv_other, W_OK, 0, 0));
-  EXPECT_TRUE(filesystem_->access(iv_group, W_OK, 0, 0));
-  EXPECT_TRUE(filesystem_->access(iv_user, W_OK, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_other, w_ok, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_group, w_ok, 0, 0));
+  EXPECT_TRUE(filesystem_->access(iv_user, w_ok, 0, 0));
 
   EXPECT_FALSE(filesystem_->access(iv_other, x_ok, 0, 0));
   EXPECT_FALSE(filesystem_->access(iv_group, x_ok, 0, 0));
