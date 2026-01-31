@@ -447,7 +447,7 @@ int mkdwarfs_main(int argc, sys_char** argv, iolayer const& iol) {
   using namespace std::string_view_literals;
   using namespace dwarfs::binary_literals;
 
-  size_t const num_cpu = std::max(hardware_concurrency(), 1U);
+  [[maybe_unused]] size_t const num_cpu = std::max(hardware_concurrency(), 1U);
   static constexpr size_t const kDefaultMaxActiveBlocks{4};
   static constexpr size_t const kDefaultBloomFilterSize{4};
 
