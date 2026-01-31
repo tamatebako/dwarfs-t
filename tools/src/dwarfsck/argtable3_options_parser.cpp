@@ -166,10 +166,10 @@ void argtable3_options_parser::define_tool_options() {
 void argtable3_options_parser::populate_parsed_options() {
   // Input/Output paths
   if (input_opt_->count > 0) {
-    opts_.input = input_opt_->filename[0];
+    opts_.input = string_to_sys_string(input_opt_->filename[0]);
   }
   if (export_metadata_opt_->count > 0) {
-    opts_.export_metadata = export_metadata_opt_->filename[0];
+    opts_.export_metadata = string_to_sys_string(export_metadata_opt_->filename[0]);
   }
 
   // Operation mode options

@@ -181,10 +181,10 @@ void argtable3_options_parser::define_tool_options() {
 void argtable3_options_parser::populate_parsed_options() {
   // Input/Output paths
   if (input_opt_->count > 0) {
-    opts_.input = input_opt_->filename[0];
+    opts_.input = string_to_sys_string(input_opt_->filename[0]);
   }
   if (output_opt_->count > 0) {
-    opts_.output = output_opt_->filename[0];
+    opts_.output = string_to_sys_string(output_opt_->filename[0]);
   }
   if (pattern_opt_->count > 0) {
     for (int i = 0; i < pattern_opt_->count; ++i) {
@@ -236,7 +236,7 @@ void argtable3_options_parser::populate_parsed_options() {
     opts_.perfmon = perfmon_opt_->sval[0];
   }
   if (perfmon_trace_opt_->count > 0) {
-    opts_.perfmon_trace_file = perfmon_trace_opt_->filename[0];
+    opts_.perfmon_trace_file = string_to_sys_string(perfmon_trace_opt_->filename[0]);
   }
 #endif
 }
@@ -302,7 +302,7 @@ void argtable3_options_parser::load_environment_variables() {
   // Example: DWARFS_DWARFSEXTRACT_OUTPUT
   if (auto env_val = get_env_var(prefix + "OUTPUT"); !env_val.empty()) {
     if (output_opt_->count == 0) {
-      opts_.output = env_val;
+      opts_.output = string_to_sys_string(env_val);
     }
   }
 

@@ -222,10 +222,10 @@ void argtable3_options_parser::define_tool_options() {
 void argtable3_options_parser::populate_parsed_options() {
   // Positional arguments
   if (image_opt_->count > 0) {
-    opts_.image = image_opt_->filename[0];
+    opts_.image = string_to_sys_string(image_opt_->filename[0]);
   }
   if (mountpoint_opt_->count > 0) {
-    opts_.mountpoint = mountpoint_opt_->filename[0];
+    opts_.mountpoint = string_to_sys_string(mountpoint_opt_->filename[0]);
   }
 
   // Cache options
@@ -308,7 +308,7 @@ void argtable3_options_parser::populate_parsed_options() {
 
   // Analysis
   if (analysis_file_opt_->count > 0) {
-    opts_.analysis_file = analysis_file_opt_->filename[0];
+    opts_.analysis_file = string_to_sys_string(analysis_file_opt_->filename[0]);
   }
 
 #ifndef _WIN32
@@ -327,7 +327,7 @@ void argtable3_options_parser::populate_parsed_options() {
     opts_.perfmon = perfmon_opt_->sval[0];
   }
   if (perfmon_trace_opt_->count > 0) {
-    opts_.perfmon_trace_file = perfmon_trace_opt_->filename[0];
+    opts_.perfmon_trace_file = string_to_sys_string(perfmon_trace_opt_->filename[0]);
   }
 #endif
 

@@ -484,17 +484,17 @@ void argtable3_options_parser::define_tool_options() {
 void argtable3_options_parser::populate_parsed_options() {
   // Input/Output paths
   if (input_opt_->count > 0) {
-    opts_.input_path = std::filesystem::path(input_opt_->filename[0]);
+    opts_.input_path = std::filesystem::path(string_to_sys_string(input_opt_->filename[0]));
   }
   if (input_list_opt_->count > 0) {
     opts_.input_list.emplace(); // Initialize vector
     // Actual file reading happens in main
   }
   if (output_opt_->count > 0) {
-    opts_.output_path = std::filesystem::path(output_opt_->filename[0]);
+    opts_.output_path = std::filesystem::path(string_to_sys_string(output_opt_->filename[0]));
   }
   if (header_opt_->count > 0) {
-    opts_.header_path = std::filesystem::path(header_opt_->filename[0]);
+    opts_.header_path = std::filesystem::path(string_to_sys_string(header_opt_->filename[0]));
   }
 
   // Basic options
