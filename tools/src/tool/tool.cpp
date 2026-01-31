@@ -71,6 +71,11 @@ namespace {
 std::string get_jemalloc_version() {
 #if defined(__APPLE__)
   char const* j = JEMALLOC_VERSION;
+  std::string rv{j};
+  if (auto pos = rv.find('-'); pos != std::string::npos) {
+    rv.erase(pos, std::string::npos);
+  }
+  return rv;
 #elif defined(_WIN32)
   // mallctl not available on Windows with Tebako jemalloc
   return "5.5.0"; // Tebako jemalloc version
@@ -80,12 +85,12 @@ std::string get_jemalloc_version() {
   // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
   ::mallctl("version", &j, &s, nullptr, 0);
   assert(j);
-#endif
   std::string rv{j};
   if (auto pos = rv.find('-'); pos != std::string::npos) {
     rv.erase(pos, std::string::npos);
   }
   return rv;
+#endif
 }
 #endif
 

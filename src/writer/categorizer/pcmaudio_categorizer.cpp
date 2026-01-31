@@ -705,7 +705,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_aiff(
       file_off_t pcm_start =
           chunk->pos + sizeof(chunk_hdr_t) + sizeof(ssnd) + ssnd.offset;
       file_size_t pcm_length =
-          num_sample_frames * (meta.number_of_channels * meta.bytes_per_sample);
+          static_cast<file_size_t>(num_sample_frames) *
+          meta.number_of_channels * meta.bytes_per_sample;
 
       if (std::cmp_greater(sizeof(ssnd) + ssnd.offset + pcm_length,
                            chunk->size())) {
