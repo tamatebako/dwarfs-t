@@ -20,7 +20,7 @@
 #if defined(__x86_64__) || defined(_M_X64)
 #include <immintrin.h>
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(_MSC_VER)
 namespace libfsst {
 bool fsst_hasAVX512() {
    int info[4];
