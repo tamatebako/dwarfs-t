@@ -50,6 +50,10 @@
 #include "../mmap_mock.h"
 
 #ifdef _WIN32
+// Undefine any existing macros that might conflict
+#undef R_OK
+#undef W_OK
+#undef X_OK
 static constexpr int const R_OK{4};
 static constexpr int const W_OK{2};
 static constexpr int const X_OK{1};
