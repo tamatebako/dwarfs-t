@@ -40,7 +40,8 @@
 
 extern "C" {
 
-#if defined(_WIN32) && defined(_MSC_VER)
+// MinGW doesn't define these structures in its headers
+#if defined(_WIN32) && !defined(_MSC_VER)
 typedef struct _FILE_FULL_EA_INFORMATION {
   ULONG NextEntryOffset;
   UCHAR Flags;
