@@ -235,7 +235,7 @@ class os_access_mock : public os_access {
   std::chrono::nanoseconds native_file_time_resolution_{1};
 };
 
-class filter_transformer_data {
+struct filter_transformer_data {
   struct entry_data {
     entry_data(writer::entry_interface const& ei)
         : path{ei.unix_dpath()}

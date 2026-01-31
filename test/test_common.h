@@ -45,7 +45,7 @@ class writer_progress;
 
 namespace dwarfs::test {
 
-class filter_transformer_data;
+struct filter_transformer_data;
 class os_access_mock;
 
 // Default file hash algorithm used in tests
