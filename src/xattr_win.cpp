@@ -40,23 +40,6 @@
 
 extern "C" {
 
-// MinGW doesn't define these structures in its headers
-#if defined(_WIN32) && !defined(_MSC_VER)
-typedef struct _FILE_FULL_EA_INFORMATION {
-  ULONG NextEntryOffset;
-  UCHAR Flags;
-  UCHAR EaNameLength;
-  USHORT EaValueLength;
-  CHAR EaName[1];
-} FILE_FULL_EA_INFORMATION, *PFILE_FULL_EA_INFORMATION;
-
-typedef struct _FILE_GET_EA_INFORMATION {
-  ULONG NextEntryOffset;
-  UCHAR EaNameLength;
-  CHAR EaName[1];
-} FILE_GET_EA_INFORMATION, *PFILE_GET_EA_INFORMATION;
-#endif
-
 NTSYSAPI NTSTATUS NTAPI RtlDosPathNameToNtPathName_U_WithStatus(
     PCWSTR DosFileName, PUNICODE_STRING NtFileName, PWSTR* FilePart,
     PVOID RelativeName);
