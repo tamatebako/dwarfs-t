@@ -29,6 +29,8 @@
 #include <windows.h>
 #include <winioctl.h>
 
+#include <algorithm>
+
 #include <dwarfs/detail/file_extent_info.h>
 #include <dwarfs/error.h>
 #include <dwarfs/scope_exit.h>
