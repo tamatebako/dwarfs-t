@@ -49,7 +49,7 @@ TEST(mkdwarfs_test, pack_modes_random) {
   DWARFS_SLOW_TEST();
 
   std::mt19937_64 rng{42};
-  std::uniform_int_distribution<> dist{1, pack_mode_names.size()};
+  std::uniform_int_distribution<int> dist{1, pack_mode_names.size()};
 
   for (int i = 0; i < 50; ++i) {
     std::vector<std::string_view> modes(pack_mode_names.begin(),

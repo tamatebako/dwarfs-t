@@ -94,8 +94,8 @@ shared_byte_buffer make_log_data(size_t size = 1024 * 1024) {
   };
   
   std::mt19937 rng(42);
-  std::uniform_int_distribution<> level_dist(0, 3);
-  std::uniform_int_distribution<> msg_dist(0, 5);
+  std::uniform_int_distribution<int> level_dist(0, 3);
+  std::uniform_int_distribution<int> msg_dist(0, 5);
   
   while (ss.tellp() < static_cast<std::streampos>(size)) {
     ss << "2025-12-01 10:15:30 " 

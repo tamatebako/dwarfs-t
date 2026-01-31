@@ -309,7 +309,7 @@ simplestat os_access_mock::add_file(fs::path const& path, file_size_t size,
   if (random) {
     thread_local std::mt19937_64 rng{42};
 
-    std::uniform_int_distribution<> choice_dist{0, 4};
+    std::uniform_int_distribution<int> choice_dist{0, 4};
     auto choice = choice_dist(rng);
 
     switch (choice) {

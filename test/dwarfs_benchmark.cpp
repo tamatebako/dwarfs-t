@@ -374,7 +374,7 @@ class filesystem_walk : public ::benchmark::Fixture {
 
   static std::string make_data(std::mt19937_64& rng, size_t size) {
     std::string data;
-    std::uniform_int_distribution<> byte_dist{0, 31};
+    std::uniform_int_distribution<int> byte_dist{0, 31};
     data.reserve(size * kPatternLength * 2);
     for (size_t i = 0; i < size; ++i) {
       char p1 = byte_dist(rng);
@@ -389,8 +389,8 @@ class filesystem_walk : public ::benchmark::Fixture {
 
   static void add_random_file_tree(test::os_access_mock& os) {
     std::mt19937_64 rng{42};
-    std::uniform_int_distribution<> size_dist{1, 16};
-    std::uniform_int_distribution<> path_comp_size_dist{1, 10};
+    std::uniform_int_distribution<int> size_dist{1, 16};
+    std::uniform_int_distribution<int> path_comp_size_dist{1, 10};
 
     auto random_path_component = [&] {
       auto size = path_comp_size_dist(rng);
