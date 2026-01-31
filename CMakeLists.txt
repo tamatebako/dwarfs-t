@@ -417,7 +417,7 @@ endif()
 
 if(WITH_TESTS)
   option(WITH_COMPAT_TESTS "Enable Homebrew compatibility tests" ON)
-  if(WITH_COMPAT_TESTS)
+  if(WITH_COMPAT_TESTS AND NOT WIN32)
     add_subdirectory(test/compat)
   endif()
 endif()
