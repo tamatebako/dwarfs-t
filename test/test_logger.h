@@ -97,9 +97,19 @@ class test_logger : public ::dwarfs::logger {
   static level_type default_threshold() { return LOGGER_LEVEL_INFO; }
 
   static level_type output_threshold(level_type default_level) {
+#ifdef _MSC_VER
+    __pragma(warning(push))
+    __pragma(warning(disable : 4996)) // getenv deprecation
     if (auto var = std::getenv("DWARFS_TEST_LOGGER_LEVEL")) {
+      __pragma(warning(pop))
+#else
+    if (auto var = std::getenv("DWARFS_TEST_LOGGER_LEVEL")) {
+#endif
       return ::dwarfs::logger::parse_level(var);
     }
+#ifdef _MSC_VER
+    }
+#endif
     return default_level;
   }
 

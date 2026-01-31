@@ -39,7 +39,7 @@ class logger;
 
 namespace writer {
 class entry_filter;
-struct writer_progress;
+class writer_progress;
 } // namespace writer
 } // namespace dwarfs
 
