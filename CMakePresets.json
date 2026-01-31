@@ -553,7 +553,8 @@
         "BUILD_SHARED_LIBS": "ON",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_MAKE_PROGRAM": "ninja"
+        "CMAKE_MAKE_PROGRAM": "ninja",
+        "WITH_FUSE_DRIVER": "OFF"
       }
     },
     {
@@ -583,7 +584,8 @@
         "BUILD_SHARED_LIBS": "ON",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_MAKE_PROGRAM": "ninja"
+        "CMAKE_MAKE_PROGRAM": "ninja",
+        "WITH_FUSE_DRIVER": "OFF"
       }
     },
     {
