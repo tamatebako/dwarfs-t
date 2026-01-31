@@ -133,6 +133,7 @@ foreach(tgt ${LIBDWARFS_TARGETS} ${LIBDWARFS_OBJECT_TARGETS}
         /wd4456 # declaration hides previous local declaration
         /wd4702 # unreachable code in third-party headers (e.g., range-v3)
         /wd4324 # structure padding due to alignment specifier
+        /wd4996 # getenv deprecation warning (CRT_SECURE_NO_WARNINGS)
       )
       if(DWARFS_GIT_BUILD)
         target_compile_options(${tgt} PRIVATE /WX)
