@@ -53,6 +53,8 @@ namespace dwarfs::tool::dwarfs {
  */
 class argtable3_options_parser : public argtable3_base_parser {
 public:
+  using argtable3_base_parser::parse;  // Bring base class parse() overloads into scope
+
   argtable3_options_parser();
   ~argtable3_options_parser() override;
 
