@@ -622,7 +622,8 @@ std::string create_random_string(size_t size, uint8_t min, uint8_t max,
                                  std::mt19937_64& gen) {
   std::string rv;
   rv.resize(size);
-  std::uniform_int_distribution<> byte_dist{min, max};
+  std::uniform_int_distribution<int> byte_dist{static_cast<int>(min),
+                                                 static_cast<int>(max)};
   std::generate(rv.begin(), rv.end(), [&] { return byte_dist(gen); });
   return rv;
 }
