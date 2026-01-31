@@ -268,12 +268,8 @@ int dwarfsextract_main(int argc, sys_char** argv, iolayer const& iol) {
         }
 
         json_out << "{\n";
-#ifdef _WIN32
         json_out << fmt::format("  \"image\": \"{}\",\n",
-                               wstring_to_utf8(opts_.input));
-#else
-        json_out << fmt::format("  \"image\": \"{}\",\n", opts_.input);
-#endif
+                               tool::sys_string_to_string(opts_.input));
         json_out << fmt::format("  \"repeat_count\": {},\n", opts_.repeat_count);
         json_out << "  \"runs\": [\n";
 

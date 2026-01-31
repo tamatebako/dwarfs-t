@@ -25,6 +25,7 @@
 #include <vector>
 
 #include <dwarfs/logger.h>
+#include <dwarfs/tool/sys_char.h>
 
 // Forward declare types
 namespace dwarfs::tool {
@@ -74,6 +75,18 @@ public:
    * @return 0 on success, 1 if help/version shown, 2 on parse error
    */
   virtual int parse(int argc, char** argv) = 0;
+
+#ifdef _WIN32
+  /**
+   * @brief Parse command-line arguments (Windows wchar_t version)
+   * @param argc Argument count
+   * @param argv Argument vector (wide-character strings on Windows)
+   * @return 0 on success, 1 if help/version shown, 2 on parse error
+   *
+   * On Windows, this converts wchar_t** to char** and calls the virtual parse().
+   */
+  int parse(int argc, sys_char** argv);
+#endif
 
   /**
    * @brief Check if help was requested

@@ -22,9 +22,16 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <memory>
+#include <vector>
 
 #include <argtable3.h>
 #include <fmt/format.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>  // For CommandLineToArgvW
+#endif
 
 #include "dwarfs/tool/version_info.h"
 #include "dwarfs/tool/tool.h"
@@ -44,6 +51,36 @@ argtable3_base_parser::~argtable3_base_parser() {
     arg_freetable(argtable_.data(), argtable_.size());
   }
 }
+
+#ifdef _WIN32
+int argtable3_base_parser::parse(int argc, sys_char** argv) {
+  // Convert wchar_t** to char** for argtable3
+  std::vector<char*> narrow_argv;
+  std::vector<std::string> narrow_strings;
+
+  narrow_argv.reserve(argc);
+  narrow_strings.reserve(argc);
+
+  for (int i = 0; i < argc; ++i) {
+    // Convert wide string to narrow string (UTF-8)
+    int size = WideCharToMultiByte(CP_UTF8, 0, argv[i], -1, nullptr, 0,
+                                   nullptr, nullptr);
+    if (size <= 0) {
+      // Conversion failed, use empty string
+      narrow_strings.emplace_back();
+    } else {
+      narrow_strings.emplace_back(size - 1, '\0');
+      WideCharToMultiByte(CP_UTF8, 0, argv[i], -1,
+                         &narrow_strings.back()[0], size,
+                         nullptr, nullptr);
+    }
+    narrow_argv.push_back(narrow_strings.back().data());
+  }
+
+  // Call the virtual parse() with char**
+  return parse(argc, narrow_argv.data());
+}
+#endif
 
 void argtable3_base_parser::init_argtable(size_t max_options) {
   // Reserve space for options (max_options + end)

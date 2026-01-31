@@ -522,7 +522,7 @@ int mkdwarfs_main(int argc, sys_char** argv, iolayer const& iol) {
   progress_mode = opts.progress_mode;
   no_progress = opts.no_progress;
   debug_filter = opts.debug_filter;
-  filter = opts.filter_rules;
+  filter = tool::vector_to_sys_strings(opts.filter_rules);
   force_overwrite = opts.force_overwrite;
   no_section_index = opts.no_section_index;
   no_history = opts.no_history;
@@ -604,7 +604,7 @@ int mkdwarfs_main(int argc, sys_char** argv, iolayer const& iol) {
   std::unique_ptr<output_stream> output;
   std::ostream* os = nullptr;
 
-  if (output_str == "-") {
+  if (output_str == SYS_STR("-")) {
     os = &iol.out;
   } else {
     std::filesystem::path output_path(output_str);
