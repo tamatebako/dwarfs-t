@@ -69,8 +69,11 @@ namespace {
 
 #ifdef DWARFS_USE_JEMALLOC
 std::string get_jemalloc_version() {
-#ifdef __APPLE__
+#if defined(__APPLE__)
   char const* j = JEMALLOC_VERSION;
+#elif defined(_WIN32)
+  // mallctl not available on Windows with Tebako jemalloc
+  return "5.5.0"; // Tebako jemalloc version
 #else
   char const* j = nullptr;
   size_t s = sizeof(j);

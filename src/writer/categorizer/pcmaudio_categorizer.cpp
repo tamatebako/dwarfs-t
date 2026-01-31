@@ -858,7 +858,7 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_caf(
         return false;
       }
 
-      if (fmt.bytes_per_packet > 4 * meta.number_of_channels) {
+      if (fmt.bytes_per_packet > 4u * meta.number_of_channels) {
         LOG_WARN << "[CAF] " << path
                  << ": bytes per packet out of range: " << fmt.bytes_per_packet
                  << ", expected <= " << 4 * meta.number_of_channels;
