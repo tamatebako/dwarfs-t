@@ -89,7 +89,7 @@ void create_hardlink(const std::string& target, const std::string& link_path) {
 std::string generate_random_content(size_t size) {
   static std::random_device rd;
   static std::mt19937 gen(rd());
-  static std::uniform_int_distribution<> dis(0, 255);
+  static std::uniform_int_distribution<int> dis(0, 255);
 
   std::string content;
   content.reserve(size);
