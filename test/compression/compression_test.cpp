@@ -48,6 +48,12 @@
 
 #include "../loremipsum.h"
 #include "../mmap_mock.h"
+
+#ifdef _WIN32
+static constexpr int const R_OK{4};
+static constexpr int const W_OK{2};
+static constexpr int const X_OK{1};
+#endif
 #include "../test_common.h"
 #include "../test_helpers.h"
 #include "../test_logger.h"
