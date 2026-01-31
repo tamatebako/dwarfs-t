@@ -655,8 +655,8 @@ bool pcmaudio_categorizer_<LoggerPolicy>::check_aiff(
                     mm.size() - offsetof(file_hdr_t, form));
 
   bool meta_valid{false};
-  uint32_t num_sample_frames;
-  pcmaudio_metadata meta;
+  uint32_t num_sample_frames = 0;
+  pcmaudio_metadata meta{};
 
   while (auto chunk = parser.next_chunk()) {
     if (chunk->is("COMM")) {
