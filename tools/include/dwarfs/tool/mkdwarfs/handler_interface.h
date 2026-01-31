@@ -39,11 +39,11 @@ class rule_based_entry_filter;
 
 namespace tool {
 
-class iolayer;
+struct iolayer;
 
 namespace mkdwarfs {
 
-class parsed_options;
+struct parsed_options;
 
 /**
  * Abstract interface for mkdwarfs operation handlers

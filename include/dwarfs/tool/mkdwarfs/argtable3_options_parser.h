@@ -35,7 +35,7 @@ struct arg_rex;
 
 namespace dwarfs::tool {
 
-class iolayer;
+struct iolayer;
 
 namespace mkdwarfs {
 

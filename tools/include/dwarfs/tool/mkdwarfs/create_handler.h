@@ -43,7 +43,7 @@ class rule_based_entry_filter;
 
 namespace tool {
 
-class iolayer;
+struct iolayer;
 
 namespace mkdwarfs {
 

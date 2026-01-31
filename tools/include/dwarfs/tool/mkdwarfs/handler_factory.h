@@ -27,7 +27,7 @@
 
 namespace dwarfs::tool::mkdwarfs {
 
-class parsed_options;
+struct parsed_options;
 class handler_interface;
 
 /**

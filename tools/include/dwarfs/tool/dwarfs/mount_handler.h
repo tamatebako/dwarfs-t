@@ -36,7 +36,7 @@ struct fuse_args;
 
 namespace dwarfs::tool {
 
-class iolayer;
+struct iolayer;
 
 namespace dwarfs {
 struct parsed_options;
