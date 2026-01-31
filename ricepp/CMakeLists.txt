@@ -33,11 +33,14 @@ if(NOT TARGET range-v3::range-v3)
   FetchContent_MakeAvailable(range-v3)
 endif()
 
-if(WIN32)
+if(MSVC)
   add_compile_options(/Zc:__cplusplus /utf-8 /wd4267 /wd4244 /wd5219)
   # Apply /MT or /MTd  (multithread, static version of the run-time library)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:Embedded>")
+  add_compile_definitions(_WIN32_WINNT=0x0601 WINVER=0x0601)
+elseif(MINGW)
+  # MinGW-specific settings
   add_compile_definitions(_WIN32_WINNT=0x0601 WINVER=0x0601)
 endif()
 
