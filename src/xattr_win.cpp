@@ -40,9 +40,11 @@
 
 extern "C" {
 
-// MSVC and MinGW may not have these structures defined, depending on SDK version
-#if defined(_WIN32)
-#ifndef FILE_FULL_EA_INFORMATION
+// EA structures availability varies by compiler and Windows SDK version:
+// - MSVC: Neither FILE_FULL_EA_INFORMATION nor FILE_GET_EA_INFORMATION are defined
+// - MinGW: FILE_FULL_EA_INFORMATION is defined, but FILE_GET_EA_INFORMATION is not
+#if defined(_WIN32) && defined(_MSC_VER)
+// MSVC needs both structures defined
 typedef struct _FILE_FULL_EA_INFORMATION {
   ULONG NextEntryOffset;
   UCHAR Flags;
@@ -50,15 +52,19 @@ typedef struct _FILE_FULL_EA_INFORMATION {
   USHORT EaValueLength;
   CHAR EaName[1];
 } FILE_FULL_EA_INFORMATION, *PFILE_FULL_EA_INFORMATION;
-#endif
 
-#ifndef FILE_GET_EA_INFORMATION
 typedef struct _FILE_GET_EA_INFORMATION {
   ULONG NextEntryOffset;
   UCHAR EaNameLength;
   CHAR EaName[1];
 } FILE_GET_EA_INFORMATION, *PFILE_GET_EA_INFORMATION;
-#endif
+#elif defined(_WIN32) && defined(__MINGW32__)
+// MinGW only needs FILE_GET_EA_INFORMATION
+typedef struct _FILE_GET_EA_INFORMATION {
+  ULONG NextEntryOffset;
+  UCHAR EaNameLength;
+  CHAR EaName[1];
+} FILE_GET_EA_INFORMATION, *PFILE_GET_EA_INFORMATION;
 #endif
 
 NTSYSAPI NTSTATUS NTAPI RtlDosPathNameToNtPathName_U_WithStatus(
