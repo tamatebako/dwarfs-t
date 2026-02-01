@@ -554,6 +554,7 @@
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_MAKE_PROGRAM": "ninja",
+        "CMAKE_EXE_LINKER_FLAGS": "-mconsole",
         "VCPKG_TARGET_TRIPLET": "x64-windows-msys",
         "WITH_FUSE_DRIVER": "OFF"
       }
@@ -586,6 +587,7 @@
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_MAKE_PROGRAM": "ninja",
+        "CMAKE_EXE_LINKER_FLAGS": "-mconsole",
         "VCPKG_TARGET_TRIPLET": "x64-windows-mingw",
         "WITH_FUSE_DRIVER": "OFF"
       }
