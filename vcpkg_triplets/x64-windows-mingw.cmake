@@ -7,8 +7,8 @@ set(VCPKG_LIBRARY_LINKAGE dynamic)
 set(VCPKG_ENV_PASSTHROUGH PATH)
 
 set(VCPKG_CMAKE_SYSTEM_NAME MinGW)
-set(VCPKG_CXX_FLAGS "/Dmingw")
-set(VCPKG_C_FLAGS "/Dmingw")
+set(VCPKG_CXX_FLAGS "-Dmingw")
+set(VCPKG_C_FLAGS "-Dmingw")
 
 # Use MinGW toolchain
 set(VCPKG_PLATFORM_TOOLSET mingw)
