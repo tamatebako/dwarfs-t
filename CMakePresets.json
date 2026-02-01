@@ -586,7 +586,7 @@
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_MAKE_PROGRAM": "ninja",
-        "CMAKE_SYSTEM_NAME": "MinGW",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-mingw",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
