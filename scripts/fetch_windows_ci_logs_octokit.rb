@@ -22,6 +22,20 @@ require 'tmpdir'
 #   --poll-interval SECS    Seconds between polls (default: 30)
 #   --run-id ID            Fetch logs for specific run ID
 #   --latest, -l            Fetch logs for latest run (failed or success)
+#   --jobs PATTERN, -j     Filter jobs by name pattern (e.g., "MinGW", "x64")
+#   --failures-only, -f    Only fetch logs for failed jobs
+#   --summary              Show summary of failed jobs at the end (enabled by default)
+#   --no-summary           Disable the failure summary
+#
+# Examples:
+#   # Fetch only MinGW and MSYS job logs
+#   ruby scripts/fetch_windows_ci_logs_octokit.rb --jobs MinGW
+#
+#   # Fetch only failed jobs (saves time and bandwidth)
+#   ruby scripts/fetch_windows_ci_logs_octokit.rb --failures-only
+#
+#   # Show detailed summary of what failed
+#   ruby scripts/fetch_windows_ci_logs_octokit.rb --summary
 #
 class WindowsCILogFetcher
   REPO = 'tamatebako/dwarfs'
@@ -39,6 +53,12 @@ class WindowsCILogFetcher
     @specific_run_id = options[:run_id]
     @fetch_latest = options[:latest]
     @show_status = options[:show_status]
+    @job_filter = options[:job_filter]
+    @failures_only = options[:failures_only]
+    # Enable summary by default unless explicitly disabled
+    @show_summary = options.fetch(:show_summary, true)
+    @failed_jobs = []
+    @passed_jobs = []
   end
 
   def run
@@ -244,6 +264,8 @@ class WindowsCILogFetcher
 
       puts "\n✅ Logs organized in: #{@output_run_dir}"
       list_organized_logs
+
+      show_failure_summary if @show_summary && (@failed_jobs.any? || @passed_jobs.any?)
       @output_run_dir
     else
       puts "⏳ Run still in progress"
@@ -254,8 +276,29 @@ class WindowsCILogFetcher
   private
 
   def process_job(job)
-    job_name = sanitize_filename(job[:name] || job.name)
-    job_dir = File.join(@output_run_dir, job_name)
+    job_name = job[:name] || job.name
+    job_conclusion = job[:conclusion] || job.conclusion
+
+    # Track failures and passes
+    if job_conclusion == 'failure'
+      @failed_jobs << job_name
+    elsif job_conclusion == 'success'
+      @passed_jobs << job_name
+    end
+
+    # Skip if filter doesn't match
+    if @job_filter && !job_name.include?(@job_filter)
+      puts "  ⊝ #{job_name}: skipped (filter: #{@job_filter})"
+      return
+    end
+
+    # Skip if failures-only and this job passed
+    if @failures_only && job_conclusion == 'success'
+      puts "  ✓ #{job_name}: skipped (failures-only)"
+      return
+    end
+
+    job_dir = File.join(@output_run_dir, sanitize_filename(job_name))
     FileUtils.mkdir_p(job_dir)
 
     # Save job metadata
@@ -276,12 +319,12 @@ class WindowsCILogFetcher
       if logs && !logs.empty?
         organize_logs_by_group(logs, job_dir)
         line_count = logs.lines.count
-        puts "  ✓ #{job[:name] || job.name}: #{line_count} lines, organized by group"
+        puts "  #{conclusion == 'failure' ? '❌' : '✅'} #{job_name}: #{line_count} lines, organized by group"
       else
-        puts "  - #{job[:name] || job.name}: no logs available (or still processing)"
+        puts "  - #{job_name}: no logs available (or still processing)"
       end
     else
-      puts "  - #{job[:name] || job.name}: #{conclusion}"
+      puts "  - #{job_name}: #{conclusion}"
     end
   end
 
@@ -467,6 +510,38 @@ class WindowsCILogFetcher
     exp = [Math.log(bytes, 1024).to_i, units.size - 1].min
     "#{format('%.1f', bytes.to_f / 1024**exp)}#{units[exp]}"
   end
+
+  def show_failure_summary
+    puts "\n" + "="*60
+    puts "📊 CI RUN SUMMARY"
+    puts "="*60
+
+    if @failed_jobs.any?
+      puts "\n❌ FAILED JOBS (#{@failed_jobs.size}):"
+      @failed_jobs.each_with_index do |job, i|
+        puts "  #{i + 1}. #{job}"
+      end
+      puts "\n🔧 Next steps:"
+      puts "  1. Check the logs for each failed job above"
+      puts "  2. Look for error messages in the build logs"
+      puts "  3. Fix the issues and push again"
+      if @failed_jobs.any? { |j| j.include?('MinGW') || j.include?('MSYS') }
+        puts "\n💡 MinGW/MSYS specific tips:"
+        puts "   - Check for WinMain/main linking issues"
+        puts "   - Verify GCC-style flags (-Dflag not /Dflag)"
+        puts "   - Ensure vcpkg triplet is correctly configured"
+      end
+    end
+
+    if @passed_jobs.any?
+      puts "\n✅ PASSED JOBS (#{@passed_jobs.size}):"
+      @passed_jobs.each_with_index do |job, i|
+        puts "  #{i + 1}. #{job}"
+      end
+    end
+
+    puts "\n" + "="*60
+  end
 end
 
 # Parse options
@@ -486,6 +561,14 @@ parser = OptionParser.new do |opts|
     options[:show_status] = true
   end
 
+  opts.on('-f', '--failures-only', 'Only fetch logs for failed jobs') do
+    options[:failures_only] = true
+  end
+
+  opts.on('--[no-]summary', 'Show/hide summary of failed jobs (default: show)') do |val|
+    options[:show_summary] = val
+  end
+
   opts.on('--poll-interval SECONDS', Integer, 'Seconds between polls (default: 30)') do |secs|
     options[:poll_interval] = secs
   end
@@ -496,6 +579,10 @@ parser = OptionParser.new do |opts|
 
   opts.on('-l', '--latest', 'Fetch logs for latest completed run (success or failure)') do
     options[:latest] = true
+  end
+
+  opts.on('-j', '--jobs PATTERN', 'Filter jobs by name pattern (e.g., "MinGW", "x64")') do |pattern|
+    options[:job_filter] = pattern
   end
 
   opts.on('-h', '--help', 'Show this help message') do
