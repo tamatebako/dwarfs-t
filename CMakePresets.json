@@ -556,9 +556,7 @@
         "CMAKE_MAKE_PROGRAM": "ninja",
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
-        "CMAKE_C_FLAGS": "-mconsole",
-        "CMAKE_CXX_FLAGS": "-mconsole",
-        "CMAKE_EXE_LINKER_FLAGS": "-Wl,-emain",
+        "CMAKE_EXE_LINKER_FLAGS": "-mconsole -Wl,-emain",
         "VCPKG_TARGET_TRIPLET": "x64-windows-msys",
         "WITH_FUSE_DRIVER": "OFF"
       }
@@ -593,9 +591,7 @@
         "CMAKE_MAKE_PROGRAM": "ninja",
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
-        "CMAKE_C_FLAGS": "-mconsole",
-        "CMAKE_CXX_FLAGS": "-mconsole",
-        "CMAKE_EXE_LINKER_FLAGS": "-Wl,-emain",
+        "CMAKE_EXE_LINKER_FLAGS": "-mconsole -Wl,-emain",
         "VCPKG_TARGET_TRIPLET": "x64-windows-mingw",
         "WITH_FUSE_DRIVER": "OFF"
       }
