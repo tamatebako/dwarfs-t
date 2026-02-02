@@ -557,7 +557,6 @@
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
         "CMAKE_EXE_LINKER_FLAGS": "-mconsole -Wl,-emain",
-        "VCPKG_TARGET_TRIPLET": "x64-windows-msys",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
@@ -592,7 +591,6 @@
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
         "CMAKE_EXE_LINKER_FLAGS": "-mconsole -Wl,-emain",
-        "VCPKG_TARGET_TRIPLET": "x64-windows-mingw",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
