@@ -67,13 +67,14 @@ option(WITH_LIBDWARFS "build with libdwarfs" ON)
 # MinGW/MSYS-specific fixes
 # ============================================================================
 
-# For MinGW/MSYS, prevent CMake from adding --out-implib flag to linker
-# This flag causes MinGW to use GUI startup files (crtexewin.o) expecting
-# WinMain instead of console startup files expecting main()
+# For MinGW/MSYS, add -mconsole to force console subsystem
+# Without this, CMake may add --out-implib which causes MinGW to use
+# GUI startup files (crtexewin.o) expecting WinMain instead of
+# console startup files expecting main()
 # See: https://stackoverflow.com/questions/34575066/how-to-prevent-cmake-from-issuing-implib
-if(DEFINED VCPKG_CMAKE_SYSTEM_NAME AND VCPKG_CMAKE_SYSTEM_NAME MATCHES "MinGW|MSYS")
-  unset(CMAKE_IMPORT_LIBRARY_SUFFIX)
-  message(STATUS "MinGW/MSYS build: unset CMAKE_IMPORT_LIBRARY_SUFFIX to prevent --out-implib")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mconsole" CACHE STRING "Executable linker flags" FORCE)
+  message(STATUS "MinGW/MSYS build: added -mconsole to force console subsystem")
 endif()
 
 option(WITH_TOOLS "build with tools" ON)
