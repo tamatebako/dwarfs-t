@@ -62,6 +62,20 @@ elseif(NOT DEFINED VCPKG_BUILD)
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
+
+# ============================================================================
+# MinGW/MSYS-specific fixes
+# ============================================================================
+
+# For MinGW/MSYS, prevent CMake from adding --out-implib flag to linker
+# This flag causes MinGW to use GUI startup files (crtexewin.o) expecting
+# WinMain instead of console startup files expecting main()
+# See: https://stackoverflow.com/questions/34575066/how-to-prevent-cmake-from-issuing-implib
+if(CMAKE_SYSTEM_NAME MATCHES "MinGW|MSYS")
+  unset(CMAKE_IMPORT_LIBRARY_SUFFIX)
+  message(STATUS "MinGW/MSYS build: unset CMAKE_IMPORT_LIBRARY_SUFFIX to prevent --out-implib")
+endif()
+
 option(WITH_TOOLS "build with tools" ON)
 option(WITH_FUSE_DRIVER "build with FUSE driver" ON)
 option(WITH_DESKTOP_INTEGRATION "install mimetype and desktop integration" ON)
