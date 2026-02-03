@@ -71,7 +71,7 @@ option(WITH_LIBDWARFS "build with libdwarfs" ON)
 # This flag causes MinGW to use GUI startup files (crtexewin.o) expecting
 # WinMain instead of console startup files expecting main()
 # See: https://stackoverflow.com/questions/34575066/how-to-prevent-cmake-from-issuing-implib
-if(CMAKE_SYSTEM_NAME MATCHES "MinGW|MSYS")
+if(DEFINED VCPKG_CMAKE_SYSTEM_NAME AND VCPKG_CMAKE_SYSTEM_NAME MATCHES "MinGW|MSYS")
   unset(CMAKE_IMPORT_LIBRARY_SUFFIX)
   message(STATUS "MinGW/MSYS build: unset CMAKE_IMPORT_LIBRARY_SUFFIX to prevent --out-implib")
 endif()
