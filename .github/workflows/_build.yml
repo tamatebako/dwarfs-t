@@ -117,7 +117,7 @@ jobs:
         with:
           vs-version: '17.12'  # Visual Studio 17.12 includes MSVC 19.44+
 
-      # Windows: Set MinGW compiler for MinGW/MSYS builds
+      # Windows: Set MinGW compiler environment for MinGW/MSYS builds
       - name: 🔧 Set MinGW compiler environment
         if: runner.os == 'Windows' && (inputs.triplet == 'x64-windows-mingw' || inputs.triplet == 'x64-windows-msys')
         shell: bash
@@ -127,13 +127,7 @@ jobs:
           echo "CMAKE_C_COMPILER=gcc" >> $GITHUB_ENV
           echo "CMAKE_CXX_COMPILER=g++" >> $GITHUB_ENV
           echo "/c/mingw64/bin" >> $GITHUB_PATH
-          # For MSYS builds, tell vcpkg to use the MinGW toolchain file
-          if [[ "${{ inputs.triplet }}" == "x64-windows-msys" ]]; then
-            echo "VCPKG_CHAINLOAD_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/cmake/msys-toolchain.cmake" >> $GITHUB_ENV
-            echo "✓ Set MinGW/MSYS compiler environment variables and toolchain file"
-          else
-            echo "✓ Set MinGW compiler environment variables and PATH"
-          fi
+          echo "✓ Set MinGW compiler environment variables and PATH"
 
       # Linux: Setup gcc version via update-alternatives
       - name: 🔧 Install gcc on Linux
