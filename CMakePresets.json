@@ -557,6 +557,7 @@
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
         "VCPKG_TARGET_TRIPLET": "x64-windows-msys",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/msys-toolchain.cmake",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
