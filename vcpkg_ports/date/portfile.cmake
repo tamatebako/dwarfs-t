@@ -39,7 +39,7 @@ if(VCPKG_TARGET_IS_MINGW OR VCPKG_CMAKE_SYSTEM_NAME STREQUAL "MSYS")
     # We need to manually copy them from the build directory
     # The build creates an extra 'date/' subdirectory in the output
     file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/lib/cmake/date")
-    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/date/dateConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/" ERROR_VARIABLE copy_error)
+    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/date/dateConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/")
     file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/date/dateConfigVersion.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/")
     file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/date/dateTargets.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/")
 
