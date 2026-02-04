@@ -86,16 +86,18 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
   set(CMAKE_IMPORT_LIBRARY_SUFFIX "" CACHE STRING "Disable import library generation for executables" FORCE)
   message(STATUS "MinGW/MSYS build: set CMAKE_IMPORT_LIBRARY_SUFFIX to empty to prevent --out-implib")
 
+  # Disable automatic DLL import library creation
+  set(CMAKE_GNULDLLTOOL TRUE CACHE BOOL "Use GNU DLL tool" FORCE)
+
   # Disable ENABLE_EXPORTS for all executable targets to prevent --out-implib
   # This must be done in a scope that runs after targets are defined
   function(fix_mingw_exe_exports target)
     # Disable ENABLE_EXPORTS to prevent CMake from adding --out-implib
     set_target_properties(${target} PROPERTIES ENABLE_EXPORTS FALSE)
-    # Explicitly set console subsystem to prevent WinMain errors
+    # Explicitly set console subsystem and entry point to prevent WinMain errors
     # This overrides any conflicting --out-implib or other flags that cause
     # MinGW to use GUI startup files (crtexewin.o) expecting WinMain
-    # The LINKER: prefix ensures the flag is passed directly to the linker
-    target_link_options(${target} PRIVATE "LINKER:--subsystem,console")
+    target_link_options(${target} PRIVATE "LINKER:--subsystem,console" "LINKER:-e,mainCRTStartup")
   endfunction()
 endif()
 
@@ -509,7 +511,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
 endif()
 
 # ============================================================================
-# FINAL MinGW/MSYS FIX: Explicitly disable ENABLE_EXPORTS on all executables
+# FINAL MinGW/MSYS FIX: Disable ENABLE_EXPORTS and force console subsystem
 # ============================================================================
 # This runs at the very end, after all targets are defined, to ensure
 # ENABLE_EXPORTS is FALSE for all executable targets. This prevents CMake
@@ -524,31 +526,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
       if("${_target_type}" STREQUAL "EXECUTABLE")
         # Disable ENABLE_EXPORTS to prevent --out-implib
         set_target_properties(${_target} PROPERTIES ENABLE_EXPORTS FALSE)
-        # Explicitly set console subsystem to prevent WinMain errors
-        # Set entry point to mainCRTStartup to force console mode
+        # Add -mconsole as a compile option to force console mode
+        target_compile_options(${_target} PRIVATE "-mconsole")
+        # Explicitly set console subsystem at linker level
         target_link_options(${_target} PRIVATE "LINKER:--subsystem,console" "LINKER:-e,mainCRTStartup")
         math(EXPR _fixed_count "${_fixed_count} + 1")
       endif()
     endif()
   endforeach()
   message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS and set console subsystem on ${_fixed_count} executable targets")
-
-  # Patch build.ninja to remove --out-implib flag
-  # This is needed because CMake/vcpkg still adds --out-implib despite ENABLE_EXPORTS=FALSE
-  # The --out-implib flag causes MinGW to treat executables as DLLs and use GUI startup files
-  if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
-    message(STATUS "Patching build.ninja to remove --out-implib flag for MinGW executables...")
-    execute_process(
-      COMMAND "${CMAKE_COMMAND}" -E env "LC_ALL=C" "LANG=C" sed -i.bak
-        "s/-Wl,--out-implib,[^ ]*//g"
-        "${CMAKE_CURRENT_BINARY_DIR}/build.ninja"
-      RESULT_VARIABLE _sed_result
-      ERROR_QUIET
-    )
-    if(_sed_result EQUAL 0)
-      message(STATUS "  Successfully patched build.ninja to remove --out-implib flags")
-    else()
-      message(WARNING "  Failed to patch build.ninja for --out-implib removal")
-    endif()
-  endif()
 endif()
