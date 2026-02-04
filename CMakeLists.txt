@@ -532,4 +532,23 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
     endif()
   endforeach()
   message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS and set console subsystem on ${_fixed_count} executable targets")
+
+  # Patch build.ninja to remove --out-implib flag
+  # This is needed because CMake/vcpkg still adds --out-implib despite ENABLE_EXPORTS=FALSE
+  # The --out-implib flag causes MinGW to treat executables as DLLs and use GUI startup files
+  if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
+    message(STATUS "Patching build.ninja to remove --out-implib flag for MinGW executables...")
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env "LC_ALL=C" "LANG=C" sed -i.bak
+        "s/-Wl,--out-implib,[^ ]*//g"
+        "${CMAKE_CURRENT_BINARY_DIR}/build.ninja"
+      RESULT_VARIABLE _sed_result
+      ERROR_QUIET
+    )
+    if(_sed_result EQUAL 0)
+      message(STATUS "  Successfully patched build.ninja to remove --out-implib flags")
+    else()
+      message(WARNING "  Failed to patch build.ninja for --out-implib removal")
+    endif()
+  endif()
 endif()
