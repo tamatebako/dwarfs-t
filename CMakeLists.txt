@@ -522,9 +522,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
     if(TARGET ${_target})
       get_target_property(_target_type ${_target} TYPE)
       if("${_target_type}" STREQUAL "EXECUTABLE")
+        # Disable ENABLE_EXPORTS to prevent --out-implib
         set_target_properties(${_target} PROPERTIES ENABLE_EXPORTS FALSE)
         # Explicitly set console subsystem to prevent WinMain errors
-        target_link_options(${_target} PRIVATE "LINKER:--subsystem,console")
+        # Set entry point to mainCRTStartup to force console mode
+        target_link_options(${_target} PRIVATE "LINKER:--subsystem,console" "LINKER:-e,mainCRTStartup")
         math(EXPR _fixed_count "${_fixed_count} + 1")
       endif()
     endif()
