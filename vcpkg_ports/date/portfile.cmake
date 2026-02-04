@@ -32,11 +32,25 @@ vcpkg_cmake_configure(
 
 vcpkg_cmake_install()
 
-# For MSYS/MinGW, the CMake config files are generated in lib/cmake/date/
-# not in CMake/ like other Windows targets
+# For MSYS/MinGW, the date library's CMakeLists.txt doesn't properly install
+# CMake config files. We need to manually copy them from the build tree.
 if(VCPKG_TARGET_IS_MINGW OR VCPKG_CMAKE_SYSTEM_NAME STREQUAL "MSYS")
-  vcpkg_cmake_config_fixup(CONFIG_PATH "lib/cmake/date")
-elseif(VCPKG_TARGET_IS_WINDOWS)
+    # The date library generates config files during build but doesn't install them
+    # We need to manually copy them from the build directory
+    file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/lib/cmake/date")
+    file(COPY "${CURRENT_BUILDTREES_DIR}/date/${TARGET_TRIPLET}-rel/dateConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/" ONLY_IF_DIFFERENT)
+    file(COPY "${CURRENT_BUILDTREES_DIR}/date/${TARGET_TRIPLET}-rel/dateConfigVersion.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/" ONLY_IF_DIFFERENT)
+    file(COPY "${CURRENT_BUILDTREES_DIR}/date/${TARGET_TRIPLET}-rel/dateTargets.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/" ONLY_IF_DIFFERENT)
+
+    # Also copy debug config files if they exist
+    file(COPY "${CURRENT_BUILDTREES_DIR}/date/${TARGET_TRIPLET}-dbg/dateConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date/" ONLY_IF_DIFFERENT OPTIONAL)
+    file(COPY "${CURRENT_BUILDTREES_DIR}/date/${TARGET_TRIPLET}-dbg/dateConfigVersion.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date/" ONLY_IF_DIFFERENT OPTIONAL)
+    file(COPY "${CURRENT_BUILDTREES_DIR}/date/${TARGET_TRIPLET}-dbg/dateTargets.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date/" ONLY_IF_DIFFERENT OPTIONAL)
+endif()
+
+# Use CONFIG_PATH CMake for all Windows targets (including MinGW/MSYS)
+# The date library hardcodes CONFIG_LOC to CMake for WIN32 targets
+if(VCPKG_TARGET_IS_WINDOWS)
   vcpkg_cmake_config_fixup(CONFIG_PATH CMake)
 else()
   vcpkg_cmake_config_fixup(CONFIG_PATH "lib/cmake/date")
