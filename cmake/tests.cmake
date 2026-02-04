@@ -67,9 +67,17 @@ if(WITH_TESTS OR WITH_BENCHMARKS OR WITH_FUZZ)
   if(WITH_DEV_TOOLS)
     add_executable(treediff test/treediff.cpp)
     target_link_libraries(treediff PRIVATE dwarfs_test_helpers)
+    # MinGW/MSYS: Disable ENABLE_EXPORTS
+    if(COMMAND fix_mingw_exe_exports)
+      fix_mingw_exe_exports(treediff)
+    endif()
 
     add_executable(sparsedump test/sparsedump.cpp)
-    target_link_libraries(treediff PRIVATE dwarfs_common)
+    target_link_libraries(sparsedump PRIVATE dwarfs_common)
+    # MinGW/MSYS: Disable ENABLE_EXPORTS
+    if(COMMAND fix_mingw_exe_exports)
+      fix_mingw_exe_exports(sparsedump)
+    endif()
 
     list(APPEND BINARY_TARGETS treediff sparsedump)
   endif()
@@ -121,6 +129,10 @@ if(WITH_TESTS)
   target_link_libraries(dwarfs_filesystem_tests
     PRIVATE dwarfs_test_fixtures GTest::gtest_main
   )
+  # MinGW/MSYS: Disable ENABLE_EXPORTS
+  if(COMMAND fix_mingw_exe_exports)
+    fix_mingw_exe_exports(dwarfs_filesystem_tests)
+  endif()
   target_compile_definitions(dwarfs_filesystem_tests PRIVATE
     TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test"
     TOOLS_BIN_DIR="${CMAKE_CURRENT_BINARY_DIR}"
@@ -137,10 +149,13 @@ if(TARGET dwarfs_compression_benchmark)
 endif()
 
 # Development tools
-
 if(BUILD_FSST_MAIN)
   add_executable(fsst_main fsst/fsst.cpp)
   target_link_libraries(fsst_main PRIVATE dwarfs_fsst)
+  # MinGW/MSYS: Disable ENABLE_EXPORTS
+  if(COMMAND fix_mingw_exe_exports)
+    fix_mingw_exe_exports(fsst_main)
+  endif()
 endif()
 
 # Compatibility target deleted. The following tests are here for reference.
