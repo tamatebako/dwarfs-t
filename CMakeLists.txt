@@ -76,8 +76,14 @@ option(WITH_LIBDWARFS "build with libdwarfs" ON)
 # 2. Disable ENABLE_EXPORTS for all executable targets to prevent --out-implib
 # See: https://stackoverflow.com/questions/34575066/how-to-prevent-cmake-from-issuing-implib
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
+  # Add -mconsole to force console subsystem (prevents WinMain errors)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mconsole" CACHE STRING "Executable linker flags" FORCE)
   message(STATUS "MinGW/MSYS build: added -mconsole to force console subsystem")
+
+  # Unset CMAKE_IMPORT_LIBRARY_SUFFIX to prevent --out-implib flag
+  # The --out-implib flag causes MinGW to use GUI startup files expecting WinMain
+  unset(CMAKE_IMPORT_LIBRARY_SUFFIX CACHE)
+  message(STATUS "MinGW/MSYS build: unset CMAKE_IMPORT_LIBRARY_SUFFIX to prevent --out-implib")
 
   # Disable ENABLE_EXPORTS for all executable targets to prevent --out-implib
   # This must be done in a scope that runs after targets are defined
