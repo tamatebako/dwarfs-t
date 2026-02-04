@@ -80,10 +80,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mconsole" CACHE STRING "Executable linker flags" FORCE)
   message(STATUS "MinGW/MSYS build: added -mconsole to force console subsystem")
 
-  # Unset CMAKE_IMPORT_LIBRARY_SUFFIX to prevent --out-implib flag
+  # Set CMAKE_IMPORT_LIBRARY_SUFFIX to empty to prevent --out-implib flag
   # The --out-implib flag causes MinGW to use GUI startup files expecting WinMain
-  unset(CMAKE_IMPORT_LIBRARY_SUFFIX CACHE)
-  message(STATUS "MinGW/MSYS build: unset CMAKE_IMPORT_LIBRARY_SUFFIX to prevent --out-implib")
+  # Must be set (not unset) to override vcpkg toolchain defaults
+  set(CMAKE_IMPORT_LIBRARY_SUFFIX "" CACHE STRING "Disable import library generation for executables" FORCE)
+  message(STATUS "MinGW/MSYS build: set CMAKE_IMPORT_LIBRARY_SUFFIX to empty to prevent --out-implib")
 
   # Disable ENABLE_EXPORTS for all executable targets to prevent --out-implib
   # This must be done in a scope that runs after targets are defined
@@ -499,4 +500,26 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
       message(STATUS "  Successfully patched build.ninja")
     endif()
   endif()
+endif()
+
+# ============================================================================
+# FINAL MinGW/MSYS FIX: Explicitly disable ENABLE_EXPORTS on all executables
+# ============================================================================
+# This runs at the very end, after all targets are defined, to ensure
+# ENABLE_EXPORTS is FALSE for all executable targets. This prevents CMake
+# from adding --out-implib flag which causes MinGW to use GUI startup files.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
+  message(STATUS "Applying FINAL MinGW/MSYS ENABLE_EXPORTS fix...")
+  set(_fixed_count 0)
+  get_cmake_property(_all_targets ALL_TARGETS)
+  foreach(_target ${_all_targets})
+    if(TARGET ${_target})
+      get_target_property(_target_type ${_target} TYPE)
+      if("${_target_type}" STREQUAL "EXECUTABLE")
+        set_target_properties(${_target} PROPERTIES ENABLE_EXPORTS FALSE)
+        math(EXPR _fixed_count "${_fixed_count} + 1")
+      endif()
+    endif()
+  endforeach()
+  message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS on ${_fixed_count} executable targets")
 endif()
