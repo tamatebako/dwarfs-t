@@ -89,7 +89,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
   # Disable ENABLE_EXPORTS for all executable targets to prevent --out-implib
   # This must be done in a scope that runs after targets are defined
   function(fix_mingw_exe_exports target)
+    # Disable ENABLE_EXPORTS to prevent CMake from adding --out-implib
     set_target_properties(${target} PROPERTIES ENABLE_EXPORTS FALSE)
+    # Explicitly set console subsystem to prevent WinMain errors
+    # This overrides any conflicting --out-implib or other flags that cause
+    # MinGW to use GUI startup files (crtexewin.o) expecting WinMain
+    # The LINKER: prefix ensures the flag is passed directly to the linker
+    target_link_options(${target} PRIVATE "LINKER:--subsystem,console")
   endfunction()
 endif()
 
@@ -517,9 +523,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
       get_target_property(_target_type ${_target} TYPE)
       if("${_target_type}" STREQUAL "EXECUTABLE")
         set_target_properties(${_target} PROPERTIES ENABLE_EXPORTS FALSE)
+        # Explicitly set console subsystem to prevent WinMain errors
+        target_link_options(${_target} PRIVATE "LINKER:--subsystem,console")
         math(EXPR _fixed_count "${_fixed_count} + 1")
       endif()
     endif()
   endforeach()
-  message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS on ${_fixed_count} executable targets")
+  message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS and set console subsystem on ${_fixed_count} executable targets")
 endif()
