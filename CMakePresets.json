@@ -546,7 +546,8 @@
       "environment": {
         "VCPKG_DEFAULT_TRIPLET": "x64-windows-msys",
         "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/msys-toolchain.cmake"
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
@@ -557,7 +558,6 @@
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
         "VCPKG_TARGET_TRIPLET": "x64-windows-msys",
-        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/msys-toolchain.cmake",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
