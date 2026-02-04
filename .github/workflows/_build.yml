@@ -81,9 +81,10 @@ jobs:
       GCC_VERSION: '14'
       # vcpkg binary caching with GitHub Packages NuGet feed
       # (x-gha provider was removed from vcpkg)
+      # Note: GitHub Packages NuGet feeds are scoped to the owner/organization, not individual repos
       USERNAME: github
-      FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/index.json
-      VCPKG_BINARY_SOURCES: clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/index.json,readwrite
+      FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+      VCPKG_BINARY_SOURCES: clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite
       X_VCPKG_ASSET_SOURCES: clear;x-azurl,file:///${{ github.workspace }}/vcpkg_asset_cache,,readwrite
 
     steps:
