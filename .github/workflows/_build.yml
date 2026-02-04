@@ -68,6 +68,7 @@ jobs:
 
     permissions:
       contents: read
+      packages: write  # Required for GitHub Packages binary caching
 
     outputs:
       status: ${{ steps.status.outputs.result }}
@@ -145,6 +146,75 @@ jobs:
           vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
+
+      # ============================================================================
+      # vcpkg Binary & Asset Caching
+      # ============================================================================
+      # x-gha provider was removed from vcpkg, so we use GitHub Packages NuGet feed
+      # for binary caching and local filesystem with GitHub Actions cache for assets.
+      # See: https://learn.microsoft.com/vcpkg/users/binarycaching
+
+      - name: 💾 Cache vcpkg assets
+        uses: actions/cache@v4
+        with:
+          path: vcpkg_asset_cache
+          key: vcpkg-assets-${{ runner.os }}-${{ hashFiles('**/vcpkg-production.json') }}
+
+      - name: 🔧 Set up vcpkg binary and asset caching
+        shell: pwsh
+        run: |
+          # Create cache directories
+          New-Item -ItemType Directory -Force -Path "vcpkg_asset_cache" | Out-Null
+
+          # Set up GitHub Packages NuGet feed for binary caching
+          $env:USERNAME = "github"
+          $repoOwner = "${{ github.repository_owner }}"
+          $repoName = "${{ github.event.repository.name }}"
+          $env:FEED_URL = "https://nuget.pkg.github.com/$repoOwner/$repoName/index.json"
+          $env:VCPKG_BINARY_SOURCES = "clear;nuget,$env:FEED_URL,readwrite"
+
+          # Set up local filesystem for asset caching
+          $assetCachePath = Join-Path $env:GITHUB_WORKSPACE "vcpkg_asset_cache"
+          $env:X_VCPKG_ASSET_SOURCES = "clear;x-azurl,file:///$assetCachePath,,readwrite"
+
+          # Output to GitHub_ENV for subsequent steps
+          echo "USERNAME=$env:USERNAME" >> $env:GITHUB_ENV
+          echo "FEED_URL=$env:FEED_URL" >> $env:GITHUB_ENV
+          echo "VCPKG_BINARY_SOURCES=$env:VCPKG_BINARY_SOURCES" >> $env:GITHUB_ENV
+          echo "X_VCPKG_ASSET_SOURCES=$env:X_VCPKG_ASSET_SOURCES" >> $env:GITHUB_ENV
+
+          Write-Host "✓ Set up vcpkg binary caching with GitHub Packages"
+          Write-Host "✓ Set up vcpkg asset caching with local filesystem"
+
+      - name: 🔗 Add NuGet sources for vcpkg binary caching
+        shell: pwsh
+        run: |
+          # Get vcpkg location (run-vcpkg installs it at ../vcpkg)
+          $vcpkgDir = Join-Path $env:GITHUB_WORKSPACE "..\vcpkg"
+          $vcpkgExe = Join-Path $vcpkgDir "vcpkg.exe"
+
+          # Fetch nuget.exe
+          $nugetOutput = & $vcpkgExe fetch nuget 2>&1
+          $nugetLine = $nugetOutput | Select-String -Pattern "vcpkg-nuget.*\.exe" | Select-Object -First 1
+          if ($nugetLine) {
+            $nugetExe = $nugetLine.Line.Trim()
+          } else {
+            # Fallback to common location
+            $nugetExe = Join-Path $vcpkgDir "downloads\nuget.exe"
+          }
+
+          # Add NuGet source with GitHub authentication
+          & $nugetExe sources add `
+            -Source "${{ env.FEED_URL }}" `
+            -StorePasswordInClearText `
+            -Name "GitHubPackages" `
+            -UserName "${{ env.USERNAME }}" `
+            -Password "${{ secrets.GITHUB_TOKEN }}"
+
+          # Set API key for the source
+          & $nugetExe setapikey "${{ secrets.GITHUB_TOKEN }}" -Source "${{ env.FEED_URL }}"
+
+          Write-Host "✓ Added NuGet source for vcpkg binary caching"
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
