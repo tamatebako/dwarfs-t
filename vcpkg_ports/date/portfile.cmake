@@ -36,18 +36,22 @@ vcpkg_cmake_install()
 # CMake config files. We need to manually copy them from the build tree.
 if(VCPKG_TARGET_IS_MINGW OR VCPKG_CMAKE_SYSTEM_NAME STREQUAL "MSYS")
     # The date library generates config files during build but doesn't install them
-    # We need to manually copy them from the build directory
-    # The build creates an extra 'date/' subdirectory in the output
+    # The date library adds an extra 'date/' subdirectory in the build output
+    # Actual path: buildtrees/date/${TARGET_TRIPLET}-rel/date/
     file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/lib/cmake/date")
-    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/date/dateConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/")
-    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/date/dateConfigVersion.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/")
-    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/date/dateTargets.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/")
+    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/CMakeFiles/Export/lib/cmake/date/dateConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/")
+    if(EXISTS "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/CMakeFiles/Export/lib/cmake/date/dateConfigVersion.cmake")
+        file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/CMakeFiles/Export/lib/cmake/date/dateConfigVersion.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/")
+    endif()
+    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-rel/CMakeFiles/Export/lib/cmake/date/dateTargets.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/lib/cmake/date/")
 
     # Also copy debug config files
     file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date")
-    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-dbg/date/dateConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date/")
-    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-dbg/date/dateConfigVersion.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date/")
-    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-dbg/date/dateTargets.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date/")
+    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-dbg/CMakeFiles/Export/lib/cmake/date/dateConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date/")
+    if(EXISTS "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-dbg/CMakeFiles/Export/lib/cmake/date/dateConfigVersion.cmake")
+        file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-dbg/CMakeFiles/Export/lib/cmake/date/dateConfigVersion.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date/")
+    endif()
+    file(COPY "${CURRENT_BUILDTREES_DIR}/${PORT}/${TARGET_TRIPLET}-dbg/CMakeFiles/Export/lib/cmake/date/dateTargets.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib/cmake/date/")
 endif()
 
 # Use CONFIG_PATH CMake for all Windows targets (including MinGW/MSYS)
