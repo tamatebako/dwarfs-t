@@ -546,8 +546,7 @@
       "environment": {
         "VCPKG_DEFAULT_TRIPLET": "x64-windows-msys",
         "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets",
-        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/msys-toolchain.cmake"
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
