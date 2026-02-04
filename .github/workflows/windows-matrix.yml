@@ -35,6 +35,7 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write  # Required for GitHub Packages binary caching
 
 jobs:
   # ========================================================================
