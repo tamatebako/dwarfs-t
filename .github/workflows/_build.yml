@@ -181,13 +181,15 @@ jobs:
           $vcpkgDir = Join-Path $env:GITHUB_WORKSPACE "..\vcpkg"
           $vcpkgExe = Join-Path $vcpkgDir "vcpkg.exe"
 
-          # Fetch nuget.exe
+          # Fetch nuget.exe - last line of output is the path
           $nugetOutput = & $vcpkgExe fetch nuget 2>&1
-          $nugetLine = $nugetOutput | Select-String -Pattern "vcpkg-nuget.*\.exe" | Select-Object -First 1
-          if ($nugetLine) {
-            $nugetExe = $nugetLine.Line.Trim()
-          } else {
-            $nugetExe = Join-Path $vcpkgDir "downloads\nuget.exe"
+          $nugetExe = ($nugetOutput | Select-Object -Last 1).Trim()
+
+          # Verify nuget.exe exists
+          if (-not (Test-Path $nugetExe)) {
+            Write-Error "nuget.exe not found at: $nugetExe"
+            Write-Error "vcpkg fetch output: $nugetOutput"
+            exit 1
           }
 
           # Add NuGet source with GitHub authentication
