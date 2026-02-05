@@ -540,8 +540,12 @@ endif()
 # This runs at the very end, after all targets are defined, to ensure
 # ENABLE_EXPORTS is FALSE for all executable targets. This prevents CMake
 # from adding --out-implib flag which causes MinGW to use GUI startup files.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
+# Check if we're building for MinGW/MSYS (either by compiler ID or by vcpkg triplet)
+if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32) OR (DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys"))
   message(STATUS "Applying FINAL MinGW/MSYS ENABLE_EXPORTS fix...")
+  message(STATUS "  CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
+  message(STATUS "  WIN32: ${WIN32}")
+  message(STATUS "  VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
   set(_fixed_count 0)
   # Use BUILDSYSTEM_TARGETS to get all targets in the build system
   # ALL_TARGETS only gets targets in the current directory scope
