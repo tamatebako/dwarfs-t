@@ -100,6 +100,19 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
     # Explicitly set console subsystem and entry point to prevent WinMain errors
     target_link_options(${target} PRIVATE "LINKER:--subsystem,console" "LINKER:-e,mainCRTStartup")
   endfunction()
+
+  # MSYS-specific: Iconv is builtin but FindIconv can't find it
+  # Set Iconv variables to skip FindIconv check for MSYS
+  if(MINGW AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    # Check if we're in MSYS environment (not pure MinGW)
+    if(DEFINED ENV{MSYSTEM} AND "$ENV{MSYSTEM}" STREQUAL "MSYS")
+      message(STATUS "MSYS environment detected: setting Iconv as builtin")
+      # Tell CMake that Iconv is available in the C standard library
+      set(Iconv_FOUND TRUE CACHE BOOL "Iconv found in MSYS C library" FORCE)
+      set(Iconv_INCLUDE_DIR "" CACHE STRING "Iconv headers in standard include path" FORCE)
+      set(Iconv_LIBRARY "" CACHE STRING "Iconv in C standard library" FORCE)
+    endif()
+  endif()
 endif()
 
 option(WITH_TOOLS "build with tools" ON)
@@ -495,13 +508,14 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
   endforeach()
   message(STATUS "FINAL workaround: fixed ${_fixed_count} targets")
 
-  # Also patch the build.ninja file to remove generator expressions
-  # This is needed because CMake 4.x doesn't evaluate them properly
+  # Also patch the build.ninja file to remove problematic flags
+  # This is needed because CMake 4.x doesn't evaluate generator expressions properly
+  # and MinGW/MSYS need special handling to prevent WinMain errors
   set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
   if(EXISTS "${_build_ninja}")
-    message(STATUS "Patching build.ninja to remove generator expressions...")
+    message(STATUS "Patching build.ninja to remove generator expressions and --out-implib...")
     execute_process(
-      COMMAND sed -i.bak "s/\\$<LINK_ONLY:Threads::Threads>//g" "${_build_ninja}"
+      COMMAND sed -i.bak "s/\\$<LINK_ONLY:Threads::Threads>//g; s/-Wl,--out-implib,[^ ]*//g" "${_build_ninja}"
       RESULT_VARIABLE _sed_result
       ERROR_QUIET
     )
