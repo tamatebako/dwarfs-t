@@ -8,13 +8,19 @@ set -e
 echo "Installing Windows build dependencies..."
 
 # Install MinGW-w64 for MinGW/MSYS triplets
-if [[ "${VCPKG_DEFAULT_TRIPLET:-}" == *"mingw"* ]] || [[ "${VCPKG_DEFAULT_TRIPLET:-}" == *"msys"* ]]; then
-  echo "Installing MinGW-w64 via MSYS2..."
+if [[ "${VCPKG_DEFAULT_TRIPLET:-}" == *"mingw"* ]]; then
+  echo "Installing MinGW-w64 via MSYS2 (MinGW)..."
   # MSYS2 is pre-installed on GitHub Actions Windows runners
-  # Update and install MinGW-w64 toolchain
+  # Update and install MinGW-w64 toolchain for MinGW triplet
   C:/msys64/usr/bin/bash -lc "pacman -Syuu --noconfirm"
   C:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-libiconv"
-  echo "✓ MinGW-w64 installed (with libiconv)"
+  echo "✓ MinGW-w64 installed (with libiconv) for MinGW triplet"
+elif [[ "${VCPKG_DEFAULT_TRIPLET:-}" == *"msys"* ]]; then
+  echo "Installing MinGW-w64 via MSYS2 (MSYS)..."
+  # For MSYS triplet, install packages via MSYS2 bash
+  C:/msys64/usr/bin/bash -lc "pacman -Syuu --noconfirm"
+  C:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-libiconv"
+  echo "✓ MinGW-w64 installed (with libiconv) for MSYS triplet"
 fi
 
 # Check if Chocolatey is installed

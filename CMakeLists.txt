@@ -94,9 +94,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
   function(fix_mingw_exe_exports target)
     # Disable ENABLE_EXPORTS to prevent CMake from adding --out-implib
     set_target_properties(${target} PROPERTIES ENABLE_EXPORTS FALSE)
+    # Explicitly set WIN32_EXECUTABLE to FALSE to force console mode
+    # This prevents CMake from treating the executable as a Windows GUI app
+    set_target_properties(${target} PROPERTIES WIN32_EXECUTABLE FALSE)
     # Explicitly set console subsystem and entry point to prevent WinMain errors
-    # This overrides any conflicting --out-implib or other flags that cause
-    # MinGW to use GUI startup files (crtexewin.o) expecting WinMain
     target_link_options(${target} PRIVATE "LINKER:--subsystem,console" "LINKER:-e,mainCRTStartup")
   endfunction()
 endif()
