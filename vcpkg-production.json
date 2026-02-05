@@ -4,7 +4,7 @@
   "description": "DwarFS - A fast high-compression read-only file system (Production)",
   "homepage": "https://github.com/tamatebako/dwarfs",
   "license": "GPL-2.0-only",
-  "builtin-baseline": "fb87e2bb3",
+  "builtin-baseline": "fb87e2bb3fe69e16c224989acb5a61349166c782",
   "dependencies": [
     "bzip2",
     "boost-program-options",
