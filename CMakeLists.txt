@@ -561,15 +561,4 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
     endif()
   endforeach()
   message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS and set console subsystem on ${_fixed_count} executable targets")
-
-  # CRITICAL FIX: Override CMake's rule for linking executables to prevent --out-implib
-  # This is needed because CMake's MinGW platform module always adds --out-implib
-  # regardless of ENABLE_EXPORTS setting. We override the rule variable directly.
-  set(CMAKE_CXX_LINK_EXECUTABLE
-    "<CMAKE_CXX_COMPILER> <FLAGS> <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> -Wl,--subsystem,console -Wl,-e,mainCRTStartup <LINK_LIBRARIES>"
-    CACHE STRING "CXX executable link command" FORCE)
-  set(CMAKE_C_LINK_EXECUTABLE
-    "<CMAKE_C_COMPILER> <FLAGS> <CMAKE_C_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> -Wl,--subsystem,console -Wl,-e,mainCRTStartup <LINK_LIBRARIES>"
-    CACHE STRING "C executable link command" FORCE)
-  message(STATUS "FINAL MinGW/MSYS fix: overridden CMAKE_*_LINK_EXECUTABLE to force console subsystem without --out-implib")
 endif()
