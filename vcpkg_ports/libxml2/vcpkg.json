@@ -21,7 +21,8 @@
     }
   ],
   "default-features": [
-    "zlib"
+    "zlib",
+    "iconv"
   ],
   "features": {
     "iconv": {
@@ -36,7 +37,21 @@
       "dependencies": [
         "zlib"
       ]
+    },
+    "icu": {
+      "description": "ICU support",
+      "dependencies": [
+        "icu"
+      ]
+    },
+    "llvm": {
+      "description": "Use llvm for XML manipulation",
+      "dependencies": [
+        "llvm"
+      ]
+    },
+    "tool": {
+      "description": "Build the xmlcatalog and xmllot tools"
     }
-  },
-  "supports": "msys"
+  ]
 }
