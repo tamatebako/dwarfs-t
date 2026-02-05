@@ -53,5 +53,5 @@
     "tool": {
       "description": "Build the xmlcatalog and xmllot tools"
     }
-  ]
+  }
 }
