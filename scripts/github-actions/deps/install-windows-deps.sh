@@ -13,8 +13,8 @@ if [[ "${VCPKG_DEFAULT_TRIPLET:-}" == *"mingw"* ]] || [[ "${VCPKG_DEFAULT_TRIPLE
   # MSYS2 is pre-installed on GitHub Actions Windows runners
   # Update and install MinGW-w64 toolchain
   C:/msys64/usr/bin/bash -lc "pacman -Syuu --noconfirm"
-  C:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja"
-  echo "✓ MinGW-w64 installed"
+  C:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-libiconv"
+  echo "✓ MinGW-w64 installed (with libiconv)"
 fi
 
 # Check if Chocolatey is installed
