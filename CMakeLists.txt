@@ -556,6 +556,9 @@ if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32) OR (DEFINED VCPKG_TARGET_TRI
       if("${_target_type}" STREQUAL "EXECUTABLE")
         # Disable ENABLE_EXPORTS to prevent --out-implib
         set_target_properties(${_target} PROPERTIES ENABLE_EXPORTS FALSE)
+        # Set WIN32_EXECUTABLE to FALSE to force console mode (not Windows GUI app)
+        # This prevents CMake from treating the executable as a Windows GUI app
+        set_target_properties(${_target} PROPERTIES WIN32_EXECUTABLE FALSE)
         # Add -mconsole as a compile option to force console mode
         target_compile_options(${_target} PRIVATE "-mconsole")
         # Explicitly set console subsystem at linker level
