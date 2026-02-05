@@ -13,3 +13,7 @@ get_filename_component(TRIPLET_DIR "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
 set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${TRIPLET_DIR}/mingw.cmake")
 
 set(VCPKG_CMAKE_SYSTEM_NAME MinGW)
+
+# Prevent CMake from adding --out-implib flag which forces GUI mode
+# The --out-implib flag causes MinGW to use GUI startup files expecting WinMain
+set(VCPKG_CMAKE_CONFIGURE_OPTIONS -DCMAKE_IMPORT_LIBRARY_SUFFIX=)
