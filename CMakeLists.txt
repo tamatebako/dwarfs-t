@@ -561,4 +561,24 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
     endif()
   endforeach()
   message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS and set console subsystem on ${_fixed_count} executable targets")
+
+  # CRITICAL: Patch build.ninja to remove --out-implib flag
+  # CMake's MinGW platform module adds --out-implib despite ENABLE_EXPORTS=FALSE
+  # This flag comes LAST in the link command and overrides console flags, causing WinMain errors
+  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
+  if(EXISTS "${_build_ninja}")
+    message(STATUS "Patching build.ninja to remove --out-implib flag for MinGW/MSYS...")
+    execute_process(
+      COMMAND sed -i.bak "s/-Wl,--out-implib,[^ ]*//g" "${_build_ninja}"
+      RESULT_VARIABLE _sed_result
+      ERROR_QUIET
+    )
+    if(_sed_result EQUAL 0)
+      message(STATUS "  Successfully patched build.ninja to remove --out-implib flags")
+    else()
+      message(WARNING "  Failed to patch build.ninja (sed error code: ${_sed_result})")
+    endif()
+  else()
+    message(STATUS "  build.ninja not found yet, will patch after generation if needed")
+  endif()
 endif()
