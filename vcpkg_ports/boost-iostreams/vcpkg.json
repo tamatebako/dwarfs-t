@@ -8,8 +8,10 @@
   "supports": "!uwp",
   "dependencies": [
     {
+      "$comment": "MSYS: boost-assert has circular dependency with boost-cmake, skip it",
       "name": "boost-assert",
-      "version>=": "1.90.0"
+      "version>=": "1.90.0",
+      "platform": "!msys"
     },
     {
       "name": "boost-cmake",
