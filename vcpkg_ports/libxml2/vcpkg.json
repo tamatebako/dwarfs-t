@@ -29,7 +29,7 @@
       "dependencies": [
         "iconv"
       ],
-      "platform": "!msys"
+      "supports": "!msys"
     },
     "zlib": {
       "description": "zlib compression support",
