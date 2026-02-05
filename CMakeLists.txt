@@ -77,7 +77,8 @@ option(WITH_LIBDWARFS "build with libdwarfs" ON)
 # See: https://stackoverflow.com/questions/34575066/how-to-prevent-cmake-from-issuing-implib
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
   # Add -mconsole to force console subsystem (prevents WinMain errors)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mconsole" CACHE STRING "Executable linker flags" FORCE)
+  # IMPORTANT: Must come BEFORE other flags to override GUI mode
+  set(CMAKE_EXE_LINKER_FLAGS "-mconsole ${CMAKE_EXE_LINKER_FLAGS}" CACHE STRING "Executable linker flags" FORCE)
   message(STATUS "MinGW/MSYS build: added -mconsole to force console subsystem")
 
   # Set CMAKE_IMPORT_LIBRARY_SUFFIX to empty to prevent --out-implib flag
@@ -105,7 +106,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
   # Set Iconv variables to skip FindIconv check for MSYS
   if(MINGW AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
     # Check if we're in MSYS environment (not pure MinGW)
+    # Use multiple detection methods for robustness
+    set(_is_msys FALSE)
     if(DEFINED ENV{MSYSTEM} AND "$ENV{MSYSTEM}" STREQUAL "MSYS")
+      set(_is_msys TRUE)
+    elseif(DEFINED VCPKG_CMAKE_SYSTEM_NAME AND VCPKG_CMAKE_SYSTEM_NAME STREQUAL "MSYS")
+      set(_is_msys TRUE)
+    endif()
+
+    if(_is_msys)
       message(STATUS "MSYS environment detected: setting Iconv as builtin")
       # Tell CMake that Iconv is available in the C standard library
       set(Iconv_FOUND TRUE CACHE BOOL "Iconv found in MSYS C library" FORCE)
@@ -534,7 +543,9 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
   message(STATUS "Applying FINAL MinGW/MSYS ENABLE_EXPORTS fix...")
   set(_fixed_count 0)
-  get_cmake_property(_all_targets ALL_TARGETS)
+  # Use BUILDSYSTEM_TARGETS to get all targets in the build system
+  # ALL_TARGETS only gets targets in the current directory scope
+  get_cmake_property(_all_targets BUILDSYSTEM_TARGETS)
   foreach(_target ${_all_targets})
     if(TARGET ${_target})
       get_target_property(_target_type ${_target} TYPE)
