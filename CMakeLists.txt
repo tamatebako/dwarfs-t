@@ -514,38 +514,26 @@ endif()
 # ============================================================================
 # FINAL MinGW/MSYS FIX: Disable ENABLE_EXPORTS and force console subsystem
 # ============================================================================
-# This uses cmake_language(defer) to run AFTER all subdirectories are processed
-# This ensures ENABLE_EXPORTS is FALSE for ALL executable targets, preventing
-# CMake from adding --out-implib flag which causes MinGW to use GUI startup files.
+# This runs at the very end, after all targets are defined, to ensure
+# ENABLE_EXPORTS is FALSE for all executable targets. This prevents CMake
+# from adding --out-implib flag which causes MinGW to use GUI startup files.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
-  message(STATUS "Setting up DEFERRED MinGW/MSYS ENABLE_EXPORTS fix...")
-
-  function(deferred_mingw_fix)
-    message(STATUS "DEFERRED MinGW/MSYS fix: processing all executable targets...")
-    set(_fixed_count 0)
-
-    get_cmake_property(_all_targets ALL_TARGETS)
-
-    foreach(_target ${_all_targets})
-      if(TARGET ${_target})
-        get_target_property(_target_type ${_target} TYPE)
-        if("${_target_type}" STREQUAL "EXECUTABLE")
-          # Disable ENABLE_EXPORTS to prevent --out-implib
-          set_target_properties(${_target} PROPERTIES ENABLE_EXPORTS FALSE)
-          # Explicitly set WIN32_EXECUTABLE to FALSE
-          set_target_properties(${_target} PROPERTIES WIN32_EXECUTABLE FALSE)
-          # Add -mconsole as a compile option to force console mode
-          target_compile_options(${_target} PRIVATE "-mconsole")
-          # Explicitly set console subsystem at linker level
-          target_link_options(${_target} PRIVATE "LINKER:--subsystem,console" "LINKER:-e,mainCRTStartup")
-          math(EXPR _fixed_count "${_fixed_count} + 1")
-        endif()
+  message(STATUS "Applying FINAL MinGW/MSYS ENABLE_EXPORTS fix...")
+  set(_fixed_count 0)
+  get_cmake_property(_all_targets ALL_TARGETS)
+  foreach(_target ${_all_targets})
+    if(TARGET ${_target})
+      get_target_property(_target_type ${_target} TYPE)
+      if("${_target_type}" STREQUAL "EXECUTABLE")
+        # Disable ENABLE_EXPORTS to prevent --out-implib
+        set_target_properties(${_target} PROPERTIES ENABLE_EXPORTS FALSE)
+        # Add -mconsole as a compile option to force console mode
+        target_compile_options(${_target} PRIVATE "-mconsole")
+        # Explicitly set console subsystem at linker level
+        target_link_options(${_target} PRIVATE "LINKER:--subsystem,console" "LINKER:-e,mainCRTStartup")
+        math(EXPR _fixed_count "${_fixed_count} + 1")
       endif()
-    endforeach()
-
-    message(STATUS "DEFERRED MinGW/MSYS fix: processed ${_fixed_count} executable targets")
-  endfunction()
-
-  # Defer the fix to run at the end of project configuration
-  cmake_language(defer CALL deferred_mingw_fix)
+    endif()
+  endforeach()
+  message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS and set console subsystem on ${_fixed_count} executable targets")
 endif()
