@@ -23,3 +23,26 @@ find_program(CMAKE_CXX_COMPILER g++ PATHS "C:/mingw64/bin" NO_DEFAULT_PATH)
 find_program(CMAKE_AR ar PATHS "C:/mingw64/bin" NO_DEFAULT_PATH)
 find_program(CMAKE_RANLIB ranlib PATHS "C:/mingw64/bin" NO_DEFAULT_PATH)
 find_program(CMAKE_STRIP strip PATHS "C:/mingw64/bin" NO_DEFAULT_PATH)
+
+# ============================================================================
+# MSYS Iconv Support
+# ============================================================================
+# vcpkg's libiconv port doesn't build for MSYS (it expects builtin iconv)
+# However, FindIconv can't locate the builtin iconv without explicit paths
+# We set paths to mingw-w64 libiconv which is compatible with vcpkg's compiler
+
+# Set CMAKE_PREFIX_PATH to help FindIconv and other find modules
+set(CMAKE_PREFIX_PATH "C:/msys64/mingw64" CACHE PATH "MinGW-w64 prefix for finding dependencies" FORCE)
+
+# Explicitly set Iconv paths for FindIconv module
+# These paths point to mingw-w64 libiconv installed by pacman
+set(Iconv_INCLUDE_DIR "C:/msys64/mingw64/include" CACHE PATH "Iconv include directory" FORCE)
+set(Iconv_LIBRARY "C:/msys64/mingw64/lib/libiconv.dll.a" CACHE FILEPATH "Iconv library file" FORCE)
+
+# Also set as regular variables for compatibility
+set(ICONV_INCLUDE_DIR "C:/msys64/mingw64/include" CACHE PATH "Iconv include directory" FORCE)
+set(ICONV_LIBRARY "C:/msys64/mingw64/lib/libiconv.dll.a" CACHE FILEPATH "Iconv library file" FORCE)
+
+message(STATUS "MSYS toolchain: Iconv paths set to mingw-w64 libiconv")
+message(STATUS "  Iconv_INCLUDE_DIR: ${Iconv_INCLUDE_DIR}")
+message(STATUS "  Iconv_LIBRARY: ${Iconv_LIBRARY}")

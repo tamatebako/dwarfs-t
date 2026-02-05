@@ -17,14 +17,12 @@ if [[ "${VCPKG_DEFAULT_TRIPLET:-}" == *"mingw"* ]]; then
   echo "✓ MinGW-w64 installed (with libiconv) for MinGW triplet"
 elif [[ "${VCPKG_DEFAULT_TRIPLET:-}" == *"msys"* ]]; then
   echo "Installing dependencies via MSYS2 (MSYS)..."
-  # For MSYS triplet, we need MSYS-native packages, not mingw-w64 packages
-  # The MSYS CMake FindIconv looks for MSYS-native libraries
+  # For MSYS triplet, vcpkg uses mingw-w64 compiler
+  # We need mingw-w64 libraries (NOT MSYS-native) for compatibility
   C:/msys64/usr/bin/bash -lc "pacman -Syuu --noconfirm"
-  # Install MSYS-native libiconv (not mingw-w64-x86_64-libiconv)
-  C:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed msys2-runtime-devel autoconf-archive libiconv"
-  # Also install MinGW toolchain for building dependencies
-  C:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja"
-  echo "✓ MSYS dependencies installed (with MSYS-native libiconv)"
+  # Install mingw-w64 toolchain and libiconv
+  C:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-libiconv"
+  echo "✓ MSYS dependencies installed (with MinGW-w64 libiconv for vcpkg compatibility)"
 fi
 
 # Check if Chocolatey is installed
