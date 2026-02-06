@@ -70,6 +70,10 @@ if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE STRING "MSVC Runtime Library" FORCE)
 endif()
 
+# Build Boost as static libraries, not shared DLLs
+# This is required for static builds to work correctly on Windows
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+
 # Use CPM with GitHub shorthand to add boost-cmake
 # This will provide Boost::headers, Boost::filesystem, etc. targets
 CPMAddPackage("gh:ClausKlein/boost-cmake#v1.87.0-rc6")
