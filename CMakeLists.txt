@@ -47,7 +47,7 @@ cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 #
 # Usage pattern from boost-cmake README:
 #   set(BOOST_INCLUDE_LIBRARIES filesystem headers)
-#   CPMAddPackage("gh:ClausKlein/boost-cmake#v1.80.0")
+#   CPMAddPackage("gh:ClausKlein/boost-cmake#v1.87.0-rc6")
 #   target_link_libraries(... PUBLIC Boost::headers)
 include(cmake/CPM.cmake)
 
@@ -65,7 +65,7 @@ set(BOOST_INCLUDE_LIBRARIES
 
 # Use CPM with GitHub shorthand to add boost-cmake
 # This will provide Boost::headers, Boost::filesystem, etc. targets
-CPMAddPackage("gh:ClausKlein/boost-cmake#v1.80.0")
+CPMAddPackage("gh:ClausKlein/boost-cmake#v1.87.0-rc6")
 
 # Note: CMP0111 (imported targets from different directories) is now always NEW
 # The old setting was needed for vcpkg + Folly compatibility but is deprecated
