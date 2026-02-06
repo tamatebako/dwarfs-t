@@ -493,7 +493,9 @@ endif()
 # MinGW fix: remove --out-implib flag from executable links
 # This prevents MinGW from treating executables as DLLs (which causes
 # it to look for WinMain instead of main as the entry point)
-if(MINGW)
+# Apply to all Windows builds - the sed command will simply not match
+# anything if there's no --out-implib flag (e.g., for MSVC builds)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
   if(EXISTS "${_build_ninja}")
     message(STATUS "Patching build.ninja for MinGW/MSYS --out-implib fix...")
