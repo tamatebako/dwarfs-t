@@ -45,6 +45,9 @@ endif()
 # We use FetchContent directly (not CPM) to avoid conflicts. We name the
 # package "boost_cmake_wrapper" (not "Boost") because boost-cmake's CMakeLists.txt
 # internally uses FetchContent with the name "Boost", which would conflict.
+#
+# NOTE: Using master branch instead of v1.80.0 tag because the tag has
+# outdated SHA256 hashes for Boost 1.80.0 tarball.
 include(FetchContent)
 
 message(STATUS "Using boost-cmake via FetchContent (all platforms)")
@@ -68,10 +71,11 @@ set(BOOST_INCLUDE_LIBRARIES
 # Use FetchContent to add boost-cmake package
 # IMPORTANT: Name this "boost_cmake_wrapper" NOT "Boost" to avoid conflict with
 # boost-cmake's internal FetchContent_Declare(Boost) call.
+# Using master branch because v1.80.0 tag has outdated SHA256 hashes.
 FetchContent_Declare(
   boost_cmake_wrapper
   GIT_REPOSITORY https://github.com/ClausKlein/boost-cmake
-  GIT_TAG v1.80.0
+  GIT_TAG master
 )
 
 FetchContent_MakeAvailable(boost_cmake_wrapper)
