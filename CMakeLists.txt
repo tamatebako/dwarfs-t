@@ -358,45 +358,31 @@ if(WITH_LIBDWARFS)
   include(cmake/vcpkg/bzip2.cmake)
 
   # ============================================================================
-  # Boost: Use FetchContent (boost-cmake pattern) for all platforms
+  # Boost: Use boost-cmake via CPM for all platforms
   # ============================================================================
-  # We use FetchContent to download and make Boost available BEFORE find_package.
-  # This provides BoostConfig.cmake consistently across all platforms and avoids
-  # version mismatches between vcpkg and system-provided Boost.
+  # We use CPM to download the boost-cmake package, which provides
+  # BoostConfig.cmake and Boost:: targets consistently across all platforms.
   # See: https://github.com/ClausKlein/boost-cmake
-  message(STATUS "Using FetchContent for Boost (boost-cmake pattern)")
+  include(cmake/CPM.cmake)
 
-  # Boost version matching what we need
-  set(BOOST_VERSION 1.87.0)
-
-  # Download Boost CMake source via FetchContent with FIND_PACKAGE_ARGS
-  # This provides BoostConfig.cmake when FetchContent_MakeAvailable is called
-  FetchContent_Declare(
-    Boost
-    URL "https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}-cmake.7z"
-    URL_HASH SHA256=61d61a3f33283bab8f3736745a4e47c37141f07e413986cd05d1f942c69d529a
-    DOWNLOAD_EXTRACT_TIMESTAMP ON
-    EXCLUDE_FROM_ALL
-    SYSTEM
-    FIND_PACKAGE_ARGS
-      ${BOOST_VERSION}
-      COMPONENTS
+  # Specify which Boost libraries to build (boost-cmake uses this)
+  set(BOOST_INCLUDE_LIBRARIES
       chrono
-      program_options
       filesystem
+      program_options
       system
       thread
-      OPTIONAL_COMPONENTS
-      process
+      headers
   )
 
-  # Make Boost available - this provides BoostConfig.cmake and Boost:: targets
-  FetchContent_MakeAvailable(Boost)
-  message(STATUS "Boost ${BOOST_VERSION} made available via FetchContent")
+  # Use CPM to add boost-cmake package
+  CPMAddPackage(
+    NAME Boost
+    GITHUB_REPOSITORY ClausKlein/boost-cmake
+    VERSION 1.87.0
+  )
 
-  find_package(Boost ${BOOST_REQUIRED_VERSION} REQUIRED CONFIG
-               COMPONENTS chrono program_options
-               OPTIONAL_COMPONENTS process)
+  message(STATUS "Boost made available via boost-cmake (CPM)")
 
   if(APPLE)
     if(USE_HOMEBREW_LIBARCHIVE)
