@@ -379,7 +379,7 @@ if(WITH_LIBDWARFS)
   CPMAddPackage(
     NAME Boost
     GITHUB_REPOSITORY ClausKlein/boost-cmake
-    GIT_TAG v1.87.0-rc6
+    GIT_TAG v1.67.0
   )
 
   message(STATUS "Boost made available via boost-cmake (CPM)")
