@@ -63,10 +63,11 @@ set(BOOST_INCLUDE_LIBRARIES
     headers
 )
 
-# On Windows MSVC, use static runtime library (/MT) to match DwarFS settings
-# Without this, Boost is built with /MD (dynamic runtime) causing linker errors
+# On Windows MSVC, set static runtime library (MultiThreaded = /MT)
+# This must be set as a CACHE variable to be visible to boost-cmake's
+# FetchContent subdirectory which builds Boost
 if(MSVC)
-  set(Boost_USE_STATIC_RUNTIME ON)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE STRING "MSVC Runtime Library" FORCE)
 endif()
 
 # Use CPM with GitHub shorthand to add boost-cmake
