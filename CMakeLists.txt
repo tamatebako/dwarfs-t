@@ -80,14 +80,10 @@ CPMAddPackage("gh:ClausKlein/boost-cmake#v1.87.0-rc6")
 
 # On Windows, ensure Boost is used as static libraries by defining BOOST_USE_STATIC_LIBS
 # This prevents Boost headers from adding __declspec(dllimport) decorators
-if(MSVC AND TARGET Boost::headers)
-  target_compile_definitions(Boost::headers INTERFACE BOOST_USE_STATIC_LIBS)
-  # Also set it on other Boost targets
-  foreach(libname IN ITEMS chrono context filesystem program_options regex system thread)
-    if(TARGET Boost::${libname})
-      target_compile_definitions(Boost::${libname} INTERFACE BOOST_USE_STATIC_LIBS)
-    endif()
-  endforeach()
+# Note: ALIAS targets like Boost::headers cannot have target_compile_definitions applied,
+# so we use add_compile_definitions to add the define globally
+if(MSVC)
+  add_compile_definitions(BOOST_USE_STATIC_LIBS)
 endif()
 
 # Note: CMP0111 (imported targets from different directories) is now always NEW
