@@ -11,6 +11,19 @@ set(CMAKE_STRIP strip)
 set(MINGW TRUE)
 set(CMAKE_SYSTEM_NAME Windows)
 
+# ============================================================================
+# CRITICAL: Enable FindBoost module for Boost detection
+# ============================================================================
+# CMake 3.30+ removed FindBoost module (available only if CMP0167 is not NEW)
+# Setting CMP0167 to OLD enables FindBoost, which avoids the circular dependency:
+#   - boost-assert configure needs BoostConfig.cmake
+#   - But BoostConfig.cmake is only created after Boost is fully built
+# FindBoost can find Boost components during configure without this circularity
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 OLD)
+    message(STATUS "MSYS toolchain: CMake policy CMP0167 set to OLD to enable FindBoost module")
+endif()
+
 # IMPORTANT: Do NOT set CMAKE_IMPORT_LIBRARY_SUFFIX
 # Leaving this empty prevents CMake from adding --out-implib flag to executables
 # The --out-implib flag causes MinGW to use GUI startup files expecting WinMain
