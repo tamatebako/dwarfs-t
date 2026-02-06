@@ -33,19 +33,31 @@ set(COMPAT_LIB_INCLUDE_DIRS
 
 # Source files for the compat library
 set(COMPAT_LIB_SOURCES
-  lib/homebrew_detector.cpp
-  lib/fixture_generator.cpp
   lib/fixture_cache.cpp
-  lib/compatibility_tester.cpp
 )
+
+# Unix-specific source files (not compatible with Windows)
+if(NOT WIN32)
+  list(APPEND COMPAT_LIB_SOURCES
+    lib/homebrew_detector.cpp
+    lib/fixture_generator.cpp
+    lib/compatibility_tester.cpp
+  )
+endif()
 
 # Header files for the compat library
 set(COMPAT_LIB_HEADERS
-  lib/homebrew_detector.h
-  lib/fixture_generator.h
   lib/fixture_cache.h
-  lib/compatibility_tester.h
 )
+
+# Unix-specific header files (not compatible with Windows)
+if(NOT WIN32)
+  list(APPEND COMPAT_LIB_HEADERS
+    lib/homebrew_detector.h
+    lib/fixture_generator.h
+    lib/compatibility_tester.h
+  )
+endif()
 
 # Create the compat library
 add_library(dwarfs-compat-lib STATIC ${COMPAT_LIB_SOURCES})
