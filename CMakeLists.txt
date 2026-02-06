@@ -524,6 +524,25 @@ if(WITH_TESTS)
   endif()
 endif()
 
+# ============================================================================
+# Find Boost - Required for compiler_flags.cmake
+# ============================================================================
+# vcpkg's boost-* ports provide Boost CMake targets, but we need to call
+# find_package(Boost) to import them before using Boost::headers or Boost::boost
+# This must be done before including compiler_flags.cmake which uses Boost targets
+if(NOT TARGET Boost::headers AND NOT TARGET Boost::boost)
+  find_package(Boost REQUIRED COMPONENTS
+    chrono
+    context
+    filesystem
+    program_options
+    regex
+    system
+    thread
+  )
+  message(STATUS "Boost found: ${Boost_VERSION}")
+endif()
+
 include(cmake/compiler_flags.cmake)
 include(cmake/packaging.cmake)
 
