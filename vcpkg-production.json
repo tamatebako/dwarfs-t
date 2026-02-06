@@ -7,6 +7,23 @@
   "builtin-baseline": "f14401ca0f2754347c3864da7488a9b955b4e47a",
   "dependencies": [
     "bzip2",
+    "boost-program-options",
+    "boost-filesystem",
+    {
+      "name": "boost-iostreams",
+      "features": ["bzip2"]
+    },
+    "boost-context",
+    "boost-chrono",
+    "boost-convert",
+    "boost-uuid",
+    "boost-process",
+    "boost-algorithm",
+    "boost-asio",
+    "boost-range",
+    "boost-functional",
+    "boost-container",
+    "boost-lexical-cast",
     {
       "name": "argtable3",
       "version>=": "3.3.1"

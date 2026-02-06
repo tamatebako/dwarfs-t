@@ -358,42 +358,51 @@ if(WITH_LIBDWARFS)
   include(cmake/vcpkg/bzip2.cmake)
 
   # ============================================================================
-  # Boost: Use boost-cmake via CPM for all platforms
+  # Boost: Use boost-cmake via CPM for MinGW/MSYS only
   # ============================================================================
-  # We use CPM to download the boost-cmake package, which provides
-  # BoostConfig.cmake and Boost:: targets consistently across all platforms.
+  # For MinGW/MSYS builds, vcpkg's boost-* ports have issues with CMake 3.30+
+  # (FindBoost module removed, circular dependencies). We use boost-cmake instead.
+  # For MSVC builds, we use vcpkg's boost-* ports which work fine.
   # See: https://github.com/ClausKlein/boost-cmake
-  include(cmake/CPM.cmake)
+  set(_use_boost_cmake FALSE)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(_use_boost_cmake TRUE)
+  endif()
+  if(DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys")
+    set(_use_boost_cmake TRUE)
+  endif()
+  if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND "$ENV{VCPKG_DEFAULT_TRIPLET}" MATCHES "mingw|msys")
+    set(_use_boost_cmake TRUE)
+  endif()
 
-  # Set Boost version (must match boost-cmake tag)
-  set(BOOST_VERSION 1.80.0)
+  if(_use_boost_cmake)
+    message(STATUS "MinGW/MSYS build: using boost-cmake via CPM")
 
-  # Specify which Boost libraries to build (boost-cmake uses this)
-  # Include all components needed by dwarfs and Folly
-  set(BOOST_INCLUDE_LIBRARIES
-      chrono
-      context
-      filesystem
-      program_options
-      regex
-      system
-      thread
-      headers
-  )
+    include(cmake/CPM.cmake)
 
-  # Use CPM to add boost-cmake package
-  # Use DOWNLOAD_ONLY to avoid FetchContent conflicts with boost-cmake's internal FetchContent_Populate
-  CPMAddPackage(
-    NAME Boost
-    GITHUB_REPOSITORY ClausKlein/boost-cmake
-    GIT_TAG v1.80.0
-    DOWNLOAD_ONLY
-  )
+    # Set Boost version (must match boost-cmake tag)
+    set(BOOST_VERSION 1.80.0)
 
-  # Manually add boost-cmake subdirectory to avoid FetchContent conflicts
-  if(Boost_ADDED)
-    message(STATUS "Boost source downloaded, adding boost-cmake subdirectory...")
-    add_subdirectory(${Boost_SOURCE_DIR}/tools/cmake ${Boost_BINARY_DIR}/boost-cmake EXCLUDE_FROM_ALL)
+    # Specify which Boost libraries to build (boost-cmake uses this)
+    # Include all components needed by dwarfs and Folly
+    set(BOOST_INCLUDE_LIBRARIES
+        chrono
+        context
+        filesystem
+        program_options
+        regex
+        system
+        thread
+        headers
+    )
+
+    # Use CPM to add boost-cmake package
+    CPMAddPackage(
+      NAME Boost
+      GITHUB_REPOSITORY ClausKlein/boost-cmake
+      GIT_TAG v1.80.0
+    )
+
     message(STATUS "Boost made available via boost-cmake (CPM)")
   endif()
 
