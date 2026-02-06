@@ -179,6 +179,20 @@ endif()
 include(cmake/compile.cmake)
 include(cmake/version.cmake)
 
+# MinGW/MSYS helper function to fix executable linking
+# When CMake detects certain configurations, it adds ENABLE_EXPORTS
+# which causes MinGW to add --out-implib to the link command.
+# This makes MinGW treat the executable as a DLL, causing it to
+# look for WinMain instead of main as the entry point.
+if(MINGW OR MSYS)
+  function(fix_mingw_exe_exports TARGET)
+    # Disable ENABLE_EXPORTS to prevent --out-implib flag
+    set_target_properties(${TARGET} PROPERTIES ENABLE_EXPORTS FALSE)
+    # Set WIN32_EXECUTABLE to FALSE to force console subsystem
+    set_target_properties(${TARGET} PROPERTIES WIN32_EXECUTABLE FALSE)
+  endfunction()
+endif()
+
 # Tebako integration point
 if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
   set(TEBAKO_BUILD ON CACHE BOOL "Enable tebako build mode")
