@@ -11,11 +11,15 @@ set(CMAKE_STRIP strip)
 set(MINGW TRUE)
 set(CMAKE_SYSTEM_NAME Windows)
 
-# IMPORTANT: Do NOT set CMAKE_IMPORT_LIBRARY_SUFFIX
-# Leaving this empty prevents CMake from adding --out-implib flag to executables
+# IMPORTANT: Force console subsystem to prevent WinMain errors
 # The --out-implib flag causes MinGW to use GUI startup files expecting WinMain
 # instead of console startup files expecting main()
 set(CMAKE_IMPORT_LIBRARY_SUFFIX "" CACHE STRING "Disable import library generation for executables" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS "-mconsole" CACHE STRING "Force console subsystem" FORCE)
+
+# Override CMake's default rules to prevent --out-implib flag
+# Set WIN32_EXECUTABLE to FALSE by default for all executables
+set(CMAKE_WIN32_EXECUTABLE FALSE CACHE BOOL "Default to console executables" FORCE)
 
 # Ensure we find the MinGW compiler
 find_program(CMAKE_C_COMPILER gcc)

@@ -16,4 +16,8 @@ set(VCPKG_CMAKE_SYSTEM_NAME MinGW)
 
 # Prevent CMake from adding --out-implib flag which forces GUI mode
 # The --out-implib flag causes MinGW to use GUI startup files expecting WinMain
-set(VCPKG_CMAKE_CONFIGURE_OPTIONS -DCMAKE_IMPORT_LIBRARY_SUFFIX=)
+set(VCPKG_CMAKE_CONFIGURE_OPTIONS
+    -DCMAKE_IMPORT_LIBRARY_SUFFIX=
+    -DCMAKE_WIN32_EXECUTABLE=OFF
+    -DCMAKE_EXE_LINKER_FLAGS=-mconsole
+)
