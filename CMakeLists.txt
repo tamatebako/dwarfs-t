@@ -185,12 +185,10 @@ include(cmake/version.cmake)
 # This makes MinGW treat the executable as a DLL, causing it to
 # look for WinMain instead of main as the entry point.
 function(fix_mingw_exe_exports TARGET)
-  # Disable ENABLE_EXPORTS to prevent --out-implib flag
+  # Disable ENABLE_EXPORTS to help prevent --out-implib flag
   set_target_properties(${TARGET} PROPERTIES ENABLE_EXPORTS FALSE)
   # Set WIN32_EXECUTABLE to FALSE to force console subsystem
   set_target_properties(${TARGET} PROPERTIES WIN32_EXECUTABLE FALSE)
-  # Add -mconsole compile flag to force console mode
-  target_compile_options(${TARGET} PRIVATE -mconsole)
 endfunction()
 
 # Tebako integration point

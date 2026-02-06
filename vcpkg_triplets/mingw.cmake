@@ -11,14 +11,13 @@ set(CMAKE_STRIP strip)
 set(MINGW TRUE)
 set(CMAKE_SYSTEM_NAME Windows)
 
-# IMPORTANT: Force console subsystem to prevent WinMain errors
+# IMPORTANT: Disable --out-implib flag to prevent WinMain errors
 # The --out-implib flag causes MinGW to use GUI startup files expecting WinMain
 # instead of console startup files expecting main()
 set(CMAKE_IMPORT_LIBRARY_SUFFIX "" CACHE STRING "Disable import library generation for executables" FORCE)
-set(CMAKE_EXE_LINKER_FLAGS "-mconsole" CACHE STRING "Force console subsystem" FORCE)
 
-# Override CMake's default rules to prevent --out-implib flag
-# Set WIN32_EXECUTABLE to FALSE by default for all executables
+# Console mode is the default for MinGW - no -mconsole flag needed
+# Just ensure WIN32_EXECUTABLE is FALSE (set in vcpkg triplet)
 set(CMAKE_WIN32_EXECUTABLE FALSE CACHE BOOL "Default to console executables" FORCE)
 
 # CRITICAL: Override the link rule to remove --out-implib flag
