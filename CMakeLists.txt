@@ -31,42 +31,41 @@ if((DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD) AND POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()
 
-# ============================================================================
-# Boost: Use boost-cmake via FetchContent for ALL platforms
-# ============================================================================
-# vcpkg's boost-* ports don't work properly. We use ClausKlein/boost-cmake
-# which provides proper CMake targets.
-# See: https://github.com/ClausKlein/boost-cmake
-#
-# IMPORTANT: boost-cmake internally uses FetchContent (NOT CPM) to download Boost.
-# We use FetchContent to download boost-cmake, then add_subdirectory() to include it.
-# We then link to boost_headers target (not Boost::boost).
-include(FetchContent)
-
-message(STATUS "Using boost-cmake via FetchContent (all platforms)")
-
-# Download boost-cmake via FetchContent
-FetchContent_Declare(
-  boost-cmake
-  GIT_REPOSITORY https://github.com/ClausKlein/boost-cmake
-  GIT_TAG v1.80.0
-)
-
-# Make boost-cmake available
-FetchContent_MakeAvailable(boost-cmake)
-
-# Include boost-cmake's CMakeLists.txt
-# This will download Boost via FetchContent and create boost_headers target
-add_subdirectory(${boost-cmake_SOURCE_DIR} EXCLUDE_FROM_ALL)
-
-message(STATUS "Boost made available via boost-cmake (boost_headers target)")
-
 project(dwarfs LANGUAGES CXX C)
 
 include(ExternalProject)
 include(CheckCXXSourceCompiles)
 
 cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
+
+# ============================================================================
+# Boost: Use boost-cmake via CPM for ALL platforms
+# ============================================================================
+# vcpkg's boost-* ports don't work properly. We use ClausKlein/boost-cmake
+# via CPM with GitHub shorthand format as documented in boost-cmake README.
+# See: https://github.com/ClausKlein/boost-cmake
+#
+# Usage pattern from boost-cmake README:
+#   set(BOOST_INCLUDE_LIBRARIES filesystem headers)
+#   CPMAddPackage("gh:ClausKlein/boost-cmake#v1.80.0")
+#   target_link_libraries(... PUBLIC Boost::headers)
+include(cmake/CPM.cmake)
+
+# Set Boost libraries before calling CPMAddPackage
+set(BOOST_INCLUDE_LIBRARIES
+    chrono
+    context
+    filesystem
+    program_options
+    regex
+    system
+    thread
+    headers
+)
+
+# Use CPM with GitHub shorthand to add boost-cmake
+# This will provide Boost::headers, Boost::filesystem, etc. targets
+CPMAddPackage("gh:ClausKlein/boost-cmake#v1.80.0")
 
 # Note: CMP0111 (imported targets from different directories) is now always NEW
 # The old setting was needed for vcpkg + Folly compatibility but is deprecated
