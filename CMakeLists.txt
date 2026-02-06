@@ -31,6 +31,36 @@ if((DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD) AND POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()
 
+# ============================================================================
+# Boost: Use boost-cmake via FetchContent for ALL platforms
+# ============================================================================
+# vcpkg's boost-* ports don't work properly. We use ClausKlein/boost-cmake
+# which provides proper CMake targets.
+# See: https://github.com/ClausKlein/boost-cmake
+#
+# IMPORTANT: boost-cmake internally uses FetchContent (NOT CPM) to download Boost.
+# We use FetchContent to download boost-cmake, then add_subdirectory() to include it.
+# We then link to boost_headers target (not Boost::boost).
+include(FetchContent)
+
+message(STATUS "Using boost-cmake via FetchContent (all platforms)")
+
+# Download boost-cmake via FetchContent
+FetchContent_Declare(
+  boost-cmake
+  GIT_REPOSITORY https://github.com/ClausKlein/boost-cmake
+  GIT_TAG v1.80.0
+)
+
+# Make boost-cmake available
+FetchContent_MakeAvailable(boost-cmake)
+
+# Include boost-cmake's CMakeLists.txt
+# This will download Boost via FetchContent and create boost_headers target
+add_subdirectory(${boost-cmake_SOURCE_DIR} EXCLUDE_FROM_ALL)
+
+message(STATUS "Boost made available via boost-cmake (boost_headers target)")
+
 project(dwarfs LANGUAGES CXX C)
 
 include(ExternalProject)
@@ -522,25 +552,6 @@ if(WITH_TESTS)
   if(WITH_COMPAT_TESTS AND NOT WIN32)
     add_subdirectory(test/compat)
   endif()
-endif()
-
-# ============================================================================
-# Find Boost - Required for compiler_flags.cmake
-# ============================================================================
-# vcpkg's boost-* ports provide Boost CMake targets, but we need to call
-# find_package(Boost) to import them before using Boost::headers or Boost::boost
-# This must be done before including compiler_flags.cmake which uses Boost targets
-if(NOT TARGET Boost::headers AND NOT TARGET Boost::boost)
-  find_package(Boost REQUIRED COMPONENTS
-    chrono
-    context
-    filesystem
-    program_options
-    regex
-    system
-    thread
-  )
-  message(STATUS "Boost found: ${Boost_VERSION}")
 endif()
 
 include(cmake/compiler_flags.cmake)
