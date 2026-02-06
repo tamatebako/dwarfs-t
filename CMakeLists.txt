@@ -357,6 +357,57 @@ if(WITH_LIBDWARFS)
   # BZip2 must be found BEFORE Boost (required by boost-iostreams)
   include(cmake/vcpkg/bzip2.cmake)
 
+  # ============================================================================
+  # MinGW/MSYS: Use FetchContent to provide BoostConfig.cmake upfront
+  # ============================================================================
+  # For MinGW/MSYS builds, vcpkg's boost-* ports (like boost-assert) need
+  # BoostConfig.cmake during configure, but it doesn't exist until Boost is built.
+  # We use FetchContent to download and make Boost available BEFORE find_package.
+  # This provides BoostConfig.cmake before vcpkg tries to build boost-* ports.
+  # See: https://github.com/ClausKlein/boost-cmake
+  set(_use_boost_fetchcontent FALSE)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(_use_boost_fetchcontent TRUE)
+  endif()
+  if(DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys")
+    set(_use_boost_fetchcontent TRUE)
+  endif()
+  if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND "$ENV{VCPKG_DEFAULT_TRIPLET}" MATCHES "mingw|msys")
+    set(_use_boost_fetchcontent TRUE)
+  endif()
+
+  if(_use_boost_fetchcontent)
+    message(STATUS "MinGW/MSYS build: using FetchContent for Boost to provide BoostConfig.cmake")
+
+    # Boost version matching what we need
+    set(BOOST_VERSION 1.87.0)
+
+    # Download Boost CMake source via FetchContent with FIND_PACKAGE_ARGS
+    # This provides BoostConfig.cmake when FetchContent_MakeAvailable is called
+    FetchContent_Declare(
+      Boost
+      URL "https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}-cmake.7z"
+      URL_HASH SHA256=61d61a3f33283bab8f3736745a4e47c37141f07e413986cd05d1f942c69d529a
+      DOWNLOAD_EXTRACT_TIMESTAMP ON
+      EXCLUDE_FROM_ALL
+      SYSTEM
+      FIND_PACKAGE_ARGS
+        ${BOOST_VERSION}
+        COMPONENTS
+        chrono
+        program_options
+        filesystem
+        system
+        thread
+        OPTIONAL_COMPONENTS
+        process
+    )
+
+    # Make Boost available - this provides BoostConfig.cmake and Boost:: targets
+    FetchContent_MakeAvailable(Boost)
+    message(STATUS "Boost ${BOOST_VERSION} made available via FetchContent")
+  endif()
+
   find_package(Boost ${BOOST_REQUIRED_VERSION} REQUIRED CONFIG
                COMPONENTS chrono program_options
                OPTIONAL_COMPONENTS process)
