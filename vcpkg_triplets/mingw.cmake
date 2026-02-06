@@ -21,6 +21,16 @@ set(CMAKE_EXE_LINKER_FLAGS "-mconsole" CACHE STRING "Force console subsystem" FO
 # Set WIN32_EXECUTABLE to FALSE by default for all executables
 set(CMAKE_WIN32_EXECUTABLE FALSE CACHE BOOL "Default to console executables" FORCE)
 
+# CRITICAL: Override the link rule to remove --out-implib flag
+# CMake's MinGW platform module adds --out-implib unconditionally
+# which causes MinGW to use GUI startup files (crtexewin.o) expecting WinMain
+# instead of console startup files (crt2.o) expecting main()
+# We override CMAKE_CXX_LINK_EXECUTABLE to filter out --out-implib
+set(CMAKE_CXX_LINK_EXECUTABLE
+    "<CMAKE_CXX_COMPILER> <FLAGS> <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>"
+    CACHE STRING "Link command without --out-implib" FORCE
+)
+
 # Ensure we find the MinGW compiler
 find_program(CMAKE_C_COMPILER gcc)
 find_program(CMAKE_CXX_COMPILER g++)
