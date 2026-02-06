@@ -365,6 +365,9 @@ if(WITH_LIBDWARFS)
   # See: https://github.com/ClausKlein/boost-cmake
   include(cmake/CPM.cmake)
 
+  # Set Boost version (must match boost-cmake tag)
+  set(BOOST_VERSION 1.87.0)
+
   # Specify which Boost libraries to build (boost-cmake uses this)
   set(BOOST_INCLUDE_LIBRARIES
       chrono
