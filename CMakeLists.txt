@@ -575,8 +575,11 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
   foreach(_target ${_known_targets})
     if(TARGET ${_target})
       # Skip ALIAS targets - they cannot have their properties modified
-      get_target_property(_target_type ${_target} ALIAS_TARGET)
-      if(_target_type)
+      get_target_property(_alias_target ${_target} ALIAS_TARGET)
+      # Check if ALIAS_TARGET property is NOTFOUND (i.e., not an alias)
+      # If it's NOTFOUND, the target is not an alias and we can proceed
+      if(NOT _alias_target STREQUAL "${_target}-NOTFOUND")
+        # This is an ALIAS target, skip it
         continue()
       endif()
       get_target_property(_link_libs ${_target} INTERFACE_LINK_LIBRARIES)
