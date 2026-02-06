@@ -63,6 +63,12 @@ set(BOOST_INCLUDE_LIBRARIES
     headers
 )
 
+# On Windows MSVC, use static runtime library (/MT) to match DwarFS settings
+# Without this, Boost is built with /MD (dynamic runtime) causing linker errors
+if(MSVC)
+  set(Boost_USE_STATIC_RUNTIME ON)
+endif()
+
 # Use CPM with GitHub shorthand to add boost-cmake
 # This will provide Boost::headers, Boost::filesystem, etc. targets
 CPMAddPackage("gh:ClausKlein/boost-cmake#v1.87.0-rc6")
