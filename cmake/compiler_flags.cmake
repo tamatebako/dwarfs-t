@@ -47,7 +47,10 @@ foreach(tgt ${LIBDWARFS_TARGETS} ${LIBDWARFS_OBJECT_TARGETS}
 
   set_target_properties(${tgt} PROPERTIES EXPORT_COMPILE_COMMANDS ON)
 
-  target_link_libraries(${tgt} PUBLIC Boost::boost)
+  # Use Boost::headers instead of Boost::boost
+  # vcpkg's boost ports provide Boost::headers for header-only libraries
+  # Boost::boost is not provided by vcpkg
+  target_link_libraries(${tgt} PUBLIC Boost::headers)
 
   if(WITH_LIBDWARFS)
     target_include_directories(${tgt} PUBLIC
