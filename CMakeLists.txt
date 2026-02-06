@@ -98,12 +98,27 @@ endfunction()
 # 1. Add -mconsole to force console subsystem
 # 2. Disable ENABLE_EXPORTS for all executable targets to prevent --out-implib
 # See: https://stackoverflow.com/questions/34575066/how-to-prevent-cmake-from-issuing-implib
-# Check if we're building for MinGW/MSYS (either by compiler ID or by vcpkg triplet)
-if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32) OR (DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys"))
+# Check if we're building for MinGW/MSYS (multiple detection methods for robustness)
+# 1. Check if compiler is GCC and we're building for Windows
+# 2. Check if vcpkg triplet is set and matches mingw/msys (CMAKE variable)
+# 3. Check if vcpkg default triplet is set and matches mingw/msys (ENV variable)
+set(_is_mingw_msys_build FALSE)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(_is_mingw_msys_build TRUE)
+endif()
+if(DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys")
+  set(_is_mingw_msys_build TRUE)
+endif()
+if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND "$ENV{VCPKG_DEFAULT_TRIPLET}" MATCHES "mingw|msys")
+  set(_is_mingw_msys_build TRUE)
+endif()
+
+if(_is_mingw_msys_build)
   message(STATUS "MinGW/MSYS build detected: applying MinGW-specific fixes...")
   message(STATUS "  CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
-  message(STATUS "  WIN32: ${WIN32}")
+  message(STATUS "  CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
   message(STATUS "  VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
+  message(STATUS "  ENV{VCPKG_DEFAULT_TRIPLET}: $ENV{VCPKG_DEFAULT_TRIPLET}")
 
   # Add -mconsole to force console subsystem (prevents WinMain errors)
   # IMPORTANT: Must come BEFORE other flags to override GUI mode
@@ -569,12 +584,25 @@ endif()
 # This runs at the very end, after all targets are defined, to ensure
 # ENABLE_EXPORTS is FALSE for all executable targets. This prevents CMake
 # from adding --out-implib flag which causes MinGW to use GUI startup files.
-# Check if we're building for MinGW/MSYS (either by compiler ID or by vcpkg triplet)
-if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32) OR (DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys"))
+# Check if we're building for MinGW/MSYS (multiple detection methods for robustness)
+# Same detection logic as early section to ensure consistency
+set(_is_final_mingw_msys_build FALSE)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(_is_final_mingw_msys_build TRUE)
+endif()
+if(DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys")
+  set(_is_final_mingw_msys_build TRUE)
+endif()
+if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND "$ENV{VCPKG_DEFAULT_TRIPLET}" MATCHES "mingw|msys")
+  set(_is_final_mingw_msys_build TRUE)
+endif()
+
+if(_is_final_mingw_msys_build)
   message(STATUS "Applying FINAL MinGW/MSYS ENABLE_EXPORTS fix...")
   message(STATUS "  CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
-  message(STATUS "  WIN32: ${WIN32}")
+  message(STATUS "  CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
   message(STATUS "  VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
+  message(STATUS "  ENV{VCPKG_DEFAULT_TRIPLET}: $ENV{VCPKG_DEFAULT_TRIPLET}")
   set(_fixed_count 0)
   # Use BUILDSYSTEM_TARGETS to get all targets in the build system
   # ALL_TARGETS only gets targets in the current directory scope
