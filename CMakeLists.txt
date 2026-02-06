@@ -32,7 +32,7 @@ if((DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD) AND POLICY CMP0167)
 endif()
 
 # ============================================================================
-# Boost: Use boost-cmake via CPM for ALL platforms
+# Boost: Use boost-cmake via FetchContent for ALL platforms
 # ============================================================================
 # vcpkg's boost-cmake wrapper (1.90.0) doesn't provide proper BoostConfig.cmake
 # with Boost::boost target. We use ClausKlein/boost-cmake instead which provides
@@ -41,9 +41,13 @@ endif()
 #
 # IMPORTANT: This must be BEFORE project() because vcpkg processes dependencies
 # during project(), and we need boost-cmake to be available first.
-message(STATUS "Using boost-cmake via CPM (all platforms)")
+#
+# We use FetchContent directly (not CPM) to avoid conflicts. We name the
+# package "boost_cmake_wrapper" (not "Boost") because boost-cmake's CMakeLists.txt
+# internally uses FetchContent with the name "Boost", which would conflict.
+include(FetchContent)
 
-include(cmake/CPM.cmake)
+message(STATUS "Using boost-cmake via FetchContent (all platforms)")
 
 # Set Boost version (must match boost-cmake tag)
 set(BOOST_VERSION 1.80.0)
@@ -61,14 +65,18 @@ set(BOOST_INCLUDE_LIBRARIES
     headers
 )
 
-# Use CPM to add boost-cmake package
-CPMAddPackage(
-  NAME Boost
-  GITHUB_REPOSITORY ClausKlein/boost-cmake
+# Use FetchContent to add boost-cmake package
+# IMPORTANT: Name this "boost_cmake_wrapper" NOT "Boost" to avoid conflict with
+# boost-cmake's internal FetchContent_Declare(Boost) call.
+FetchContent_Declare(
+  boost_cmake_wrapper
+  GIT_REPOSITORY https://github.com/ClausKlein/boost-cmake
   GIT_TAG v1.80.0
 )
 
-message(STATUS "Boost made available via boost-cmake (CPM)")
+FetchContent_MakeAvailable(boost_cmake_wrapper)
+
+message(STATUS "Boost made available via boost-cmake (FetchContent)")
 
 project(dwarfs LANGUAGES CXX C)
 
