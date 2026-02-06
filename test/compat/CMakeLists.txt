@@ -59,6 +59,13 @@ if(NOT WIN32)
   )
 endif()
 
+# Homebrew compatibility is only available on Unix platforms (macOS, Linux)
+# Skip building the compat library entirely on Windows
+if(WIN32)
+  message(STATUS "Homebrew compatibility tests skipped on Windows")
+  return()
+endif()
+
 # Create the compat library
 add_library(dwarfs-compat-lib STATIC ${COMPAT_LIB_SOURCES})
 target_include_directories(dwarfs-compat-lib
