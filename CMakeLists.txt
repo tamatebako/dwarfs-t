@@ -493,7 +493,7 @@ endif()
 # MinGW fix: remove --out-implib flag from executable links
 # This prevents MinGW from treating executables as DLLs (which causes
 # it to look for WinMain instead of main as the entry point)
-if(WIN32 AND "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+if(MINGW)
   set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
   if(EXISTS "${_build_ninja}")
     message(STATUS "Patching build.ninja for MinGW/MSYS --out-implib fix...")
