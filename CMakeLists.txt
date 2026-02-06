@@ -486,3 +486,24 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
     endif()
   endif()
 endif()
+
+# ============================================================================
+# MinGW/MSYS build.ninja patch (applies to all CMake versions)
+# ============================================================================
+# MinGW fix: remove --out-implib flag from executable links
+# This prevents MinGW from treating executables as DLLs (which causes
+# it to look for WinMain instead of main as the entry point)
+if(WIN32 AND "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
+  if(EXISTS "${_build_ninja}")
+    message(STATUS "Patching build.ninja for MinGW/MSYS --out-implib fix...")
+    execute_process(
+      COMMAND sed -i.bak3 "s/-Wl,--out-implib,[^ ]* //g" "${_build_ninja}"
+      RESULT_VARIABLE _sed_result
+      ERROR_QUIET
+    )
+    if(_sed_result EQUAL 0)
+      message(STATUS "  Successfully patched build.ninja for MinGW/MSYS")
+    endif()
+  endif()
+endif()
