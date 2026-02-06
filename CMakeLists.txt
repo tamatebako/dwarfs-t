@@ -38,54 +38,6 @@ include(CheckCXXSourceCompiles)
 
 cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
-# ============================================================================
-# Boost: Use boost-cmake via CPM for ALL platforms
-# ============================================================================
-# vcpkg's boost-* ports don't work properly. We use ClausKlein/boost-cmake
-# via CPM with GitHub shorthand format as documented in boost-cmake README.
-# See: https://github.com/ClausKlein/boost-cmake
-#
-# Usage pattern from boost-cmake README:
-#   set(BOOST_INCLUDE_LIBRARIES filesystem headers)
-#   CPMAddPackage("gh:ClausKlein/boost-cmake#v1.87.0-rc6")
-#   target_link_libraries(... PUBLIC Boost::headers)
-include(cmake/CPM.cmake)
-
-# Set Boost libraries before calling CPMAddPackage
-set(BOOST_INCLUDE_LIBRARIES
-    chrono
-    context
-    filesystem
-    program_options
-    regex
-    system
-    thread
-    headers
-)
-
-# On Windows MSVC, set static runtime library (MultiThreaded = /MT)
-# This must be set as a CACHE variable to be visible to boost-cmake's
-# FetchContent subdirectory which builds Boost
-if(MSVC)
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE STRING "MSVC Runtime Library" FORCE)
-endif()
-
-# Build Boost as static libraries, not shared DLLs
-# This is required for static builds to work correctly on Windows
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
-
-# Use CPM with GitHub shorthand to add boost-cmake
-# This will provide Boost::headers, Boost::filesystem, etc. targets
-CPMAddPackage("gh:ClausKlein/boost-cmake#v1.87.0-rc6")
-
-# On Windows, ensure Boost is used as static libraries by defining BOOST_USE_STATIC_LIBS
-# This prevents Boost headers from adding __declspec(dllimport) decorators
-# Note: ALIAS targets like Boost::headers cannot have target_compile_definitions applied,
-# so we use add_compile_definitions to add the define globally
-if(MSVC)
-  add_compile_definitions(BOOST_USE_STATIC_LIBS)
-endif()
-
 # Note: CMP0111 (imported targets from different directories) is now always NEW
 # The old setting was needed for vcpkg + Folly compatibility but is deprecated
 
@@ -110,112 +62,6 @@ elseif(NOT DEFINED VCPKG_BUILD)
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
-
-# ============================================================================
-# MinGW/MSYS-specific fixes
-# ============================================================================
-
-# ============================================================================
-# MinGW/MSYS Deferred build.ninja Patching Function
-# ============================================================================
-# This function is called AFTER CMake finishes generating build.ninja
-# It removes the --out-implib flag that causes WinMain linker errors.
-# The flag must be removed from build.ninja because CMake's MinGW platform
-# module adds it despite our settings, and it comes LAST in the link command,
-# overriding earlier console subsystem flags.
-function(deferred_mingw_patch_build_ninja)
-  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
-  if(EXISTS "${_build_ninja}")
-    message(STATUS "DEFERRED: Patching build.ninja to remove --out-implib flags...")
-    file(READ "${_build_ninja}" _ninja_content)
-    # Remove --out-implib flags (multiple patterns for robustness)
-    string(REGEX REPLACE "-Wl,--out-implib,[^ \n]*" "" _ninja_content "${_ninja_content}")
-    string(REGEX REPLACE "-Wl,--out-implib,[^\n]*" "" _ninja_content "${_ninja_content}")
-    file(WRITE "${_build_ninja}" "${_ninja_content}")
-    message(STATUS "DEFERRED: Successfully patched build.ninja (--out-implib flags removed)")
-  else()
-    message(WARNING "DEFERRED: build.ninja not found for patching")
-  endif()
-endfunction()
-
-# For MinGW/MSYS, prevent CMake from adding --out-implib flag to linker
-# This flag causes MinGW to use GUI startup files (crtexewin.o) expecting
-# WinMain instead of console startup files expecting main()
-#
-# We do two things:
-# 1. Add -mconsole to force console subsystem
-# 2. Disable ENABLE_EXPORTS for all executable targets to prevent --out-implib
-# See: https://stackoverflow.com/questions/34575066/how-to-prevent-cmake-from-issuing-implib
-# Check if we're building for MinGW/MSYS (multiple detection methods for robustness)
-# 1. Check if compiler is GCC and we're building for Windows
-# 2. Check if vcpkg triplet is set and matches mingw/msys (CMAKE variable)
-# 3. Check if vcpkg default triplet is set and matches mingw/msys (ENV variable)
-set(_is_mingw_msys_build FALSE)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  set(_is_mingw_msys_build TRUE)
-endif()
-if(DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys")
-  set(_is_mingw_msys_build TRUE)
-endif()
-if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND "$ENV{VCPKG_DEFAULT_TRIPLET}" MATCHES "mingw|msys")
-  set(_is_mingw_msys_build TRUE)
-endif()
-
-if(_is_mingw_msys_build)
-  message(STATUS "MinGW/MSYS build detected: applying MinGW-specific fixes...")
-  message(STATUS "  CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
-  message(STATUS "  CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
-  message(STATUS "  VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
-  message(STATUS "  ENV{VCPKG_DEFAULT_TRIPLET}: $ENV{VCPKG_DEFAULT_TRIPLET}")
-
-  # Add -mconsole to force console subsystem (prevents WinMain errors)
-  # IMPORTANT: Must come BEFORE other flags to override GUI mode
-  set(CMAKE_EXE_LINKER_FLAGS "-mconsole ${CMAKE_EXE_LINKER_FLAGS}" CACHE STRING "Executable linker flags" FORCE)
-  message(STATUS "MinGW/MSYS build: added -mconsole to force console subsystem")
-
-  # Set CMAKE_IMPORT_LIBRARY_SUFFIX to empty to prevent --out-implib flag
-  # The --out-implib flag causes MinGW to use GUI startup files expecting WinMain
-  # Must be set (not unset) to override vcpkg toolchain defaults
-  set(CMAKE_IMPORT_LIBRARY_SUFFIX "" CACHE STRING "Disable import library generation for executables" FORCE)
-  message(STATUS "MinGW/MSYS build: set CMAKE_IMPORT_LIBRARY_SUFFIX to empty to prevent --out-implib")
-
-  # Disable automatic DLL import library creation
-  set(CMAKE_GNULDLLTOOL TRUE CACHE BOOL "Use GNU DLL tool" FORCE)
-
-  # Disable ENABLE_EXPORTS for all executable targets to prevent --out-implib
-  # This must be done in a scope that runs after targets are defined
-  function(fix_mingw_exe_exports target)
-    # Disable ENABLE_EXPORTS to prevent CMake from adding --out-implib
-    set_target_properties(${target} PROPERTIES ENABLE_EXPORTS FALSE)
-    # Explicitly set WIN32_EXECUTABLE to FALSE to force console mode
-    # This prevents CMake from treating the executable as a Windows GUI app
-    set_target_properties(${target} PROPERTIES WIN32_EXECUTABLE FALSE)
-    # Explicitly set console subsystem and entry point to prevent WinMain errors
-    target_link_options(${target} PRIVATE "LINKER:--subsystem,console" "LINKER:-e,mainCRTStartup")
-  endfunction()
-
-  # MSYS-specific: Iconv is builtin but FindIconv can't find it
-  # Set Iconv variables to skip FindIconv check for MSYS
-  if(MINGW AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    # Check if we're in MSYS environment (not pure MinGW)
-    # Use multiple detection methods for robustness
-    set(_is_msys FALSE)
-    if(DEFINED ENV{MSYSTEM} AND "$ENV{MSYSTEM}" STREQUAL "MSYS")
-      set(_is_msys TRUE)
-    elseif(DEFINED VCPKG_CMAKE_SYSTEM_NAME AND VCPKG_CMAKE_SYSTEM_NAME STREQUAL "MSYS")
-      set(_is_msys TRUE)
-    endif()
-
-    if(_is_msys)
-      message(STATUS "MSYS environment detected: setting Iconv as builtin")
-      # Tell CMake that Iconv is available in the C standard library
-      set(Iconv_FOUND TRUE CACHE BOOL "Iconv found in MSYS C library" FORCE)
-      set(Iconv_INCLUDE_DIR "" CACHE STRING "Iconv headers in standard include path" FORCE)
-      set(Iconv_LIBRARY "" CACHE STRING "Iconv in C standard library" FORCE)
-    endif()
-  endif()
-endif()
-
 option(WITH_TOOLS "build with tools" ON)
 option(WITH_FUSE_DRIVER "build with FUSE driver" ON)
 option(WITH_DESKTOP_INTEGRATION "install mimetype and desktop integration" ON)
@@ -298,7 +144,7 @@ set(RANGE_V3_PREFERRED_VERSION 0.12.0)
 set(PARALLEL_HASHMAP_REQUIRED_VERSION 1.3.8)
 set(PARALLEL_HASHMAP_PREFERRED_VERSION v1.3.12)
 
-set(BOOST_REQUIRED_VERSION 1.80.0)
+set(BOOST_REQUIRED_VERSION 1.67.0)
 set(LIBCRYPTO_REQUIRED_VERSION 3.0.0)
 set(LIBLZ4_REQUIRED_VERSION 1.9.3)
 set(LIBLZMA_REQUIRED_VERSION 5.2.5)
@@ -404,6 +250,10 @@ if(WITH_LIBDWARFS)
 
   # BZip2 must be found BEFORE Boost (required by boost-iostreams)
   include(cmake/vcpkg/bzip2.cmake)
+
+  find_package(Boost ${BOOST_REQUIRED_VERSION} REQUIRED CONFIG
+               COMPONENTS chrono program_options
+               OPTIONAL_COMPONENTS process)
 
   if(APPLE)
     if(USE_HOMEBREW_LIBARCHIVE)
@@ -567,7 +417,7 @@ endif()
 
 if(WITH_TESTS)
   option(WITH_COMPAT_TESTS "Enable Homebrew compatibility tests" ON)
-  if(WITH_COMPAT_TESTS AND NOT WIN32)
+  if(WITH_COMPAT_TESTS)
     add_subdirectory(test/compat)
   endif()
 endif()
@@ -593,14 +443,6 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
   )
   foreach(_target ${_known_targets})
     if(TARGET ${_target})
-      # Skip ALIAS targets - they cannot have their properties modified
-      get_target_property(_alias_target ${_target} ALIAS_TARGET)
-      # Check if ALIAS_TARGET property is NOTFOUND (i.e., not an alias)
-      # If it's NOTFOUND, the target is not an alias and we can proceed
-      if(NOT _alias_target STREQUAL "${_target}-NOTFOUND")
-        # This is an ALIAS target, skip it
-        continue()
-      endif()
       get_target_property(_link_libs ${_target} INTERFACE_LINK_LIBRARIES)
       if(_link_libs AND "${_link_libs}" MATCHES "\\$<LINK_ONLY:Threads::Threads>")
         # Remove generator expressions
@@ -613,14 +455,13 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
   endforeach()
   message(STATUS "FINAL workaround: fixed ${_fixed_count} targets")
 
-  # Also patch the build.ninja file to remove problematic flags
-  # This is needed because CMake 4.x doesn't evaluate generator expressions properly
-  # and MinGW/MSYS need special handling to prevent WinMain errors
+  # Also patch the build.ninja file to remove generator expressions
+  # This is needed because CMake 4.x doesn't evaluate them properly
   set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
   if(EXISTS "${_build_ninja}")
-    message(STATUS "Patching build.ninja to remove generator expressions and --out-implib...")
+    message(STATUS "Patching build.ninja to remove generator expressions...")
     execute_process(
-      COMMAND sed -i.bak "s/\\$<LINK_ONLY:Threads::Threads>//g; s/-Wl,--out-implib,[^ ]*//g" "${_build_ninja}"
+      COMMAND sed -i.bak "s/\\$<LINK_ONLY:Threads::Threads>//g" "${_build_ninja}"
       RESULT_VARIABLE _sed_result
       ERROR_QUIET
     )
@@ -628,61 +469,4 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
       message(STATUS "  Successfully patched build.ninja")
     endif()
   endif()
-endif()
-
-# ============================================================================
-# FINAL MinGW/MSYS FIX: Disable ENABLE_EXPORTS and force console subsystem
-# ============================================================================
-# This runs at the very end, after all targets are defined, to ensure
-# ENABLE_EXPORTS is FALSE for all executable targets. This prevents CMake
-# from adding --out-implib flag which causes MinGW to use GUI startup files.
-# Check if we're building for MinGW/MSYS (multiple detection methods for robustness)
-# Same detection logic as early section to ensure consistency
-set(_is_final_mingw_msys_build FALSE)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  set(_is_final_mingw_msys_build TRUE)
-endif()
-if(DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys")
-  set(_is_final_mingw_msys_build TRUE)
-endif()
-if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND "$ENV{VCPKG_DEFAULT_TRIPLET}" MATCHES "mingw|msys")
-  set(_is_final_mingw_msys_build TRUE)
-endif()
-
-if(_is_final_mingw_msys_build)
-  message(STATUS "Applying FINAL MinGW/MSYS ENABLE_EXPORTS fix...")
-  message(STATUS "  CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
-  message(STATUS "  CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
-  message(STATUS "  VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
-  message(STATUS "  ENV{VCPKG_DEFAULT_TRIPLET}: $ENV{VCPKG_DEFAULT_TRIPLET}")
-  set(_fixed_count 0)
-  # Use BUILDSYSTEM_TARGETS to get all targets in the build system
-  # ALL_TARGETS only gets targets in the current directory scope
-  get_cmake_property(_all_targets BUILDSYSTEM_TARGETS)
-  foreach(_target ${_all_targets})
-    if(TARGET ${_target})
-      get_target_property(_target_type ${_target} TYPE)
-      if("${_target_type}" STREQUAL "EXECUTABLE")
-        # Disable ENABLE_EXPORTS to prevent --out-implib
-        set_target_properties(${_target} PROPERTIES ENABLE_EXPORTS FALSE)
-        # Set WIN32_EXECUTABLE to FALSE to force console mode (not Windows GUI app)
-        # This prevents CMake from treating the executable as a Windows GUI app
-        set_target_properties(${_target} PROPERTIES WIN32_EXECUTABLE FALSE)
-        # Add -mconsole as a compile option to force console mode
-        target_compile_options(${_target} PRIVATE "-mconsole")
-        # Explicitly set console subsystem at linker level
-        target_link_options(${_target} PRIVATE "LINKER:--subsystem,console" "LINKER:-e,mainCRTStartup")
-        math(EXPR _fixed_count "${_fixed_count} + 1")
-      endif()
-    endif()
-  endforeach()
-  message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS and set console subsystem on ${_fixed_count} executable targets")
-
-  # CRITICAL: Schedule deferred patching of build.ninja to remove --out-implib flag
-  # CMake's MinGW platform module adds --out-implib despite ENABLE_EXPORTS=FALSE
-  # This flag comes LAST in the link command and overrides console flags, causing WinMain errors
-  # We use cmake_language(DEFER) to patch build.ninja AFTER CMake finishes generating it
-  message(STATUS "Scheduling deferred build.ninja patching for MinGW/MSYS...")
-  cmake_language(DEFER DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" CALL deferred_mingw_patch_build_ninja)
-  message(STATUS "  Deferred patching will execute after CMake generates build.ninja")
 endif()
