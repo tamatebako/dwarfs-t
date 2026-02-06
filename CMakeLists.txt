@@ -472,7 +472,8 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
     # MinGW/MSYS fix: remove --out-implib flag from executable links
     # This prevents MinGW from treating executables as DLLs (which causes
     # it to look for WinMain instead of main as the entry point)
-    if(MINGW OR MSYS)
+    # Detect MinGW by checking if the triplet contains "mingw" or "msys"
+    if(DEFINED ENV{VCPKG_TARGET_TRIPLET} AND ("$ENV{VCPKG_TARGET_TRIPLET}" MATCHES "mingw" OR "$ENV{VCPKG_TARGET_TRIPLET}" MATCHES "msys"))
       message(STATUS "Patching build.ninja for MinGW/MSYS --out-implib fix...")
       execute_process(
         COMMAND sed -i.bak2 "s/-Wl,--out-implib,[^ ]* //g" "${_build_ninja}"
