@@ -78,6 +78,18 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 # This will provide Boost::headers, Boost::filesystem, etc. targets
 CPMAddPackage("gh:ClausKlein/boost-cmake#v1.87.0-rc6")
 
+# On Windows, ensure Boost is used as static libraries by defining BOOST_USE_STATIC_LIBS
+# This prevents Boost headers from adding __declspec(dllimport) decorators
+if(MSVC AND TARGET Boost::headers)
+  set_target_properties(Boost::headers PROPERTIES INTERFACE_COMPILE_DEFINITIONS "BOOST_USE_STATIC_LIBS")
+  # Also set it on other Boost targets
+  foreach(libname IN ITEMS chrono context filesystem program_options regex system thread)
+    if(TARGET Boost::${libname})
+      set_target_properties(Boost::${libname} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "BOOST_USE_STATIC_LIBS")
+    endif()
+  endforeach()
+endif()
+
 # Note: CMP0111 (imported targets from different directories) is now always NEW
 # The old setting was needed for vcpkg + Folly compatibility but is deprecated
 
