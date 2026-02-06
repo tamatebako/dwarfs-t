@@ -1,7 +1,0 @@
-{
-  "name": "boost-assert",
-  "version-string": "1.90.0",
-  "description": "Boost assert module",
-  "homepage": "https://github.com/boostorg/assert",
-  "license": "BSL-1.0"
-}
