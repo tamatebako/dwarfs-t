@@ -233,6 +233,9 @@ jobs:
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 3.30.5
+          ninjaVersion: latest
 
       # Common dependencies (Python packages for manpage generation)
       - name: 📦 Install common dependencies
