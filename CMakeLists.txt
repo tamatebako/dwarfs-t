@@ -75,7 +75,13 @@ option(WITH_LIBDWARFS "build with libdwarfs" ON)
 # 1. Add -mconsole to force console subsystem
 # 2. Disable ENABLE_EXPORTS for all executable targets to prevent --out-implib
 # See: https://stackoverflow.com/questions/34575066/how-to-prevent-cmake-from-issuing-implib
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
+# Check if we're building for MinGW/MSYS (either by compiler ID or by vcpkg triplet)
+if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32) OR (DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys"))
+  message(STATUS "MinGW/MSYS build detected: applying MinGW-specific fixes...")
+  message(STATUS "  CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
+  message(STATUS "  WIN32: ${WIN32}")
+  message(STATUS "  VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
+
   # Add -mconsole to force console subsystem (prevents WinMain errors)
   # IMPORTANT: Must come BEFORE other flags to override GUI mode
   set(CMAKE_EXE_LINKER_FLAGS "-mconsole ${CMAKE_EXE_LINKER_FLAGS}" CACHE STRING "Executable linker flags" FORCE)
