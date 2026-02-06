@@ -3,11 +3,5 @@
   "version-string": "1.90.0",
   "description": "Boost assert module",
   "homepage": "https://github.com/boostorg/assert",
-  "license": "BSL-1.0",
-  "dependencies": [
-    {
-      "name": "boost-v2",
-      "version>=": "1.85.0"
-    }
-  ]
+  "license": "BSL-1.0"
 }
