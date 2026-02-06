@@ -369,10 +369,13 @@ if(WITH_LIBDWARFS)
   set(BOOST_VERSION 1.80.0)
 
   # Specify which Boost libraries to build (boost-cmake uses this)
+  # Include all components needed by dwarfs and Folly
   set(BOOST_INCLUDE_LIBRARIES
       chrono
+      context
       filesystem
       program_options
+      regex
       system
       thread
       headers
