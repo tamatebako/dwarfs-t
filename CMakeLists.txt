@@ -574,6 +574,11 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
   )
   foreach(_target ${_known_targets})
     if(TARGET ${_target})
+      # Skip ALIAS targets - they cannot have their properties modified
+      get_target_property(_target_type ${_target} ALIAS_TARGET)
+      if(_target_type)
+        continue()
+      endif()
       get_target_property(_link_libs ${_target} INTERFACE_LINK_LIBRARIES)
       if(_link_libs AND "${_link_libs}" MATCHES "\\$<LINK_ONLY:Threads::Threads>")
         # Remove generator expressions
