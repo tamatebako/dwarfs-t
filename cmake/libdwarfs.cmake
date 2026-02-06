@@ -427,7 +427,7 @@ set_property(TARGET dwarfs_fsst PROPERTY CXX_EXTENSIONS OFF)
 target_link_libraries(
   dwarfs_common
   PUBLIC
-  Boost::headers
+  Boost::boost
   Boost::chrono
   Boost::program_options
   dwarfs_fsst
