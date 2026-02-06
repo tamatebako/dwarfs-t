@@ -31,6 +31,45 @@ if((DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD) AND POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()
 
+# ============================================================================
+# Boost: Use boost-cmake via CPM for ALL platforms
+# ============================================================================
+# vcpkg's boost-cmake wrapper (1.90.0) doesn't provide proper BoostConfig.cmake
+# with Boost::boost target. We use ClausKlein/boost-cmake instead which provides
+# proper CMake targets.
+# See: https://github.com/ClausKlein/boost-cmake
+#
+# IMPORTANT: This must be BEFORE project() because vcpkg processes dependencies
+# during project(), and we need boost-cmake to be available first.
+message(STATUS "Using boost-cmake via CPM (all platforms)")
+
+include(cmake/CPM.cmake)
+
+# Set Boost version (must match boost-cmake tag)
+set(BOOST_VERSION 1.80.0)
+
+# Specify which Boost libraries to build (boost-cmake uses this)
+# Include all components needed by dwarfs and Folly
+set(BOOST_INCLUDE_LIBRARIES
+    chrono
+    context
+    filesystem
+    program_options
+    regex
+    system
+    thread
+    headers
+)
+
+# Use CPM to add boost-cmake package
+CPMAddPackage(
+  NAME Boost
+  GITHUB_REPOSITORY ClausKlein/boost-cmake
+  GIT_TAG v1.80.0
+)
+
+message(STATUS "Boost made available via boost-cmake (CPM)")
+
 project(dwarfs LANGUAGES CXX C)
 
 include(ExternalProject)
@@ -356,55 +395,6 @@ if(WITH_LIBDWARFS)
 
   # BZip2 must be found BEFORE Boost (required by boost-iostreams)
   include(cmake/vcpkg/bzip2.cmake)
-
-  # ============================================================================
-  # Boost: Use boost-cmake via CPM for MinGW/MSYS only
-  # ============================================================================
-  # For MinGW/MSYS builds, vcpkg's boost-* ports have issues with CMake 3.30+
-  # (FindBoost module removed, circular dependencies). We use boost-cmake instead.
-  # For MSVC builds, we use vcpkg's boost-* ports which work fine.
-  # See: https://github.com/ClausKlein/boost-cmake
-  set(_use_boost_cmake FALSE)
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set(_use_boost_cmake TRUE)
-  endif()
-  if(DEFINED VCPKG_TARGET_TRIPLET AND "${VCPKG_TARGET_TRIPLET}" MATCHES "mingw|msys")
-    set(_use_boost_cmake TRUE)
-  endif()
-  if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND "$ENV{VCPKG_DEFAULT_TRIPLET}" MATCHES "mingw|msys")
-    set(_use_boost_cmake TRUE)
-  endif()
-
-  if(_use_boost_cmake)
-    message(STATUS "MinGW/MSYS build: using boost-cmake via CPM")
-
-    include(cmake/CPM.cmake)
-
-    # Set Boost version (must match boost-cmake tag)
-    set(BOOST_VERSION 1.80.0)
-
-    # Specify which Boost libraries to build (boost-cmake uses this)
-    # Include all components needed by dwarfs and Folly
-    set(BOOST_INCLUDE_LIBRARIES
-        chrono
-        context
-        filesystem
-        program_options
-        regex
-        system
-        thread
-        headers
-    )
-
-    # Use CPM to add boost-cmake package
-    CPMAddPackage(
-      NAME Boost
-      GITHUB_REPOSITORY ClausKlein/boost-cmake
-      GIT_TAG v1.80.0
-    )
-
-    message(STATUS "Boost made available via boost-cmake (CPM)")
-  endif()
 
   if(APPLE)
     if(USE_HOMEBREW_LIBARCHIVE)
