@@ -81,11 +81,11 @@ CPMAddPackage("gh:ClausKlein/boost-cmake#v1.87.0-rc6")
 # On Windows, ensure Boost is used as static libraries by defining BOOST_USE_STATIC_LIBS
 # This prevents Boost headers from adding __declspec(dllimport) decorators
 if(MSVC AND TARGET Boost::headers)
-  set_target_properties(Boost::headers PROPERTIES INTERFACE_COMPILE_DEFINITIONS "BOOST_USE_STATIC_LIBS")
+  target_compile_definitions(Boost::headers INTERFACE BOOST_USE_STATIC_LIBS)
   # Also set it on other Boost targets
   foreach(libname IN ITEMS chrono context filesystem program_options regex system thread)
     if(TARGET Boost::${libname})
-      set_target_properties(Boost::${libname} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "BOOST_USE_STATIC_LIBS")
+      target_compile_definitions(Boost::${libname} INTERFACE BOOST_USE_STATIC_LIBS)
     endif()
   endforeach()
 endif()
