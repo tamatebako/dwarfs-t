@@ -47,9 +47,6 @@ foreach(tgt ${LIBDWARFS_TARGETS} ${LIBDWARFS_OBJECT_TARGETS}
 
   set_target_properties(${tgt} PROPERTIES EXPORT_COMPILE_COMMANDS ON)
 
-  # Link to boost_headers target provided by boost-cmake
-  target_link_libraries(${tgt} PUBLIC boost_headers)
-
   if(WITH_LIBDWARFS)
     target_include_directories(${tgt} PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
