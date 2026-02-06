@@ -189,6 +189,8 @@ function(fix_mingw_exe_exports TARGET)
   set_target_properties(${TARGET} PROPERTIES ENABLE_EXPORTS FALSE)
   # Set WIN32_EXECUTABLE to FALSE to force console subsystem
   set_target_properties(${TARGET} PROPERTIES WIN32_EXECUTABLE FALSE)
+  # Add -mconsole to force console mode (overrides any -mwindows)
+  target_link_options(${TARGET} PRIVATE LINKER:-mconsole)
 endfunction()
 
 # Tebako integration point
