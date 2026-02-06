@@ -31,57 +31,6 @@ if((DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD) AND POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()
 
-# ============================================================================
-# Boost: Use boost-cmake via FetchContent for ALL platforms
-# ============================================================================
-# vcpkg's boost-cmake wrapper (1.90.0) doesn't provide proper BoostConfig.cmake
-# with Boost::boost target. We use ClausKlein/boost-cmake instead which provides
-# proper CMake targets.
-# See: https://github.com/ClausKlein/boost-cmake
-#
-# IMPORTANT: This must be BEFORE project() because vcpkg processes dependencies
-# during project(), and we need boost-cmake to be available first.
-#
-# We use FetchContent directly (not CPM) to avoid conflicts. We name the
-# package "boost_cmake_wrapper" (not "Boost") because boost-cmake's CMakeLists.txt
-# internally uses FetchContent with the name "Boost", which would conflict.
-#
-# NOTE: Using master branch instead of v1.80.0 tag because the tag has
-# outdated SHA256 hashes for Boost 1.80.0 tarball.
-include(FetchContent)
-
-message(STATUS "Using boost-cmake via FetchContent (all platforms)")
-
-# Set Boost version (must match boost-cmake tag)
-set(BOOST_VERSION 1.80.0)
-
-# Specify which Boost libraries to build (boost-cmake uses this)
-# Include all components needed by dwarfs and Folly
-set(BOOST_INCLUDE_LIBRARIES
-    chrono
-    context
-    filesystem
-    program_options
-    regex
-    system
-    thread
-    headers
-)
-
-# Use FetchContent to add boost-cmake package
-# IMPORTANT: Name this "boost_cmake_wrapper" NOT "Boost" to avoid conflict with
-# boost-cmake's internal FetchContent_Declare(Boost) call.
-# Using master branch because v1.80.0 tag has outdated SHA256 hashes.
-FetchContent_Declare(
-  boost_cmake_wrapper
-  GIT_REPOSITORY https://github.com/ClausKlein/boost-cmake
-  GIT_TAG master
-)
-
-FetchContent_MakeAvailable(boost_cmake_wrapper)
-
-message(STATUS "Boost made available via boost-cmake (FetchContent)")
-
 project(dwarfs LANGUAGES CXX C)
 
 include(ExternalProject)
