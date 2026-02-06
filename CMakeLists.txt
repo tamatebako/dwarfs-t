@@ -67,6 +67,29 @@ option(WITH_LIBDWARFS "build with libdwarfs" ON)
 # MinGW/MSYS-specific fixes
 # ============================================================================
 
+# ============================================================================
+# MinGW/MSYS Deferred build.ninja Patching Function
+# ============================================================================
+# This function is called AFTER CMake finishes generating build.ninja
+# It removes the --out-implib flag that causes WinMain linker errors.
+# The flag must be removed from build.ninja because CMake's MinGW platform
+# module adds it despite our settings, and it comes LAST in the link command,
+# overriding earlier console subsystem flags.
+function(deferred_mingw_patch_build_ninja)
+  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
+  if(EXISTS "${_build_ninja}")
+    message(STATUS "DEFERRED: Patching build.ninja to remove --out-implib flags...")
+    file(READ "${_build_ninja}" _ninja_content)
+    # Remove --out-implib flags (multiple patterns for robustness)
+    string(REGEX REPLACE "-Wl,--out-implib,[^ \n]*" "" _ninja_content "${_ninja_content}")
+    string(REGEX REPLACE "-Wl,--out-implib,[^\n]*" "" _ninja_content "${_ninja_content}")
+    file(WRITE "${_build_ninja}" "${_ninja_content}")
+    message(STATUS "DEFERRED: Successfully patched build.ninja (--out-implib flags removed)")
+  else()
+    message(WARNING "DEFERRED: build.ninja not found for patching")
+  endif()
+endfunction()
+
 # For MinGW/MSYS, prevent CMake from adding --out-implib flag to linker
 # This flag causes MinGW to use GUI startup files (crtexewin.o) expecting
 # WinMain instead of console startup files expecting main()
@@ -575,23 +598,11 @@ if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32) OR (DEFINED VCPKG_TARGET_TRI
   endforeach()
   message(STATUS "FINAL MinGW/MSYS fix: disabled ENABLE_EXPORTS and set console subsystem on ${_fixed_count} executable targets")
 
-  # CRITICAL: Patch build.ninja to remove --out-implib flag
+  # CRITICAL: Schedule deferred patching of build.ninja to remove --out-implib flag
   # CMake's MinGW platform module adds --out-implib despite ENABLE_EXPORTS=FALSE
   # This flag comes LAST in the link command and overrides console flags, causing WinMain errors
-  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
-  if(EXISTS "${_build_ninja}")
-    message(STATUS "Patching build.ninja to remove --out-implib flag for MinGW/MSYS...")
-    execute_process(
-      COMMAND sed -i.bak "s/-Wl,--out-implib,[^ ]*//g" "${_build_ninja}"
-      RESULT_VARIABLE _sed_result
-      ERROR_QUIET
-    )
-    if(_sed_result EQUAL 0)
-      message(STATUS "  Successfully patched build.ninja to remove --out-implib flags")
-    else()
-      message(WARNING "  Failed to patch build.ninja (sed error code: ${_sed_result})")
-    endif()
-  else()
-    message(STATUS "  build.ninja not found yet, will patch after generation if needed")
-  endif()
+  # We use cmake_language(DEFER) to patch build.ninja AFTER CMake finishes generating it
+  message(STATUS "Scheduling deferred build.ninja patching for MinGW/MSYS...")
+  cmake_language(DEFER DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" CALL deferred_mingw_patch_build_ninja)
+  message(STATUS "  Deferred patching will execute after CMake generates build.ninja")
 endif()
