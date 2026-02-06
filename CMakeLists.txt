@@ -382,13 +382,20 @@ if(WITH_LIBDWARFS)
   )
 
   # Use CPM to add boost-cmake package
+  # Use DOWNLOAD_ONLY to avoid FetchContent conflicts with boost-cmake's internal FetchContent_Populate
   CPMAddPackage(
     NAME Boost
     GITHUB_REPOSITORY ClausKlein/boost-cmake
     GIT_TAG v1.80.0
+    DOWNLOAD_ONLY
   )
 
-  message(STATUS "Boost made available via boost-cmake (CPM)")
+  # Manually add boost-cmake subdirectory to avoid FetchContent conflicts
+  if(Boost_ADDED)
+    message(STATUS "Boost source downloaded, adding boost-cmake subdirectory...")
+    add_subdirectory(${Boost_SOURCE_DIR}/tools/cmake ${Boost_BINARY_DIR}/boost-cmake EXCLUDE_FROM_ALL)
+    message(STATUS "Boost made available via boost-cmake (CPM)")
+  endif()
 
   if(APPLE)
     if(USE_HOMEBREW_LIBARCHIVE)
