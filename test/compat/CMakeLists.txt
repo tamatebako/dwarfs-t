@@ -75,12 +75,14 @@ target_link_libraries(dwarfs-compat-lib
 # Add alias for consistency with other dwarfs libraries
 add_library(dwarfs::compat-lib ALIAS dwarfs-compat-lib)
 
-# Test executables
-set(TEST_TARGETS
-  read_homebrew_files_test
-  write_compatible_files_test
-  round_trip_test
-)
+# Test executables - only build on Unix platforms
+if(NOT WIN32)
+  set(TEST_TARGETS
+    read_homebrew_files_test
+    write_compatible_files_test
+    round_trip_test
+  )
+endif()
 
 foreach(test_target ${TEST_TARGETS})
   # Source file for this test

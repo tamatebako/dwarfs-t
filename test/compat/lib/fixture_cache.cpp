@@ -29,13 +29,6 @@
 #include <openssl/sha.h>
 #include <sys/stat.h>
 
-// Windows compatibility for POSIX macros
-#ifdef _WIN32
-#ifndef S_ISREG
-#define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
-#endif
-#endif
-
 namespace dwarfs::test::compat {
 
 namespace {
