@@ -26,9 +26,9 @@ on:
       - 'TODO'
   workflow_dispatch:
 
-concurrency:
-  group: macos-matrix-${{ github.ref }}
-  cancel-in-progress: true
+# concurrency:
+#   group: macos-matrix-${{ github.ref }}
+#   cancel-in-progress: true
 
 permissions:
   contents: read
