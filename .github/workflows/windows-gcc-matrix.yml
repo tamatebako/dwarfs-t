@@ -68,11 +68,12 @@ jobs:
           msystem: CLANG64
           update: true
           install: >
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-python
-            mingw-w64-x86_64-pkgconf
+            mingw-w64-clang-x86_64-gcc
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-ninja
+            mingw-w64-clang-x86_64-python
+            mingw-w64-clang-x86_64-pkgconf
+            mingw-w64-clang-x86_64-boost
             git
 
       - name: 🔨 Install CMake and Ninja
@@ -102,6 +103,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
+            -DCMAKE_PREFIX_PATH=/mingw64 \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
@@ -139,11 +141,12 @@ jobs:
           msystem: CLANG64
           update: true
           install: >
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-python
-            mingw-w64-x86_64-pkgconf
+            mingw-w64-clang-x86_64-gcc
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-ninja
+            mingw-w64-clang-x86_64-python
+            mingw-w64-clang-x86_64-pkgconf
+            mingw-w64-clang-x86_64-boost
             git
 
       - name: 🔨 Install CMake and Ninja
@@ -173,6 +176,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
+            -DCMAKE_PREFIX_PATH=/mingw64 \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
