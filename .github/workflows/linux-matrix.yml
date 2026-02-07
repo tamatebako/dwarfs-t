@@ -83,7 +83,7 @@ jobs:
     name: 📦 ARM64 · Production
     uses: ./.github/workflows/_build.yml
     with:
-      runner: ubuntu-24.04-arm
+      runner: ubuntu-latest-arm64
       triplet: arm64-linux
       config: production
       vcpkg-manifest: vcpkg-production.json
@@ -92,7 +92,7 @@ jobs:
     name: 🧪 ARM64 · Experimental
     uses: ./.github/workflows/_build.yml
     with:
-      runner: ubuntu-24.04-arm
+      runner: ubuntu-latest-arm64
       triplet: arm64-linux
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json
