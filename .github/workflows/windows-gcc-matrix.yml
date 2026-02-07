@@ -103,7 +103,8 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
-            -DCMAKE_PREFIX_PATH=/mingw64 \
+            -DCMAKE_PREFIX_PATH=/clang64 \
+            -DBOOST_ROOT=/clang64 \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
@@ -176,7 +177,8 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
-            -DCMAKE_PREFIX_PATH=/mingw64 \
+            -DCMAKE_PREFIX_PATH=/clang64 \
+            -DBOOST_ROOT=/clang64 \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
