@@ -62,22 +62,22 @@ jobs:
   macos-arm64-production:
     name: 🍎 ARM64 · Production
     uses: ./.github/workflows/_build.yml
+    continue-on-error: true
     with:
       runner: macos-15
       triplet: arm64-osx
       config: production
       vcpkg-manifest: vcpkg-production.json
-      continue-on-error: true
 
   macos-arm64-dynamic-production:
     name: 🔧 ARM64 · Dynamic
     uses: ./.github/workflows/_build.yml
+    continue-on-error: true
     with:
       runner: macos-15
       triplet: arm64-osx-dynamic
       config: production
       vcpkg-manifest: vcpkg-production.json
-      continue-on-error: true
 
   macos-arm64-experimental:
     name: 🧪 ARM64 · Experimental
