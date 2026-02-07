@@ -1,14 +1,15 @@
 # Windows CI Matrix Workflow
 #
-# Comprehensive Windows testing across all supported triplets.
-# Tests x64 (static/dynamic/MSYS/MinGW) and ARM64 (static).
+# MSVC-based Windows testing across all supported triplets.
+# Tests x64 (static/dynamic) and ARM64 (static).
 #
 # Platform Coverage:
 # - x64-windows-static (MSVC static)
 # - x64-windows-dynamic (MSVC dynamic)
-# - x64-windows-msys (MSYS2)
-# - x64-windows-mingw (MinGW)
 # - arm64-windows-static (ARM64 MSVC static)
+#
+# Note: MinGW/MSYS builds use a separate workflow (windows-gcc-matrix.yml)
+#       because they require completely different toolchains and build configurations.
 
 name: Windows Matrix
 
@@ -59,26 +60,6 @@ jobs:
       config: production
       vcpkg-manifest: vcpkg-production.json
 
-  windows-x64-msys-production:
-    name: 🔧 x64 · MSYS
-    uses: ./.github/workflows/_build.yml
-    with:
-      runner: windows-latest
-      triplet: x64-windows-msys
-      config: production
-      vcpkg-manifest: vcpkg-production.json
-      continue-on-error: true  # Experimental: vcpkg build issues with boost-assert
-
-  windows-x64-mingw-production:
-    name: 🔧 x64 · MinGW
-    uses: ./.github/workflows/_build.yml
-    with:
-      runner: windows-latest
-      triplet: x64-windows-mingw
-      config: production
-      vcpkg-manifest: vcpkg-production.json
-      continue-on-error: true  # Experimental: --out-implib flag causes WinMain errors
-
   # ========================================================================
   # ARM64 Jobs
   # ========================================================================
@@ -99,8 +80,6 @@ jobs:
     needs:
       - windows-x64-static-production
       - windows-x64-dynamic-production
-      - windows-x64-msys-production
-      - windows-x64-mingw-production
       - windows-arm64-static-production
     runs-on: ubuntu-latest
     if: always()
@@ -108,12 +87,10 @@ jobs:
     steps:
       - name: 📊 Results
         run: |
-          echo "# Windows Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "# Windows MSVC Matrix Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Static | ${{ needs.windows-x64-static-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Dynamic | ${{ needs.windows-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| x64 MSYS | ${{ needs.windows-x64-msys-production.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| x64 MinGW | ${{ needs.windows-x64-mingw-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ARM64 Static | ${{ needs.windows-arm64-static-production.result }} |" >> $GITHUB_STEP_SUMMARY

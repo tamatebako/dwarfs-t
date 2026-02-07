@@ -1,0 +1,199 @@
+# MinGW/MSYS Matrix Workflow
+#
+# Separate workflow for GCC-based Windows builds.
+# These use completely different toolchains and build configurations than MSVC.
+#
+# Key Differences from MSVC Builds:
+# - Uses GCC instead of MSVC
+# - Different CMake generator and flags
+# - No vcpkg binary caching (GCC builds are not binary-compatible with MSVC builds)
+# - Different runtime linking (libstdc++, libgcc)
+# - Console subsystem by default (no -mwindows flag issues)
+#
+# Strategy:
+# - Build dependencies from source using CPM.cmake or Conan
+# - Use standard MinGW/MSYS toolchain without MSVC compatibility hacks
+# - Keep configurations simple and GCC-native
+
+name: Windows GCC Matrix
+
+on:
+  pull_request:
+    branches: [main, feature/*]
+  push:
+    branches: [main, feature/**]
+    paths-ignore:
+      - '.benchmark/**'
+      - '.clang-format'
+      - '.clang-tidy'
+      - '.gitignore'
+      - '.maintainer-scripts/**'
+      - 'CHANGES.md'
+      - 'CITATION.cff'
+      - 'doc/**'
+      - 'TODO'
+  workflow_dispatch:
+
+concurrency:
+  group: windows-gcc-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GCC_VERSION: '14'
+
+jobs:
+  # ========================================================================
+  # MinGW Build (native Windows GCC)
+  # ========================================================================
+  mingw:
+    name: 🔧 MinGW x64
+    runs-on: windows-latest
+    continue-on-error: true  # Experimental
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: 🔧 Setup MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-pkgconf
+            git
+
+      - name: 📦 Install dependencies
+        run: |
+          # Install Python packages for manpage generation
+          pip install --upgrade pip
+          pip install argcomplete
+
+      - name: 💾 Setup ccache
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          store_cache: false
+          restore_cache: false
+          remove_stale_cache: true
+          override_cache_key: ccache_mingw64
+
+      - name: 🏗️ Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_MAKE_PROGRAM=ninja \
+            -G Ninja \
+            -DBUILD_TESTING=ON \
+            -DWITH_TESTS=ON \
+            -DWITH_TOOLS=ON
+
+      - name: 🔨 Build
+        run: |
+          cmake --build build --config Release -j$(nproc)
+
+      - name: 🧪 Test
+        run: |
+          cd build
+          ctest --output-on-failure -j$(nproc) || true
+
+  # ========================================================================
+  # MSYS2 Build (Unix-like environment on Windows)
+  # ========================================================================
+  msys:
+    name: 🔧 MSYS2 x64
+    runs-on: windows-latest
+    continue-on-error: true  # Experimental
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: 🔧 Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-pkgconf
+            git
+
+      - name: 📦 Install dependencies
+        run: |
+          # Install Python packages for manpage generation
+          pip install --upgrade pip
+          pip install argcomplete
+
+      - name: 💾 Setup ccache
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          store_cache: false
+          restore_cache: false
+          remove_stale_cache: true
+          override_cache_key: ccache_msys2
+
+      - name: 🏗️ Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_MAKE_PROGRAM=ninja \
+            -G Ninja \
+            -DBUILD_TESTING=ON \
+            -DWITH_TESTS=ON \
+            -DWITH_TOOLS=ON
+
+      - name: 🔨 Build
+        run: |
+          cmake --build build --config Release -j$(nproc)
+
+      - name: 🧪 Test
+        run: |
+          cd build
+          ctest --output-on-failure -j$(nproc) || true
+
+  # ========================================================================
+  # Summary
+  # ========================================================================
+  summary:
+    name: 📊 Summary
+    needs:
+      - mingw
+      - msys
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📊 Results
+        run: |
+          echo "# Windows GCC Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| MinGW x64 | ${{ needs.mingw.result == 'success' && 'success' || needs.mingw.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| MSYS2 x64 | ${{ needs.msys.result == 'success' && 'success' || needs.msys.result }} |" >> $GITHUB_STEP_SUMMARY

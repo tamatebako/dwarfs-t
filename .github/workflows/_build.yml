@@ -111,24 +111,11 @@ jobs:
           esac
 
       # Windows: Setup MSVC with specific version (19.44+ for STL compatibility)
-      # Skip for MinGW/MSYS builds to avoid vcpkg detecting wrong compiler
       - name: 🪟 Setup MSVC
-        if: runner.os == 'Windows' && (inputs.triplet != 'x64-windows-mingw' && inputs.triplet != 'x64-windows-msys')
+        if: runner.os == 'Windows'
         uses: k3DW/setup-msvc@v1
         with:
           vs-version: '17.12'  # Visual Studio 17.12 includes MSVC 19.44+
-
-      # Windows: Set MinGW compiler environment for MinGW/MSYS builds
-      - name: 🔧 Set MinGW compiler environment
-        if: runner.os == 'Windows' && (inputs.triplet == 'x64-windows-mingw' || inputs.triplet == 'x64-windows-msys')
-        shell: bash
-        run: |
-          echo "CC=gcc" >> $GITHUB_ENV
-          echo "CXX=g++" >> $GITHUB_ENV
-          echo "CMAKE_C_COMPILER=gcc" >> $GITHUB_ENV
-          echo "CMAKE_CXX_COMPILER=g++" >> $GITHUB_ENV
-          echo "/c/mingw64/bin" >> $GITHUB_PATH
-          echo "✓ Set MinGW compiler environment variables and PATH"
 
       # Linux: Setup gcc version via update-alternatives
       - name: 🔧 Install gcc on Linux
