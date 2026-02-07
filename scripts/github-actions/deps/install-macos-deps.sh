@@ -31,6 +31,15 @@ if [[ $? -ne 0 ]]; then
 fi
 echo "✓ macOS dependencies installed"
 
+# Install mono for NuGet binary caching (required for vcpkg)
+echo "Installing mono for NuGet binary caching..."
+$BREW_CMD install mono
+if [[ $? -ne 0 ]]; then
+  echo "::error::Failed to install mono"
+  exit 1
+fi
+echo "✓ mono installed"
+
 # Verify FUSE-T installation
 echo "Verifying FUSE-T installation..."
 FUSE_T_INCLUDE_PATH="/Library/Application Support/fuse-t/include/fuse/fuse.h"
