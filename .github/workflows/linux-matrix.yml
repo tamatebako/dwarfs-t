@@ -123,8 +123,6 @@ jobs:
       - linux-x64-experimental
       - linux-x64-dynamic-production
       - linux-x64-dynamic-experimental
-      - linux-arm64-production
-      - linux-arm64-experimental
       - linux-musl-x64-production
     runs-on: ubuntu-latest
     if: always()
@@ -140,6 +138,4 @@ jobs:
           echo "| x64 Experimental | ${{ needs.linux-x64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Dynamic | ${{ needs.linux-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Dynamic Exp | ${{ needs.linux-x64-dynamic-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ARM64 Production | ${{ needs.linux-arm64-production.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ARM64 Experimental | ${{ needs.linux-arm64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-musl Production | ${{ needs.linux-musl-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
