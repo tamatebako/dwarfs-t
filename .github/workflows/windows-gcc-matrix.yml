@@ -73,7 +73,7 @@ jobs:
             mingw-w64-clang-x86_64-ninja
             mingw-w64-clang-x86_64-python
             mingw-w64-clang-x86_64-pkgconf
-            mingw-w64-clang-x86_64-boost
+            mingw-w64-x86_64-boost
             git
 
       - name: 🔨 Install CMake and Ninja
@@ -98,8 +98,9 @@ jobs:
       - name: 🏗️ Configure CMake
         run: |
           # Find MSYS2 installation and Boost
+          # mingw-w64-x86_64-boost installs to mingw64 prefix
           MSYS2_PREFIX="C:/msys64"
-          CLANG64_PREFIX="$MSYS2_PREFIX/clang64"
+          MINGW64_PREFIX="$MSYS2_PREFIX/mingw64"
 
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
@@ -107,9 +108,8 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
-            -DCMAKE_PREFIX_PATH="$CLANG64_PREFIX" \
-            -DBOOST_ROOT="$CLANG64_PREFIX" \
-            -DBoost_NO_BOOST_CMAKE=ON \
+            -DCMAKE_PREFIX_PATH="$MINGW64_PREFIX" \
+            -DBOOST_ROOT="$MINGW64_PREFIX" \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
@@ -177,8 +177,9 @@ jobs:
       - name: 🏗️ Configure CMake
         run: |
           # Find MSYS2 installation and Boost
+          # mingw-w64-x86_64-boost installs to mingw64 prefix
           MSYS2_PREFIX="C:/msys64"
-          CLANG64_PREFIX="$MSYS2_PREFIX/clang64"
+          MINGW64_PREFIX="$MSYS2_PREFIX/mingw64"
 
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
@@ -186,9 +187,8 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
-            -DCMAKE_PREFIX_PATH="$CLANG64_PREFIX" \
-            -DBOOST_ROOT="$CLANG64_PREFIX" \
-            -DBoost_NO_BOOST_CMAKE=ON \
+            -DCMAKE_PREFIX_PATH="$MINGW64_PREFIX" \
+            -DBOOST_ROOT="$MINGW64_PREFIX" \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
