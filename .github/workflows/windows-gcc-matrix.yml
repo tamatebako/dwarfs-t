@@ -97,14 +97,18 @@ jobs:
 
       - name: 🏗️ Configure CMake
         run: |
+          # Find MSYS2 installation and Boost
+          MSYS2_PREFIX="C:/msys64"
+          CLANG64_PREFIX="$MSYS2_PREFIX/clang64"
+
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
-            -DCMAKE_PREFIX_PATH=/clang64 \
-            -DBOOST_ROOT=/clang64 \
+            -DCMAKE_PREFIX_PATH="$CLANG64_PREFIX" \
+            -DBOOST_ROOT="$CLANG64_PREFIX" \
             -DBoost_NO_BOOST_CMAKE=ON \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
@@ -172,14 +176,18 @@ jobs:
 
       - name: 🏗️ Configure CMake
         run: |
+          # Find MSYS2 installation and Boost
+          MSYS2_PREFIX="C:/msys64"
+          CLANG64_PREFIX="$MSYS2_PREFIX/clang64"
+
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
-            -DCMAKE_PREFIX_PATH=/clang64 \
-            -DBOOST_ROOT=/clang64 \
+            -DCMAKE_PREFIX_PATH="$CLANG64_PREFIX" \
+            -DBOOST_ROOT="$CLANG64_PREFIX" \
             -DBoost_NO_BOOST_CMAKE=ON \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
