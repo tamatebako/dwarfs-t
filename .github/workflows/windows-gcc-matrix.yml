@@ -76,11 +76,11 @@ jobs:
             mingw-w64-x86_64-pkgconf
             git
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install Python dependencies
         run: |
-          # Install Python packages for manpage generation
-          pip install --upgrade pip
-          pip install argcomplete
+          # Use python -m pip to avoid self-upgrade issues
+          python -m pip install --upgrade pip
+          python -m pip install argcomplete
 
       - name: 💾 Setup ccache
         uses: Chocobo1/setup-ccache-action@v1
@@ -121,7 +121,7 @@ jobs:
 
     defaults:
       run:
-        shell: msys2 {0}
+        shell: bash
 
     steps:
       - name: 📥 Checkout
@@ -142,11 +142,12 @@ jobs:
             mingw-w64-x86_64-pkgconf
             git
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install Python dependencies
         run: |
-          # Install Python packages for manpage generation
-          pip install --upgrade pip
-          pip install argcomplete
+          # Use default bash shell to access system Python
+          # MSYS2 shell doesn't have Python in PATH
+          python -m pip install --upgrade pip
+          python -m pip install argcomplete
 
       - name: 💾 Setup ccache
         uses: Chocobo1/setup-ccache-action@v1
