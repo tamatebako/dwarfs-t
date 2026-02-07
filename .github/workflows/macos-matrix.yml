@@ -81,3 +81,4 @@ jobs:
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Production | ${{ needs.macos-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Dynamic | ${{ needs.macos-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+# Trigger workflow
