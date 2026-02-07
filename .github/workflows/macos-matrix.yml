@@ -42,7 +42,7 @@ jobs:
     name: 🍎 x64 · Production
     uses: ./.github/workflows/_build.yml
     with:
-      runner: macos-15-intel
+      runner: macos-13
       triplet: x64-osx
       config: production
       vcpkg-manifest: vcpkg-production.json
@@ -51,7 +51,7 @@ jobs:
     name: 🔧 x64 · Dynamic
     uses: ./.github/workflows/_build.yml
     with:
-      runner: macos-15-intel
+      runner: macos-13
       triplet: x64-osx-dynamic
       config: production
       vcpkg-manifest: vcpkg-production.json
