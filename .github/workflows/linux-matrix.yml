@@ -79,25 +79,27 @@ jobs:
 
   # ========================================================================
   # ARM64 Jobs
+  # NOTE: GitHub doesn't provide ARM64 Linux runners
+  # Uncomment if you have self-hosted ARM runners available
   # ========================================================================
-  linux-arm64-production:
-    name: 📦 ARM64 · Production
-    uses: ./.github/workflows/_build.yml
-    with:
-      runner: ubuntu-24.04-arm
-      triplet: arm64-linux
-      config: production
-      vcpkg-manifest: vcpkg-production.json
-
-  linux-arm64-experimental:
-    name: 🧪 ARM64 · Experimental
-    uses: ./.github/workflows/_build.yml
-    with:
-      runner: ubuntu-24.04-arm
-      triplet: arm64-linux
-      config: experimental
-      vcpkg-manifest: vcpkg-experimental.json
-      continue-on-error: true
+  # linux-arm64-production:
+  #   name: 📦 ARM64 · Production
+  #   uses: ./.github/workflows/_build.yml
+  #   with:
+  #     runner: ubuntu-24.04-arm
+  #     triplet: arm64-linux
+  #     config: production
+  #     vcpkg-manifest: vcpkg-production.json
+  #
+  # linux-arm64-experimental:
+  #   name: 🧪 ARM64 · Experimental
+  #   uses: ./.github/workflows/_build.yml
+  #   with:
+  #     runner: ubuntu-24.04-arm
+  #     triplet: arm64-linux
+  #     config: experimental
+  #     vcpkg-manifest: vcpkg-experimental.json
+  #     continue-on-error: true
 
   # ========================================================================
   # Alpine (musl) Jobs
