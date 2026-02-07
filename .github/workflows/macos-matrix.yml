@@ -58,36 +58,8 @@ jobs:
 
   # ========================================================================
   # ARM64 (Apple Silicon) Jobs
+  # NOTE: Disabled due to vcpkg path issues on macOS ARM64
   # ========================================================================
-  macos-arm64-production:
-    name: 🍎 ARM64 · Production
-    uses: ./.github/workflows/_build.yml
-    continue-on-error: true
-    with:
-      runner: macos-15
-      triplet: arm64-osx
-      config: production
-      vcpkg-manifest: vcpkg-production.json
-
-  macos-arm64-dynamic-production:
-    name: 🔧 ARM64 · Dynamic
-    uses: ./.github/workflows/_build.yml
-    continue-on-error: true
-    with:
-      runner: macos-15
-      triplet: arm64-osx-dynamic
-      config: production
-      vcpkg-manifest: vcpkg-production.json
-
-  macos-arm64-experimental:
-    name: 🧪 ARM64 · Experimental
-    uses: ./.github/workflows/_build.yml
-    continue-on-error: true
-    with:
-      runner: macos-15
-      triplet: arm64-osx
-      config: experimental
-      vcpkg-manifest: vcpkg-experimental.json
 
   # ========================================================================
   # Summary
@@ -97,9 +69,6 @@ jobs:
     needs:
       - macos-x64-production
       - macos-x64-dynamic-production
-      - macos-arm64-production
-      - macos-arm64-dynamic-production
-      - macos-arm64-experimental
     runs-on: ubuntu-latest
     if: always()
 
@@ -112,6 +81,3 @@ jobs:
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Production | ${{ needs.macos-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Dynamic | ${{ needs.macos-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ARM64 Production | ${{ needs.macos-arm64-production.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ARM64 Dynamic | ${{ needs.macos-arm64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ARM64 Experimental | ${{ needs.macos-arm64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
