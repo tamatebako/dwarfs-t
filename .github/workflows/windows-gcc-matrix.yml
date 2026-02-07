@@ -65,14 +65,14 @@ jobs:
       - name: 🔧 Setup MinGW
         uses: msys2/setup-msys2@v2
         with:
-          msystem: CLANG64
+          msystem: MINGW64
           update: true
           install: >
-            mingw-w64-clang-x86_64-gcc
-            mingw-w64-clang-x86_64-cmake
-            mingw-w64-clang-x86_64-ninja
-            mingw-w64-clang-x86_64-python
-            mingw-w64-clang-x86_64-pkgconf
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-boost
             git
 
@@ -144,15 +144,15 @@ jobs:
       - name: 🔧 Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: CLANG64
+          msystem: MINGW64
           update: true
           install: >
-            mingw-w64-clang-x86_64-gcc
-            mingw-w64-clang-x86_64-cmake
-            mingw-w64-clang-x86_64-ninja
-            mingw-w64-clang-x86_64-python
-            mingw-w64-clang-x86_64-pkgconf
-            mingw-w64-clang-x86_64-boost
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-boost
             git
 
       - name: 🔨 Install CMake and Ninja
