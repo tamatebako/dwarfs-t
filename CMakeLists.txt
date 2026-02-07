@@ -263,9 +263,17 @@ if(WITH_LIBDWARFS)
   # BZip2 must be found BEFORE Boost (required by boost-iostreams)
   include(cmake/vcpkg/bzip2.cmake)
 
-  find_package(Boost ${BOOST_REQUIRED_VERSION} REQUIRED CONFIG
+  # Try Boost CONFIG mode first (for vcpkg), then fall back to FindBoost.cmake
+  # (for system packages like MSYS2/MINGW)
+  find_package(Boost ${BOOST_REQUIRED_VERSION} QUIET CONFIG
                COMPONENTS chrono program_options
                OPTIONAL_COMPONENTS process)
+
+  if(NOT Boost_FOUND)
+    find_package(Boost ${BOOST_REQUIRED_VERSION} REQUIRED
+                 COMPONENTS chrono program_options
+                 OPTIONAL_COMPONENTS process)
+  endif()
 
   if(APPLE)
     if(USE_HOMEBREW_LIBARCHIVE)
