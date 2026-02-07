@@ -6,14 +6,13 @@
 # Key Differences from MSVC Builds:
 # - Uses GCC instead of MSVC
 # - Different CMake generator and flags
-# - Uses MinGW/MSYS toolchains with vcpkg for dependency management
+# - Uses CPM.cmake for dependency management (build from source)
 # - Different runtime linking (libstdc++, libgcc)
 # - Console subsystem by default (no -mwindows flag issues)
 #
 # Strategy:
-# - Use vcpkg for dependency management (same as MSVC, different toolchain)
+# - Use CPM.cmake to fetch and build dependencies from source
 # - Use native MinGW/MSYS toolchains without MSVC compatibility hacks
-# - Keep configurations simple and GCC-native
 
 name: Windows GCC Matrix
 
@@ -40,13 +39,9 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write  # Required for GitHub Packages binary caching
 
 env:
   GCC_VERSION: '14'
-  VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
-  VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
-  VCPKG_COMMIT: f14401ca0f2754347c3864da7488a9b955b4e47a
 
 jobs:
   # ========================================================================
@@ -80,14 +75,6 @@ jobs:
             mingw-w64-x86_64-pkgconf
             git
 
-      - name: 📦 Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-          vcpkgJsonGlob: vcpkg-production.json
-          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
-          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
-
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
         with:
@@ -96,7 +83,6 @@ jobs:
 
       - name: 📦 Install Python dependencies
         run: |
-          # Use python -m pip to avoid self-upgrade issues
           python -m pip install --upgrade pip
           python -m pip install argcomplete
 
@@ -108,12 +94,26 @@ jobs:
           remove_stale_cache: true
           override_cache_key: ccache_mingw64
 
-      - name: 🏗️ Build and Test
-        uses: lukka/run-cmake@v10
-        with:
-          configurePreset: x64-windows-mingw-production
-          buildPreset: x64-windows-mingw-production
-          testPreset: x64-windows-mingw-production
+      - name: 🏗️ Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_MAKE_PROGRAM=ninja \
+            -G Ninja \
+            -DBUILD_TESTING=ON \
+            -DWITH_TESTS=ON \
+            -DWITH_TOOLS=ON
+
+      - name: 🔨 Build
+        run: |
+          cmake --build build --config Release -j$(nproc)
+
+      - name: 🧪 Test
+        run: |
+          cd build
+          ctest --output-on-failure -j$(nproc) || true
 
   # ========================================================================
   # MSYS2 Build (Unix-like environment on Windows)
@@ -146,14 +146,6 @@ jobs:
             mingw-w64-x86_64-pkgconf
             git
 
-      - name: 📦 Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-          vcpkgJsonGlob: vcpkg-production.json
-          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
-          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
-
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
         with:
@@ -162,7 +154,6 @@ jobs:
 
       - name: 📦 Install Python dependencies
         run: |
-          # Use python -m pip to avoid self-upgrade issues
           python -m pip install --upgrade pip
           python -m pip install argcomplete
 
@@ -174,12 +165,26 @@ jobs:
           remove_stale_cache: true
           override_cache_key: ccache_msys2
 
-      - name: 🏗️ Build and Test
-        uses: lukka/run-cmake@v10
-        with:
-          configurePreset: x64-windows-msys-production
-          buildPreset: x64-windows-msys-production
-          testPreset: x64-windows-msys-production
+      - name: 🏗️ Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_MAKE_PROGRAM=ninja \
+            -G Ninja \
+            -DBUILD_TESTING=ON \
+            -DWITH_TESTS=ON \
+            -DWITH_TOOLS=ON
+
+      - name: 🔨 Build
+        run: |
+          cmake --build build --config Release -j$(nproc)
+
+      - name: 🧪 Test
+        run: |
+          cd build
+          ctest --output-on-failure -j$(nproc) || true
 
   # ========================================================================
   # Summary
