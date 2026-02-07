@@ -201,15 +201,13 @@ jobs:
 
           Write-Host "✓ Added NuGet source for vcpkg binary caching"
 
-      - name: 🔗 Add NuGet source (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: 🔗 Add NuGet source (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           # Install mono for Linux (ubuntu-24.04+ doesn't have it preinstalled)
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            sudo apt-get update -qq
-            sudo apt-get install -y mono-complete
-          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y mono-complete
 
           # Get vcpkg location
           vcpkgDir="${GITHUB_WORKSPACE}/../vcpkg"
@@ -219,32 +217,17 @@ jobs:
           nugetExe=$("${vcpkgExe}" fetch nuget | tail -n 1)
 
           # Add NuGet source with GitHub authentication
-          # Use dotnet on macOS, mono on Linux
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            dotnet "${nugetExe}" \
-              sources add \
-              -Source "${{ env.FEED_URL }}" \
-              -StorePasswordInClearText \
-              -Name "GitHubPackages" \
-              -UserName "${{ env.USERNAME }}" \
-              -Password "${{ secrets.GITHUB_TOKEN }}"
+          mono "${nugetExe}" \
+            sources add \
+            -Source "${{ env.FEED_URL }}" \
+            -StorePasswordInClearText \
+            -Name "GitHubPackages" \
+            -UserName "${{ env.USERNAME }}" \
+            -Password "${{ secrets.GITHUB_TOKEN }}"
 
-            dotnet "${nugetExe}" \
-              setapikey "${{ secrets.GITHUB_TOKEN }}" \
-              -Source "${{ env.FEED_URL }}"
-          else
-            mono "${nugetExe}" \
-              sources add \
-              -Source "${{ env.FEED_URL }}" \
-              -StorePasswordInClearText \
-              -Name "GitHubPackages" \
-              -UserName "${{ env.USERNAME }}" \
-              -Password "${{ secrets.GITHUB_TOKEN }}"
-
-            mono "${nugetExe}" \
-              setapikey "${{ secrets.GITHUB_TOKEN }}" \
-              -Source "${{ env.FEED_URL }}"
-          fi
+          mono "${nugetExe}" \
+            setapikey "${{ secrets.GITHUB_TOKEN }}" \
+            -Source "${{ env.FEED_URL }}"
 
           echo "✓ Added NuGet source for vcpkg binary caching"
 
