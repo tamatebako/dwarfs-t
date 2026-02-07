@@ -219,17 +219,32 @@ jobs:
           nugetExe=$("${vcpkgExe}" fetch nuget | tail -n 1)
 
           # Add NuGet source with GitHub authentication
-          mono "${nugetExe}" \
-            sources add \
-            -Source "${{ env.FEED_URL }}" \
-            -StorePasswordInClearText \
-            -Name "GitHubPackages" \
-            -UserName "${{ env.USERNAME }}" \
-            -Password "${{ secrets.GITHUB_TOKEN }}"
+          # Use dotnet on macOS, mono on Linux
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            dotnet "${nugetExe}" \
+              sources add \
+              -Source "${{ env.FEED_URL }}" \
+              -StorePasswordInClearText \
+              -Name "GitHubPackages" \
+              -UserName "${{ env.USERNAME }}" \
+              -Password "${{ secrets.GITHUB_TOKEN }}"
 
-          mono "${nugetExe}" \
-            setapikey "${{ secrets.GITHUB_TOKEN }}" \
-            -Source "${{ env.FEED_URL }}"
+            dotnet "${nugetExe}" \
+              setapikey "${{ secrets.GITHUB_TOKEN }}" \
+              -Source "${{ env.FEED_URL }}"
+          else
+            mono "${nugetExe}" \
+              sources add \
+              -Source "${{ env.FEED_URL }}" \
+              -StorePasswordInClearText \
+              -Name "GitHubPackages" \
+              -UserName "${{ env.USERNAME }}" \
+              -Password "${{ secrets.GITHUB_TOKEN }}"
+
+            mono "${nugetExe}" \
+              setapikey "${{ secrets.GITHUB_TOKEN }}" \
+              -Source "${{ env.FEED_URL }}"
+          fi
 
           echo "✓ Added NuGet source for vcpkg binary caching"
 
