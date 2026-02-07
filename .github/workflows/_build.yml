@@ -133,6 +133,17 @@ jobs:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
           vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
+
+      # Ensure vcpkg directory exists for macOS
+      - name: 🔧 Fix vcpkg directory (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          # Create symlink from ../vcpkg to absolute path for macOS
+          if [ ! -d "../vcpkg" ]; then
+            ln -sf /Users/runner/work/dwarfs/vcpkg ../vcpkg
+          fi
 
       # ============================================================================
       # vcpkg Binary & Asset Caching
