@@ -127,6 +127,21 @@ jobs:
           sudo update-alternatives --set g++ /usr/bin/g++-${{ env.GCC_VERSION }}
         shell: bash
 
+      # Fix vcpkg path for macOS - initialize git repo to avoid "outside repository" error
+      - name: 🔧 Initialize vcpkg directory (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          # Create vcpkg directory at sibling level and initialize as git repo
+          # This prevents vcpkg's git operations from failing
+          if [ ! -d "../vcpkg" ]; then
+            mkdir -p ../vcpkg
+            cd ../vcpkg
+            git init
+            git config --global user.email "vcpkg@github.com"
+            git config --global user.name "vcpkg"
+          fi
+
       - name: 📦 Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
@@ -134,16 +149,6 @@ jobs:
           vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
-
-      # Ensure vcpkg directory exists for macOS
-      - name: 🔧 Fix vcpkg directory (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          # Create symlink from ../vcpkg to absolute path for macOS
-          if [ ! -d "../vcpkg" ]; then
-            ln -sf /Users/runner/work/dwarfs/vcpkg ../vcpkg
-          fi
 
       # ============================================================================
       # vcpkg Binary & Asset Caching
