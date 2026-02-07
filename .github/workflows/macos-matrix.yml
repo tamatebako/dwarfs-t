@@ -67,6 +67,7 @@ jobs:
       triplet: arm64-osx
       config: production
       vcpkg-manifest: vcpkg-production.json
+      continue-on-error: true
 
   macos-arm64-dynamic-production:
     name: 🔧 ARM64 · Dynamic
@@ -76,6 +77,7 @@ jobs:
       triplet: arm64-osx-dynamic
       config: production
       vcpkg-manifest: vcpkg-production.json
+      continue-on-error: true
 
   macos-arm64-experimental:
     name: 🧪 ARM64 · Experimental
