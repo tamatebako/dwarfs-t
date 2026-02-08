@@ -6,13 +6,14 @@
 # Key Differences from MSVC Builds:
 # - Uses GCC instead of MSVC
 # - Different CMake generator and flags
-# - Uses CPM.cmake for dependency management (build from source)
+# - Uses vcpkg with MinGW triplets for dependency management
 # - Different runtime linking (libstdc++, libgcc)
 # - Console subsystem by default (no -mwindows flag issues)
 #
 # Strategy:
-# - Use CPM.cmake to fetch and build dependencies from source
-# - Use native MinGW/MSYS toolchains without MSVC compatibility hacks
+# - Run vcpkg from standard Windows shell (NOT MSYS2) to avoid conflicts
+# - Use vcpkg's MinGW triplets (x64-mingw-static, etc.)
+# - Add MinGW to PATH while avoiding sh.exe/bash.exe conflicts
 
 name: Windows GCC Matrix
 
@@ -52,6 +53,11 @@ jobs:
     runs-on: windows-latest
     continue-on-error: true  # Experimental
 
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-mingw-static
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+
     defaults:
       run:
         shell: bash
@@ -62,19 +68,20 @@ jobs:
         with:
           submodules: recursive
 
-      - name: 🔧 Setup MinGW
-        uses: msys2/setup-msys2@v2
+      # Install MinGW-w64 for Windows (NOT MSYS2)
+      - name: 🔧 Install MinGW-w64
+        run: |
+          # Download and install MinGW-w64
+          curl -L -o mingw-winlibs.7z "https://github.com/niXman/mingw-builds-binaries/releases/download/14.2.0-rt_v12-j19-mingw64/x86_64-14.2.0-release-posix-seh-mingw-w64-msvcrt-rt_v12-j19-mingw-winlibs.7z"
+          7z x -y mingw-winlibs.7z -o"C:/mingw64" > /dev/null
+          echo "C:/mingw64/bin" >> $GITHUB_PATH
+
+      - name: 📦 Setup vcpkg
+        uses: lukka/run-vcpkg@v11
         with:
-          msystem: MINGW64
-          update: true
-          install: >
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-python
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-boost
-            git
+          vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
+          vcpkgJsonGlob: vcpkg-production.json
+          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -85,7 +92,7 @@ jobs:
       - name: 📦 Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install argcomplete mistletoe
+          python -m pip install argcomplete
 
       - name: 💾 Setup ccache
         uses: Chocobo1/setup-ccache-action@v1
@@ -98,9 +105,9 @@ jobs:
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
         with:
-          configurePreset: x64-windows-mingw-production
-          buildPreset: x64-windows-mingw-production
-          testPreset: x64-windows-mingw-production
+          configurePreset: x64-mingw-static-production
+          buildPreset: x64-mingw-static-production
+          testPreset: x64-mingw-static-production
 
   # ========================================================================
   # MSYS2 Build (Unix-like environment on Windows)
@@ -109,6 +116,11 @@ jobs:
     name: 🔧 MSYS2 x64
     runs-on: windows-latest
     continue-on-error: true  # Experimental
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-mingw-static
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
 
     defaults:
       run:
@@ -120,6 +132,7 @@ jobs:
         with:
           submodules: recursive
 
+      # Install MSYS2 with MinGW-w64
       - name: 🔧 Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
@@ -131,8 +144,17 @@ jobs:
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-python
             mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-boost
             git
+
+      # NOTE: We DON'T run vcpkg from MSYS2 shell to avoid conflicts!
+      # Instead, we run vcpkg in a later step using standard Windows shell
+
+      - name: 📦 Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
+          vcpkgJsonGlob: vcpkg-production.json
+          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -143,7 +165,7 @@ jobs:
       - name: 📦 Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install argcomplete mistletoe
+          python -m pip install argcomplete
 
       - name: 💾 Setup ccache
         uses: Chocobo1/setup-ccache-action@v1
@@ -156,9 +178,9 @@ jobs:
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
         with:
-          configurePreset: x64-windows-msys-production
-          buildPreset: x64-windows-msys-production
-          testPreset: x64-windows-msys-production
+          configurePreset: x64-mingw-static-production
+          buildPreset: x64-mingw-static-production
+          testPreset: x64-mingw-static-production
 
   # ========================================================================
   # Summary

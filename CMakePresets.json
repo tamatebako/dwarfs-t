@@ -601,6 +601,40 @@
       "name": "x64-windows-mingw-experimental",
       "inherits": ["x64-windows-mingw-base", "experimental-base"],
       "description": "Windows x64 MinGW-w64 Experimental (+ Modern Thrift)"
+    },
+    {
+      "name": "x64-mingw-static-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Windows x64 MinGW-w64 base configuration (vcpkg x64-mingw-static triplet)",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "environment": {
+        "VCPKG_DEFAULT_TRIPLET": "x64-mingw-static",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_MAKE_PROGRAM": "ninja",
+        "CMAKE_WIN32_EXECUTABLE": "OFF",
+        "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
+        "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
+        "WITH_FUSE_DRIVER": "OFF"
+      }
+    },
+    {
+      "name": "x64-mingw-static-production",
+      "inherits": ["x64-mingw-static-base", "production-base"],
+      "description": "Windows x64 MinGW-w64 Production (vcpkg x64-mingw-static, FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "x64-mingw-static-experimental",
+      "inherits": ["x64-mingw-static-base", "experimental-base"],
+      "description": "Windows x64 MinGW-w64 Experimental (vcpkg x64-mingw-static, + Modern Thrift)"
     }
   ],
 
@@ -784,6 +818,16 @@
       "name": "x64-windows-mingw-experimental",
       "configurePreset": "x64-windows-mingw-experimental",
       "description": "Build Windows x64 MinGW-w64 Experimental"
+    },
+    {
+      "name": "x64-mingw-static-production",
+      "configurePreset": "x64-mingw-static-production",
+      "description": "Build Windows x64 MinGW-w64 Static Production (vcpkg x64-mingw-static)"
+    },
+    {
+      "name": "x64-mingw-static-experimental",
+      "configurePreset": "x64-mingw-static-experimental",
+      "description": "Build Windows x64 MinGW-w64 Static Experimental (vcpkg x64-mingw-static)"
     }
   ],
 
@@ -1107,6 +1151,24 @@
       "name": "x64-windows-mingw-experimental",
       "configurePreset": "x64-windows-mingw-experimental",
       "description": "Test Windows x64 MinGW-w64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-mingw-static-production",
+      "configurePreset": "x64-mingw-static-production",
+      "description": "Test Windows x64 MinGW-w64 Static Production (vcpkg x64-mingw-static)",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "x64-mingw-static-experimental",
+      "configurePreset": "x64-mingw-static-experimental",
+      "description": "Test Windows x64 MinGW-w64 Static Experimental (vcpkg x64-mingw-static)",
       "output": {
         "outputOnFailure": true,
         "verbosity": "verbose"
