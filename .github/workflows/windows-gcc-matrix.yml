@@ -68,13 +68,14 @@ jobs:
         with:
           submodules: recursive
 
-      # Install MinGW-w64 for Windows (NOT MSYS2)
+      # Install MinGW-w64 for Windows (using MSYS2 without conflicting binaries)
       - name: 🔧 Install MinGW-w64
         run: |
-          # Download and install MinGW-w64
-          curl -L -o mingw-winlibs.7z "https://github.com/niXman/mingw-builds-binaries/releases/download/14.2.0-rt_v12-j19-mingw64/x86_64-14.2.0-release-posix-seh-mingw-w64-msvcrt-rt_v12-j19-mingw-winlibs.7z"
-          7z x -y mingw-winlibs.7z -o"C:/mingw64" > /dev/null
-          echo "C:/mingw64/bin" >> $GITHUB_PATH
+          # Install MSYS2 but DON'T use its shell (to avoid conflicts with vcpkg)
+          pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-python
+          # Add MinGW bin to PATH, but NOT MSYS2/usr/bin (avoids sh.exe conflicts)
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+        shell: cmd
 
       - name: 📦 Setup vcpkg
         uses: lukka/run-vcpkg@v11
