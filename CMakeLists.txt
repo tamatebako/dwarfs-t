@@ -31,9 +31,6 @@ if((DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD) AND POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()
 
-# Respect package root variables (BOOST_ROOT, etc.) for MinGW/MSYS2 builds
-cmake_policy(SET CMP0144 NEW)
-
 project(dwarfs LANGUAGES CXX C)
 
 include(ExternalProject)
