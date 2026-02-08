@@ -58,6 +58,12 @@ jobs:
     runs-on: windows-latest
     continue-on-error: true  # Experimental
 
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-windows-mingw
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+      MSYSTEM: MINGW64
+
     defaults:
       run:
         shell: bash
@@ -122,6 +128,12 @@ jobs:
     name: 🔧 MSYS2 x64
     runs-on: windows-latest
     continue-on-error: true  # Experimental
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-windows-msys
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+      MSYSTEM: MINGW64
 
     defaults:
       run:
