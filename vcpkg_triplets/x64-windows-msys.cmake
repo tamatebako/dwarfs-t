@@ -1,10 +1,15 @@
 # x64-windows-msys triplet for Windows with MSYS2
 # Uses MSYS2 for native Windows GCC builds
+#
+# This triplet tells vcpkg to build for Windows using MSYS2 compilers.
+# We don't set VCPKG_CMAKE_SYSTEM_NAME to MSYS because vcpkg doesn't
+# properly support it. Instead, we rely on CMAKE_C_COMPILER and CMAKE_CXX_COMPILER
+# being set in the CMake preset to point to gcc/g++.
 
 set(VCPKG_TARGET_ARCHITECTURE x64)
-set(VCPKG_CRT_LINKAGE dynamic)
+set(VCPKG_CRT_LINKAGE static)
 set(VCPKG_LIBRARY_LINKAGE static)
 set(VCPKG_ENV_PASSTHROUGH PATH)
 
-# Tell vcpkg this is an MSYS environment
-set(VCPKG_CMAKE_SYSTEM_NAME MinGW)
+# Don't set VCPKG_CMAKE_SYSTEM_NAME - vcpkg will use "Windows" default
+# which works better with MSYS/MinGW toolchains
