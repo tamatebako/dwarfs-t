@@ -98,7 +98,7 @@ jobs:
       - name: 📦 Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install argcomplete
+          python -m pip install argcomplete mistletoe
 
       - name: 💾 Setup ccache
         uses: Chocobo1/setup-ccache-action@v1
@@ -169,7 +169,7 @@ jobs:
       - name: 📦 Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install argcomplete
+          python -m pip install argcomplete mistletoe
 
       - name: 💾 Setup ccache
         uses: Chocobo1/setup-ccache-action@v1
