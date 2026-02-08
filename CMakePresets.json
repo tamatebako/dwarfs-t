@@ -553,7 +553,7 @@
         "CMAKE_PREFIX_PATH": "C:/msys64/mingw64",
         "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
         "BOOST_ROOT": "C:/msys64/mingw64",
-        "BOOST_INCLUDEDIR": "C:/msys64/mingw64/include/boost",
+        "BOOST_INCLUDEDIR": "C:/msys64/mingw64/include",
         "BOOST_LIBRARYDIR": "C:/msys64/mingw64/lib",
         "VCPKG_BUILD": "OFF",
         "WITH_FUSE_DRIVER": "OFF"
@@ -586,7 +586,7 @@
         "CMAKE_PREFIX_PATH": "C:/msys64/mingw64",
         "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
         "BOOST_ROOT": "C:/msys64/mingw64",
-        "BOOST_INCLUDEDIR": "C:/msys64/mingw64/include/boost",
+        "BOOST_INCLUDEDIR": "C:/msys64/mingw64/include",
         "BOOST_LIBRARYDIR": "C:/msys64/mingw64/lib",
         "VCPKG_BUILD": "OFF",
         "WITH_FUSE_DRIVER": "OFF"
