@@ -39,15 +39,9 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write  # Required for GitHub Packages binary caching
 
 env:
   GCC_VERSION: '14'
-  # vcpkg binary caching with GitHub Packages NuGet feed
-  USERNAME: github
-  FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
-  VCPKG_BINARY_SOURCES: clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite
-  X_VCPKG_ASSET_SOURCES: clear;x-azurl,file:///${{ github.workspace }}/vcpkg_asset_cache,,readwrite
 
 jobs:
   # ========================================================================
