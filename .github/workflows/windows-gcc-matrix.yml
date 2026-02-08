@@ -95,34 +95,12 @@ jobs:
           remove_stale_cache: true
           override_cache_key: ccache_mingw64
 
-      - name: 🏗️ Configure CMake
-        run: |
-          # Find MSYS2 installation and Boost
-          # mingw-w64-x86_64-boost installs to mingw64 prefix
-          # Set policy to respect package root variables (BOOST_ROOT, etc.)
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=gcc \
-            -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_MAKE_PROGRAM=ninja \
-            -G Ninja \
-            -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
-            -DCMAKE_PREFIX_PATH=C:/msys64/mingw64 \
-            -DBOOST_ROOT=C:/msys64/mingw64 \
-            -DBOOST_INCLUDEDIR=C:/msys64/mingw64/include \
-            -DBOOST_LIBRARYDIR=C:/msys64/mingw64/lib \
-            -DBUILD_TESTING=ON \
-            -DWITH_TESTS=ON \
-            -DWITH_TOOLS=ON
-
-      - name: 🔨 Build
-        run: |
-          cmake --build build --config Release -j$(nproc)
-
-      - name: 🧪 Test
-        run: |
-          cd build
-          ctest --output-on-failure -j$(nproc) || true
+      - name: 🏗️ Build and Test
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: x64-windows-mingw-production
+          buildPreset: x64-windows-mingw-production
+          testPreset: x64-windows-mingw-production
 
   # ========================================================================
   # MSYS2 Build (Unix-like environment on Windows)
@@ -175,34 +153,12 @@ jobs:
           remove_stale_cache: true
           override_cache_key: ccache_msys2
 
-      - name: 🏗️ Configure CMake
-        run: |
-          # Find MSYS2 installation and Boost
-          # mingw-w64-x86_64-boost installs to mingw64 prefix
-          # Set policy to respect package root variables (BOOST_ROOT, etc.)
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=gcc \
-            -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_MAKE_PROGRAM=ninja \
-            -G Ninja \
-            -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
-            -DCMAKE_PREFIX_PATH=C:/msys64/mingw64 \
-            -DBOOST_ROOT=C:/msys64/mingw64 \
-            -DBOOST_INCLUDEDIR=C:/msys64/mingw64/include \
-            -DBOOST_LIBRARYDIR=C:/msys64/mingw64/lib \
-            -DBUILD_TESTING=ON \
-            -DWITH_TESTS=ON \
-            -DWITH_TOOLS=ON
-
-      - name: 🔨 Build
-        run: |
-          cmake --build build --config Release -j$(nproc)
-
-      - name: 🧪 Test
-        run: |
-          cd build
-          ctest --output-on-failure -j$(nproc) || true
+      - name: 🏗️ Build and Test
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: x64-windows-mingw-production
+          buildPreset: x64-windows-mingw-production
+          testPreset: x64-windows-mingw-production
 
   # ========================================================================
   # Summary
