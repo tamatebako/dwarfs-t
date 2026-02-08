@@ -1,11 +1,18 @@
 # GoogleTest dependency configuration
 # Unit testing framework
 
+# For MinGW/MSYS builds, vcpkg's gtest doesn't link properly
+# Use FetchContent for these builds instead
 if(DEFINED VCPKG_BUILD AND VCPKG_BUILD)
-  # vcpkg mode: use find_package with CONFIG
-  find_package(GTest REQUIRED CONFIG)
-  message(STATUS "Using GoogleTest from vcpkg: ${GTest_VERSION}")
-  return()
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND (MINGW OR MSYS))
+    # MinGW/MSYS: use FetchContent because vcpkg's gtest doesn't work
+    message(STATUS "MinGW/MSYS detected: using FetchContent for GoogleTest")
+  else()
+    # vcpkg mode: use find_package with CONFIG
+    find_package(GTest REQUIRED CONFIG)
+    message(STATUS "Using GoogleTest from vcpkg: ${GTest_VERSION}")
+    return()
+  endif()
 endif()
 
 # Try system package first (unless PREFER_SYSTEM_GTEST is explicitly OFF)
