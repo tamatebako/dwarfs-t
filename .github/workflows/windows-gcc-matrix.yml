@@ -156,9 +156,9 @@ jobs:
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
         with:
-          configurePreset: x64-windows-mingw-production
-          buildPreset: x64-windows-mingw-production
-          testPreset: x64-windows-mingw-production
+          configurePreset: x64-windows-msys-production
+          buildPreset: x64-windows-msys-production
+          testPreset: x64-windows-msys-production
 
   # ========================================================================
   # Summary
