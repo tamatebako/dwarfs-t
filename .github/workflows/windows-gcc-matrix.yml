@@ -99,19 +99,17 @@ jobs:
         run: |
           # Find MSYS2 installation and Boost
           # mingw-w64-x86_64-boost installs to mingw64 prefix
-          MSYS2_PREFIX="C:/msys64"
-          MINGW64_PREFIX="$MSYS2_PREFIX/mingw64"
-
+          # Use explicit paths without quotes to avoid CMake path issues
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
-            -DCMAKE_PREFIX_PATH="$MINGW64_PREFIX" \
-            -DBOOST_ROOT="$MINGW64_PREFIX" \
-            -DBOOST_INCLUDEDIR="$MINGW64_PREFIX/include" \
-            -DBOOST_LIBRARYDIR="$MINGW64_PREFIX/lib" \
+            -DCMAKE_PREFIX_PATH=C:/msys64/mingw64 \
+            -DBOOST_ROOT=C:/msys64/mingw64 \
+            -DBOOST_INCLUDEDIR=C:/msys64/mingw64/include \
+            -DBOOST_LIBRARYDIR=C:/msys64/mingw64/lib \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
@@ -180,19 +178,17 @@ jobs:
         run: |
           # Find MSYS2 installation and Boost
           # mingw-w64-x86_64-boost installs to mingw64 prefix
-          MSYS2_PREFIX="C:/msys64"
-          MINGW64_PREFIX="$MSYS2_PREFIX/mingw64"
-
+          # Use explicit paths without quotes to avoid CMake path issues
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_MAKE_PROGRAM=ninja \
             -G Ninja \
-            -DCMAKE_PREFIX_PATH="$MINGW64_PREFIX" \
-            -DBOOST_ROOT="$MINGW64_PREFIX" \
-            -DBOOST_INCLUDEDIR="$MINGW64_PREFIX/include" \
-            -DBOOST_LIBRARYDIR="$MINGW64_PREFIX/lib" \
+            -DCMAKE_PREFIX_PATH=C:/msys64/mingw64 \
+            -DBOOST_ROOT=C:/msys64/mingw64 \
+            -DBOOST_INCLUDEDIR=C:/msys64/mingw64/include \
+            -DBOOST_LIBRARYDIR=C:/msys64/mingw64/lib \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
