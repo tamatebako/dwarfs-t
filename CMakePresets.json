@@ -574,14 +574,8 @@
       "name": "x64-windows-mingw-base",
       "hidden": true,
       "inherits": "common-base",
-      "description": "Windows x64 MinGW-w64 base configuration",
+      "description": "Windows x64 MinGW-w64 base configuration (MSYS2, no vcpkg)",
       "binaryDir": "${sourceDir}/build-${presetName}",
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "environment": {
-        "VCPKG_DEFAULT_TRIPLET": "x64-windows-mingw",
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
-      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_SHARED_LIBS": "OFF",
@@ -590,7 +584,7 @@
         "CMAKE_MAKE_PROGRAM": "ninja",
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
-        "VCPKG_TARGET_TRIPLET": "x64-windows-mingw",
+        "CMAKE_PREFIX_PATH": "C:/msys64/mingw64",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },

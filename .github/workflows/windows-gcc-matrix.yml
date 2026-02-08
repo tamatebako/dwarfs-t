@@ -110,6 +110,8 @@ jobs:
             -G Ninja \
             -DCMAKE_PREFIX_PATH="$MINGW64_PREFIX" \
             -DBOOST_ROOT="$MINGW64_PREFIX" \
+            -DBOOST_INCLUDEDIR="$MINGW64_PREFIX/include" \
+            -DBOOST_LIBRARYDIR="$MINGW64_PREFIX/lib" \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
@@ -189,6 +191,8 @@ jobs:
             -G Ninja \
             -DCMAKE_PREFIX_PATH="$MINGW64_PREFIX" \
             -DBOOST_ROOT="$MINGW64_PREFIX" \
+            -DBOOST_INCLUDEDIR="$MINGW64_PREFIX/include" \
+            -DBOOST_LIBRARYDIR="$MINGW64_PREFIX/lib" \
             -DBUILD_TESTING=ON \
             -DWITH_TESTS=ON \
             -DWITH_TOOLS=ON
