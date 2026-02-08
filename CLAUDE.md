@@ -51,6 +51,50 @@ ninja
 - `scripts/build-all-and-test.sh` - Build and run all tests
 - `scripts/test-all-configs.sh` - Test multiple configurations
 
+## CRITICAL: Build Configuration Isolation
+
+**MANDATORY**: Windows MSVC, Linux, and macOS builds MUST NOT be affected when modifying MinGW/MSYS build configurations.
+
+### Build Preset Isolation
+
+The project uses separate CMake presets for different build environments:
+
+**Windows MSVC builds** (use separate presets, MUST NOT be affected):
+- `x64-windows-base`, `x64-windows-static-base`, `x64-windows-static-md-base`
+- `arm64-windows-static-base`
+
+**Linux builds** (use separate presets, MUST NOT be affected):
+- `x64-linux-base`, `x64-linux-dynamic-base`, `x64-linux-musl-base`
+
+**macOS builds** (use separate presets, MUST NOT be affected):
+- `x64-osx-base`, `arm64-osx-base`
+
+**Windows GCC builds** (MinGW/MSYS2 - completely different environment):
+- `x64-windows-mingw-base`, `x64-windows-msys-base`
+- These are the ONLY presets that should be modified for Windows GCC Matrix fixes
+
+### When Fixing Windows GCC (MinGW/MSYS) Issues
+
+**ONLY modify these files/presets:**
+- CMakePresets.json: `x64-windows-mingw-*` and `x64-windows-msys-*` presets ONLY
+- `.github/workflows/windows-gcc-matrix.yml` ONLY
+
+**NEVER modify:**
+- `common-base` preset (affects ALL builds)
+- Windows MSVC presets (`x64-windows-*` except mingw/msys variants)
+- Linux presets (`x64-linux-*`)
+- macOS presets (`*osx-*`)
+- CMakeLists.txt global settings (affects ALL builds)
+
+### Why This Is Critical
+
+MinGW/MSYS2 use GCC compiler on Windows, which is fundamentally different from:
+- MSVC builds (use Microsoft Visual C++ compiler)
+- Linux builds (use native GCC on Linux)
+- macOS builds (use Clang on macOS)
+
+Changes to MinGW/MSYS builds MUST NOT propagate to other environments.
+
 ## CRITICAL: Tebako jemalloc Dependency
 
 **MANDATORY**: This project REQUIRES Tebako's fork of jemalloc, NOT the upstream jemalloc!
