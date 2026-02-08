@@ -52,12 +52,6 @@ jobs:
     runs-on: windows-latest
     continue-on-error: true  # Experimental
 
-    env:
-      VCPKG_DEFAULT_TRIPLET: x64-windows-mingw
-      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
-      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
-      MSYSTEM: MINGW64
-
     defaults:
       run:
         shell: bash
@@ -81,13 +75,6 @@ jobs:
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-boost
             git
-
-      - name: 📦 Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
-          vcpkgJsonGlob: vcpkg-production.json
-          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -123,12 +110,6 @@ jobs:
     runs-on: windows-latest
     continue-on-error: true  # Experimental
 
-    env:
-      VCPKG_DEFAULT_TRIPLET: x64-windows-msys
-      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
-      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
-      MSYSTEM: MINGW64
-
     defaults:
       run:
         shell: bash
@@ -152,13 +133,6 @@ jobs:
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-boost
             git
-
-      - name: 📦 Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
-          vcpkgJsonGlob: vcpkg-production.json
-          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest

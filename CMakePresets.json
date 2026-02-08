@@ -540,14 +540,8 @@
       "name": "x64-windows-msys-base",
       "hidden": true,
       "inherits": "common-base",
-      "description": "Windows x64 MSYS2 base configuration (vcpkg with MSYS2 triplet)",
+      "description": "Windows x64 MSYS2 base configuration (MSYS2 packages, no vcpkg)",
       "binaryDir": "${sourceDir}/build-${presetName}",
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "environment": {
-        "VCPKG_DEFAULT_TRIPLET": "x64-windows-msys",
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
-      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_SHARED_LIBS": "OFF",
@@ -556,8 +550,9 @@
         "CMAKE_MAKE_PROGRAM": "ninja",
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
+        "CMAKE_PREFIX_PATH": "C:/msys64/mingw64",
         "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
-        "PREFER_SYSTEM_GTEST": "OFF",
+        "VCPKG_BUILD": "OFF",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
@@ -575,14 +570,8 @@
       "name": "x64-windows-mingw-base",
       "hidden": true,
       "inherits": "common-base",
-      "description": "Windows x64 MinGW-w64 base configuration (vcpkg with MinGW triplet)",
+      "description": "Windows x64 MinGW-w64 base configuration (MSYS2 packages, no vcpkg)",
       "binaryDir": "${sourceDir}/build-${presetName}",
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "environment": {
-        "VCPKG_DEFAULT_TRIPLET": "x64-windows-mingw",
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg_ports",
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg_triplets"
-      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_SHARED_LIBS": "OFF",
@@ -591,8 +580,9 @@
         "CMAKE_MAKE_PROGRAM": "ninja",
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
+        "CMAKE_PREFIX_PATH": "C:/msys64/mingw64",
         "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
-        "PREFER_SYSTEM_GTEST": "OFF",
+        "VCPKG_BUILD": "OFF",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
