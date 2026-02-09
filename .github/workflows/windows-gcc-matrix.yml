@@ -51,7 +51,6 @@ jobs:
   mingw:
     name: 🔧 MinGW x64
     runs-on: windows-latest
-    continue-on-error: true  # Experimental
 
     env:
       VCPKG_DEFAULT_TRIPLET: x64-mingw-static
@@ -116,7 +115,6 @@ jobs:
   msys:
     name: 🔧 MSYS2 x64
     runs-on: windows-latest
-    continue-on-error: true  # Experimental
 
     env:
       VCPKG_DEFAULT_TRIPLET: x64-mingw-static
