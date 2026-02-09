@@ -63,7 +63,9 @@ int safe_main(std::function<int(void)> const& fn) {
     install_signal_handlers();
     setup_default_locale();
 #ifdef _WIN32
+#if defined(_MSC_VER)
     ::_set_abort_behavior(0, _WRITE_ABORT_MSG);
+#endif
 #endif
 
     retval = fn();
