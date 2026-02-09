@@ -624,7 +624,8 @@
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
         "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
         "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
-        "CMAKE_SYSTEM_NAME": "MinGW",
+        "CMAKE_EXE_LINKER_FLAGS": "-mconsole",
+        "CMAKE_MODULE_LINKER_FLAGS": "-mconsole",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
