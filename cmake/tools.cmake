@@ -63,13 +63,6 @@ if(WITH_TOOLS)
       target_link_libraries(${tgt}_main PRIVATE ${tgt}_secondary)
     endif()
     add_executable(${tgt} tools/src/${tgt}.cpp)
-    # MinGW/MSYS: Force console subsystem and prevent GUI entry point
-    if(MINGW)
-      # Use linker options to force console subsystem
-      target_link_options(${tgt} PRIVATE "-mconsole")
-      # Also set as property to ensure CMake knows this is a console app
-      set_target_properties(${tgt} PROPERTIES WIN32_EXECUTABLE FALSE)
-    endif()
     target_link_libraries(${tgt} PRIVATE ${tgt}_main)
     target_link_libraries(${tgt} PRIVATE dwarfs_tool)
     # Link FUSE library using the DRY helper function
