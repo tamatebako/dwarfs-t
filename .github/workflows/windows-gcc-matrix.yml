@@ -103,6 +103,10 @@ jobs:
           remove_stale_cache: true
           override_cache_key: ccache_mingw64
 
+      - name: 🧹 Clean build directory
+        run: rm -rf build-x64-mingw-static-production
+        shell: bash
+
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
         with:
@@ -174,6 +178,10 @@ jobs:
           restore_cache: false
           remove_stale_cache: true
           override_cache_key: ccache_msys2
+
+      - name: 🧹 Clean build directory
+        run: rm -rf build-x64-mingw-static-production
+        shell: bash
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
