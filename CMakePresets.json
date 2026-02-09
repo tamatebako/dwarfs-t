@@ -623,6 +623,7 @@
         "CMAKE_WIN32_EXECUTABLE": "OFF",
         "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS": "FALSE",
         "CMAKE_POLICY_DEFAULT_CMP0144": "NEW",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
