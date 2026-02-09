@@ -189,10 +189,11 @@ function(fix_mingw_exe_exports TARGET)
   set_target_properties(${TARGET} PROPERTIES ENABLE_EXPORTS FALSE)
   # Set WIN32_EXECUTABLE to FALSE to force console subsystem
   set_target_properties(${TARGET} PROPERTIES WIN32_EXECUTABLE FALSE)
+  # Disable WINDOWS_EXPORT_ALL_SYMBOLS to prevent --out-implib
+  set_target_properties(${TARGET} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS FALSE)
   # For MinGW, explicitly add -mconsole linker option to force console subsystem
-  # Also add --out-implib with empty value to override any implib generation
   if(MINGW)
-    target_link_options(${TARGET} PRIVATE "-mconsole" "-Wl,--out-implib,")
+    target_link_options(${TARGET} PRIVATE "-mconsole")
   endif()
 endfunction()
 
