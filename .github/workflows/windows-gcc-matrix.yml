@@ -76,12 +76,18 @@ jobs:
           echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
         shell: bash
 
+      - name: 🧹 Clean build directory
+        run: rm -rf build-x64-mingw-static-production
+        shell: bash
+
       - name: 📦 Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
           vcpkgJsonGlob: vcpkg-production.json
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+          env: |
+            VCPKG_DEFAULT_TRIPLET=x64-mingw-static
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -102,10 +108,6 @@ jobs:
           restore_cache: false
           remove_stale_cache: true
           override_cache_key: ccache_mingw64
-
-      - name: 🧹 Clean build directory
-        run: rm -rf build-x64-mingw-static-production
-        shell: bash
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
@@ -149,6 +151,10 @@ jobs:
             mingw-w64-x86_64-pkgconf
             git
 
+      - name: 🧹 Clean build directory
+        run: rm -rf build-x64-mingw-static-production
+        shell: bash
+
       # NOTE: We DON'T run vcpkg from MSYS2 shell to avoid conflicts!
       # Instead, we run vcpkg in a later step using standard Windows shell
 
@@ -158,6 +164,8 @@ jobs:
           vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
           vcpkgJsonGlob: vcpkg-production.json
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+          env: |
+            VCPKG_DEFAULT_TRIPLET=x64-mingw-static
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -178,10 +186,6 @@ jobs:
           restore_cache: false
           remove_stale_cache: true
           override_cache_key: ccache_msys2
-
-      - name: 🧹 Clean build directory
-        run: rm -rf build-x64-mingw-static-production
-        shell: bash
 
       - name: 🏗️ Build and Test
         uses: lukka/run-cmake@v10
