@@ -72,10 +72,10 @@ jobs:
       - name: 🔧 Install MinGW-w64
         run: |
           # Install MSYS2 but DON'T use its shell (to avoid conflicts with vcpkg)
-          pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-python
+          C:/msys64/usr/bin/pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-python
           # Add MinGW bin to PATH, but NOT MSYS2/usr/bin (avoids sh.exe conflicts)
           echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
-        shell: cmd
+        shell: bash
 
       - name: 📦 Setup vcpkg
         uses: lukka/run-vcpkg@v11
