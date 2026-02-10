@@ -198,12 +198,13 @@ function(fix_mingw_exe_exports TARGET)
   # --subsystem=console forces console subsystem
   # -mconsole also forces console subsystem (more portable)
   if(MINGW)
-    # Add static linking flags for GCC runtime and C++ standard library
-    # This fixes undefined reference errors to __cxxabiv1 vtable symbols
-    # IMPORTANT: Order matters! Static libs must come before console flags
+    # Add static linking for C++ standard library only
+    # Use -Wl,-Bstatic to force static linking, then -Wl,-Bdynamic to restore dynamic linking
+    # The console subsystem flags must come LAST to ensure proper detection
     target_link_options(${TARGET} PRIVATE
-      "-static-libgcc"
-      "-static-libstdc++"
+      "-Wl,-Bstatic"
+      "-lstdc++"
+      "-Wl,-Bdynamic"
       "-mconsole"
       "-Wl,--subsystem,console"
       "-Wl,--disable-auto-import"
