@@ -198,14 +198,11 @@ function(fix_mingw_exe_exports TARGET)
   # --subsystem=console forces console subsystem
   # -mconsole also forces console subsystem (more portable)
   if(MINGW)
-    # All linker flags must be in a SINGLE call to avoid ordering issues
-    # Use -Wl,-Bstatic to force static linking, then keep libraries static
-    # DO NOT use -Wl,-Bdynamic or it will switch back to dynamic linking
+    # For MinGW, we need static linking of C++ standard library
+    # The -static flag forces ALL libraries to be linked statically
+    # This resolves __cxxabiv1 vtable symbols
     target_link_options(${TARGET} PRIVATE
-      "-Wl,-Bstatic"
-      "-lstdc++"
-      "-lgcc"
-      "-lgcc_eh"
+      "-static"
       "-mconsole"
       "-Wl,--subsystem,console"
       "-Wl,--disable-auto-import"
