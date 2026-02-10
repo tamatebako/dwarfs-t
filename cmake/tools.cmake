@@ -63,6 +63,20 @@ if(WITH_TOOLS)
       target_link_libraries(${tgt}_main PRIVATE ${tgt}_secondary)
     endif()
     add_executable(${tgt} tools/src/${tgt}.cpp)
+
+    # MinGW/MSYS: Disable ENABLE_EXPORTS immediately after creation
+    # This must be done BEFORE any target_link_libraries calls
+    if(MINGW)
+      # Set properties to prevent DLL-like behavior
+      set_target_properties(${tgt} PROPERTIES
+        ENABLE_EXPORTS FALSE
+        WINDOWS_EXPORT_ALL_SYMBOLS FALSE
+        WIN32_EXECUTABLE FALSE
+      )
+      # Add linker options to force console subsystem immediately
+      target_link_options(${tgt} PRIVATE "-mconsole" "-Wl,--subsystem,console" "-Wl,--disable-auto-import")
+    endif()
+
     target_link_libraries(${tgt} PRIVATE ${tgt}_main)
     target_link_libraries(${tgt} PRIVATE dwarfs_tool)
     # Link FUSE library using the DRY helper function

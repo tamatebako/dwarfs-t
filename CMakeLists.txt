@@ -191,11 +191,16 @@ function(fix_mingw_exe_exports TARGET)
   set_target_properties(${TARGET} PROPERTIES WIN32_EXECUTABLE FALSE)
   # Disable WINDOWS_EXPORT_ALL_SYMBOLS to prevent --out-implib
   set_target_properties(${TARGET} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS FALSE)
+  # Set the executable type to disable automatic DLL flags
+  set_target_properties(${TARGET} PROPERTIES PREFIX "") # No prefix
+  set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}") # Explicit output name
   # For MinGW, explicitly add linker flags to force console subsystem
   # --subsystem=console forces console subsystem
   # -mconsole also forces console subsystem (more portable)
   if(MINGW)
-    target_link_options(${TARGET} PRIVATE "-mconsole" "-Wl,--subsystem,console")
+    target_link_options(${TARGET} PRIVATE "-mconsole" "-Wl,--subsystem,console" "-Wl,--disable-auto-import")
+    # Set CMake variable to disable GNUtoMS conversion
+    set_target_properties(${TARGET} PROPERTY INTERFACE_LINK_OPTIONS "-mconsole")
   endif()
 endfunction()
 
