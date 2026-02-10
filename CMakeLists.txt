@@ -61,6 +61,16 @@ elseif(NOT DEFINED VCPKG_BUILD)
   message(STATUS "Non-vcpkg build: using pkg-config or FetchContent")
 endif()
 
+# MinGW/MSYS: Disable automatic implib generation
+# CMake automatically adds --out-implib to MinGW executables, which
+# causes them to be treated as DLLs and look for WinMain instead of main.
+if(MINGW)
+  set(CMAKE_GNUtoMS FALSE CACHE BOOL "Disable GNU to MSVC import lib conversion" FORCE)
+  # Disable Windows exports globally
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
+  message(STATUS "MinGW build detected: disabled automatic implib generation")
+endif()
+
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
 option(WITH_TOOLS "build with tools" ON)
 option(WITH_FUSE_DRIVER "build with FUSE driver" ON)
@@ -198,16 +208,10 @@ function(fix_mingw_exe_exports TARGET)
   # --subsystem=console forces console subsystem
   # -mconsole also forces console subsystem (more portable)
   if(MINGW)
-    # For MinGW, we need static linking of C++ standard library
-    # Use -static-libgcc -static-libstdc++ for C++ runtime
-    # Add --allow-multiple-definition to handle potential conflicts
     target_link_options(${TARGET} PRIVATE
       "-mconsole"
       "-Wl,--subsystem,console"
       "-Wl,--disable-auto-import"
-      "-Wl,--allow-multiple-definition"
-      "-static-libgcc"
-      "-static-libstdc++"
     )
   endif()
 endfunction()

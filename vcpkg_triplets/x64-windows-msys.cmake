@@ -13,3 +13,10 @@ set(VCPKG_ENV_PASSTHROUGH PATH)
 
 # Don't set VCPKG_CMAKE_SYSTEM_NAME - vcpkg will use "Windows" default
 # which works better with MSYS/MinGW toolchains
+
+# Linker flags to ensure console subsystem is used
+set(VCPKG_CMAKE_CONFIGURE_OPTIONS
+    "-DCMAKE_EXE_LINKER_FLAGS=-mconsole -Wl,--subsystem,console -Wl,--disable-auto-import"
+    "-DCMAKE_SHARED_LINKER_FLAGS=-mconsole -Wl,--subsystem,console -Wl,--disable-auto-import"
+    "-DCMAKE_MODULE_LINKER_FLAGS=-mconsole -Wl,--subsystem,console -Wl,--disable-auto-import"
+)

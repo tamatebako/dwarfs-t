@@ -9,5 +9,10 @@ set(VCPKG_ENV_PASSTHROUGH PATH)
 set(VCPKG_CMAKE_SYSTEM_NAME MinGW)
 set(VCPKG_CMAKE_SYSTEM_VERSION 10.0)
 
-# Linker flags to ensure console subsystem is used
-set(VCPKG_CMAKE_CONFIGURE_OPTIONS "-DCMAKE_EXE_LINKER_FLAGS=-mconsole" "-DCMAKE_MODULE_LINKER_FLAGS=-mconsole")
+# Linker flags to ensure console subsystem is used and disable auto implib
+# Set these at CMake configure time to affect all targets
+set(VCPKG_CMAKE_CONFIGURE_OPTIONS
+    "-DCMAKE_EXE_LINKER_FLAGS=-mconsole -Wl,--subsystem,console -Wl,--disable-auto-import"
+    "-DCMAKE_SHARED_LINKER_FLAGS=-mconsole -Wl,--subsystem,console -Wl,--disable-auto-import"
+    "-DCMAKE_MODULE_LINKER_FLAGS=-mconsole -Wl,--subsystem,console -Wl,--disable-auto-import"
+)
