@@ -211,10 +211,6 @@ function(fix_mingw_exe_exports TARGET)
       "-mconsole"
       "-Wl,--subsystem,console"
       "-Wl,--disable-auto-import"
-    )
-    # Add empty implib override as a separate linker option at the end
-    # This must come AFTER all libraries to override CMake's automatic addition
-    target_link_options(${TARGET} LINKER
       "-Wl,--out-implib,"
     )
   endif()
