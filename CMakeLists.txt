@@ -68,7 +68,11 @@ if(MINGW)
   set(CMAKE_GNUtoMS FALSE CACHE BOOL "Disable GNU to MSVC import lib conversion" FORCE)
   # Disable Windows exports globally
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
-  message(STATUS "MinGW build detected: disabled automatic implib generation")
+  # Set static C++ runtime at project level (not using -static-libstdc++)
+  # This links libstdc++, libgcc, and libgcc_eh statically
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mconsole -Wl,--subsystem,console -Wl,--disable-auto-import")
+  message(STATUS "MinGW build detected: disabled automatic implib generation, set static C++ runtime")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
@@ -204,26 +208,6 @@ function(fix_mingw_exe_exports TARGET)
   # Set the executable type to disable automatic DLL flags
   set_target_properties(${TARGET} PROPERTIES PREFIX "") # No prefix
   set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}") # Explicit output name
-  # For MinGW, explicitly add linker flags to force console subsystem
-  # --subsystem=console forces console subsystem
-  # -mconsole also forces console subsystem (more portable)
-  if(MINGW)
-    # Add linker options for console subsystem
-    target_link_options(${TARGET} PRIVATE
-      "-mconsole"
-      "-Wl,--subsystem,console"
-      "-Wl,--disable-auto-import"
-    )
-    # Link C++ runtime libraries at the end using target_link_libraries
-    # This ensures they are positioned correctly in the linker command
-    target_link_libraries(${TARGET} PRIVATE
-      "-Wl,--push-state,--as-needed"
-      "-lstdc++"
-      "-lgcc"
-      "-lgcc_eh"
-      "-Wl,--pop-state"
-    )
-  endif()
 endfunction()
 
 # Tebako integration point
