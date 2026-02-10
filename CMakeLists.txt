@@ -199,13 +199,15 @@ function(fix_mingw_exe_exports TARGET)
   # -mconsole also forces console subsystem (more portable)
   if(MINGW)
     # For MinGW, we need static linking of C++ standard library
-    # The -static flag forces ALL libraries to be linked statically
-    # This resolves __cxxabiv1 vtable symbols
+    # Use -static-libgcc -static-libstdc++ for C++ runtime
+    # Add --allow-multiple-definition to handle potential conflicts
     target_link_options(${TARGET} PRIVATE
-      "-static"
       "-mconsole"
       "-Wl,--subsystem,console"
       "-Wl,--disable-auto-import"
+      "-Wl,--allow-multiple-definition"
+      "-static-libgcc"
+      "-static-libstdc++"
     )
   endif()
 endfunction()
