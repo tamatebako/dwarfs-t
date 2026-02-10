@@ -199,8 +199,6 @@ function(fix_mingw_exe_exports TARGET)
   # -mconsole also forces console subsystem (more portable)
   if(MINGW)
     target_link_options(${TARGET} PRIVATE "-mconsole" "-Wl,--subsystem,console" "-Wl,--disable-auto-import")
-    # Set CMake variable to disable GNUtoMS conversion
-    set_target_properties(${TARGET} PROPERTY INTERFACE_LINK_OPTIONS "-mconsole")
   endif()
 endfunction()
 
