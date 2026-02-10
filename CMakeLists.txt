@@ -198,22 +198,17 @@ function(fix_mingw_exe_exports TARGET)
   # --subsystem=console forces console subsystem
   # -mconsole also forces console subsystem (more portable)
   if(MINGW)
-    # Add console subsystem flags FIRST
-    # Then add -static at the end to force static linking of ALL libraries
-    # This avoids WinMain error while ensuring static C++ library linking
-    target_link_options(${TARGET} PRIVATE
-      "-mconsole"
-      "-Wl,--subsystem,console"
-      "-Wl,--disable-auto-import"
-    )
-    # Add -static flag at the END (via linker wrapper)
-    # This forces static linking without interfering with subsystem detection
+    # All linker flags must be in a SINGLE call to avoid ordering issues
+    # Use -Wl,-Bstatic to force static linking, then keep libraries static
+    # DO NOT use -Wl,-Bdynamic or it will switch back to dynamic linking
     target_link_options(${TARGET} PRIVATE
       "-Wl,-Bstatic"
       "-lstdc++"
       "-lgcc"
       "-lgcc_eh"
-      "-Wl,-Bdynamic"
+      "-mconsole"
+      "-Wl,--subsystem,console"
+      "-Wl,--disable-auto-import"
     )
   endif()
 endfunction()
