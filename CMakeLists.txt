@@ -200,12 +200,13 @@ function(fix_mingw_exe_exports TARGET)
   if(MINGW)
     # Add static linking flags for GCC runtime and C++ standard library
     # This fixes undefined reference errors to __cxxabiv1 vtable symbols
+    # IMPORTANT: Order matters! Static libs must come before console flags
     target_link_options(${TARGET} PRIVATE
+      "-static-libgcc"
+      "-static-libstdc++"
       "-mconsole"
       "-Wl,--subsystem,console"
       "-Wl,--disable-auto-import"
-      "-static-libgcc"
-      "-static-libstdc++"
     )
   endif()
 endfunction()
