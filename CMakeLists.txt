@@ -68,7 +68,9 @@ if(MINGW)
   set(CMAKE_GNUtoMS FALSE CACHE BOOL "Disable GNU to MSVC import lib conversion" FORCE)
   # Disable Windows exports globally
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
-  message(STATUS "MinGW build detected: disabled automatic implib generation")
+  # Add linker flag at the end to override CMake's --out-implib with empty value
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--out-implib," CACHE STRING "Override implib" FORCE)
+  message(STATUS "MinGW build detected: disabled automatic implib generation, added empty --out-implib override")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
