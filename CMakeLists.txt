@@ -68,22 +68,7 @@ if(MINGW)
   set(CMAKE_GNUtoMS FALSE CACHE BOOL "Disable GNU to MSVC import lib conversion" FORCE)
   # Disable Windows exports globally
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
-  # Create a linker script to force console entry point
-  file(WRITE ${CMAKE_BINARY_DIR}/mingw_console.ld "
-OUTPUT_FORMAT(pei-x86-64)
-ENTRY(main)
-SECTIONS
-{
-  . = SIZEOF_HEADERS;
-  .text : { *(.text) }
-  .data : { *(.data) }
-  .bss : { *(.bss) }
-}
-")
-  # Set static C++ runtime at project level with linker script
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mconsole -Wl,--subsystem,console -Wl,-T,${CMAKE_BINARY_DIR}/mingw_console.ld")
-  message(STATUS "MinGW build detected: using linker script to force console entry point")
+  message(STATUS "MinGW build detected: disabled automatic implib generation")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
@@ -219,6 +204,15 @@ function(fix_mingw_exe_exports TARGET)
   # Set the executable type to disable automatic DLL flags
   set_target_properties(${TARGET} PROPERTIES PREFIX "") # No prefix
   set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}") # Explicit output name
+  # For MinGW, add linker flags to force console subsystem
+  # Do NOT add -static-libgcc -static-libstdc++ as they trigger --out-implib
+  if(MINGW)
+    target_link_options(${TARGET} PRIVATE
+      "-mconsole"
+      "-Wl,--subsystem,console"
+      "-Wl,--disable-auto-import"
+    )
+  endif()
 endfunction()
 
 # Tebako integration point
