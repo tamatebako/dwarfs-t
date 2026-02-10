@@ -208,17 +208,20 @@ function(fix_mingw_exe_exports TARGET)
   # --subsystem=console forces console subsystem
   # -mconsole also forces console subsystem (more portable)
   if(MINGW)
-    # Link C++ runtime explicitly without triggering DLL behavior
-    # Use -lstdc++ explicitly with --start-group to resolve circular deps
+    # Add linker options for console subsystem
     target_link_options(${TARGET} PRIVATE
       "-mconsole"
       "-Wl,--subsystem,console"
       "-Wl,--disable-auto-import"
-      "-Wl,--start-group"
+    )
+    # Link C++ runtime libraries at the end using target_link_libraries
+    # This ensures they are positioned correctly in the linker command
+    target_link_libraries(${TARGET} PRIVATE
+      "-Wl,--push-state,--as-needed"
       "-lstdc++"
       "-lgcc"
       "-lgcc_eh"
-      "-Wl,--end-group"
+      "-Wl,--pop-state"
     )
   endif()
 endfunction()
