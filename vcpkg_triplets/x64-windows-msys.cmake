@@ -13,10 +13,3 @@ set(VCPKG_ENV_PASSTHROUGH PATH)
 
 # Don't set VCPKG_CMAKE_SYSTEM_NAME - vcpkg will use "Windows" default
 # which works better with MSYS/MinGW toolchains
-
-# Linker flags to ensure console subsystem is used and static linking
-set(VCPKG_CMAKE_CONFIGURE_OPTIONS
-    "-DCMAKE_EXE_LINKER_FLAGS=-mconsole -static-libgcc -static-libstdc++ -Wl,-Bstatic"
-    "-DCMAKE_MODULE_LINKER_FLAGS=-mconsole -static-libgcc -static-libstdc++ -Wl,-Bstatic"
-    "-DCMAKE_SHARED_LINKER_FLAGS=-static-libgcc -static-libstdc++ -Wl,-Bstatic"
-)
