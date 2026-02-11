@@ -187,6 +187,18 @@ endif()
 include(cmake/compile.cmake)
 include(cmake/version.cmake)
 
+# MinGW/MSYS: Fix executable linking
+# When CMAKE_WIN32_EXECUTABLE is TRUE or --out-implib is used, MinGW's
+# linker expects WinMain as the entry point. For console executables,
+# we need to explicitly set main as the entry point using -Wl,-e,main.
+function(fix_mingw_exe_exports TARGET)
+  if(MINGW)
+    # Set entry point to main for console executables
+    target_link_options(${TARGET} PRIVATE "-Wl,-e,main")
+    message(STATUS "MinGW: Set entry point to main for ${TARGET}")
+  endif()
+endfunction()
+
 # Tebako integration point
 if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
   set(TEBAKO_BUILD ON CACHE BOOL "Enable tebako build mode")
@@ -483,6 +495,27 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
     )
     if(_sed_result EQUAL 0)
       message(STATUS "  Successfully patched build.ninja")
+    endif()
+  endif()
+endif()
+
+# ============================================================================
+# MinGW/MSYS: Remove --out-implib flag from executable links
+# ============================================================================
+# CMake's Windows-GNU.cmake adds -Wl,--out-implib to link commands,
+# which causes MinGW to expect WinMain as the entry point.
+# We patch build.ninja to remove this flag for all executables.
+if(MINGW)
+  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
+  if(EXISTS "${_build_ninja}")
+    message(STATUS "MinGW: Patching build.ninja to remove --out-implib...")
+    execute_process(
+      COMMAND sed -i.bak "s/-Wl,--out-implib,[^ ]* //g" "${_build_ninja}"
+      RESULT_VARIABLE _sed_result
+      ERROR_QUIET
+    )
+    if(_sed_result EQUAL 0)
+      message(STATUS "  Successfully removed --out-implib flags")
     endif()
   endif()
 endif()
