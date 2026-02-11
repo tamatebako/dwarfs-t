@@ -66,14 +66,16 @@ endif()
 # This causes MinGW to expect WinMain as entry point. Override the link rule.
 if(MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
-  # Override CMAKE_CXX_LINK_EXECUTABLE to:
-  # 1. Remove --out-implib flag that causes WinMain errors
-  # 2. Explicitly set console subsystem using linker flag
+  # Force console subsystem by removing WIN32_EXECUTABLE and setting link options
+  # This must be done before any targets are created
+  set(CMAKE_WIN32_EXECUTABLE OFF CACHE BOOL "Disable Windows GUI executable" FORCE)
+  # Override CMAKE_CXX_LINK_EXECUTABLE to remove --out-implib flag
+  # The -mconsole flag from CMAKE_EXE_LINKER_FLAGS will select console startup code
   set(CMAKE_CXX_LINK_EXECUTABLE
-    "<CMAKE_CXX_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> -Wl,--subsystem,console ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES>")
+    "<CMAKE_CXX_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES>")
   set(CMAKE_C_LINK_EXECUTABLE
-    "<CMAKE_C_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> -Wl,--subsystem,console ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES>")
-  message(STATUS "MinGW build detected: overridden link rules for console subsystem")
+    "<CMAKE_C_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES>")
+  message(STATUS "MinGW build detected: using -mconsole for console subsystem, removed --out-implib")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
