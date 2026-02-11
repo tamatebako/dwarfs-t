@@ -556,7 +556,9 @@
         "BOOST_INCLUDEDIR": "C:/msys64/mingw64/include",
         "BOOST_LIBRARYDIR": "C:/msys64/mingw64/lib",
         "VCPKG_BUILD": "OFF",
-        "WITH_FUSE_DRIVER": "OFF"
+        "WITH_FUSE_DRIVER": "OFF",
+        "CMAKE_LINK_IMPLIB_FLAG": "",
+        "CMAKE_GNUtoMS": "TRUE"
       }
     },
     {
@@ -589,7 +591,9 @@
         "BOOST_INCLUDEDIR": "C:/msys64/mingw64/include",
         "BOOST_LIBRARYDIR": "C:/msys64/mingw64/lib",
         "VCPKG_BUILD": "OFF",
-        "WITH_FUSE_DRIVER": "OFF"
+        "WITH_FUSE_DRIVER": "OFF",
+        "CMAKE_LINK_IMPLIB_FLAG": "",
+        "CMAKE_GNUtoMS": "TRUE"
       }
     },
     {
@@ -626,7 +630,9 @@
         "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
         "CMAKE_EXE_LINKER_FLAGS": "-mconsole",
         "CMAKE_MODULE_LINKER_FLAGS": "-mconsole",
-        "WITH_FUSE_DRIVER": "OFF"
+        "WITH_FUSE_DRIVER": "OFF",
+        "CMAKE_LINK_IMPLIB_FLAG": "",
+        "CMAKE_GNUtoMS": "TRUE"
       }
     },
     {

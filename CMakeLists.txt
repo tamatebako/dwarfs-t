@@ -64,9 +64,8 @@ endif()
 # MinGW/MSYS: Disable automatic implib generation
 # CMake automatically adds --out-implib to MinGW executables, which
 # causes them to be treated as DLLs and look for WinMain instead of main.
+# Note: CMAKE_LINK_IMPLIB_FLAG and CMAKE_GNUtoMS are set in the CMake preset
 if(MINGW)
-  # Set CMAKE_GNUtoMS to TRUE to skip automatic --out-implib flag
-  set(CMAKE_GNUtoMS TRUE CACHE BOOL "Enable GNU to MSVC conversion (disables implib)" FORCE)
   # Disable Windows exports globally
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
 
@@ -74,7 +73,7 @@ if(MINGW)
   # Use -Bstatic to force static linking of libgcc and libstdc++
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic -lstdc++ -lgcc -lpthread -Wl,-Bdynamic" CACHE STRING "" FORCE)
 
-  message(STATUS "MinGW build detected: CMAKE_GNUtoMS=TRUE to disable --out-implib, using static C++ runtime via linker flags")
+  message(STATUS "MinGW build detected: using static C++ runtime via linker flags")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
