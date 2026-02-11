@@ -69,12 +69,6 @@ if(WITH_TOOLS)
     # Link FUSE library using the DRY helper function
     link_fuse_library(${tgt}_main)
 
-    # MinGW/MSYS: Disable ENABLE_EXPORTS to prevent --out-implib flag
-    # which causes MinGW to use GUI startup files expecting WinMain
-    if(COMMAND fix_mingw_exe_exports)
-      fix_mingw_exe_exports(${tgt})
-    endif()
-
     list(APPEND MAIN_TARGETS ${tgt}_main)
     list(APPEND BINARY_TARGETS ${tgt})
 
@@ -122,10 +116,6 @@ if(WITH_TOOLS)
 
   if(WITH_UNIVERSAL_BINARY)
     add_executable(dwarfsuniversal tools/src/universal.cpp)
-    # MinGW/MSYS: Disable ENABLE_EXPORTS
-    if(COMMAND fix_mingw_exe_exports)
-      fix_mingw_exe_exports(dwarfsuniversal)
-    endif()
     list(APPEND BINARY_TARGETS dwarfsuniversal)
 
     target_compile_definitions(dwarfsuniversal PRIVATE
@@ -147,10 +137,6 @@ if(WITH_TOOLS)
 
   if(WITH_FUSE_EXTRACT_BINARY)
     add_executable(dwarfsfuseextract tools/src/universal.cpp)
-    # MinGW/MSYS: Disable ENABLE_EXPORTS
-    if(COMMAND fix_mingw_exe_exports)
-      fix_mingw_exe_exports(dwarfsfuseextract)
-    endif()
     list(APPEND BINARY_TARGETS dwarfsfuseextract)
 
     target_compile_definitions(dwarfsfuseextract PRIVATE
@@ -175,9 +161,6 @@ endif()
 
 if(WITH_PXATTR)
   add_executable(pxattr tools/src/pxattr.cpp)
-  if(COMMAND fix_mingw_exe_exports)
-    fix_mingw_exe_exports(pxattr)
-  endif()
   list(APPEND BINARY_TARGETS pxattr)
   install(TARGETS pxattr RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   if(MSVC)
@@ -188,9 +171,6 @@ endif()
 if(WITH_EXAMPLE)
   add_executable(example example/example.cpp)
   target_link_libraries(example PRIVATE dwarfs_reader dwarfs_extractor)
-  if(COMMAND fix_mingw_exe_exports)
-    fix_mingw_exe_exports(example)
-  endif()
   list(APPEND BINARY_TARGETS example)
 endif()
 
@@ -251,10 +231,6 @@ if(WITH_FUSE_DRIVER)
     add_executable(dwarfs-bin tools/src/dwarfs.cpp)
     target_link_libraries(dwarfs-bin PRIVATE dwarfs_main)
     target_link_libraries(dwarfs-bin PRIVATE dwarfs_tool)
-    # MinGW/MSYS: Disable ENABLE_EXPORTS
-    if(COMMAND fix_mingw_exe_exports)
-      fix_mingw_exe_exports(dwarfs-bin)
-    endif()
     set_target_properties(dwarfs-bin PROPERTIES OUTPUT_NAME dwarfs)
     if(WINFSP)
       target_compile_definitions(dwarfs_main PRIVATE FUSE_USE_VERSION=32
@@ -304,10 +280,6 @@ if(WITH_FUSE_DRIVER)
       target_link_libraries(dwarfs2_main PRIVATE PkgConfig::FUSE)
       add_executable(dwarfs2-bin tools/src/dwarfs.cpp)
       target_link_libraries(dwarfs2-bin PRIVATE dwarfs2_main)
-      # MinGW/MSYS: Disable ENABLE_EXPORTS
-      if(COMMAND fix_mingw_exe_exports)
-        fix_mingw_exe_exports(dwarfs2-bin)
-      endif()
       if(TARGET dwarfsuniversal AND (NOT FUSE3_FOUND))
         target_link_libraries(dwarfsuniversal PRIVATE dwarfs2_main)
         target_compile_definitions(dwarfsuniversal PRIVATE DWARFS_UNIVERSAL_FUSE_DRIVER)

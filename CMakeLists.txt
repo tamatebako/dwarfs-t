@@ -61,15 +61,12 @@ elseif(NOT DEFINED VCPKG_BUILD)
   message(STATUS "Non-vcpkg build: using pkg-config or FetchContent")
 endif()
 
-# MinGW/MSYS: Disable automatic implib generation
-# CMake automatically adds --out-implib to MinGW executables, which
-# causes them to be treated as DLLs and look for WinMain instead of main.
-# Note: CMAKE_LINK_IMPLIB_FLAG and CMAKE_GNUtoMS are set in the CMake preset
+# MinGW/MSYS: Correct handling of Windows executable linking
+# Windows-GNU.cmake unconditionally adds -Wl,--out-implib to CMAKE_LINK_EXECUTABLE.
+# This is standard CMake behavior - not a bug. We accept it as-is.
 if(MINGW)
-  # Disable Windows exports globally
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
-
-  message(STATUS "MinGW build detected: implib generation disabled via preset")
+  message(STATUS "MinGW build detected: using standard CMake Windows-GNU linking behavior")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
@@ -189,33 +186,6 @@ endif()
 
 include(cmake/compile.cmake)
 include(cmake/version.cmake)
-
-# MinGW/MSYS helper function to fix executable linking
-# When CMake detects certain configurations, it adds ENABLE_EXPORTS
-# which causes MinGW to add --out-implib to the link command.
-# This makes MinGW treat the executable as a DLL, causing it to
-# look for WinMain instead of main as the entry point.
-function(fix_mingw_exe_exports TARGET)
-  # Disable ENABLE_EXPORTS to help prevent --out-implib flag
-  set_target_properties(${TARGET} PROPERTIES ENABLE_EXPORTS FALSE)
-  # Set WIN32_EXECUTABLE to FALSE to force console subsystem
-  set_target_properties(${TARGET} PROPERTIES WIN32_EXECUTABLE FALSE)
-  # Disable WINDOWS_EXPORT_ALL_SYMBOLS to prevent --out-implib
-  set_target_properties(${TARGET} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS FALSE)
-  # Set the executable type to disable automatic DLL flags
-  set_target_properties(${TARGET} PROPERTIES PREFIX "") # No prefix
-  set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}") # Explicit output name
-
-  # For MinGW, add linker flags at the END to force console subsystem
-  # and explicitly set main as the entry point to override WinMain
-  if(MINGW)
-    target_link_options(${TARGET} PRIVATE
-      "-mconsole"
-      "-Wl,-e,main"
-      "-Wl,--subsystem,console"
-    )
-  endif()
-endfunction()
 
 # Tebako integration point
 if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
@@ -514,44 +484,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
     if(_sed_result EQUAL 0)
       message(STATUS "  Successfully patched build.ninja")
     endif()
-
-    # MinGW/MSYS fix: remove --out-implib flag from executable links
-    # This prevents MinGW from treating executables as DLLs (which causes
-    # it to look for WinMain instead of main as the entry point)
-    # Detect MinGW by checking if we're on Windows with GCC compiler
-    if(WIN32 AND "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-      message(STATUS "Patching build.ninja for MinGW --out-implib fix...")
-      execute_process(
-        COMMAND sed -i.bak2 "s/-Wl,--out-implib,[^ ]* //g" "${_build_ninja}"
-        RESULT_VARIABLE _sed_result2
-        ERROR_QUIET
-      )
-      if(_sed_result2 EQUAL 0)
-        message(STATUS "  Successfully patched build.ninja for MinGW")
-      endif()
-    endif()
   endif()
 endif()
 
 # ============================================================================
-# MinGW/MSYS build.ninja patch (applies to all CMake versions)
-# ============================================================================
-# MinGW fix: remove --out-implib flag from executable links
-# This prevents MinGW from treating executables as DLLs (which causes
-# it to look for WinMain instead of main as the entry point)
-# Apply to all Windows builds - the sed command will simply not match
-# anything if there's no --out-implib flag (e.g., for MSVC builds)
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
-  if(EXISTS "${_build_ninja}")
-    message(STATUS "Patching build.ninja for MinGW/MSYS --out-implib fix...")
-    execute_process(
-      COMMAND sed -i.bak3 "s/-Wl,--out-implib,[^ ]* //g" "${_build_ninja}"
-      RESULT_VARIABLE _sed_result
-      ERROR_QUIET
-    )
-    if(_sed_result EQUAL 0)
-      message(STATUS "  Successfully patched build.ninja for MinGW/MSYS")
-    endif()
-  endif()
-endif()
