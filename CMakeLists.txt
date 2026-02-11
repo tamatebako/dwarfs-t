@@ -63,10 +63,16 @@ endif()
 
 # MinGW/MSYS: Correct handling of Windows executable linking
 # Windows-GNU.cmake unconditionally adds -Wl,--out-implib to CMAKE_LINK_EXECUTABLE.
-# This is standard CMake behavior - not a bug. We accept it as-is.
+# This causes MinGW to expect WinMain as entry point. Override the link rule.
 if(MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
-  message(STATUS "MinGW build detected: using standard CMake Windows-GNU linking behavior")
+  # Override CMAKE_CXX_LINK_EXECUTABLE to remove --out-implib flag
+  # This prevents MinGW from treating executables as DLLs
+  set(CMAKE_CXX_LINK_EXECUTABLE
+    "<CMAKE_CXX_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES>")
+  set(CMAKE_C_LINK_EXECUTABLE
+    "<CMAKE_C_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES>")
+  message(STATUS "MinGW build detected: overridden link rules to remove --out-implib")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
@@ -498,26 +504,3 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND VCPKG_BUILD)
     endif()
   endif()
 endif()
-
-# ============================================================================
-# MinGW/MSYS: Remove --out-implib flag from executable links
-# ============================================================================
-# CMake's Windows-GNU.cmake adds -Wl,--out-implib to link commands,
-# which causes MinGW to expect WinMain as the entry point.
-# We patch build.ninja to remove this flag for all executables.
-if(MINGW)
-  set(_build_ninja "${CMAKE_CURRENT_BINARY_DIR}/build.ninja")
-  if(EXISTS "${_build_ninja}")
-    message(STATUS "MinGW: Patching build.ninja to remove --out-implib...")
-    execute_process(
-      COMMAND sed -i.bak "s/-Wl,--out-implib,[^ ]* //g" "${_build_ninja}"
-      RESULT_VARIABLE _sed_result
-      ERROR_QUIET
-    )
-    if(_sed_result EQUAL 0)
-      message(STATUS "  Successfully removed --out-implib flags")
-    endif()
-  endif()
-endif()
-
-# ============================================================================
