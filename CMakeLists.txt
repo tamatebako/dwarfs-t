@@ -193,18 +193,6 @@ endif()
 include(cmake/compile.cmake)
 include(cmake/version.cmake)
 
-# MinGW/MSYS: Fix executable linking
-# When CMAKE_WIN32_EXECUTABLE is TRUE or --out-implib is used, MinGW's
-# linker expects WinMain as the entry point. For console executables,
-# we need to explicitly set main as the entry point using -Wl,-e,main.
-function(fix_mingw_exe_exports TARGET)
-  if(MINGW)
-    # Set entry point to main for console executables
-    target_link_options(${TARGET} PRIVATE "-Wl,-e,main")
-    message(STATUS "MinGW: Set entry point to main for ${TARGET}")
-  endif()
-endfunction()
-
 # Tebako integration point
 if(DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD)
   set(TEBAKO_BUILD ON CACHE BOOL "Enable tebako build mode")

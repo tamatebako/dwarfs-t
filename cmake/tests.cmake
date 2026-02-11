@@ -67,11 +67,9 @@ if(WITH_TESTS OR WITH_BENCHMARKS OR WITH_FUZZ)
   if(WITH_DEV_TOOLS)
     add_executable(treediff test/treediff.cpp)
     target_link_libraries(treediff PRIVATE dwarfs_test_helpers)
-    fix_mingw_exe_exports(treediff)
 
     add_executable(sparsedump test/sparsedump.cpp)
     target_link_libraries(sparsedump PRIVATE dwarfs_common)
-    fix_mingw_exe_exports(sparsedump)
 
     list(APPEND BINARY_TARGETS treediff sparsedump)
   endif()
@@ -123,7 +121,7 @@ if(WITH_TESTS)
   target_link_libraries(dwarfs_filesystem_tests
     PRIVATE dwarfs_test_fixtures GTest::gtest_main
   )
-  fix_mingw_exe_exports(dwarfs_filesystem_tests)
+
   target_compile_definitions(dwarfs_filesystem_tests PRIVATE
     TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test"
     TOOLS_BIN_DIR="${CMAKE_CURRENT_BINARY_DIR}"
@@ -143,7 +141,7 @@ endif()
 if(BUILD_FSST_MAIN)
   add_executable(fsst_main fsst/fsst.cpp)
   target_link_libraries(fsst_main PRIVATE dwarfs_fsst)
-  fix_mingw_exe_exports(fsst_main)
+
 endif()
 
 # Compatibility target deleted. The following tests are here for reference.
