@@ -69,15 +69,12 @@ if(MINGW)
   # Disable Windows exports globally
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
 
-  # Override CMake's internal MinGW platform variables to prevent --out-implib
-  set(CMAKE_LINK_DEF_FILE_FLAG "-Wl,--output-def," CACHE STRING "" FORCE)
-  set(CMAKE_LINK_IMPLIB_FLAG "" CACHE STRING "" FORCE)
+  # Link C++ runtime statically without triggering CMake's --out-implib
+  # Use -Bstatic to force static linking of libgcc and libstdc++
+  # NOTE: Do NOT use -static-libgcc or -static-libstdc++ as they trigger --out-implib
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic -lstdc++ -lgcc -lpthread -Wl,-Bdynamic" CACHE STRING "" FORCE)
 
-  # Add static C++ runtime and force no implib at the linker flag level
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++" CACHE STRING "" FORCE)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--out-implib," CACHE STRING "" FORCE)
-
-  message(STATUS "MinGW build detected: disabled automatic implib generation, using static C++ runtime")
+  message(STATUS "MinGW build detected: disabled automatic implib generation, using static C++ runtime via linker flags")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
