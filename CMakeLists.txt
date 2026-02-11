@@ -205,6 +205,16 @@ function(fix_mingw_exe_exports TARGET)
   # Set the executable type to disable automatic DLL flags
   set_target_properties(${TARGET} PROPERTIES PREFIX "") # No prefix
   set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}") # Explicit output name
+
+  # For MinGW, add linker flags at the END to force console subsystem
+  # and explicitly set main as the entry point to override WinMain
+  if(MINGW)
+    target_link_options(${TARGET} PRIVATE
+      "-mconsole"
+      "-Wl,-e,main"
+      "-Wl,--subsystem,console"
+    )
+  endif()
 endfunction()
 
 # Tebako integration point
