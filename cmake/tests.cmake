@@ -128,7 +128,9 @@ if(WITH_TESTS)
   )
   # Add FUSE-T RPATH for test targets that link to dwarfs_reader
   add_fuse_rpath_to_tests(dwarfs_filesystem_tests)
-  gtest_discover_tests(dwarfs_filesystem_tests)
+  # Use PRE_TEST discovery mode for cross-platform compatibility
+  # (POST_BUILD can fail on Windows if DLLs aren't in PATH during build)
+  gtest_discover_tests(dwarfs_filesystem_tests DISCOVERY_MODE PRE_TEST)
 endif()
 
 # Additional libraries for compression benchmark
@@ -155,7 +157,7 @@ if(WITH_TESTS)
   target_link_libraries(dwarfs_segmenter_tests
     PRIVATE dwarfs_test_helpers GTest::gtest_main
   )
-  gtest_discover_tests(dwarfs_segmenter_tests)
+  gtest_discover_tests(dwarfs_segmenter_tests DISCOVERY_MODE PRE_TEST)
 
   add_executable(dwarfs_filter_tests
     test/filter/filter_test.cpp
@@ -163,7 +165,7 @@ if(WITH_TESTS)
   target_link_libraries(dwarfs_filter_tests
     PRIVATE dwarfs_test_helpers GTest::gtest_main
   )
-  gtest_discover_tests(dwarfs_filter_tests)
+  gtest_discover_tests(dwarfs_filter_tests DISCOVERY_MODE PRE_TEST)
 
   add_executable(dwarfs_compression_tests
     test/compression/compression_test.cpp
@@ -172,7 +174,7 @@ if(WITH_TESTS)
   target_link_libraries(dwarfs_compression_tests
     PRIVATE dwarfs_test_helpers GTest::gtest_main
   )
-  gtest_discover_tests(dwarfs_compression_tests)
+  gtest_discover_tests(dwarfs_compression_tests DISCOVERY_MODE PRE_TEST)
 
   # Scanner and metadata tests removed - they depend on functions in dwarfs_test.cpp anonymous namespace
   # TODO: Refactor to make these extractable
@@ -258,7 +260,7 @@ if(WITH_TESTS)
   if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET dwarfs_metadata_modern_thrift)
     target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_metadata_modern_thrift)
   endif()
-  gtest_discover_tests(dwarfs_unit_tests)
+  gtest_discover_tests(dwarfs_unit_tests DISCOVERY_MODE PRE_TEST)
 
   # Categorizer tests require folly
   if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
@@ -270,7 +272,7 @@ if(WITH_TESTS)
     target_link_libraries(dwarfs_categorizer_tests
       PRIVATE dwarfs_test_helpers GTest::gtest_main
     )
-    gtest_discover_tests(dwarfs_categorizer_tests)
+    gtest_discover_tests(dwarfs_categorizer_tests DISCOVERY_MODE PRE_TEST)
   endif()
 
   # Expensive tests (dwarfs_test.cpp) uses folly
@@ -281,7 +283,7 @@ if(WITH_TESTS)
     target_link_libraries(dwarfs_expensive_tests
       PRIVATE dwarfs_test_helpers GTest::gtest_main
     )
-    gtest_discover_tests(dwarfs_expensive_tests)
+    gtest_discover_tests(dwarfs_expensive_tests DISCOVERY_MODE PRE_TEST)
   endif()
 
   if(FLAC_FOUND OR ENABLE_RICEPP)
@@ -297,7 +299,7 @@ if(WITH_TESTS)
     target_link_libraries(dwarfs_compressor_tests
       PRIVATE dwarfs_test_helpers GTest::gtest_main
     )
-    gtest_discover_tests(dwarfs_compressor_tests)
+    gtest_discover_tests(dwarfs_compressor_tests DISCOVERY_MODE PRE_TEST)
   endif()
 
   # Comprehensive compression algorithm benchmark
