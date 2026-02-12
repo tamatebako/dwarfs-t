@@ -67,11 +67,15 @@ endif()
 if(MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
   set(CMAKE_WIN32_EXECUTABLE OFF CACHE BOOL "Console executable" FORCE)
-  # Add -municode to tell MinGW to use wmain entry point
-  # Add -mconsole for console subsystem
-  string(APPEND CMAKE_EXE_LINKER_FLAGS " -municode")
-  message(STATUS "MinGW build detected: console subsystem with Unicode entry point (wmain)")
+  message(STATUS "MinGW build detected: console subsystem enabled")
 endif()
+
+# Helper function for tools that use wmain entry point
+function(add_mingw_unicode_support TARGET)
+  if(MINGW)
+    target_link_options(${TARGET} PRIVATE "-municode")
+  endif()
+endfunction()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
 option(WITH_TOOLS "build with tools" ON)
