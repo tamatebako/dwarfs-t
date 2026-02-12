@@ -106,6 +106,9 @@ endif()
 # ============================================================================
 
 if(WITH_TESTS)
+  # Enable CTest support - must be called before gtest_discover_tests
+  enable_testing()
+
   # Include GoogleTest module for gtest_discover_tests
   include(GoogleTest)
 
