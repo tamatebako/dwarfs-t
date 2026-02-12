@@ -67,15 +67,16 @@ endif()
 if(MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
   # Force console subsystem by removing WIN32_EXECUTABLE and setting link options
-  # This must be done before any targets are created
   set(CMAKE_WIN32_EXECUTABLE OFF CACHE BOOL "Disable Windows GUI executable" FORCE)
   # Override CMAKE_CXX_LINK_EXECUTABLE to remove --out-implib flag
-  # The -mconsole flag from CMAKE_EXE_LINKER_FLAGS will select console startup code
+  # IMPORTANT: Include -lmingw32 which is required for proper CRT startup
+  # The standard library list from Windows-GNU.cmake is:
+  # -lmingw32 -lgcc -lmoldname -lmingwex -lmsvcrt [user libs] -ladvapi32 -lshell32 -luser32 -lkernel32
   set(CMAKE_CXX_LINK_EXECUTABLE
-    "<CMAKE_CXX_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES>")
+    "<CMAKE_CXX_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES> -lmingw32 -lgcc -lmoldname -lmingwex -lmsvcrt")
   set(CMAKE_C_LINK_EXECUTABLE
-    "<CMAKE_C_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES>")
-  message(STATUS "MinGW build detected: using -mconsole for console subsystem, removed --out-implib")
+    "<CMAKE_C_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES> -lmingw32 -lgcc -lmoldname -lmingwex -lmsvcrt")
+  message(STATUS "MinGW build detected: removed --out-implib, added -lmingw32 for console subsystem")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
