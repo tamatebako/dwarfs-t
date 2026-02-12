@@ -62,15 +62,15 @@ elseif(NOT DEFINED VCPKG_BUILD)
 endif()
 
 # MinGW/MSYS: Correct handling of Windows executable linking
-# The --out-implib flag added by CMake's Windows-GNU.cmake can cause issues,
-# but overriding CMAKE_CXX_LINK_EXECUTABLE breaks startup code selection.
-# Instead, we rely on:
-# 1. CMAKE_WIN32_EXECUTABLE=OFF (set in preset) for console subsystem
-# 2. CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=OFF to avoid symbol export issues
+# On Windows, our tools use wmain (Unicode entry point) via SYS_MAIN macro.
+# We need to tell MinGW to use console subsystem with Unicode support.
 if(MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
   set(CMAKE_WIN32_EXECUTABLE OFF CACHE BOOL "Console executable" FORCE)
-  message(STATUS "MinGW build detected: console subsystem enabled")
+  # Add -municode to tell MinGW to use wmain entry point
+  # Add -mconsole for console subsystem
+  string(APPEND CMAKE_EXE_LINKER_FLAGS " -municode")
+  message(STATUS "MinGW build detected: console subsystem with Unicode entry point (wmain)")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
