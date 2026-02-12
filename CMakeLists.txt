@@ -62,21 +62,15 @@ elseif(NOT DEFINED VCPKG_BUILD)
 endif()
 
 # MinGW/MSYS: Correct handling of Windows executable linking
-# Windows-GNU.cmake unconditionally adds -Wl,--out-implib to CMAKE_LINK_EXECUTABLE.
-# This causes MinGW to expect WinMain as entry point. Override the link rule.
+# The --out-implib flag added by CMake's Windows-GNU.cmake can cause issues,
+# but overriding CMAKE_CXX_LINK_EXECUTABLE breaks startup code selection.
+# Instead, we rely on:
+# 1. CMAKE_WIN32_EXECUTABLE=OFF (set in preset) for console subsystem
+# 2. CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=OFF to avoid symbol export issues
 if(MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF CACHE BOOL "Disable auto-export symbols" FORCE)
-  # Force console subsystem by removing WIN32_EXECUTABLE and setting link options
-  set(CMAKE_WIN32_EXECUTABLE OFF CACHE BOOL "Disable Windows GUI executable" FORCE)
-  # Override CMAKE_CXX_LINK_EXECUTABLE to remove --out-implib flag
-  # IMPORTANT: Include -lmingw32 which is required for proper CRT startup
-  # The standard library list from Windows-GNU.cmake is:
-  # -lmingw32 -lgcc -lmoldname -lmingwex -lmsvcrt [user libs] -ladvapi32 -lshell32 -luser32 -lkernel32
-  set(CMAKE_CXX_LINK_EXECUTABLE
-    "<CMAKE_CXX_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES> -lmingw32 -lgcc -lmoldname -lmingwex -lmsvcrt")
-  set(CMAKE_C_LINK_EXECUTABLE
-    "<CMAKE_C_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES> -lmingw32 -lgcc -lmoldname -lmingwex -lmsvcrt")
-  message(STATUS "MinGW build detected: removed --out-implib, added -lmingw32 for console subsystem")
+  set(CMAKE_WIN32_EXECUTABLE OFF CACHE BOOL "Console executable" FORCE)
+  message(STATUS "MinGW build detected: console subsystem enabled")
 endif()
 
 option(WITH_LIBDWARFS "build with libdwarfs" ON)
