@@ -155,6 +155,7 @@ if(WITH_TESTS)
   target_link_libraries(dwarfs_segmenter_tests
     PRIVATE dwarfs_test_helpers GTest::gtest_main
   )
+  gtest_discover_tests(dwarfs_segmenter_tests)
 
   add_executable(dwarfs_filter_tests
     test/filter/filter_test.cpp
@@ -162,6 +163,7 @@ if(WITH_TESTS)
   target_link_libraries(dwarfs_filter_tests
     PRIVATE dwarfs_test_helpers GTest::gtest_main
   )
+  gtest_discover_tests(dwarfs_filter_tests)
 
   add_executable(dwarfs_compression_tests
     test/compression/compression_test.cpp
@@ -170,6 +172,7 @@ if(WITH_TESTS)
   target_link_libraries(dwarfs_compression_tests
     PRIVATE dwarfs_test_helpers GTest::gtest_main
   )
+  gtest_discover_tests(dwarfs_compression_tests)
 
   # Scanner and metadata tests removed - they depend on functions in dwarfs_test.cpp anonymous namespace
   # TODO: Refactor to make these extractable
@@ -255,6 +258,7 @@ if(WITH_TESTS)
   if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET dwarfs_metadata_modern_thrift)
     target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_metadata_modern_thrift)
   endif()
+  gtest_discover_tests(dwarfs_unit_tests)
 
   # Categorizer tests require folly
   if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
@@ -266,6 +270,7 @@ if(WITH_TESTS)
     target_link_libraries(dwarfs_categorizer_tests
       PRIVATE dwarfs_test_helpers GTest::gtest_main
     )
+    gtest_discover_tests(dwarfs_categorizer_tests)
   endif()
 
   # Expensive tests (dwarfs_test.cpp) uses folly
@@ -276,6 +281,7 @@ if(WITH_TESTS)
     target_link_libraries(dwarfs_expensive_tests
       PRIVATE dwarfs_test_helpers GTest::gtest_main
     )
+    gtest_discover_tests(dwarfs_expensive_tests)
   endif()
 
   if(FLAC_FOUND OR ENABLE_RICEPP)
@@ -291,6 +297,7 @@ if(WITH_TESTS)
     target_link_libraries(dwarfs_compressor_tests
       PRIVATE dwarfs_test_helpers GTest::gtest_main
     )
+    gtest_discover_tests(dwarfs_compressor_tests)
   endif()
 
   # Comprehensive compression algorithm benchmark
