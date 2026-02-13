@@ -87,9 +87,10 @@ TEST(SchemaBuilderTest, ChunkLayoutHasCorrectOffsets) {
   ASSERT_NE(field2_chunk, nullptr);
   ASSERT_NE(field3_chunk, nullptr);
 
-  EXPECT_EQ(0, field1_chunk->offset);
-  EXPECT_EQ(32, field2_chunk->offset);
-  EXPECT_EQ(64, field3_chunk->offset);
+  // Offsets are in bytes (multiply by 8 for bit offset)
+  EXPECT_EQ(0, field1_chunk->offset);   // 0 bytes
+  EXPECT_EQ(4, field2_chunk->offset);   // 4 bytes
+  EXPECT_EQ(8, field3_chunk->offset);   // 8 bytes
 }
 
 TEST(SchemaBuilderTest, GeneratesCompleteSchema) {

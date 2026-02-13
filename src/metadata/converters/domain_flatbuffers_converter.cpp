@@ -540,11 +540,7 @@ domain::metadata from_flatbuffers(const dwarfs::flatbuffers::Metadata& fb) {
   // Convert directories
   std::vector<::flatbuffers::Offset<dwarfs::flatbuffers::Directory>> dir_offsets;
   dir_offsets.reserve(m.directories.size());
-  std::cerr << "[TO_FB_CONVERTER] Converting " << m.directories.size() << " directories" << std::endl;
   for (const auto& d : m.directories) {
-    std::cerr << "[TO_FB_CONVERTER] directory: parent_entry=" << d.parent_entry()
-              << ", first_entry=" << d.first_entry()
-              << ", self_entry=" << d.self_entry() << std::endl;
     dir_offsets.push_back(to_flatbuffers(builder, d));
   }
   auto directories_offset = builder.CreateVector(dir_offsets);

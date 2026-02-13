@@ -154,13 +154,11 @@ void global_entry_data::pack_inode_stat(
 
   if (!options_.timestamp) {
     auto const base = timeres.align_offset(timestamp_base_);
-    std::cerr << "[PACK_INODE_STAT] timestamp_base_=" << timestamp_base_ << ", base=" << base << std::endl;
 
     {
       auto const mts = stat.mtimespec_unchecked();
       inode.mtime_offset = timeres.convert_offset(mts.sec - base);
       inode.mtime_subsec = timeres.convert_subsec(mts.nsec);
-      std::cerr << "[PACK_INODE_STAT] mts.sec=" << mts.sec << ", mtime_offset=" << inode.mtime_offset << std::endl;
     }
 
     if (options_.keep_all_times) {
@@ -168,17 +166,14 @@ void global_entry_data::pack_inode_stat(
         auto const ats = stat.atimespec_unchecked();
         inode.atime_offset = timeres.convert_offset(ats.sec - base);
         inode.atime_subsec = timeres.convert_subsec(ats.nsec);
-        std::cerr << "[PACK_INODE_STAT] ats.sec=" << ats.sec << ", atime_offset=" << inode.atime_offset << std::endl;
       }
 
       {
         auto const cts = stat.ctimespec_unchecked();
         inode.ctime_offset = timeres.convert_offset(cts.sec - base);
         inode.ctime_subsec = timeres.convert_subsec(cts.nsec);
-        std::cerr << "[PACK_INODE_STAT] cts.sec=" << cts.sec << ", ctime_offset=" << inode.ctime_offset << std::endl;
       }
     } else {
-      std::cerr << "[PACK_INODE_STAT] keep_all_times is FALSE" << std::endl;
       inode.atime_offset = 0;
       inode.ctime_offset = 0;
     }

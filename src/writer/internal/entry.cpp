@@ -411,12 +411,9 @@ void dir::pack(metadata::domain::metadata& mv2, global_entry_data const& data,
   }
   // Don't set first_entry here - it will be set correctly below after push
   auto se = entry_index();
-  std::cerr << "[DIR_PACK] '" << name() << "' entry_index=" << (se.has_value() ? std::to_string(*se) : "nullopt") << std::endl;
   DWARFS_CHECK(se, "self entry index not set");
   d.set_self_entry(*se);
-  std::cerr << "[DIR_PACK] '" << name() << "' self_entry after set=" << d.self_entry() << std::endl;
   mv2.directories.push_back(d);
-  std::cerr << "[DIR_PACK] '" << name() << "' pushed to directories, back().self_entry=" << mv2.directories.back().self_entry() << ", size=" << mv2.directories.size() << std::endl;
 
   // CRITICAL FIX: Set first_entry to point to the FIRST CHILD entry
   // We need to determine if this directory has directory children or not.
@@ -444,7 +441,6 @@ void dir::pack(metadata::domain::metadata& mv2, global_entry_data const& data,
     child_entry_index = mv2.dir_entries->size();
   }
   mutable_dir.set_first_entry(child_entry_index);
-  std::cerr << "[DIR_PACK] Set first_entry=" << child_entry_index << " for '" << name() << "' (dir_entries.size()=" << mv2.dir_entries->size() << ", has_dir_children=" << has_directory_children << ")" << std::endl;
 
   for (entry_ptr const& e : entries_) {
     // Skip directories - they already have entries created by pack_entry()

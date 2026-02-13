@@ -108,11 +108,6 @@ fsst_compress_(std::span<T const> input, bool force) {
   size_t const compressed_size =
       (out_ptr_vec.back() - out_ptr_vec.front()) + out_len_vec.back();
 
-  std::cerr << "[FSST_COMPRESS] total_input_size=" << total_input_size
-            << ", compressed_size=" << compressed_size
-            << ", symtab_size=" << symtab_size
-            << ", num_strings=" << size << std::endl;
-
   if (symtab_size + compressed_size >= total_input_size && !force) {
     return output;
   }
@@ -123,8 +118,6 @@ fsst_compress_(std::span<T const> input, bool force) {
                                             static_cast<size_t>(0)));
 
   buffer.resize(compressed_size);
-
-  std::cerr << "[FSST_COMPRESS] After resize: buffer.size()=" << buffer.size() << std::endl;
 
   output.emplace();
 
