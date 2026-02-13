@@ -68,6 +68,9 @@ class compare_directories_test : public ::testing::Test {
 };
 
 TEST_F(compare_directories_test, sanity) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Symlinks require developer mode or admin privileges on Windows";
+#endif
   write_file(dir1 / "file1.txt", "hello");
   write_file(dir1 / "file2.txt", "world");
 
