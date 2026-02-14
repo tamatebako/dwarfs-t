@@ -56,6 +56,7 @@ TEST_F(FilesystemBasicTest, root_access_github204) {
   auto fsimage = build_filesystem();
   create_filesystem_from_image(fsimage);
 
+  // Debug: Print modes of all directories
   auto other = filesystem_->find("/other");
   auto group = filesystem_->find("/group");
   auto user = filesystem_->find("/user");

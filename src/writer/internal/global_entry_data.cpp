@@ -22,7 +22,6 @@
  */
 
 #include <algorithm>
-#include <iostream>
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/map.hpp>
@@ -146,7 +145,9 @@ void global_entry_data::pack_inode_stat(
                     file_stat::mode_valid | file_stat::atime_valid |
                     file_stat::mtime_valid | file_stat::ctime_valid);
 
-  inode.mode_index = DWARFS_NOTHROW(modes_.at(stat.mode_unchecked()));
+  auto mode = stat.mode_unchecked();
+  auto mode_index = DWARFS_NOTHROW(modes_.at(mode));
+  inode.mode_index = mode_index;
   inode.owner_index =
       options_.uid ? 0 : DWARFS_NOTHROW(uids_.at(stat.uid_unchecked()));
   inode.group_index =

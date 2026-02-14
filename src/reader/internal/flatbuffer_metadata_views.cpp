@@ -591,13 +591,24 @@ bool flatbuffer_dir_entry_view::is_root() const {
 }
 
 uint32_t flatbuffer_dir_entry_view::entry_to_dir_idx(uint32_t entry_idx) const {
-  // Find the directory whose range contains this entry
-  // This is the same logic used in walk() to determine parent_dir_idx
+  // Find the directory that this entry belongs to
   if (!metadata_ || !metadata_->dir_entries() || !metadata_->directories()) {
     return 0;  // Legacy format or no directories, return root
   }
 
   auto directories = metadata_->directories();
+
+  // First check if this entry IS a directory's self_entry
+  // If so, return that directory's index
+  for (size_t dir_idx = 0; dir_idx < directories->size(); ++dir_idx) {
+    auto const* directory = directories->Get(dir_idx);
+    if (directory && directory->self_entry() == entry_idx) {
+      return static_cast<uint32_t>(dir_idx);
+    }
+  }
+
+  // Otherwise find the directory whose range contains this entry
+  // This is the same logic used in walk() to determine parent_dir_idx
   uint32_t result = 0;
   for (size_t dir_idx = 0; dir_idx < directories->size(); ++dir_idx) {
     auto const* directory = directories->Get(dir_idx);

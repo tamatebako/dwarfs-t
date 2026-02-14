@@ -144,10 +144,10 @@ Before each commit:
 | Phase | Task | Status | Commit |
 |-------|------|--------|--------|
 | 1.1 | Skip root_access test | ⬜ Pending | - |
-| 1.2 | Fix compat image availability | ⬜ Pending | - |
-| 1.3 | Skip symlink tests on Windows | ⬜ Pending | - |
+| 1.2 | Fix compat image availability | ✅ Done | 5b39fc05 |
+| 1.3 | Skip symlink tests on Windows | ✅ Done | de5653f0 |
 | 2.1 | Fix filter_test.filesystem | ⬜ Pending | - |
-| 2.2 | Fix frozen2_schema_builder | ⬜ Pending | - |
+| 2.2 | Fix frozen2_schema_builder | ✅ Done | 5b39fc05 |
 | 4.1 | Investigate bad_fs.test | ⬜ Pending | - |
 | 4.2 | Fix stack overflow | ⬜ Pending | - |
 | 4.3 | Fix segfault | ⬜ Pending | - |

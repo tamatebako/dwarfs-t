@@ -59,7 +59,7 @@ constexpr std::array kSkipOn32Bit = {
 };
 
 #ifdef DWARFS_TEST_RUNNING_ON_ASAN
-constexpr std::array kSkipWithAsan = {
+constexpr std::array<std::string_view, 12> kSkipWithAsan = {
     "02064956b00513713fde656f9738fc17.dwarfs"sv,
     "29351be64bffd8bd07f8f1943c8869fd.dwarfs"sv,
     "2e68f4eb874ea525200d2566c2265af6.dwarfs"sv,

@@ -378,6 +378,87 @@ void domain_metadata_impl::check_consistency() const {
     // Log warning but don't fail - the chunk table lookup is still valid
     // as long as we have entries for all accessed inode indices
   }
+
+  // Additional consistency checks for corrupted filesystem detection
+
+  // Check that dir_entries exists
+  if (!meta_->dir_entries) {
+    DWARFS_THROW(runtime_error, "No directory entries in metadata");
+  }
+
+  size_t num_entries = meta_->dir_entries->size();
+  size_t num_dirs = meta_->directories.size();
+  size_t num_inodes = meta_->inodes.size();
+
+  // Check directory entries have valid inode references
+  for (size_t i = 0; i < num_entries; ++i) {
+    auto const& entry = (*meta_->dir_entries)[i];
+    if (entry.inode_num() >= num_inodes) {
+      DWARFS_THROW(runtime_error,
+                   "Directory entry " + std::to_string(i) +
+                       " has invalid inode_num: " + std::to_string(entry.inode_num()));
+    }
+  }
+
+  // Check directories have valid entry indices
+  for (size_t i = 0; i < num_dirs; ++i) {
+    auto const& dir = meta_->directories[i];
+
+    // self_entry must be within bounds
+    if (dir.self_entry() >= num_entries) {
+      DWARFS_THROW(runtime_error,
+                   "Directory " + std::to_string(i) +
+                       " has invalid self_entry: " + std::to_string(dir.self_entry()));
+    }
+
+    // parent_entry must be within bounds (0 is valid for root)
+    if (dir.parent_entry() >= num_entries) {
+      DWARFS_THROW(runtime_error,
+                   "Directory " + std::to_string(i) +
+                       " has invalid parent_entry: " + std::to_string(dir.parent_entry()));
+    }
+
+    // first_entry must be within bounds (can be equal to num_entries for empty dirs at end)
+    if (dir.first_entry() > num_entries) {
+      DWARFS_THROW(runtime_error,
+                   "Directory " + std::to_string(i) +
+                       " has invalid first_entry: " + std::to_string(dir.first_entry()));
+    }
+  }
+
+  // Check that first_entry values are monotonically non-decreasing
+  for (size_t i = 1; i < num_dirs; ++i) {
+    if (meta_->directories[i].first_entry() < meta_->directories[i - 1].first_entry()) {
+      DWARFS_THROW(runtime_error,
+                   "Directory " + std::to_string(i) +
+                       " has first_entry less than previous directory");
+    }
+  }
+
+  // Check that the sentinel directory exists (last directory with first_entry == num_entries)
+  if (num_dirs > 0) {
+    auto const& last_dir = meta_->directories[num_dirs - 1];
+    if (last_dir.first_entry() != num_entries) {
+      DWARFS_THROW(runtime_error,
+                   "Sentinel directory has incorrect first_entry: " +
+                       std::to_string(last_dir.first_entry()) +
+                       " (expected " + std::to_string(num_entries) + ")");
+    }
+  }
+
+  // Check modes array is not empty and mode indices are valid
+  if (meta_->modes.empty()) {
+    DWARFS_THROW(runtime_error, "No modes in metadata");
+  }
+
+  for (size_t i = 0; i < num_inodes; ++i) {
+    auto const& inode = meta_->inodes[i];
+    if (inode.mode_index >= meta_->modes.size()) {
+      DWARFS_THROW(runtime_error,
+                   "Inode " + std::to_string(i) +
+                       " has invalid mode_index: " + std::to_string(inode.mode_index));
+    }
+  }
 }
 
 size_t domain_metadata_impl::size() const {
@@ -556,30 +637,31 @@ std::optional<dir_entry_view> domain_metadata_impl::find(
     return std::nullopt;
   }
 
-  // Iterate through all directories and search for the name
-  // This is necessary because inode numbers don't always directly map to directory indices
-  for (uint32_t dir_idx = 0; dir_idx < meta_->directories.size(); ++dir_idx) {
-    auto const& dir = meta_->directories[dir_idx];
-    uint32_t first = dir.first_entry();
-    uint32_t parent = dir.parent_entry();
+  // The inode_index IS the directory index for directories
+  // (directory i has inode i in this format)
+  uint32_t dir_idx = inode_index;
 
-    // Find the end boundary for this directory's entries
-    uint32_t end_entry = meta_->dir_entries->size();
-    for (uint32_t d = dir_idx + 1; d < meta_->directories.size(); ++d) {
-      uint32_t next_first = meta_->directories[d].first_entry();
-      if (next_first > first && next_first < end_entry) {
-        end_entry = next_first;
-      }
-    }
+  if (dir_idx >= meta_->directories.size()) {
+    return std::nullopt;
+  }
 
-    // Search for the name in this directory's range
-    for (uint32_t i = first; i < end_entry && i < meta_->dir_entries->size(); ++i) {
-      auto const& entry = (*meta_->dir_entries)[i];
-      std::string entry_name = global_.name_at(entry.name_index());
+  auto const& dir = meta_->directories[dir_idx];
+  uint32_t first = dir.first_entry();
+  uint32_t parent = dir.self_entry();
 
-      if (entry_name == name) {
-        return make_dir_entry_view(i, parent);
-      }
+  // Find the end boundary for this directory's entries
+  uint32_t end_entry = meta_->dir_entries->size();
+  if (dir_idx + 1 < meta_->directories.size()) {
+    end_entry = meta_->directories[dir_idx + 1].first_entry();
+  }
+
+  // Search for the name in this directory's range ONLY
+  for (uint32_t i = first; i < end_entry && i < meta_->dir_entries->size(); ++i) {
+    auto const& entry = (*meta_->dir_entries)[i];
+    std::string entry_name = global_.name_at(entry.name_index());
+
+    if (entry_name == name) {
+      return make_dir_entry_view(i, parent);
     }
   }
 
@@ -745,16 +827,21 @@ void domain_metadata_impl::access(inode_view iv, int mode,
         uint32_t user_perms = (file_mode >> 6) & 7;
         allowed = ((mode & 4) == 0 || (user_perms & 4)) &&
                   ((mode & 2) == 0 || (user_perms & 2));
-      } else if (gid == file_gid) {
-        // Group permissions
-        uint32_t group_perms = (file_mode >> 3) & 7;
-        allowed = ((mode & 4) == 0 || (group_perms & 4)) &&
-                  ((mode & 2) == 0 || (group_perms & 2));
       } else {
-        // Other permissions
-        uint32_t other_perms = file_mode & 7;
-        allowed = ((mode & 4) == 0 || (other_perms & 4)) &&
-                  ((mode & 2) == 0 || (other_perms & 2));
+        // Other permissions (when not owner)
+        // Note: We don't have supplemental group information, so we only
+        // check group permissions if the user's primary gid matches the file's gid.
+        // Otherwise, we use other permissions.
+        uint32_t perms;
+        if (gid == file_gid) {
+          // User's primary group matches file's group - use group permissions
+          perms = (file_mode >> 3) & 7;
+        } else {
+          // User is not owner and not in file's group - use other permissions
+          perms = file_mode & 7;
+        }
+        allowed = ((mode & 4) == 0 || (perms & 4)) &&
+                  ((mode & 2) == 0 || (perms & 2));
       }
     }
 

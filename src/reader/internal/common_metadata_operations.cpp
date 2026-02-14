@@ -879,38 +879,38 @@ void common_metadata_operations::access(inode_view iv, int mode,
       set_xok();
     }
   } else {
-    auto test = [e_mode, &access_mode, &set_xok, readonly = options_.readonly](
-        std::filesystem::perms r_bit,
-        std::filesystem::perms w_bit,
-        std::filesystem::perms x_bit) {
-      if (e_mode & uint16_t(r_bit)) {
-        access_mode |= R_OK;
-      }
-      if (e_mode & uint16_t(w_bit)) {
-        if (!readonly) {
-          access_mode |= W_OK;
-        }
-      }
-      if (e_mode & uint16_t(x_bit)) {
-        set_xok();
-      }
-    };
-
-    // Build access mask (check in order: others, group, owner)
-    test(std::filesystem::perms::others_read,
-         std::filesystem::perms::others_write,
-         std::filesystem::perms::others_exec);
-
-    if (iv.getgid() == gid) {
-      test(std::filesystem::perms::group_read,
-           std::filesystem::perms::group_write,
-           std::filesystem::perms::group_exec);
-    }
+    // Determine which permission set to use (POSIX: first match wins)
+    // Order: owner -> group -> other
+    std::filesystem::perms r_bit, w_bit, x_bit;
 
     if (iv.getuid() == uid) {
-      test(std::filesystem::perms::owner_read,
-           std::filesystem::perms::owner_write,
-           std::filesystem::perms::owner_exec);
+      // Use owner permissions
+      r_bit = std::filesystem::perms::owner_read;
+      w_bit = std::filesystem::perms::owner_write;
+      x_bit = std::filesystem::perms::owner_exec;
+    } else if (iv.getgid() == gid) {
+      // Use group permissions
+      r_bit = std::filesystem::perms::group_read;
+      w_bit = std::filesystem::perms::group_write;
+      x_bit = std::filesystem::perms::group_exec;
+    } else {
+      // Use other permissions
+      r_bit = std::filesystem::perms::others_read;
+      w_bit = std::filesystem::perms::others_write;
+      x_bit = std::filesystem::perms::others_exec;
+    }
+
+    // Build access mask from the selected permission set
+    if (e_mode & uint16_t(r_bit)) {
+      access_mode |= R_OK;
+    }
+    if (e_mode & uint16_t(w_bit)) {
+      if (!options_.readonly) {
+        access_mode |= W_OK;
+      }
+    }
+    if (e_mode & uint16_t(x_bit)) {
+      set_xok();
     }
   }
 

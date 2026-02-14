@@ -312,9 +312,7 @@ domain_dir_entry_view_impl::inode() const {
     inode_index = meta_.entry_table_v2_2[inode_num];
   }
 
-  auto result = std::make_shared<domain_inode_view_impl>(meta_, inode_index,
-                                                         inode_num);
-  return result;
+  return std::make_shared<domain_inode_view_impl>(meta_, inode_index, inode_num);
 }
 
 std::shared_ptr<inode_view_interface const>
@@ -329,12 +327,21 @@ uint32_t domain_dir_entry_view_impl::parent_index() const {
 }
 
 uint32_t domain_dir_entry_view_impl::entry_to_dir_idx(uint32_t entry_idx) const {
-  // Find the directory whose range contains this entry
-  // This is the same logic used in walk() to determine parent_dir_idx
+  // Find the directory that this entry belongs to
   if (!meta_.dir_entries || meta_.directories.empty()) {
     return 0;  // Legacy format or no directories, return root
   }
 
+  // First check if this entry IS a directory's self_entry
+  // If so, return that directory's index
+  for (size_t dir_idx = 0; dir_idx < meta_.directories.size(); ++dir_idx) {
+    if (meta_.directories[dir_idx].self_entry() == entry_idx) {
+      return static_cast<uint32_t>(dir_idx);
+    }
+  }
+
+  // Otherwise find the directory whose range contains this entry
+  // This is the same logic used in walk() to determine parent_dir_idx
   uint32_t result = 0;
   for (size_t dir_idx = 0; dir_idx < meta_.directories.size(); ++dir_idx) {
     if (meta_.directories[dir_idx].first_entry() <= entry_idx) {

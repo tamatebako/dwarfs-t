@@ -302,9 +302,11 @@ public:
     d.set_first_entry(field_reader(2).read_u32());
 
     // Field 3: self_entry (optional in older versions)
-    auto self_entry_field = layout_->fields.get(3);
-    if (self_entry_field) {
-      d.set_self_entry(field_reader(3).read_u32());
+    if (layout_) {
+      auto self_entry_field = layout_->fields.get(3);
+      if (self_entry_field) {
+        d.set_self_entry(field_reader(3).read_u32());
+      }
     }
 
     return d;
@@ -329,7 +331,7 @@ public:
     }
 
     // Field 1: buffer (optional bytes/string)
-    auto buffer_field = layout_->fields.get(1);
+    auto buffer_field = layout_ ? layout_->fields.get(1) : nullptr;
     if (buffer_field) {
       // Debug: Check if layout exists in schema
       int16_t buffer_layout_id = buffer_field->layout_id;
@@ -706,20 +708,22 @@ public:
     domain::metadata meta;
 
     // Debug: show which fields exist in the schema
-    for (int i = 1; i <= 25; ++i) {
-      auto field = layout_->fields.get(i);
-      if (field) {
+    if (layout_) {
+      for (int i = 1; i <= 25; ++i) {
+        auto field = layout_->fields.get(i);
+        if (field) {
+        }
       }
     }
 
     // Field 1: chunks (list<chunk>)
-    if (auto chunks_field = layout_->fields.get(1)) {
+    if (auto chunks_field = layout_ ? layout_->fields.get(1) : nullptr) {
       meta.chunks = field_reader(1).read_vector<domain::chunk>(
           [](Reader const& r) { return r.read_chunk(); });
     }
 
     // Field 2: directories (list<directory>)
-    if (auto dirs_field = layout_->fields.get(2)) {
+    if (auto dirs_field = layout_ ? layout_->fields.get(2) : nullptr) {
       meta.directories = field_reader(2).read_vector<domain::directory>(
           [](Reader const& r) { return r.read_directory(); });
 
@@ -733,19 +737,19 @@ public:
     }
 
     // Field 3: inodes (list<inode>)
-    if (auto inodes_field = layout_->fields.get(3)) {
+    if (auto inodes_field = layout_ ? layout_->fields.get(3) : nullptr) {
       meta.inodes = field_reader(3).read_vector<domain::inode_data>(
           [](Reader const& r) { return r.read_inode(); });
     }
 
     // Field 4: chunk_table (list<u32>)
-    if (auto chunk_table_field = layout_->fields.get(4)) {
+    if (auto chunk_table_field = layout_ ? layout_->fields.get(4) : nullptr) {
       meta.chunk_table = field_reader(4).read_vector<uint32_t>(
           [](Reader const& r) { return r.read_u32(); });
     }
 
     // Field 5: entry_table_v2_2 (list<u32>)
-    if (auto entry_table_field = layout_->fields.get(5)) {
+    if (auto entry_table_field = layout_ ? layout_->fields.get(5) : nullptr) {
       meta.entry_table_v2_2 = field_reader(5).read_vector<uint32_t>(
           [](Reader const& r) { return r.read_u32(); });
     }
