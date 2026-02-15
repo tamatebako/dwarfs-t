@@ -85,6 +85,8 @@ vcpkg_fixup_pkgconfig()
 vcpkg_copy_pdbs()
 
 # Install CMake config file for find_package(jemalloc CONFIG)
+# Note: Only install in share/${PORT}, not debug/share/${PORT}
+# The config file handles both debug and release configurations via IMPORTED_LOCATION_DEBUG/RELEASE
 set(CMAKE_CONFIG_DIR "${CURRENT_PACKAGES_DIR}/share/${PORT}")
 file(MAKE_DIRECTORY "${CMAKE_CONFIG_DIR}")
 configure_file(
@@ -92,17 +94,6 @@ configure_file(
     "${CMAKE_CONFIG_DIR}/jemallocConfig.cmake"
     @ONLY
 )
-
-# Also install debug config (for vcpkg standard layout)
-if(NOT VCPKG_BUILD_TYPE)
-    set(CMAKE_CONFIG_DEBUG_DIR "${CURRENT_PACKAGES_DIR}/debug/share/${PORT}")
-    file(MAKE_DIRECTORY "${CMAKE_CONFIG_DEBUG_DIR}")
-    configure_file(
-        "${CMAKE_CURRENT_LIST_DIR}/jemallocConfig.cmake.in"
-        "${CMAKE_CONFIG_DEBUG_DIR}/jemallocConfig.cmake"
-        @ONLY
-    )
-endif()
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/share")
