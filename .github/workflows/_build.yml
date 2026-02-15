@@ -214,7 +214,20 @@ jobs:
           vcpkgExe="${vcpkgDir}/vcpkg"
 
           # Fetch nuget.exe path
-          nugetExe=$("${vcpkgExe}" fetch nuget | tail -n 1)
+          # Note: Disable pipefail for this command as vcpkg may return non-zero
+          # while still producing valid output
+          set +o pipefail
+          nugetExe=$("${vcpkgExe}" fetch nuget 2>&1 | tail -n 1)
+          set -o pipefail
+
+          # Verify nuget.exe was fetched
+          if [[ -z "${nugetExe}" ]] || [[ ! -f "${nugetExe}" ]]; then
+            echo "⚠️ nuget.exe not found, skipping NuGet source setup"
+            echo "Binary caching will not be available, but build will continue"
+            exit 0
+          fi
+
+          echo "Using nuget.exe at: ${nugetExe}"
 
           # Add NuGet source with GitHub authentication
           mono "${nugetExe}" \
