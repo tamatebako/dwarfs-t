@@ -1,7 +1,7 @@
 {
   "name": "folly",
   "version-string": "2025.12.29.00",
-  "port-version": 12,
+  "port-version": 13,
   "description": "An open-source C++ library developed and used at Facebook. (ARM64-enabled)",
   "homepage": "https://github.com/facebook/folly",
   "license": "Apache-2.0",
