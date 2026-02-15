@@ -175,6 +175,32 @@ if(DWARFS_WITH_EXPERIMENTAL_THRIFT)
     add_compile_definitions(DWARFS_HAVE_EXPERIMENTAL_THRIFT=1)
     add_compile_definitions(DWARFS_HAVE_MODERN_THRIFT=1)
 
+    # Find thrift1 compiler for code generation
+    # Priority: vcpkg tools → Homebrew → system PATH
+    find_program(THRIFT1_COMPILER
+      NAMES thrift1
+      PATHS
+        # vcpkg locations (highest priority)
+        ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/fbthrift
+        ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/fbthrift
+        # Homebrew locations (macOS)
+        /opt/homebrew/bin
+        /usr/local/bin
+      NO_DEFAULT_PATH
+    )
+    # Fallback to system PATH if not found above
+    if(NOT THRIFT1_COMPILER)
+      find_program(THRIFT1_COMPILER thrift1)
+    endif()
+    if(THRIFT1_COMPILER)
+      message(STATUS "Found thrift1 compiler: ${THRIFT1_COMPILER}")
+    else()
+      message(FATAL_ERROR
+        "thrift1 compiler not found! "
+        "Ensure fbthrift is installed via vcpkg overlay ports or available in PATH."
+      )
+    endif()
+
     # Modern Thrift sources (to be implemented in Sessions 87-88)
     set(THRIFT_MODERN_IDL ${CMAKE_SOURCE_DIR}/thrift/metadata_modern.thrift)
     set(THRIFT_MODERN_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/thrift/modern)
@@ -228,8 +254,8 @@ if(DWARFS_WITH_EXPERIMENTAL_THRIFT)
       # Copy .thrift file to build subdirectory
       COMMAND ${CMAKE_COMMAND} -E copy ${THRIFT_MODERN_IDL} ${THRIFT_MODERN_BUILD_DIR}/metadata_modern.thrift
       # Run thrift1 compiler with relative path (WORKING_DIRECTORY ensures relative includes)
-      COMMAND ${CMAKE_COMMAND} -E env ASAN_OPTIONS=detect_leaks=0
-              ${THRIFT1_COMPILER}
+      # Note: ASAN_OPTIONS removed to avoid cmake -E env parsing issues with VERBATIM
+      COMMAND ${THRIFT1_COMPILER}
               -I ${_THRIFT_MODERN_INCLUDE_PATH}
               -o ${THRIFT_MODERN_BUILD_DIR}
               --gen mstch_cpp2:no_metadata

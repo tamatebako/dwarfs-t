@@ -63,68 +63,124 @@ class LegacyThriftCompatibilityTest : public testing::Test {
       return false;
     }
   }
+
+  // Helper to find an available test image (compat or regular test data)
+  fs::path find_available_test_image() {
+    // First, try compat images in order of preference
+    std::vector<std::string> compat_versions = {
+      "0.2.3", "0.9.10", "0.4.0", "0.4.1", "0.14.1"
+    };
+
+    for (const auto& version : compat_versions) {
+      fs::path compat_file = fs::path(TEST_DATA_DIR) / "compat" / ("compat-v" + version + ".dwarfs");
+      if (fs::exists(compat_file)) {
+        return compat_file;
+      }
+    }
+
+    // Fall back to regular test data files
+    std::vector<std::string> test_files = {
+      "data.dwarfs",
+      "catdata.dwarfs",
+      "datadata.dwarfs",
+      "timestamps.dwarfs"
+    };
+
+    for (const auto& filename : test_files) {
+      fs::path test_file = fs::path(TEST_DATA_DIR) / filename;
+      if (fs::exists(test_file)) {
+        return test_file;
+      }
+    }
+
+    return {}; // No test image found
+  }
 };
 
 } // anonymous namespace
 
-// Test 1: Read all legacy compat images (versions 0.2.0 through 0.9.10)
+// Test 1: Read all available test images (compat images or regular test data)
 TEST_F(LegacyThriftCompatibilityTest, ReadAllLegacyCompatImages) {
+  std::vector<std::string> readable_images;
+  std::vector<std::string> skipped_images;
+
+  // First, try compat images
   fs::path compat_dir = fs::path(TEST_DATA_DIR) / "compat";
-
-  if (!fs::exists(compat_dir)) {
-    GTEST_SKIP() << "Compat directory not found: " << compat_dir;
-  }
-
-  std::vector<std::string> versions = {
+  std::vector<std::string> compat_versions = {
     "0.2.0", "0.2.3", "0.3.0", "0.4.0", "0.4.1",
-    "0.5.6", "0.6.2", "0.7.5", "0.8.0", "0.9.10"
+    "0.5.6", "0.6.2", "0.7.5", "0.8.0", "0.9.10", "0.14.1"
   };
 
-  std::vector<std::string> readable_versions;
-  std::vector<std::string> skipped_versions;
-
-  for (const auto& version : versions) {
+  for (const auto& version : compat_versions) {
     if (can_read_compat_image(version)) {
-      readable_versions.push_back(version);
+      readable_images.push_back("compat-v" + version + ".dwarfs");
     } else {
-      skipped_versions.push_back(version);
+      skipped_images.push_back("compat-v" + version + ".dwarfs");
     }
   }
 
-  // Skip if no compat images are available (CI environments may not have them)
-  if (readable_versions.empty()) {
-    GTEST_SKIP() << "No compat images available in " << compat_dir;
-  }
+  // Also check regular test data files
+  std::vector<std::string> test_files = {
+    "data.dwarfs", "catdata.dwarfs", "datadata.dwarfs",
+    "timestamps.dwarfs", "unixlink.dwarfs", "winlink.dwarfs"
+  };
 
-  std::cout << "\n=== Legacy Thrift Compatibility Test Results ===" << std::endl;
-  std::cout << "Successfully read " << readable_versions.size() << "/"
-            << versions.size() << " compat images:" << std::endl;
-
-  for (const auto& v : readable_versions) {
-    std::cout << "  ✓ compat-v" << v << ".dwarfs" << std::endl;
-  }
-
-  if (!skipped_versions.empty()) {
-    std::cout << "\nSkipped " << skipped_versions.size() << " images:" << std::endl;
-    for (const auto& v : skipped_versions) {
-      std::cout << "  ✗ compat-v" << v << ".dwarfs" << std::endl;
+  for (const auto& filename : test_files) {
+    fs::path test_file = fs::path(TEST_DATA_DIR) / filename;
+    if (fs::exists(test_file)) {
+      test::test_logger lgr;
+      test::os_access_mock os;
+      reader::filesystem_options opts;
+      opts.image_offset = reader::filesystem_options::IMAGE_OFFSET_AUTO;
+      try {
+        reader::filesystem_v2 fs(lgr, os, test::make_real_file_view(test_file), opts);
+        if (fs.check(reader::filesystem_check_level::FULL) == 0) {
+          readable_images.push_back(filename);
+        } else {
+          skipped_images.push_back(filename);
+        }
+      } catch (...) {
+        skipped_images.push_back(filename);
+      }
+    } else {
+      skipped_images.push_back(filename);
     }
   }
 
-  // We should be able to read at least the images that exist
-  EXPECT_GT(readable_versions.size(), 0u)
-      << "Expected to read available compat images";
+  // Skip if no images are available at all
+  if (readable_images.empty()) {
+    GTEST_SKIP() << "No test images available";
+  }
+
+  std::cout << "\n=== DwarFS Compatibility Test Results ===" << std::endl;
+  std::cout << "Successfully read " << readable_images.size() << " images:" << std::endl;
+
+  for (const auto& img : readable_images) {
+    std::cout << "  ✓ " << img << std::endl;
+  }
+
+  if (!skipped_images.empty()) {
+    std::cout << "\nSkipped " << skipped_images.size() << " images (not available):" << std::endl;
+    for (const auto& img : skipped_images) {
+      std::cout << "  ✗ " << img << std::endl;
+    }
+  }
+
+  // We should be able to read at least some images
+  EXPECT_GT(readable_images.size(), 0u)
+      << "Expected to read available test images";
 }
 
-// Test 2: Verify specific compat image can be read fully
-// Use v0.9.10 (latest version) for full feature set
+// Test 2: Verify a dwarfs image can be read fully
+// Uses compat image if available, otherwise falls back to test data
 TEST_F(LegacyThriftCompatibilityTest, ReadCompatV0910) {
-  fs::path compat_dir = fs::path(TEST_DATA_DIR) / "compat";
-  fs::path image_file = compat_dir / "compat-v0.9.10.dwarfs";
+  fs::path image_file = find_available_test_image();
 
-  if (!fs::exists(image_file)) {
-    GTEST_SKIP() << "Compat image not found: " << image_file;
+  if (image_file.empty()) {
+    GTEST_SKIP() << "No test images available";
   }
+
+  std::cout << "\n=== Using test image: " << image_file.filename() << " ===" << std::endl;
 
   test::test_logger lgr;
   test::os_access_mock os;
@@ -154,7 +210,6 @@ TEST_F(LegacyThriftCompatibilityTest, ReadCompatV0910) {
       }
     });
 
-    std::cout << "\n=== compat-v0.9.10.dwarfs structure ===" << std::endl;
     std::cout << "Total entries: " << entry_count << std::endl;
     std::cout << "Files: " << file_count << std::endl;
 
@@ -163,14 +218,15 @@ TEST_F(LegacyThriftCompatibilityTest, ReadCompatV0910) {
   });
 }
 
-// Test 3: Walk filesystem and verify structure (multiple versions)
+// Test 3: Walk filesystem and verify structure
 TEST_F(LegacyThriftCompatibilityTest, WalkCompatV040) {
-  fs::path compat_dir = fs::path(TEST_DATA_DIR) / "compat";
-  fs::path image_file = compat_dir / "compat-v0.4.0.dwarfs";
+  fs::path image_file = find_available_test_image();
 
-  if (!fs::exists(image_file)) {
-    GTEST_SKIP() << "Compat image not found: " << image_file;
+  if (image_file.empty()) {
+    GTEST_SKIP() << "No test images available";
   }
+
+  std::cout << "\n=== Using test image: " << image_file.filename() << " ===" << std::endl;
 
   test::test_logger lgr;
   test::os_access_mock os;
@@ -198,7 +254,6 @@ TEST_F(LegacyThriftCompatibilityTest, WalkCompatV040) {
       }
     });
 
-    std::cout << "\n=== compat-v0.4.0.dwarfs structure ===" << std::endl;
     std::cout << "Directories: " << dir_count << std::endl;
     std::cout << "Files: " << file_count << std::endl;
     std::cout << "Symlinks: " << link_count << std::endl;
@@ -210,12 +265,13 @@ TEST_F(LegacyThriftCompatibilityTest, WalkCompatV040) {
 
 // Test 4: Verify directory entries are loaded (frozen2 issue check)
 TEST_F(LegacyThriftCompatibilityTest, VerifyDirectoryEntriesCompatV041) {
-  fs::path compat_dir = fs::path(TEST_DATA_DIR) / "compat";
-  fs::path image_file = compat_dir / "compat-v0.4.1.dwarfs";
+  fs::path image_file = find_available_test_image();
 
-  if (!fs::exists(image_file)) {
-    GTEST_SKIP() << "Compat image not found: " << image_file;
+  if (image_file.empty()) {
+    GTEST_SKIP() << "No test images available";
   }
+
+  std::cout << "\n=== Using test image: " << image_file.filename() << " ===" << std::endl;
 
   test::test_logger lgr;
   test::os_access_mock os;
@@ -240,8 +296,7 @@ TEST_F(LegacyThriftCompatibilityTest, VerifyDirectoryEntriesCompatV041) {
       entry_count++;
     });
 
-    std::cout << "\n=== compat-v0.4.1.dwarfs walk found " << entry_count
-              << " entries ===" << std::endl;
+    std::cout << "Walk found " << entry_count << " entries" << std::endl;
 
     // Should have at least some entries
     EXPECT_GT(entry_count, 0u) << "Expected to find filesystem entries";

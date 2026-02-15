@@ -79,27 +79,26 @@ jobs:
 
   # ========================================================================
   # ARM64 Jobs
-  # NOTE: GitHub doesn't provide ARM64 Linux runners
-  # Uncomment if you have self-hosted ARM runners available
+  # Uses GitHub's ARM64 Linux runners (ubuntu-24.04-arm)
   # ========================================================================
-  # linux-arm64-production:
-  #   name: 📦 ARM64 · Production
-  #   uses: ./.github/workflows/_build.yml
-  #   with:
-  #     runner: ubuntu-24.04-arm
-  #     triplet: arm64-linux
-  #     config: production
-  #     vcpkg-manifest: vcpkg-production.json
-  #
-  # linux-arm64-experimental:
-  #   name: 🧪 ARM64 · Experimental
-  #   uses: ./.github/workflows/_build.yml
-  #   with:
-  #     runner: ubuntu-24.04-arm
-  #     triplet: arm64-linux
-  #     config: experimental
-  #     vcpkg-manifest: vcpkg-experimental.json
-  #     continue-on-error: true
+  linux-arm64-production:
+    name: 📦 ARM64 · Production
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-24.04-arm
+      triplet: arm64-linux
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
+  linux-arm64-experimental:
+    name: 🧪 ARM64 · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-24.04-arm
+      triplet: arm64-linux
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
 
   # ========================================================================
   # Alpine (musl) Jobs
@@ -113,6 +112,16 @@ jobs:
       config: production
       vcpkg-manifest: vcpkg-production.json
 
+  linux-musl-x64-experimental:
+    name: 🧪 x64-musl · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux-musl
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
+
   # ========================================================================
   # Summary
   # ========================================================================
@@ -123,7 +132,10 @@ jobs:
       - linux-x64-experimental
       - linux-x64-dynamic-production
       - linux-x64-dynamic-experimental
+      - linux-arm64-production
+      - linux-arm64-experimental
       - linux-musl-x64-production
+      - linux-musl-x64-experimental
     runs-on: ubuntu-latest
     if: always()
 
@@ -138,4 +150,7 @@ jobs:
           echo "| x64 Experimental | ${{ needs.linux-x64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Dynamic | ${{ needs.linux-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Dynamic Exp | ${{ needs.linux-x64-dynamic-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Production | ${{ needs.linux-arm64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ARM64 Experimental | ${{ needs.linux-arm64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64-musl Production | ${{ needs.linux-musl-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64-musl Experimental | ${{ needs.linux-musl-x64-experimental.result }} |" >> $GITHUB_STEP_SUMMARY

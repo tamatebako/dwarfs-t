@@ -107,28 +107,23 @@
     },
     {
       "name": "folly",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
+      "version>=": "2025.12.29.00"
     },
     {
       "name": "fizz",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
+      "version>=": "2025.12.29.00"
     },
     {
       "name": "mvfst",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
+      "version>=": "2025.12.29.00"
     },
     {
       "name": "wangle",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
+      "version>=": "2025.12.29.00"
     },
     {
       "name": "fbthrift",
-      "version>=": "2025.12.29.00",
-      "platform": "!windows"
+      "version>=": "2025.12.29.00"
     }
   ]
 }

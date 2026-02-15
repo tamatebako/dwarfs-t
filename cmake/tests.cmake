@@ -263,6 +263,16 @@ if(WITH_TESTS)
   if(DWARFS_HAVE_EXPERIMENTAL_THRIFT AND TARGET dwarfs_metadata_modern_thrift)
     target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_metadata_modern_thrift)
   endif()
+
+  # Link extractor and rewrite libraries for compat tests (requires folly)
+  if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+    if(TARGET dwarfs_extractor)
+      target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_extractor)
+    endif()
+    if(TARGET dwarfs_rewrite)
+      target_link_libraries(dwarfs_unit_tests PRIVATE dwarfs_rewrite)
+    endif()
+  endif()
   gtest_discover_tests(dwarfs_unit_tests DISCOVERY_MODE PRE_TEST)
 
   # Categorizer tests require folly

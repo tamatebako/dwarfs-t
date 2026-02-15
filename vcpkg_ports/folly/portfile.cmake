@@ -14,6 +14,8 @@ vcpkg_from_github(
         fix-unistd-include.patch
         fix-absolute-dir.patch
         fix-posix-memalign-conflict.patch
+        tebako-jemalloc-support.patch
+        link-jemalloc.patch
 )
 
 # Note: posix_memalign conflict with GCC's mm_malloc.h is fixed via patch
@@ -31,30 +33,13 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         "zstd"       VCPKG_LOCK_FIND_PACKAGE_ZSTD
 )
 
-# Use vcpkg's jemalloc installation (already in include/lib paths via toolchain)
-# Custom jemalloc overlay port provides unprefixed function names
-set(JEMALLOC_CMAKE_ARGS)
-if(NOT VCPKG_TARGET_IS_WINDOWS)
-    # Ensure CMAKE_REQUIRED_INCLUDES points to vcpkg's include dir for CHECK_INCLUDE_FILE_CXX
-    list(APPEND JEMALLOC_CMAKE_ARGS
-        "-DCMAKE_REQUIRED_INCLUDES=${CURRENT_INSTALLED_DIR}/include"
-        "-DCMAKE_EXE_LINKER_FLAGS=-L${CURRENT_INSTALLED_DIR}/lib -ljemalloc"
-        "-DCMAKE_SHARED_LINKER_FLAGS=-L${CURRENT_INSTALLED_DIR}/lib -ljemalloc"
-    )
-    # Define FOLLY_USE_JEMALLOC when jemalloc is found (for macOS and Linux)
-    # This ensures Folly's Malloc.h uses jemalloc functions like nallocx and sdallocx
-    if(APPLE)
-        list(APPEND JEMALLOC_CMAKE_ARGS
-            "-DCMAKE_C_FLAGS=-DFOLLY_USE_JEMALLOC"
-            "-DCMAKE_CXX_FLAGS=-DFOLLY_USE_JEMALLOC"
-        )
-    elseif(UNIX)
-        list(APPEND JEMALLOC_CMAKE_ARGS
-            "-DCMAKE_C_FLAGS=-DFOLLY_USE_JEMALLOC"
-            "-DCMAKE_CXX_FLAGS=-DFOLLY_USE_JEMALLOC"
-        )
-    endif()
-endif()
+# Tebako jemalloc integration via tebako-jemalloc-support.patch
+# This patch provides unprefixed aliases (nallocx, sdallocx, etc.) for
+# Tebako's je_ prefixed jemalloc functions.
+# Tebako's jemalloc supports all platforms including Windows (CMake build)
+set(JEMALLOC_CMAKE_ARGS
+    "-DCMAKE_REQUIRED_INCLUDES=${CURRENT_INSTALLED_DIR}/include"
+)
 
 
 vcpkg_cmake_configure(
@@ -79,6 +64,14 @@ vcpkg_cmake_install()
 vcpkg_copy_pdbs()
 vcpkg_fixup_pkgconfig()
 vcpkg_cmake_config_fixup()
+
+# Tebako: Add jemalloc dependency to folly-config.cmake
+# This is needed because folly_deps links against jemalloc but the dependency
+# is not exported in the generated cmake config file.
+# Works on all platforms since Tebako's jemalloc supports Windows
+vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/share/folly/folly-config.cmake"
+    "# Find folly's dependencies"
+    "# Tebako: Find jemalloc dependency for folly_deps\nfind_dependency(jemalloc CONFIG)\n\n# Find folly's dependencies")
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 

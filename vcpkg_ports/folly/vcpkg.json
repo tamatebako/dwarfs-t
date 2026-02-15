@@ -41,10 +41,7 @@
       "name": "vcpkg-cmake-config",
       "host": true
     },
-    {
-      "name": "jemalloc",
-      "platform": "!windows"
-    },
+    "jemalloc",
     "zlib"
   ],
   "features": {
