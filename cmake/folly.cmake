@@ -96,11 +96,15 @@ else()
     endif()
 
     # Get libraries and add to linker flags (vcpkg only)
+    # NOTE: Skip generator expressions like $<LINK_ONLY:...> which can't be expanded here
     if(TARGET jemalloc::jemalloc)
       get_target_property(_jemalloc_libs jemalloc::jemalloc INTERFACE_LINK_LIBRARIES)
       if(_jemalloc_libs)
         foreach(_lib ${_jemalloc_libs})
-          set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_lib}")
+          # Skip generator expressions - they will be handled by CMake's target linking
+          if(NOT "${_lib}" MATCHES "\\$<")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_lib}")
+          endif()
         endforeach()
       endif()
     endif()
