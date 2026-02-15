@@ -97,6 +97,10 @@ configure_file(
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/share")
+# Remove CMake generated config files from debug directory (they have wrong relative paths)
+if(EXISTS "${CURRENT_PACKAGES_DIR}/debug/lib/cmake")
+    file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/lib/cmake")
+endif()
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/tools")
 
 # Handle copyright
