@@ -24,10 +24,11 @@ vcpkg_from_github(
 # Disable exception tracer on ARM64 Linux due to multiple definition errors
 # The exception tracer defines its own __cxa_* symbols which conflict with libstdc++
 # when linking statically on ARM64 Linux
+# Note: The CMake option is FOLLY_NO_EXCEPTION_TRACER (with NO_ prefix)
 if(VCPKG_TARGET_IS_LINUX AND VCPKG_TARGET_ARCHITECTURE STREQUAL "arm64")
-    set(FOLLY_ENABLE_EXCEPTION_TRACER OFF)
+    set(FOLLY_NO_EXCEPTION_TRACER ON)
 else()
-    set(FOLLY_ENABLE_EXCEPTION_TRACER ON)
+    set(FOLLY_NO_EXCEPTION_TRACER OFF)
 endif()
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" MSVC_USE_STATIC_RUNTIME)
@@ -64,7 +65,7 @@ vcpkg_cmake_configure(
         -DVCPKG_LOCK_FIND_PACKAGE_LibUnwind=${VCPKG_TARGET_IS_LINUX}
         -DVCPKG_LOCK_FIND_PACKAGE_ZLIB=ON
         # Disable exception tracer on ARM64 Linux to avoid multiple definition errors
-        -DFOLLY_EXCEPTION_TRACER=${FOLLY_ENABLE_EXCEPTION_TRACER}
+        -DFOLLY_NO_EXCEPTION_TRACER=${FOLLY_NO_EXCEPTION_TRACER}
         ${FEATURE_OPTIONS}
         ${JEMALLOC_CMAKE_ARGS}
     MAYBE_UNUSED_VARIABLES
