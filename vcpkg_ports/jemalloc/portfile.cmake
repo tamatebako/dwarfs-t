@@ -95,13 +95,21 @@ configure_file(
     @ONLY
 )
 
-file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/share")
 # Remove CMake generated config files from debug directory (they have wrong relative paths)
 if(EXISTS "${CURRENT_PACKAGES_DIR}/debug/lib/cmake")
     file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/lib/cmake")
 endif()
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/tools")
+
+# Headers are identical for Debug/Release, but debug CMake configs may expect
+# debug/include to exist. Create a symlink to the release headers.
+if(EXISTS "${CURRENT_PACKAGES_DIR}/debug")
+    if(EXISTS "${CURRENT_PACKAGES_DIR}/debug/include")
+        file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
+    endif()
+    file(CREATE_LINK "${CURRENT_PACKAGES_DIR}/include" "${CURRENT_PACKAGES_DIR}/debug/include" COPY_ON_ERROR)
+endif()
 
 # Handle copyright
 file(INSTALL "${SOURCE_PATH}/COPYING" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}" RENAME copyright)
