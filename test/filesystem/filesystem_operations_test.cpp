@@ -260,6 +260,9 @@ TEST_F(FilesystemOperationsTest, long_filename) {
 }
 
 TEST_F(FilesystemOperationsTest, utf8_special_chars) {
+#ifdef _WIN32
+  GTEST_SKIP() << "UTF-8 emoji filenames require proper console encoding on Windows";
+#endif
   // Test UTF-8 filenames with emoji and special characters
   input_->add("", {1, 040755, 1, 1000, 100, 10, 42, 0, 0, 0});
   input_->add("emoji_😀_test.txt", {2, 0100644, 1, 1000, 100, 5, 42, 0, 0, 0}, "emoji");
