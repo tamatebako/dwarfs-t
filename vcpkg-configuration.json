@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg-configuration.schema.json",
+  "$comment": [
+    "DwarFS vcpkg configuration",
+    "Uses local overlay ports that fetch from upstream repositories:",
+    "- vcpkg_ports/jemalloc: Port that fetches from https://github.com/tamatebako/jemalloc v5.5.0",
+    "- vcpkg_ports/dwarfs: Port for DwarFS library (builds from local source)",
+    "Note: tamatebako/jemalloc is not a full vcpkg registry (no versions/baseline.json),",
+    "so we use an overlay port instead of a git registry"
+  ],
+  "default-registry": {
+    "kind": "git",
+    "repository": "https://github.com/microsoft/vcpkg",
+    "baseline": "75a2e14262fc23c1f03bac18e135c4866dd25b51"
+  },
+  "registries": [],
+  "overlay-triplets": ["vcpkg_triplets"],
+  "overlay-ports": [
+    "vcpkg_ports"
+  ]
+}

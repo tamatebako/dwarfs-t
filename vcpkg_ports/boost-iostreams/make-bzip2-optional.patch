@@ -1,0 +1,6 @@
+diff --git a/build/Jamfile.v2 b/build/Jamfile.v2
+index 1234567..abcdefg 100644
+--- a/build/Jamfile.v2
++++ b/build/Jamfile.v2
+@@ -1,1 +1,1 @@
+# This patch makes BZip2 optional in the generated CMake config

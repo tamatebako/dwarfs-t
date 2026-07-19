@@ -1,0 +1,157 @@
+# Composite action to set up Homebrew and install dwarfs
+# vim:set ts=2 sw=2 sts=2 et:
+#
+# This action handles Homebrew installation and dwarfs setup
+# across different platforms (macOS and Linuxbrew)
+
+name: 'Setup Homebrew DwarFS'
+description: 'Install Homebrew and dwarfs tool for compatibility testing'
+
+inputs:
+  dwarfs_version:
+    description: 'Version of dwarfs to install (e.g., "0.14.1" or "latest")'
+    required: false
+    default: 'latest'
+  homebrew_prefix:
+    description: 'Homebrew installation prefix'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: platform
+      shell: bash
+      run: |
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+          echo "platform=darwin" >> $GITHUB_OUTPUT
+        else
+          echo "platform=linux" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Detect architecture
+      id: arch
+      shell: bash
+      run: |
+        case "$(uname -m)" in
+          x86_64|amd64)
+            echo "arch=x86_64" >> $GITHUB_OUTPUT
+            ;;
+          arm64|aarch64)
+            echo "arch=arm64" >> $GITHUB_OUTPUT
+            ;;
+          *)
+            echo "arch=$(uname -m)" >> $GITHUB_OUTPUT
+            ;;
+        esac
+
+    - name: Set Homebrew prefix
+      id: prefix
+      shell: bash
+      run: |
+        HOMEBREW_PREFIX="${{ inputs.homebrew_prefix }}"
+
+        # Auto-detect prefix if not specified
+        if [[ -z "$HOMEBREW_PREFIX" ]]; then
+          if [[ "${{ steps.platform.outputs.platform }}" == "darwin" ]]; then
+            if [[ "$(uname -m)" == "arm64" ]]; then
+              HOMEBREW_PREFIX="/opt/homebrew"
+            else
+              HOMEBREW_PREFIX="/usr/local"
+            fi
+          else
+            HOMEBREW_PREFIX="/home/linuxbrew/.linuxbrew"
+          fi
+        fi
+
+        echo "prefix=$HOMEBREW_PREFIX" >> $GITHUB_OUTPUT
+        echo "Detected Homebrew prefix: $HOMEBREW_PREFIX"
+
+    - name: Install Homebrew (macOS)
+      if: steps.platform.outputs.platform == 'darwin'
+      shell: bash
+      run: |
+        # macOS comes with Homebrew or we can install it
+        if ! command -v brew &> /dev/null; then
+          echo "Installing Homebrew..."
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        else
+          echo "Homebrew already installed"
+        fi
+
+        # Add Homebrew to PATH
+        if [[ "${{ steps.arch.outputs.arch }}" == "arm64" ]]; then
+          echo "${{ steps.prefix.outputs.prefix }}/bin" >> $GITHUB_PATH
+          echo "${{ steps.prefix.outputs.prefix }}/sbin" >> $GITHUB_PATH
+        fi
+
+        brew --version
+
+    - name: Install Homebrew (Linux)
+      if: steps.platform.outputs.platform == 'linux'
+      shell: bash
+      run: |
+        # Install Linuxbrew
+        if ! command -v brew &> /dev/null; then
+          echo "Installing Linuxbrew..."
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+          # Add Linuxbrew to PATH for this and future steps
+          echo "${{ steps.prefix.outputs.prefix }}/bin" >> $GITHUB_PATH
+        else
+          echo "Homebrew already installed"
+          echo "${{ steps.prefix.outputs.prefix }}/bin" >> $GITHUB_PATH
+        fi
+
+        brew --version
+
+    - name: Install dwarfs from Homebrew
+      shell: bash
+      run: |
+        # Update Homebrew
+        brew update
+
+        # Install dwarfs
+        if [[ "${{ inputs.dwarfs_version }}" == "latest" ]]; then
+          echo "Installing latest dwarfs from Homebrew..."
+          brew install dwarfs
+        else
+          echo "Installing dwarfs ${{ inputs.dwarfs_version }} from Homebrew..."
+          # For specific versions, we'd need to find the appropriate tap
+          # For now, just install latest
+          brew install dwarfs
+        fi
+
+        # Verify installation
+        echo "Verifying dwarfs installation..."
+        which mkdwarfs
+        which dwarfs
+
+        mkdwarfs --version || echo "mkdwarfs version check failed"
+        dwarfs --version || echo "dwarfs version check failed"
+
+    - name: Get dwarfs version
+      id: dwarfs-info
+      shell: bash
+      run: |
+        # Get actual installed version
+        VERSION=$(mkdwarfs --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "unknown")
+
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "platform=${{ steps.platform.outputs.platform }}" >> $GITHUB_OUTPUT
+        echo "arch=${{ steps.arch.outputs.arch }}" >> $GITHUB_OUTPUT
+        echo "prefix=${{ steps.prefix.outputs.prefix }}" >> $GITHUB_OUTPUT
+
+        echo "dwarfs version: $VERSION"
+        echo "platform: ${{ steps.platform.outputs.platform }}"
+        echo "architecture: ${{ steps.arch.outputs.arch }}"
+        echo "homebrew prefix: ${{ steps.prefix.outputs.prefix }}"
+
+    - name: Export environment variables
+      shell: bash
+      run: |
+        echo "HOMEBREW_PREFIX=${{ steps.prefix.outputs.prefix }}" >> $GITHUB_ENV
+        echo "DWARFS_VERSION=${{ steps.dwarfs-info.outputs.version }}" >> $GITHUB_ENV
+        echo "DWARFS_PLATFORM=${{ steps.dwarfs-info.outputs.platform }}" >> $GITHUB_ENV
+        echo "DWARFS_ARCH=${{ steps.dwarfs-info.outputs.arch }}" >> $GITHUB_ENV

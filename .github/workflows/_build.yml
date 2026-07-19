@@ -1,0 +1,305 @@
+# Core Reusable Build Workflow
+#
+# Single-source-of-truth for all DwarFS CI builds.
+# Used by pr-validation.yml, ci.yml, ci-matrix.yml, and release.yml.
+#
+# Caching Strategy:
+# - vcpkg: Lukka/run-vcpkg with GitHub Actions cache
+# - CMake builds: Lukka/run-cmake with buildCache property
+# - ccache: Chocobo1/setup-ccache-action for compiler object caching
+#
+# Workflow Structure (following boyle pattern with DwarFS-specific deps):
+# 1. Checkout (with submodules)
+# 2. Platform-specific dependencies (macOS/Linux/Windows)
+# 3. Setup MSVC (Windows only)
+# 4. Setup gcc version (Linux only)
+# 5. Setup vcpkg
+# 6. Install CMake and Ninja
+# 7. Install common dependencies (Python packages)
+# 8. Setup ccache
+# 9. Create FUSE mount directory (Linux only)
+# 10. Build + Test with CMakePresets
+# 11. Upload artifacts
+
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'GitHub Actions runner'
+        required: true
+        type: string
+      triplet:
+        description: 'vcpkg triplet (x64-linux, arm64-osx, x64-windows-static, etc)'
+        required: true
+        type: string
+      config:
+        description: 'Build config: production or experimental'
+        required: true
+        type: string
+        default: production
+      vcpkg-manifest:
+        description: 'vcpkg manifest file (vcpkg-production.json or vcpkg-experimental.json)'
+        required: false
+        type: string
+        default: ''
+      upload-artifacts:
+        description: 'Upload build artifacts'
+        required: false
+        type: boolean
+        default: false
+      continue-on-error:
+        description: 'Whether to continue if this job fails (for experimental builds)'
+        required: false
+        type: boolean
+        default: false
+
+    outputs:
+      build-status:
+        description: 'Build success or failure'
+        value: ${{ jobs.build.outputs.status }}
+
+jobs:
+  build:
+    name: ${{ inputs.runner }} · ${{ inputs.triplet }} · ${{ inputs.config }}
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: ${{ inputs.continue-on-error }}
+
+    permissions:
+      contents: read
+      packages: write  # Required for GitHub Packages binary caching
+
+    outputs:
+      status: ${{ steps.status.outputs.result }}
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+      VCPKG_COMMIT: f14401ca0f2754347c3864da7488a9b955b4e47a
+      GCC_VERSION: '14'
+      # vcpkg binary caching with GitHub Packages NuGet feed
+      # (x-gha provider was removed from vcpkg)
+      # Note: GitHub Packages NuGet feeds are scoped to the owner/organization, not individual repos
+      # Note: Binary caching is disabled for ARM64 Linux because VCPKG_FORCE_SYSTEM_BINARIES=1
+      #       prevents vcpkg from downloading nuget
+      USERNAME: github
+      FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+      # Use format() to properly construct the NuGet URL - nested ${{ }} in string literals don't expand
+      VCPKG_BINARY_SOURCES: ${{ inputs.triplet == 'arm64-linux' && 'clear;' || format('clear;nuget,https://nuget.pkg.github.com/{0}/index.json,readwrite', github.repository_owner) }}
+      X_VCPKG_ASSET_SOURCES: clear;x-azurl,file:///${{ github.workspace }}/vcpkg_asset_cache,,readwrite
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # Platform-specific dependencies (must be before vcpkg)
+      - name: 🔨 Setup platform-specific dependencies
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            macOS)
+              bash scripts/github-actions/deps/install-macos-deps.sh
+              ;;
+            Linux)
+              bash scripts/github-actions/deps/install-linux-deps.sh
+              ;;
+            Windows)
+              bash scripts/github-actions/deps/install-windows-deps.sh
+              ;;
+          esac
+
+      # Windows: Setup MSVC with specific version (19.44+ for STL compatibility)
+      - name: 🪟 Setup MSVC
+        if: runner.os == 'Windows'
+        uses: k3DW/setup-msvc@v1
+        with:
+          vs-version: '17.12'  # Visual Studio 17.12 includes MSVC 19.44+
+
+      # Linux: Setup gcc version via update-alternatives
+      - name: 🔧 Install gcc on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${{ env.GCC_VERSION }} ${{ env.GCC_VERSION }}
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${{ env.GCC_VERSION }} ${{ env.GCC_VERSION }}
+          sudo update-alternatives --set gcc /usr/bin/gcc-${{ env.GCC_VERSION }}
+          sudo update-alternatives --set g++ /usr/bin/g++-${{ env.GCC_VERSION }}
+        shell: bash
+
+      # Fix vcpkg path for macOS - initialize git repo to avoid "outside repository" error
+      - name: 🔧 Initialize vcpkg directory (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          # Create vcpkg directory at sibling level and initialize as git repo
+          # This prevents vcpkg's git operations from failing
+          if [ ! -d "../vcpkg" ]; then
+            mkdir -p ../vcpkg
+            cd ../vcpkg
+            git init
+            git config --global user.email "vcpkg@github.com"
+            git config --global user.name "vcpkg"
+          fi
+
+      - name: 📦 Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
+          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
+
+      # ============================================================================
+      # vcpkg Binary & Asset Caching
+      # ============================================================================
+      # x-gha provider was removed from vcpkg, so we use GitHub Packages NuGet feed
+      # for binary caching and local filesystem with GitHub Actions cache for assets.
+      # See: https://learn.microsoft.com/vcpkg/users/binarycaching
+      #
+      # Environment variables are set at job level (above) to take effect before
+      # lukka/run-vcpkg runs. These steps only add the NuGet source authentication.
+
+      - name: 💾 Cache vcpkg assets
+        uses: actions/cache@v4
+        with:
+          path: vcpkg_asset_cache
+          key: vcpkg-assets-${{ runner.os }}-${{ hashFiles('**/vcpkg-production.json') }}
+
+      - name: 🔧 Create asset cache directory
+        shell: bash
+        run: mkdir -p vcpkg_asset_cache
+
+      - name: 🔗 Add NuGet source (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Get vcpkg location (run-vcpkg installs it at ../vcpkg)
+          $vcpkgDir = Join-Path $env:GITHUB_WORKSPACE "..\vcpkg"
+          $vcpkgExe = Join-Path $vcpkgDir "vcpkg.exe"
+
+          # Fetch nuget.exe - last line of output is the path
+          $nugetOutput = & $vcpkgExe fetch nuget 2>&1
+          $nugetExe = ($nugetOutput | Select-Object -Last 1).Trim()
+
+          # Verify nuget.exe exists - gracefully handle failure for experimental builds
+          if (-not (Test-Path $nugetExe)) {
+            Write-Warning "nuget.exe not found at: $nugetExe"
+            Write-Warning "vcpkg fetch output: $nugetOutput"
+            Write-Warning "Binary caching will not be available, but build will continue"
+            exit 0
+          }
+
+          # Add NuGet source with GitHub authentication
+          & $nugetExe sources add `
+            -Source "${{ env.FEED_URL }}" `
+            -StorePasswordInClearText `
+            -Name "GitHubPackages" `
+            -UserName "${{ env.USERNAME }}" `
+            -Password "${{ secrets.GITHUB_TOKEN }}"
+
+          & $nugetExe setapikey "${{ secrets.GITHUB_TOKEN }}" -Source "${{ env.FEED_URL }}"
+
+          Write-Host "✓ Added NuGet source for vcpkg binary caching"
+
+      - name: 🔗 Add NuGet source (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          # Install mono for Linux (ubuntu-24.04+ doesn't have it preinstalled)
+          sudo apt-get update -qq
+          sudo apt-get install -y mono-complete
+
+          # Get vcpkg location
+          vcpkgDir="${GITHUB_WORKSPACE}/../vcpkg"
+          vcpkgExe="${vcpkgDir}/vcpkg"
+
+          # Fetch nuget.exe path
+          # Note: Disable pipefail for this command as vcpkg may return non-zero
+          # while still producing valid output
+          set +o pipefail
+          nugetExe=$("${vcpkgExe}" fetch nuget 2>&1 | tail -n 1)
+          set -o pipefail
+
+          # Verify nuget.exe was fetched
+          if [[ -z "${nugetExe}" ]] || [[ ! -f "${nugetExe}" ]]; then
+            echo "⚠️ nuget.exe not found, skipping NuGet source setup"
+            echo "Binary caching will not be available, but build will continue"
+            exit 0
+          fi
+
+          echo "Using nuget.exe at: ${nugetExe}"
+
+          # Add NuGet source with GitHub authentication
+          mono "${nugetExe}" \
+            sources add \
+            -Source "${{ env.FEED_URL }}" \
+            -StorePasswordInClearText \
+            -Name "GitHubPackages" \
+            -UserName "${{ env.USERNAME }}" \
+            -Password "${{ secrets.GITHUB_TOKEN }}"
+
+          mono "${nugetExe}" \
+            setapikey "${{ secrets.GITHUB_TOKEN }}" \
+            -Source "${{ env.FEED_URL }}"
+
+          echo "✓ Added NuGet source for vcpkg binary caching"
+
+      - name: 🔨 Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: latest
+          ninjaVersion: latest
+
+      # Common dependencies (Python packages for manpage generation)
+      - name: 📦 Install common dependencies
+        shell: bash
+        run: |
+          bash scripts/github-actions/deps/install-common-deps.sh
+
+      - name: 💾 Setup ccache
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          store_cache: false
+          restore_cache: false
+          remove_stale_cache: true
+          override_cache_key: ccache_${{ inputs.triplet }}_${{ inputs.config }}
+
+      # Note: Experimental builds require pre-built Meta library binaries in NuGet cache
+      # to work properly. Without binary caching, they take 30+ minutes to build
+      # from source and often fail due to compiler detection issues on Windows.
+      # The builds are intentionally marked continue-on-error: true.
+
+      # Create FUSE mount directory for Linux tests
+      - name: 🔌 Create FUSE mount directory
+        if: runner.os == 'Linux'
+        run: |
+          sudo mkdir -p /tmp/dwarfs-test-mount
+          sudo chmod 777 /tmp/dwarfs-test-mount
+          echo "DWARFS_TEST_MOUNT_DIR=/tmp/dwarfs-test-mount" >> $GITHUB_ENV
+          echo "✓ Created FUSE mount directory: /tmp/dwarfs-test-mount"
+        shell: bash
+
+      - name: 🏗️ Build and Test
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: ${{ inputs.triplet }}-${{ inputs.config }}
+          buildPreset: ${{ inputs.triplet }}-${{ inputs.config }}
+          testPreset: ${{ inputs.triplet }}-${{ inputs.config }}
+
+      - name: 📊 Upload build artifacts
+        if: inputs.upload-artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwarfs-${{ inputs.triplet }}-${{ inputs.config }}
+          path: build-${{ inputs.triplet }}-${{ inputs.config }}/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: ✅ Status
+        id: status
+        if: always()
+        run: echo "result=${{ job.status }}" >> $GITHUB_OUTPUT

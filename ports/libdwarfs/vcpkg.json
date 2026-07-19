@@ -1,0 +1,48 @@
+{
+  "name": "libdwarfs",
+  "version": "0.16.0",
+  "description": "DwarFS library - fast high-compression read-only file system",
+  "homepage": "https://github.com/tamatebako/dwarfs",
+  "license": "GPL-3.0-only",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "boost-filesystem",
+    "boost-program-options",
+    "boost-chrono",
+    "boost-context",
+    "boost-fiber",
+    "boost-iostreams",
+    "zstd",
+    "xxhash",
+    "openssl",
+    "libarchive",
+    "fmt",
+    "range-v3",
+    "parallel-hashmap"
+  ],
+  "features": {
+    "flac": {
+      "description": "FLAC audio compression support",
+      "dependencies": ["flac"]
+    },
+    "lz4": {
+      "description": "LZ4 compression support",
+      "dependencies": ["lz4"]
+    },
+    "lzma": {
+      "description": "LZMA compression support",
+      "dependencies": ["liblzma"]
+    },
+    "brotli": {
+      "description": "Brotli compression support",
+      "dependencies": ["brotli"]
+    }
+  }
+}

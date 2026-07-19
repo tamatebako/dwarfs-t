@@ -1,0 +1,230 @@
+# Staged Experimental Build Workflow
+#
+# This workflow is designed for experimental builds that may exceed the 6-hour
+# GHA job timeout. It uses aggressive caching and splits the build into stages.
+#
+# Key optimizations:
+# 1. vcpkg packages are cached via GitHub Packages (NuGet)
+# 2. Build artifacts are passed between stages via upload/download artifacts
+# 3. Each stage has its own timeout, allowing the full build to complete
+#
+# Usage: Call this workflow from a scheduled workflow or manual trigger
+# (not recommended for every PR due to long build times)
+
+name: Staged Experimental Build
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'GitHub Actions runner'
+        required: true
+        type: string
+      triplet:
+        description: 'vcpkg triplet (x64-linux, arm64-osx, etc)'
+        required: true
+        type: string
+
+jobs:
+  # ===========================================================================
+  # Stage 1: Build vcpkg Dependencies
+  # ===========================================================================
+  vcpkg-deps:
+    name: ${{ inputs.runner }} · ${{ inputs.triplet }} · vcpkg
+    runs-on: ${{ inputs.runner }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+      VCPKG_COMMIT: f14401ca0f2754347c3864da7488a9b955b4e47a
+      USERNAME: github
+      FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+      VCPKG_BINARY_SOURCES: ${{ inputs.triplet == 'arm64-linux' && 'clear;' || 'clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite' }}
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: 🔨 Setup platform-specific dependencies
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            macOS)
+              bash scripts/github-actions/deps/install-macos-deps.sh
+              ;;
+            Linux)
+              bash scripts/github-actions/deps/install-linux-deps.sh
+              ;;
+          esac
+
+      - name: 🔧 Initialize vcpkg directory (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          if [ ! -d "../vcpkg" ]; then
+            mkdir -p ../vcpkg
+            cd ../vcpkg
+            git init
+            git config --global user.email "vcpkg@github.com"
+            git config --global user.name "vcpkg"
+          fi
+
+      - name: 📦 Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          vcpkgJsonGlob: vcpkg-experimental.json
+          vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
+
+      - name: 💾 Cache vcpkg assets
+        uses: actions/cache@v4
+        with:
+          path: vcpkg_asset_cache
+          key: vcpkg-assets-${{ runner.os }}-${{ inputs.triplet }}-${{ hashFiles('**/vcpkg-experimental.json') }}
+
+      - name: 🔧 Create asset cache directory
+        shell: bash
+        run: mkdir -p vcpkg_asset_cache
+
+      - name: 🔗 Add NuGet source (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y mono-complete
+
+          vcpkgDir="${GITHUB_WORKSPACE}/../vcpkg"
+          vcpkgExe="${vcpkgDir}/vcpkg"
+
+          set +o pipefail
+          nugetExe=$("${vcpkgExe}" fetch nuget 2>&1 | tail -n 1)
+          set -o pipefail
+
+          if [[ -z "${nugetExe}" ]] || [[ ! -f "${nugetExe}" ]]; then
+            echo "⚠️ nuget.exe not found, skipping NuGet source setup"
+            exit 0
+          fi
+
+          mono "${nugetExe}" sources add -Source "${{ env.FEED_URL }}" -StorePasswordInClearText -Name "GitHubPackages" -UserName "${{ env.USERNAME }}" -Password "${{ secrets.GITHUB_TOKEN }}"
+          mono "${nugetExe}" setapikey "${{ secrets.GITHUB_TOKEN }}" -Source "${{ env.FEED_URL }}"
+
+      - name: 📤 Upload vcpkg installed
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcpkg-installed-${{ inputs.triplet }}
+          path: |
+            ${{ github.workspace }}/vcpkg_installed/
+            ${{ github.workspace }}/../vcpkg/installed/
+          retention-days: 1
+          if-no-files-found: warn
+
+  # ===========================================================================
+  # Stage 2: Build Project
+  # ===========================================================================
+  build:
+    name: ${{ inputs.runner }} · ${{ inputs.triplet }} · build
+    needs: vcpkg-deps
+    runs-on: ${{ inputs.runner }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: ${{ inputs.triplet }}
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: 📥 Download vcpkg installed
+        uses: actions/download-artifact@v4
+        with:
+          name: vcpkg-installed-${{ inputs.triplet }}
+          path: .
+
+      - name: 🔨 Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: latest
+          ninjaVersion: latest
+
+      - name: 📦 Install common dependencies
+        shell: bash
+        run: |
+          bash scripts/github-actions/deps/install-common-deps.sh
+
+      - name: 💾 Setup ccache
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          store_cache: true
+          restore_cache: true
+          override_cache_key: ccache_${{ inputs.triplet }}_experimental
+
+      - name: 🏗️ Build
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: ${{ inputs.triplet }}-experimental
+          buildPreset: ${{ inputs.triplet }}-experimental
+
+      - name: 📤 Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ inputs.triplet }}-experimental
+          path: build-${{ inputs.triplet }}-experimental/
+          retention-days: 1
+          if-no-files-found: warn
+
+  # ===========================================================================
+  # Stage 3: Run Tests
+  # ===========================================================================
+  test:
+    name: ${{ inputs.runner }} · ${{ inputs.triplet }} · test
+    needs: build
+    runs-on: ${{ inputs.runner }}
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: 📥 Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ inputs.triplet }}-experimental
+          path: build-${{ inputs.triplet }}-experimental/
+
+      - name: 🔨 Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: latest
+          ninjaVersion: latest
+
+      - name: 🔌 Create FUSE mount directory (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo mkdir -p /tmp/dwarfs-test-mount
+          sudo chmod 777 /tmp/dwarfs-test-mount
+          echo "DWARFS_TEST_MOUNT_DIR=/tmp/dwarfs-test-mount" >> $GITHUB_ENV
+        shell: bash
+
+      - name: 🧪 Run tests
+        working-directory: build-${{ inputs.triplet }}-experimental
+        run: ctest --output-on-failure -j$(nproc || sysctl -n hw.ncpu) --timeout 300
+        shell: bash

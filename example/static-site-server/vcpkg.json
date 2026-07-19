@@ -1,0 +1,9 @@
+{
+  "name": "static-site-server",
+  "version": "0.1.0",
+  "description": "Static site server using DwarFS and libmicrohttpd",
+  "dependencies": [
+    "dwarfs",
+    "libmicrohttpd"
+  ]
+}

@@ -1,0 +1,19 @@
+diff --git a/CMake/folly-deps.cmake b/CMake/folly-deps.cmake
+index 1234567..abcdefg 100644
+--- a/CMake/folly-deps.cmake
++++ b/CMake/folly-deps.cmake
+@@ -164,6 +164,14 @@ endif()
+ list(APPEND FOLLY_LINK_LIBRARIES ${LIBSODIUM_LIBRARIES})
+ list(APPEND FOLLY_INCLUDE_DIRECTORIES ${LIBSODIUM_INCLUDE_DIRS})
+
++# Tebako jemalloc - link explicitly for static builds
++find_package(jemalloc CONFIG)
++if(jemalloc_FOUND)
++  message(STATUS "Found jemalloc: linking folly with jemalloc::jemalloc")
++  list(APPEND FOLLY_LINK_LIBRARIES jemalloc::jemalloc)
++  list(APPEND FOLLY_INCLUDE_DIRECTORIES ${JEMALLOC_INCLUDE_DIR})
++endif()
++
+ list(APPEND FOLLY_LINK_LIBRARIES ${CMAKE_DL_LIBS})
+ list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_DL_LIBS})
+

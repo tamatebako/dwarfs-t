@@ -1,0 +1,234 @@
+# Composite action to configure CMake for DwarFS builds
+# vim:set ts=2 sw=2 sts=2 et:
+#
+# This action provides standardized CMake configuration across
+# all platforms and build types
+
+name: 'Configure CMake'
+description: 'Configure CMake for DwarFS builds with standard options'
+
+inputs:
+  build-dir:
+    description: 'Build directory path'
+    required: false
+    default: 'build'
+
+  build-type:
+    description: 'CMake build type (Release/Debug/RelWithDebInfo)'
+    required: false
+    default: 'Release'
+
+  generator:
+    description: 'CMake generator (Ninja/Unix Makefiles/Visual Studio)'
+    required: false
+    default: ''
+
+  triplet:
+    description: 'vcpkg triplet (for debugging)'
+    required: false
+    default: ''
+
+  with-tests:
+    description: 'Enable tests'
+    required: false
+    default: 'true'
+
+  with-tools:
+    description: 'Enable tools (mkdwarfs, dwarfs, dwarfsextract)'
+    required: false
+    default: 'true'
+
+  with-libdwarfs:
+    description: 'Enable libdwarfs library'
+    required: false
+    default: 'true'
+
+  with-fuse-driver:
+    description: 'Enable FUSE driver (Linux/macOS only)'
+    required: false
+    default: 'auto'
+
+  with-thrift:
+    description: 'Enable Modern Thrift (fbthrift)'
+    required: false
+    default: 'false'
+
+  with-flatbuffers:
+    description: 'Enable FlatBuffers'
+    required: false
+    default: 'true'
+
+  with-benchmarks:
+    description: 'Enable benchmarks'
+    required: false
+    default: 'false'
+
+  with-pxattr:
+    description: 'Enable project xattr'
+    required: false
+    default: 'false'
+
+  toolchain-file:
+    description: 'Path to CMake toolchain file (e.g., vcpkg)'
+    required: false
+    default: ''
+
+  cmake-args:
+    description: 'Additional CMake arguments'
+    required: false
+    default: ''
+
+  source-dir:
+    description: 'Source directory path'
+    required: false
+    default: '.'
+
+outputs:
+  build-dir:
+    description: 'Build directory path'
+    value: ${{ steps.configure.outputs.build-dir }}
+
+  cmake-generator:
+    description: 'CMake generator used'
+    value: ${{ steps.configure.outputs.cmake-generator }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform and defaults
+      id: detect
+      shell: bash
+      run: |
+        # Detect platform
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "platform=windows" >> $GITHUB_OUTPUT
+          DEFAULT_GENERATOR="Visual Studio 17 2022"
+          DEFAULT_FUSE="false"
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          echo "platform=macos" >> $GITHUB_OUTPUT
+          DEFAULT_GENERATOR="Ninja"
+          DEFAULT_FUSE="false"
+        else
+          echo "platform=linux" >> $GITHUB_OUTPUT
+          DEFAULT_GENERATOR="Ninja"
+          DEFAULT_FUSE="auto"
+        fi
+
+        # Detect if generator should be auto-detected
+        if [[ -n "${{ inputs.generator }}" ]]; then
+          echo "generator=${{ inputs.generator }}" >> $GITHUB_OUTPUT
+        else
+          echo "generator=$DEFAULT_GENERATOR" >> $GITHUB_OUTPUT
+        fi
+
+        # Resolve FUSE driver setting
+        FUSE_INPUT="${{ inputs.with-fuse-driver }}"
+        if [[ "$FUSE_INPUT" == "auto" ]]; then
+          echo "with-fuse=$DEFAULT_FUSE" >> $GITHUB_OUTPUT
+        else
+          echo "with-fuse=$FUSE_INPUT" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build CMake command
+      id: cmake-cmd
+      shell: bash
+      run: |
+        set -x
+
+        # Inputs
+        BUILD_DIR="${{ inputs.build-dir }}"
+        BUILD_TYPE="${{ inputs.build-type }}"
+        GENERATOR="${{ steps.detect.outputs.generator }}"
+        SOURCE_DIR="${{ inputs.source-dir }}"
+        TOOLCHAIN_FILE="${{ inputs.toolchain-file }}"
+        CMAKE_ARGS="${{ inputs.cmake-args }}"
+
+        # Boolean inputs (convert to ON/OFF)
+        WITH_TESTS="${{ inputs.with-tests }}"
+        WITH_TOOLS="${{ inputs.with-tools }}"
+        WITH_LIBDWARFS="${{ inputs.with-libdwarfs }}"
+        WITH_FUSE="${{ steps.detect.outputs.with-fuse }}"
+        WITH_THRIFT="${{ inputs.with-thrift }}"
+        WITH_FLATBUFFERS="${{ inputs.with-flatbuffers }}"
+        WITH_BENCHMARKS="${{ inputs.with-benchmarks }}"
+        WITH_PXATTR="${{ inputs.with-pxattr }}"
+
+        # Convert to CMake booleans
+        [[ "$WITH_TESTS" == "true" ]] && WITH_TESTS="ON" || WITH_TESTS="OFF"
+        [[ "$WITH_TOOLS" == "true" ]] && WITH_TOOLS="ON" || WITH_TOOLS="OFF"
+        [[ "$WITH_LIBDWARFS" == "true" ]] && WITH_LIBDWARFS="ON" || WITH_LIBDWARFS="OFF"
+        [[ "$WITH_FUSE" == "true" ]] || [[ "$WITH_FUSE" == "auto" ]] && WITH_FUSE="ON" || WITH_FUSE="OFF"
+        [[ "$WITH_THRIFT" == "true" ]] && WITH_THRIFT="ON" || WITH_THRIFT="OFF"
+        [[ "$WITH_FLATBUFFERS" == "true" ]] && WITH_FLATBUFFERS="ON" || WITH_FLATBUFFERS="OFF"
+        [[ "$WITH_BENCHMARKS" == "true" ]] && WITH_BENCHMARKS="ON" || WITH_BENCHMARKS="OFF"
+        [[ "$WITH_PXATTR" == "true" ]] && WITH_PXATTR="ON" || WITH_PXATTR="OFF"
+
+        # Build CMake command
+        CMAKE_CMD="cmake -B \"$BUILD_DIR\" -S \"$SOURCE_DIR\""
+        CMAKE_CMD+=" -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
+        CMAKE_CMD+=" -DWITH_TESTS=$WITH_TESTS"
+        CMAKE_CMD+=" -DWITH_TOOLS=$WITH_TOOLS"
+        CMAKE_CMD+=" -DWITH_LIBDWARFS=$WITH_LIBDWARFS"
+        CMAKE_CMD+=" -DWITH_FUSE_DRIVER=$WITH_FUSE"
+        CMAKE_CMD+=" -DDWARFS_WITH_THRIFT=$WITH_THRIFT"
+        CMAKE_CMD+=" -DDWARFS_WITH_FLATBUFFERS=$WITH_FLATBUFFERS"
+        CMAKE_CMD+=" -DWITH_BENCHMARKS=$WITH_BENCHMARKS"
+        CMAKE_CMD+=" -DWITH_PXATTR=$WITH_PXATTR"
+
+        # Add toolchain file if specified
+        if [[ -n "$TOOLCHAIN_FILE" ]]; then
+          CMAKE_CMD+=" -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE"
+        fi
+
+        # Add generator (always use detected or specified generator)
+        CMAKE_CMD+=" -G \"$GENERATOR\""
+
+        # Add additional CMake arguments
+        if [[ -n "$CMAKE_ARGS" ]]; then
+          CMAKE_CMD+=" $CMAKE_ARGS"
+        fi
+
+        # Export for next step
+        echo "cmake-cmd=$CMAKE_CMD" >> $GITHUB_OUTPUT
+
+        # Print configuration summary
+        echo "::group::CMake Configuration"
+        echo "Build Directory: $BUILD_DIR"
+        echo "Build Type: $BUILD_TYPE"
+        echo "Generator: $GENERATOR"
+        echo "Tests: $WITH_TESTS"
+        echo "Tools: $WITH_TOOLS"
+        echo "Libdwarfs: $WITH_LIBDWARFS"
+        echo "FUSE Driver: $WITH_FUSE"
+        echo "Thrift: $WITH_THRIFT"
+        echo "FlatBuffers: $WITH_FLATBUFFERS"
+        echo "Benchmarks: $WITH_BENCHMARKS"
+        echo "PXATTR: $WITH_PXATTR"
+        if [[ -n "$TOOLCHAIN_FILE" ]]; then
+          echo "Toolchain: $TOOLCHAIN_FILE"
+        fi
+        if [[ -n "$CMAKE_ARGS" ]]; then
+          echo "Additional Args: $CMAKE_ARGS"
+        fi
+        echo "::endgroup::"
+
+    - name: Configure CMake
+      id: configure
+      shell: bash
+      run: |
+        set -x
+
+        # Debug environment
+        echo "=== DEBUG ENVIRONMENT ==="
+        echo "VCPKG_ROOT=$VCPKG_ROOT"
+        echo "VCPKG_OVERLAY_PORTS=$VCPKG_OVERLAY_PORTS"
+        echo "TRIPLET=${{ inputs.triplet }}"
+        echo "====================="
+
+        ${{ steps.cmake-cmd.outputs.cmake-cmd }}
+
+        # Export outputs
+        echo "build-dir=${{ inputs.build-dir }}" >> $GITHUB_OUTPUT
+        echo "cmake-generator=${{ steps.detect.outputs.generator }}" >> $GITHUB_OUTPUT
+
+        echo "✓ CMake configuration complete"

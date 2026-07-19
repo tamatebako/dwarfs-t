@@ -1,0 +1,184 @@
+# Composite action to set up vcpkg with specified triplet
+# vim:set ts=2 sw=2 sts=2 et:
+#
+# This action handles vcpkg installation and configuration
+# across different platforms and triplets
+
+name: 'Setup vcpkg'
+description: 'Setup vcpkg with specified triplet and overlay ports'
+
+inputs:
+  triplet:
+    description: 'vcpkg target triplet (e.g., x64-windows-static, arm64-osx)'
+    required: true
+
+  overlay-ports:
+    description: 'Path to overlay ports directory'
+    required: false
+    default: 'vcpkg_ports'
+
+  overlay-triplets:
+    description: 'Path to overlay triplets directory'
+    required: false
+    default: 'vcpkg_triplets'
+
+  cache-key:
+    description: 'Unique cache key for vcpkg packages'
+    required: false
+    default: 'vcpkg-${{ runner.os }}-${{ matrix.triplet }}'
+
+  use-binary-cache:
+    description: 'Use vcpkg binary cache'
+    required: false
+    default: 'true'
+
+  github-token:
+    description: 'GitHub token for binary cache authentication'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  vcpkg-root:
+    description: 'Path to vcpkg installation'
+    value: ${{ steps.setup.outputs.vcpkg-root }}
+
+  triplet:
+    description: 'Resolved triplet name'
+    value: ${{ steps.setup.outputs.triplet }}
+
+  toolchain-file:
+    description: 'Path to vcpkg toolchain file'
+    value: ${{ steps.setup.outputs.toolchain-file }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: platform
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "platform=windows" >> $GITHUB_OUTPUT
+          echo "vcpkg-root=C:/vcpkg" >> $GITHUB_OUTPUT
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          echo "platform=macos" >> $GITHUB_OUTPUT
+          echo "vcpkg-root=$HOME/vcpkg" >> $GITHUB_OUTPUT
+        else
+          echo "platform=linux" >> $GITHUB_OUTPUT
+          echo "vcpkg-root=$HOME/vcpkg" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup vcpkg
+      id: setup
+      shell: bash
+      run: |
+        set -x
+        VCPKG_ROOT="${{ steps.platform.outputs.vcpkg-root }}"
+        TRIPLET="${{ inputs.triplet }}"
+        OVERLAY_PORTS="${{ inputs.overlay-ports }}"
+        OVERLAY_TRIPLETS="${{ inputs.overlay-triplets }}"
+
+        # Clone vcpkg if not present
+        if [[ ! -d "$VCPKG_ROOT" ]]; then
+          echo "Cloning vcpkg to $VCPKG_ROOT..."
+          git clone https://github.com/Microsoft/vcpkg.git "$VCPKG_ROOT"
+        fi
+
+        # Run bootstrap if vcpkg executable doesn't exist
+        if [[ ! -x "$VCPKG_ROOT/vcpkg" ]]; then
+          echo "Bootstrapping vcpkg..."
+          cd "$VCPKG_ROOT"
+          ./bootstrap-vcpkg.sh || ./bootstrap-vcpkg.bat
+        fi
+
+        # Add vcpkg to PATH
+        echo "$VCPKG_ROOT" >> $GITHUB_PATH
+
+        # Export outputs
+        echo "vcpkg-root=$VCPKG_ROOT" >> $GITHUB_OUTPUT
+        echo "triplet=$TRIPLET" >> $GITHUB_OUTPUT
+        echo "toolchain-file=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_OUTPUT
+
+        # Set environment variables for subsequent steps
+        echo "VCPKG_ROOT=$VCPKG_ROOT" >> $GITHUB_ENV
+        echo "VCPKG_OVERLAY_PORTS=$GITHUB_WORKSPACE/$OVERLAY_PORTS" >> $GITHUB_ENV
+        echo "VCPKG_OVERLAY_TRIPLETS=$GITHUB_WORKSPACE/$OVERLAY_TRIPLETS" >> $GITHUB_ENV
+        echo "VCPKG_DEFAULT_TRIPLET=$TRIPLET" >> $GITHUB_ENV
+
+        echo "✓ vcpkg setup complete"
+        echo "  VCPKG_ROOT: $VCPKG_ROOT"
+        echo "  TRIPLET: $TRIPLET"
+        echo "  OVERLAY_PORTS: $GITHUB_WORKSPACE/$OVERLAY_PORTS"
+        echo "  OVERLAY_TRIPLETS: $GITHUB_WORKSPACE/$OVERLAY_TRIPLETS"
+
+    - name: Cache vcpkg packages
+      if: inputs.use-binary-cache == 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ steps.platform.outputs.vcpkg-root }}/installed
+          ${{ steps.platform.outputs.vcpkg-root }}/packages
+          ~/.cache/vcpkg/archives
+        key: ${{ inputs.cache-key }}-${{ hashFiles('**/vcpkg.json') }}
+        restore-keys: |
+          ${{ inputs.cache-key }}-
+
+    - name: Configure vcpkg binary cache
+      if: inputs.use-binary-cache == 'true'
+      shell: bash
+      run: |
+        VCPKG_ROOT="${{ steps.platform.outputs.vcpkg-root }}"
+
+        # Create binary cache config
+        cat > "$VCPKG_ROOT/vcpkg-cache-metrics.json" << 'EOF'
+        {
+          "metrics": {
+            "binarycaching": true
+          }
+        }
+        EOF
+
+        # Use GitHub Actions cache as binary cache
+        "$VCPKG_ROOT/vcpkg" fetch-binary-cache --binarysource=default
+
+    - name: Verify triplet
+      shell: bash
+      run: |
+        VCPKG_ROOT="${{ steps.platform.outputs.vcpkg-root }}"
+        TRIPLET="${{ inputs.triplet }}"
+        OVERLAY_TRIPLETS="${{ inputs.overlay-triplets }}"
+
+        # Check if triplet file exists
+        if [[ -f "$GITHUB_WORKSPACE/$OVERLAY_TRIPLETS/$TRIPLET.cmake" ]]; then
+          echo "✓ Found overlay triplet: $TRIPLET"
+          cat "$GITHUB_WORKSPACE/$OVERLAY_TRIPLETS/$TRIPLET.cmake"
+        elif [[ -f "$VCPKG_ROOT/triplets/$TRIPLET.cmake" ]] || \
+             [[ -f "$VCPKG_ROOT/triplets/community/$TRIPLET.cmake" ]]; then
+          echo "✓ Found builtin triplet: $TRIPLET"
+        else
+          echo "::warning::Triplet $TRIPLET not found, will use vcpkg default"
+        fi
+
+    - name: List overlay ports
+      shell: bash
+      run: |
+        OVERLAY_PORTS="${{ inputs.overlay-ports }}"
+
+        if [[ -d "$GITHUB_WORKSPACE/$OVERLAY_PORTS" ]]; then
+          echo "Overlay ports available:"
+          ls -1 "$GITHUB_WORKSPACE/$OVERLAY_PORTS" | grep -v '^\.' | head -20
+        else
+          echo "::warning::Overlay ports directory not found: $GITHUB_WORKSPACE/$OVERLAY_PORTS"
+        fi
+
+    - name: List overlay triplets
+      shell: bash
+      run: |
+        OVERLAY_TRIPLETS="${{ inputs.overlay-triplets }}"
+
+        if [[ -d "$GITHUB_WORKSPACE/$OVERLAY_TRIPLETS" ]]; then
+          echo "Overlay triplets available:"
+          ls -1 "$GITHUB_WORKSPACE/$OVERLAY_TRIPLETS" | grep '.cmake$' | sed 's/.cmake$//' | head -20
+        else
+          echo "::warning::Overlay triplets directory not found: $GITHUB_WORKSPACE/$OVERLAY_TRIPLETS"
+        fi

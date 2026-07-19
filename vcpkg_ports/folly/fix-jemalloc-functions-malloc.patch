@@ -1,0 +1,38 @@
+--- a/folly/memory/Malloc.h
++++ b/folly/memory/Malloc.h
+@@ -206,7 +206,7 @@
+ } // namespace detail
+
+ /**
+- * @brief Return whether sdallocx() is supported by the current allocator.
++ * @brief Return whether je_sdallocx() is supported by the current allocator.
+  *
+  * @return bool
+  */
+@@ -215,7 +215,7 @@
+ }
+
+ /**
+- * @brief Return whether nallocx() is supported by the current allocator.
++ * @brief Return whether je_nallocx() is supported by the current allocator.
+  *
+  * @return bool
+  */
+@@ -247,7 +247,7 @@
+
+   // nallocx returns 0 if minSize can't succeed, but 0 is not actually
+   // a goodMallocSize if you want minSize
+-  auto rv = nallocx(minSize, 0);
++  auto rv = je_nallocx(minSize, 0);
+   return rv ? rv : minSize;
+ }
+
+@@ -326,7 +326,7 @@
+  */
+ inline void sizedFree(void* ptr, size_t size) {
+   if (canSdallocx()) {
+-    sdallocx(ptr, size, 0);
++    je_sdallocx(ptr, size, 0);
+   } else {
+     free(ptr);
+   }

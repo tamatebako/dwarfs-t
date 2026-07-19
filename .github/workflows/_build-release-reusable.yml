@@ -1,0 +1,155 @@
+# Reusable Release Build Workflow
+#
+# Creates release binaries for a specific platform.
+# Used by release.yml to build for all platforms.
+#
+# Process:
+# 1. Configure CMake with vcpkg
+# 2. Build release binaries
+# 3. Strip binaries (reduce size)
+# 4. Package binaries, libraries, headers
+# 5. Upload artifact
+
+name: Reusable Release Build
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'GitHub Actions runner'
+        required: true
+        type: string
+      triplet:
+        description: 'vcpkg triplet'
+        required: true
+        type: string
+      artifact-name:
+        description: 'Name for the artifact'
+        required: true
+        type: string
+      config:
+        description: 'Build configuration (flatbuffers, flatbuffers-with-thrift)'
+        required: false
+        type: string
+        default: flatbuffers
+      build-type:
+        description: 'CMake build type'
+        required: false
+        type: string
+        default: Release
+
+    outputs:
+      artifact-name:
+        description: 'Name of the created artifact'
+        value: ${{ jobs.build-release.outputs.artifact-name }}
+      build-status:
+        description: 'Build status (success/failure)'
+        value: ${{ jobs.build-release.outputs.build-status }}
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    name: Release (${{ inputs.runner }})
+    runs-on: ${{ inputs.runner }}
+
+    outputs:
+      artifact-name: ${{ steps.package.outputs.artifact-name }}
+      build-status: ${{ steps.status.outputs.status }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup vcpkg
+        uses: ./.github/actions/setup-vcpkg-simple
+
+      - name: Setup build dependencies
+        uses: ./.github/actions/setup-build-deps
+
+      - name: Configure CMake
+        uses: ./.github/actions/configure-cmake
+        with:
+          build-type: ${{ inputs.build-type }}
+          triplet: ${{ inputs.triplet }}
+          config: ${{ inputs.config }}
+          build-dir: build-release
+
+      - name: Build release binaries
+        shell: bash
+        run: |
+          cd build-release
+          ninja
+
+      - name: Strip binaries (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "Stripping binaries to reduce size..."
+          strip build-release/tools/mkdwarfs/mkdwarfs 2>/dev/null || true
+          strip build-release/tools/dwarfs/dwarfs 2>/dev/null || true
+          strip build-release/tools/dwarfsck/dwarfsck 2>/dev/null || true
+          strip build-release/tools/dwarfsextract/dwarfsextract 2>/dev/null || true
+
+      - name: Create package directory
+        shell: bash
+        run: |
+          mkdir -p package/${{ inputs.artifact-name }}
+
+      - name: Copy binaries to package (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cp build-release/tools/mkdwarfs/mkdwarfs package/${{ inputs.artifact-name }}/ 2>/dev/null || true
+          cp build-release/tools/dwarfs/dwarfs package/${{ inputs.artifact-name }}/ 2>/dev/null || true
+          cp build-release/tools/dwarfsck/dwarfsck package/${{ inputs.artifact-name }}/ 2>/dev/null || true
+          cp build-release/tools/dwarfsextract/dwarfsextract package/${{ inputs.artifact-name }}/ 2>/dev/null || true
+
+      - name: Copy binaries to package (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "package/${{ inputs.artifact-name }}"
+          Copy-Item -Path "build-release\tools\mkdwarfs\mkdwarfs.exe" -Destination "package/${{ inputs.artifact-name}}\" -ErrorAction SilentlyContinue
+          Copy-Item -Path "build-release\tools\dwarfs\dwarfs.exe" -Destination "package/${{ inputs.artifact-name}}\" -ErrorAction SilentlyContinue
+          Copy-Item -Path "build-release\tools\dwarfsck\dwarfsck.exe" -Destination "package/${{ inputs.artifact-name}}\" -ErrorAction SilentlyContinue
+          Copy-Item -Path "build-release\tools\dwarfsextract\dwarfsextract.exe" -Destination "package/${{ inputs.artifact-name}}\" -ErrorAction SilentlyContinue
+
+      - name: Copy libraries (if built)
+        shell: bash
+        run: |
+          cp build-release/libdwarfs.* package/${{ inputs.artifact-name }}/ 2>/dev/null || true
+
+      - name: Copy headers
+        shell: bash
+        run: |
+          mkdir -p package/${{ inputs.artifact-name }}/include
+          cp -r include/dwarfs package/${{ inputs.artifact-name }}/include/ 2>/dev/null || true
+
+      - name: Package release
+        id: package
+        shell: bash
+        run: |
+          tar czf ${{ inputs.artifact-name }}.tar.gz -C package .
+          echo "artifact-name=${{ inputs.artifact-name }}" >> $GITHUB_OUTPUT
+
+          echo "=== Package Contents ==="
+          tar tzf ${{ inputs.artifact-name }}.tar.gz
+
+          echo "=== Package Size ==="
+          ls -lh ${{ inputs.artifact-name }}.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.artifact-name }}.tar.gz
+          retention-days: 30
+
+      - name: Set build status
+        id: status
+        run: |
+          echo "status=success" >> $GITHUB_OUTPUT

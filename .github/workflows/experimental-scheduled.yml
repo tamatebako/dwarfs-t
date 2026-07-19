@@ -1,0 +1,113 @@
+# Scheduled Experimental Build Workflow
+#
+# Runs experimental (Modern Thrift) builds on a weekly schedule.
+# This avoids slowing down PR feedback with the long experimental build times.
+#
+# Schedule: Every Sunday at 00:00 UTC
+# Manual trigger: workflow_dispatch with optional specific triplet
+
+name: Experimental Build (Scheduled)
+
+on:
+  schedule:
+    # Every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      triplet:
+        description: 'Specific triplet to build (leave empty for all)'
+        required: false
+        type: string
+        default: ''
+
+concurrency:
+  group: experimental-scheduled-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # ===========================================================================
+  # Linux x64 Experimental
+  # ===========================================================================
+  linux-x64:
+    if: inputs.triplet == '' || inputs.triplet == 'x64-linux'
+    name: 🧪 Linux x64 · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-latest
+      triplet: x64-linux
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
+
+  # ===========================================================================
+  # Linux ARM64 Experimental
+  # ===========================================================================
+  linux-arm64:
+    if: inputs.triplet == '' || inputs.triplet == 'arm64-linux'
+    name: 🧪 Linux ARM64 · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: ubuntu-24.04-arm
+      triplet: arm64-linux
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
+
+  # ===========================================================================
+  # macOS x64 Experimental
+  # ===========================================================================
+  macos-x64:
+    if: inputs.triplet == '' || inputs.triplet == 'x64-osx'
+    name: 🧪 macOS x64 · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: macos-14
+      triplet: x64-osx
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
+
+  # ===========================================================================
+  # macOS ARM64 Experimental
+  # ===========================================================================
+  macos-arm64:
+    if: inputs.triplet == '' || inputs.triplet == 'arm64-osx-static'
+    name: 🧪 macOS ARM64 · Experimental
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: macos-14
+      triplet: arm64-osx-static
+      config: experimental
+      vcpkg-manifest: vcpkg-experimental.json
+      continue-on-error: true
+
+  # ===========================================================================
+  # Summary
+  # ===========================================================================
+  summary:
+    name: 📊 Summary
+    needs:
+      - linux-x64
+      - linux-arm64
+      - macos-x64
+      - macos-arm64
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📊 Results
+        run: |
+          echo "# Experimental Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Build completed at: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Triplet | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux x64 | x64-linux | ${{ needs.linux-x64.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux ARM64 | arm64-linux | ${{ needs.linux-arm64.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS x64 | x64-osx | ${{ needs.macos-x64.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS ARM64 | arm64-osx-static | ${{ needs.macos-arm64.result }} |" >> $GITHUB_STEP_SUMMARY

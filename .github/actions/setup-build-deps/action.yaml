@@ -1,0 +1,50 @@
+# Minimal build dependencies action for DwarFS CI
+#
+# This composite action simply calls the installation script.
+# All logic is in scripts/github-actions/install-build-deps.sh for easy testing.
+#
+# Since we use vcpkg for ALL dependencies, we only need:
+# 1. Essential build tools (cmake, ninja, git, pkg-config for vcpkg's use)
+# 2. FUSE libraries (ALWAYS installed for tests)
+# 3. Autoconf tools (for building vcpkg dependencies from source if needed)
+# 4. Python packages (from requirements.txt)
+#
+# No system libraries (openssl, boost, xxhash, etc.) - vcpkg provides everything!
+
+name: 'Setup Build Dependencies'
+description: 'Install minimal build dependencies for vcpkg-based DwarFS builds'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install platform-specific dependencies
+      shell: bash
+      run: |
+        SCRIPT_DIR="$(cd "${{ github.action_path }}/../../../scripts/github-actions" && pwd)"
+        case "$RUNNER_OS" in
+          macOS)
+            bash "$SCRIPT_DIR/deps/install-macos-deps.sh"
+            ;;
+          Linux)
+            bash "$SCRIPT_DIR/deps/install-linux-deps.sh"
+            ;;
+          Windows)
+            bash "$SCRIPT_DIR/deps/install-windows-deps.sh"
+            ;;
+        esac
+
+    - name: Install common dependencies
+      shell: bash
+      run: |
+        SCRIPT_DIR="$(cd "${{ github.action_path }}/../../../scripts/github-actions" && pwd)"
+        bash "$SCRIPT_DIR/deps/install-common-deps.sh"
+
+    - name: Create FUSE mount directory
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          sudo mkdir -p /tmp/dwarfs-test-mount
+          sudo chmod 777 /tmp/dwarfs-test-mount
+          echo "DWARFS_TEST_MOUNT_DIR=/tmp/dwarfs-test-mount" >> $GITHUB_ENV
+          echo "✓ Created FUSE mount directory: /tmp/dwarfs-test-mount"
+        fi

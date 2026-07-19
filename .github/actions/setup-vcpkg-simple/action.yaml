@@ -1,0 +1,69 @@
+# Simplified vcpkg setup action for debugging
+name: 'Setup vcpkg (Simple)'
+
+inputs:
+  triplet:
+    description: 'vcpkg target triplet'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Cache vcpkg binary cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          $HOME/vcpkg/archives
+          $HOME/.cache/vcpkg
+        key: vcpkg-${{ runner.os }}-${{ inputs.triplet }}-${{ hashFiles('**/vcpkg.json') }}
+        restore-keys: |
+          vcpkg-${{ runner.os }}-${{ inputs.triplet }}-
+          vcpkg-${{ runner.os }}-
+
+    - name: Cache vcpkg installed packages
+      uses: actions/cache@v4
+      with:
+        path: $HOME/vcpkg/installed
+        key: vcpkg-installed-${{ runner.os }}-${{ inputs.triplet }}-${{ hashFiles('**/vcpkg.json') }}
+        restore-keys: |
+          vcpkg-installed-${{ runner.os }}-${{ inputs.triplet }}-
+          vcpkg-installed-${{ runner.os }}-
+
+    - name: Setup vcpkg
+      shell: bash
+      run: |
+        echo "Setting up vcpkg for triplet: ${{ inputs.triplet }}"
+        echo "Runner OS: $RUNNER_OS"
+        echo "Workspace: $GITHUB_WORKSPACE"
+        echo "Home: $HOME"
+
+        VCPKG_ROOT="$HOME/vcpkg"
+
+        # Clone vcpkg if not present
+        if [[ ! -d "$VCPKG_ROOT" ]]; then
+          echo "Cloning vcpkg..."
+          git clone https://github.com/Microsoft/vcpkg.git "$VCPKG_ROOT"
+        fi
+
+        # Bootstrap vcpkg
+        if [[ ! -x "$VCPKG_ROOT/vcpkg" ]]; then
+          echo "Bootstrapping vcpkg..."
+          cd "$VCPKG_ROOT"
+          ./bootstrap-vcpkg.sh
+        fi
+
+        echo "✓ vcpkg setup complete"
+        echo "VCPKG_ROOT=$VCPKG_ROOT" >> $GITHUB_ENV
+        echo "$VCPKG_ROOT" >> $GITHUB_PATH
+        echo "VCPKG_DEFAULT_TRIPLET=${{ inputs.triplet }}" >> $GITHUB_ENV
+
+        # Set overlay ports for custom packages (jemalloc, fbthrift, folly, etc.)
+        OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg_ports"
+        if [[ -d "$OVERLAY_PORTS" ]]; then
+          echo "VCPKG_OVERLAY_PORTS=$OVERLAY_PORTS" >> $GITHUB_ENV
+          echo "✓ Overlay ports: $OVERLAY_PORTS"
+        else
+          echo "::warning::Overlay ports not found at $OVERLAY_PORTS"
+        fi
+
+        "$VCPKG_ROOT/vcpkg" version
