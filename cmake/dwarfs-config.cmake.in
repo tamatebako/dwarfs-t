@@ -97,7 +97,10 @@ if(LIBDWARFS_WITH_FLAC)
 endif()
 
 if(LIBDWARFS_WITH_JEMALLOC)
-  pkg_check_modules(JEMALLOC REQUIRED IMPORTED_TARGET jemalloc>=@JEMALLOC_REQUIRED_VERSION@)
+  find_package(jemalloc CONFIG QUIET)
+  if(NOT jemalloc_FOUND)
+    pkg_check_modules(JEMALLOC REQUIRED IMPORTED_TARGET jemalloc>=@JEMALLOC_REQUIRED_VERSION@)
+  endif()
 endif()
 
 if (NOT TARGET dwarfs::dwarfs_common)
