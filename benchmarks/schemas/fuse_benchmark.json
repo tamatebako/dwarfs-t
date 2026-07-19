@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FUSE Extraction Benchmark Result",
+  "description": "Performance metrics for DwarFS FUSE driver extraction operations",
+  "type": "object",
+  "required": [
+    "benchmark",
+    "build",
+    "format",
+    "image",
+    "duration_seconds",
+    "extracted_bytes",
+    "throughput_mb_per_sec"
+  ],
+  "properties": {
+    "benchmark": {
+      "type": "string",
+      "const": "fuse_extraction",
+      "description": "Benchmark type identifier"
+    },
+    "build": {
+      "type": "string",
+      "enum": ["fb-only", "thrift-only", "both"],
+      "description": "Build configuration: FlatBuffers-only, Thrift-only, or both formats"
+    },
+    "format": {
+      "type": "string",
+      "enum": ["dff", "dft"],
+      "description": "Image format: .dff (FlatBuffers) or .dft (Thrift)"
+    },
+    "image": {
+      "type": "string",
+      "description": "Path to DwarFS image file"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total extraction time in seconds"
+    },
+    "extracted_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total bytes extracted"
+    },
+    "throughput_mb_per_sec": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Extraction throughput in megabytes per second"
+    },
+    "cache_size_mib": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Block cache size in mebibytes"
+    },
+    "num_workers": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of decompression worker threads"
+    }
+  },
+  "examples": [
+    {
+      "benchmark": "fuse_extraction",
+      "build": "fb-only",
+      "format": "dff",
+      "image": "/path/to/perl-5.43.3.dff",
+      "duration_seconds": 2.15,
+      "extracted_bytes": 101171200,
+      "throughput_mb_per_sec": 44.85,
+      "cache_size_mib": 512,
+      "num_workers": 4
+    }
+  ]
+}
