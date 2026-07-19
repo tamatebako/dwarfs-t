@@ -308,7 +308,10 @@ if(WITH_LIBDWARFS)
   include(cmake/vcpkg/lz4.cmake)
   include(cmake/vcpkg/lzma.cmake)
   include(cmake/vcpkg/brotli.cmake)
-  include(cmake/vcpkg/flac.cmake)
+  # FLAC is optional; only required when TRY_ENABLE_FLAC is ON
+  if(TRY_ENABLE_FLAC)
+    include(cmake/vcpkg/flac.cmake)
+  endif()
 
   # Memory allocator - MANDATORY for static builds
   include(cmake/vcpkg/jemalloc.cmake)
