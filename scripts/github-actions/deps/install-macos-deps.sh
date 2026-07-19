@@ -22,6 +22,11 @@ if [[ ! -f "$BREWFILE_PATH" ]]; then
   exit 1
 fi
 
+# New Homebrew tap-trust policy refuses casks from untrusted taps; tap + trust macos-fuse-t/cask first
+echo "Tapping and trusting macos-fuse-t/cask..."
+$BREW_CMD tap macos-fuse-t/cask
+$BREW_CMD trust macos-fuse-t/cask
+
 # Install all dependencies from Brewfile
 echo "Installing Homebrew dependencies from Brewfile..."
 $BREW_CMD bundle --file="$BREWFILE_PATH"
