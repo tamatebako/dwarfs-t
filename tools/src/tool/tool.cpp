@@ -114,13 +114,11 @@ tool_header_impl(std::string_view tool_name, std::string_view extra_info = {}) {
 
   return fmt::format(
       // clang-format off
-    R"(     ___                  ___ ___           ___)""\n"
-    R"(    |   \__ __ ____ _ _ _| __/ __|         |   \   Deduplicating)""\n"
-    R"(    | |) \ V  V / _` | '_| _|\__ \    ___  | |) |  Warp-speed)""\n"
-    R"(    |___/ \_/\_/\__,_|_| |_| |___/   |___| |___/   Advanced)""\n"
-    R"(                                                    Read-only)""\n"
-    R"(                                                    File System)""\n"
-    R"(                                        Tebako Fork by Ribose Inc.)""\n\n"
+    R"(     _                            __            _)""\n"
+    R"(  __| |_      ____ _ _ __ ___    / _|          | |_)""\n"
+    R"( / _` \ \ /\ / / _` | '__( __|  | |_           | __|)""\n"
+    R"(| (_| |\ V  V / (_| | |  \__ \  |  _|          | |_)""\n"
+    R"( \__,_| \_/\_/ \__,_|_|  |___/  |_|  - tebako   \__|)""\n\n"
       // clang-format on
       "{} ({}{}{})\nbuilt for {}\n\n",
       tool_name, DWARFS_GIT_ID, date, extra_info, DWARFS_BUILD_ID);
