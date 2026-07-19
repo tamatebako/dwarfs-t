@@ -1,5 +1,13 @@
 # DwarFS (Tebako Fork)
 
+> **dwarfs-t** is a permanent, tebako-hardened variant of [DwarFS](https://github.com/mhx/dwarfs),
+> maintained by the [tamatebako](https://github.com/tamatebako) project for the
+> [tebako](https://github.com/tamatebako/tebako) executable packager.
+> Distinguishing features: thrift-free metadata (FlatBuffers-based multi-format
+> serialization), static-build-first, macOS FUSE-T support.
+> This is **not a tracking fork**: upstream fixes are cherry-picked per release.
+> Releases are tagged `tebako-vX.Y.Z`.
+
 [![CI Main](https://github.com/tamatebako/dwarfs/actions/workflows/ci-main.yml/badge.svg)](https://github.com/tamatebako/dwarfs/actions/workflows/ci-main.yml)
 [![PR Validation](https://github.com/tamatebako/dwarfs/actions/workflows/pr-validation.yml/badge.svg)](https://github.com/tamatebako/dwarfs/actions/workflows/pr-validation.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.GPL-3.0)
