@@ -28,6 +28,8 @@
 
 #pragma once
 
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+
 #include <iosfwd>
 #include <span>
 
@@ -55,3 +57,5 @@ class metadata_analyzer {
 };
 
 } // namespace dwarfs::reader::internal
+
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

@@ -28,12 +28,13 @@
 #include <utility>
 
 #include <dwarfs/byte_buffer.h>
+#include <dwarfs/metadata/serialization/serialization_format.h>
 
 namespace dwarfs {
 
 class logger;
 
-namespace thrift::metadata {
+namespace metadata::domain {
 class metadata;
 }
 
@@ -41,11 +42,13 @@ namespace writer::internal {
 
 class metadata_freezer {
  public:
-  metadata_freezer(logger& lgr);
+  metadata_freezer(logger& lgr,
+                   metadata::serialization::SerializationFormat format =
+                       metadata::serialization::SerializationFormat::FLATBUFFERS);
   ~metadata_freezer();
 
   std::pair<shared_byte_buffer, shared_byte_buffer>
-  freeze(thrift::metadata::metadata const& data) const {
+  freeze(metadata::domain::metadata const& data) const {
     return impl_->freeze(data);
   }
 
@@ -54,7 +57,7 @@ class metadata_freezer {
     virtual ~impl() = default;
 
     virtual std::pair<shared_byte_buffer, shared_byte_buffer>
-    freeze(thrift::metadata::metadata const& data) const = 0;
+    freeze(metadata::domain::metadata const& data) const = 0;
   };
 
  private:

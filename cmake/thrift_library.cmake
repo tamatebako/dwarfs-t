@@ -16,7 +16,7 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.28.0)
+# Conditional minimum version for tebako compatibility
 
 function(add_cpp2_thrift_library idlfile)
   set(_options FROZEN METADATA CONSTANTS NO_LIBRARY)
@@ -116,17 +116,31 @@ function(add_cpp2_thrift_library idlfile)
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
 
+    # Determine thrift1 include path
+    # Priority: vcpkg installed → fallback
+    if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+      set(_THRIFT_INCLUDE_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
+    elseif(_VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+      set(_THRIFT_INCLUDE_PATH "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
+    else()
+      # Fallback (should not happen in vcpkg builds)
+      set(_THRIFT_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
+
+    # Build the thrift compiler command
+    # Note: ASAN_OPTIONS=detect_leaks=0 was removed to avoid cmake -E env parsing issues
+
     add_custom_command(
       OUTPUT ${_THRIFT_GEN_SRC}
       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${idlfile}
       ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}/${_THRIFTNAME}.thrift
-      COMMAND ${CMAKE_COMMAND} -E env ASAN_OPTIONS=detect_leaks=0 --
-                  ${CMAKE_CROSSCOMPILING_EMULATOR} ${CMAKE_CURRENT_BINARY_DIR}/bin/thrift1
-                  -I ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift
+      COMMAND ${THRIFT1_COMPILER}
+                  VERBATIM
+                  -I ${_THRIFT_INCLUDE_PATH}
                   -o ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}
                   --gen ${_THRIFT_GEN} ${_THRIFTNAME}.thrift
       COMMENT "Running thrift compiler on ${_THRIFTNAME}.thrift [${_THRIFT_GEN}]"
-      DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bin/thrift1
+      DEPENDS ${THRIFT1_COMPILER}
               ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}/_keep_${_THRIFTNAME}
               ${idlfile}
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/thrift/${_THRIFT_OUTPUT_PATH}
@@ -138,7 +152,7 @@ function(add_cpp2_thrift_library idlfile)
     target_include_directories(${_THRIFT_TARGET} PUBLIC
       $<BUILD_INTERFACE:${_THRIFT_GENERATED_DIR}/thrift>
     )
-    target_link_libraries(${_THRIFT_TARGET} PUBLIC dwarfs_thrift_lite)
+    target_link_libraries(${_THRIFT_TARGET} PUBLIC FBThrift::thrift)
     if(NOT WIN32)
       target_compile_options(${_THRIFT_TARGET} PRIVATE -Wno-deprecated-declarations)
     endif()

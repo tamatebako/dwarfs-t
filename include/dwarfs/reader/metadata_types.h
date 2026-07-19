@@ -39,16 +39,49 @@
 #include <dwarfs/file_stat.h>
 #include <dwarfs/file_type.h>
 #include <dwarfs/reader/seek_whence.h>
+#include <dwarfs/reader/internal/metadata_view_interface.h>
+
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+// Include domain-based metadata views for FlatBuffers-only builds
+#include <dwarfs/reader/internal/domain_metadata_views.h>
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+// Include Thrift backend types OUTSIDE any namespace to avoid nesting issues
+#include <dwarfs/reader/internal/metadata_types_thrift.h>
+#else
+// Dual-format: need wrapper for value-semantic chunk_range
+#include <dwarfs/reader/internal/chunk_range_wrapper.h>
+#endif
 
 namespace dwarfs::reader {
 
 namespace internal {
 
-class metadata_v2_data;
+#if defined(DWARFS_HAVE_FLATBUFFERS) && !defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+// Import domain types for FlatBuffers-only builds
+using inode_view_impl = domain_inode_view_impl;
+using dir_entry_view_impl = domain_dir_entry_view_impl;
+using global_metadata = domain_global_metadata;
+using chunk_range = domain_chunk_range_impl;
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT) && !defined(DWARFS_HAVE_FLATBUFFERS)
+// Import Thrift backend types into internal namespace for Thrift-only builds
+using inode_view_impl = thrift_backend::inode_view_impl;
+using dir_entry_view_impl = thrift_backend::dir_entry_view_impl;
+using global_metadata = thrift_backend::global_metadata;
+using chunk_range = thrift_backend::chunk_range;
+#else
+// Multi-format: use interface types for polymorphism
+using inode_view_impl = inode_view_interface;
+using dir_entry_view_impl = dir_entry_view_interface;
+using global_metadata = global_metadata_interface;
+// chunk_range needs value semantics, use wrapper
+using chunk_range = chunk_range_wrapper;
+#endif
 
-class inode_view_impl;
-class dir_entry_view_impl;
-class global_metadata;
+// Forward declarations for friend access
+namespace thrift_backend { class metadata_v2_data; }
+namespace flatbuffers_backend { class metadata_v2_data; }
+class common_metadata_operations;
+class backend_adapter;  // Added: backend_adapter forward declaration
 
 } // namespace internal
 
@@ -146,7 +179,10 @@ class directory_iterator {
 static_assert(std::input_iterator<directory_iterator>);
 
 class directory_view {
-  friend class internal::metadata_v2_data;
+  friend class internal::thrift_backend::metadata_v2_data;
+  friend class internal::flatbuffers_backend::metadata_v2_data;
+  friend class internal::common_metadata_operations;
+  friend class internal::backend_adapter;  // Allow adapter to construct
   friend class dir_entry_view;
 
  public:

@@ -49,7 +49,7 @@ TEST(mkdwarfs_test, pack_modes_random) {
   DWARFS_SLOW_TEST();
 
   std::mt19937_64 rng{42};
-  std::uniform_int_distribution<> dist{1, pack_mode_names.size()};
+  std::uniform_int_distribution<int> dist{1, pack_mode_names.size()};
 
   for (int i = 0; i < 50; ++i) {
     std::vector<std::string_view> modes(pack_mode_names.begin(),
@@ -147,7 +147,7 @@ TEST(mkdwarfs_test, bug_sentinel_self_entry_nonzero) {
   {
     std::ostringstream oss;
     auto t = mkdwarfs_tester::create_empty();
-    t.add_stream_logger(oss, logger::INFO);
+    t.add_stream_logger(oss, LOGGER_LEVEL_INFO);
     auto fs = t.fs_from_data(bug_image_data);
     EXPECT_EQ(0, fs.check(reader::filesystem_check_level::INTEGRITY));
     EXPECT_THAT(
@@ -169,7 +169,7 @@ TEST(mkdwarfs_test, bug_sentinel_self_entry_nonzero) {
                 ::testing::HasSubstr("fixing inconsistent sentinel directory"));
 
     std::ostringstream oss;
-    t.add_stream_logger(oss, logger::INFO);
+    t.add_stream_logger(oss, LOGGER_LEVEL_INFO);
     auto fs = t.fs_from_stdout();
 
     EXPECT_EQ(0, fs.check(reader::filesystem_check_level::INTEGRITY));

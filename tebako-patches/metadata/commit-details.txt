@@ -1,0 +1,117 @@
+94a99046f1c8acb2a685e2faece695e1debed64c|2025-09-21 12:09:23 +0300|maxirmx|chore: drop macos-13 support (2)
+047eee9bff0470c7ba3452605fe4091655ca30ef|2025-09-21 11:52:12 +0300|maxirmx|chore: drop macos-13 support
+eea6481c6eb4ea0eab5cb12c97bb1de908c809b5|2025-09-17 22:59:08 +0300|maxirmx|chore: propagate USE_JEMALLOC definition
+95642be56d040e5664d845cb4a8cfd2b6e64ffcf|2025-09-17 19:11:09 +0300|Maxim Samsonov|chore: add FOLLY_ASSUME_NO_TCMALLOC compile definition
+80033689fe1eed574e142a0654f903e7ebc4e45e|2025-09-17 02:11:14 +0300|Maxim Samsonov|chore: fix CMake and Boost compatibility issues (#58)
+b1ab911f4255f042afff6a53a08c5ef2c42314b7|2025-09-16 21:38:27 +0300|maxirmx|fix: CMake/Boost policy CMP0167
+a82406874754801464041eaa5015d4cdacca73a2|2025-05-02 22:40:46 +0300|maxirmx|chore: reinstall cmake on macos runners to test against compatibility issues
+c6a27351a9b7fcb538065189df2444b991b3f507|2025-05-02 16:28:56 +0300|Maxim [maxirmx] Samsonov|fix: alter folly/fbthrift/zstd patching to ensure CMake 4.x compatibility (https://github.com/tamatebako/tebako/issues/311)
+46a18b984c6bf86d4109ecc1c032e0574c0c25a5|2025-04-06 13:17:27 +0300|maxirmx|chore: prioritize DEPS include and lib folders
+dff9686c9cb441ce33366ccbd80b5dabf6c4f855|2025-04-06 10:50:14 +0300|maxirmx|chore: define GLOG_USE_GLOG_EXPORT
+1b7e43c6df47ca7654081aa01aa8ed7ef97afdf7|2025-04-05 10:54:15 +0300|Maxim [maxirmx] Samsonov|chore:bump tools to v0.6.6 (patch cmake_minimum_required for folly and fbthrift; bump libarchive version to 3.7.9)
+5410de5c8c65007d8aea501ba492ecfa79510650|2025-03-28 16:02:18 +0300|Maxim [maxirmx] Samsonov|chore: bump tools to v0.6.5 (change libarchive download url to https)
+c890eb1e1f1e2e2c82acbae63defa169da0cbbc1|2025-03-21 23:31:34 +0300|Maxim Samsonov|Syncronize with test version (#51)
+299718e070f9e610bb951b298d75a6bff51d6043|2025-03-16 19:38:21 +0300|Maxim [maxirmx] Samsonov|chore: remove redundant references to .cirrus.yml
+fbe45808683a86efc54f2b6857ed7ef0b7e1370a|2025-03-16 19:00:28 +0300|Maxim [maxirmx] Samsonov|chore: bump tools version to v0.6.4
+50af9e00ede345166af04cebd459fb7f99388f65|2025-03-16 18:44:45 +0300|Maxim [maxirmx] Samsonov|feat: test on Alpine 3.17 tebako development container (amd64, arm64 single test)
+1df6d19fa5aedeb1f774175c3db0886aece14d26|2025-03-09 22:32:36 +0300|Maxim [maxirmx] Samsonov|feat: test on Ubuntu 20.04 tebako development container (amd64, arm64)
+224dd609eddab1f54129f9a78942e382e484cafb|2025-03-09 22:34:17 +0300|Maxim [maxirmx] Samsonov|chore: retire Cirrus CI tests
+4bab41657aa1a17c7614e805a48a9cd49dbd79c4|2025-03-09 22:22:07 +0300|Maxim [maxirmx] Samsonov|chore: bump tools version to 0.6.0
+cae05731731fe538cea31648a9eda6f3ccf35c78|2025-02-23 14:03:05 +0300|maxirmx|fix: proritize bundled thrift path
+9f0f63414c9c65add554a03c540b744105ace611|2025-02-19 10:47:54 +0000|Maxim Samsonov|fix: update folly patching for MSys
+8584ea9473042d5cb39453bcd39f4956d3ba3c83|2025-02-19 10:47:54 +0000|Maxim Samsonov|chore: bump tools version to v0.5.10
+bef73d06c3f0674064072732d002f86837a74bc1|2025-02-18 14:21:56 +0000|Maxim Samsonov|chore: optimize macos workflow
+22f76f12479f3416df0d092b620954b5a0739fdf|2025-02-18 10:40:19 +0000|Maxim Samsonov|fix: fix: proper openssl 1.1 handling for (alpine) linux
+d7d78b71d678463f9dc4b43f63ca32106ff4aa86|2025-02-16 23:02:47 +0300|maxirmx|fix: proper openssl 1.1 handling for macos
+b7aa0a4107f906682df62e992cd9768a7198c33f|2025-02-10 22:20:15 +0300|Maxim [maxirmx] Samsonov|chore: bump tools version to v0.5.6
+6f70b507193f3ce73fcb6fefc203490aaa50b35e|2024-12-01 20:40:20 +0300|maxirmx|fix(checksum): disable extended output algorithms (e.g. shake(128|256)) -- cherry-pick afbd85e4b1aad52b651fd42dc182e8109d0fa8b1 chore: update tools to v0.5.5
+f4af43c45a6bfebbf683f3a7087652370e3d789c|2024-10-29 16:55:50 +0300|maxirmx|fix: shallow git submodules
+45f4a5205ee1329c6e9c40d44abf96cb1b6914c6|2024-11-28 13:34:40 +0300|Maxim [maxirmx] Samsonov|chore: update macos workflow
+d2cc1d36415c71edce193f0252af5350a8671a61|2024-10-31 00:48:06 +0300|Maxim Samsonov|fix: revert tebako-tools back to v0.5.1
+1c86a0f8e8eecd7f62c80d89bbaeaa3ce9593022|2024-10-31 00:19:48 +0300|Maxim Samsonov|fix: PREFER_SYSTEM_LIBFMT option for Windows
+2f79c761e30aac2c6153833946799d27045efefb|2024-10-30 23:59:46 +0300|Maxim Samsonov|chore: tebako-tools bumped to v0.5.5
+f41ff7fafc8546d834099bb785e4f5598bf1cf9d|2024-10-30 23:41:39 +0300|Maxim Samsonov|chore: tebako-tools bumped to v0.5.4
+4a96d722658b36eef8f1d554271859c68296a4db|2024-10-30 23:32:44 +0300|Maxim Samsonov|chore: tebako-tools version bump to v0.5.3
+01f0f578fc83c833e8170c2217528c557ad170ba|2024-08-31 01:32:17 +0300|maxirmx|fix: ensure bundled fmt includes have priority over system/homebrew
+169bef43b70ef33266f4df124afa0014415db4e2|2024-08-30 20:28:46 +0300|maxirmx|fix: OVERRIDE_FIND_PACKAGE for fmt and gtest
+74398b7e1c3e207b150257655064eeab5bcf752f|2024-08-07 20:45:16 +0300|maxirmx|fix: ensure 'local' folly includes have preference over 'system'
+3ee4e3e61f644a8efbd80f9af3e87cd96540dfe7|2024-07-16 12:15:35 +0300|Maxim [maxirmx] Samsonov|fix: tebako-tools v0.5.0 - musl and MinGW patches compatible with folly/fbthrift 07.2024
+44ae8cd9cea752a7fcedef65d1a897a22e87d310|2024-07-16 10:56:33 +0300|Maxim [maxirmx] Samsonov|fix: fbthrift version bump to 07.2024
+b40552dcb44e27ff6b746de208cf9084adfaf3d6|2024-07-16 10:47:58 +0300|Maxim [maxirmx] Samsonov|fix: folly version bump to 07.2024
+63fb4a1d028fc2891adb4b74543d16bd5ee07b0e|2024-07-16 09:50:28 +0300|Maxim [maxirmx] Samsonov|chore: add MacOS test against xcode 15.4 (https://github.com/tamatebako/tebako/issues/161)
+aca970562c8d84e156a7cca0ad86cf34f5cf0038|2024-07-03 12:09:30 +0300|Maxim [maxirmx] Samsonov|chore: removed installation of redundant brew package
+49fe83ed738d046876b4ec7ee9417f1221c2ba3b|2024-07-03 11:40:03 +0300|Maxim [maxirmx] Samsonov|chore: tebako-tools version bump to 0.4.3
+32e013ba3972a8ad80e83fd208dfd256ed81075a|2024-05-02 23:54:03 +0300|Maxim [maxirmx] Samsonov|Cleaned README
+b167ca8cffdc5e37f9f57590c2eb70a427470c71|2024-05-02 23:53:01 +0300|Maxim [maxirmx] Samsonov|Cleaned .cirrus.yml
+433f575204beb0a57e59bf21d85559cd27ae52c6|2024-05-02 23:50:19 +0300|Maxim Samsonov|Added macos-14 (arm64 M1) run on GHA, removed macos arm64 run from Cirrus CI (#39)
+003e33f43c4c3189d580abcfc1b0ec808c5fdda5|2024-03-21 19:53:30 +0300|Maxim Samsonov|Removed brotli libraries lookup from msys configuration (#37)
+bf7021de6dc1aaa57079c710d305e700f4d0d977|2024-03-13 23:36:25 +0300|Maxim Samsonov|Update README.md
+855c9e34bdf3f7d3f4acc05d1cf4369b2eb1c307|2024-03-13 23:24:47 +0300|Maxim Samsonov|Fixed issues with glog 0.7.0  (#36)
+e44068567f500f58b0a4e62450fde1ab490cf05b|2024-03-13 18:19:54 +0300|Maxim [maxirmx] Samsonov|Applied -DGLOG_USE_GLOG_EXPORT to all platforms
+6b123b04c72b64999c282370aba0ab72ad5af6b4|2024-03-10 23:35:31 +0300|Maxim Samsonov|Tools update to v0.4.2
+5734bc540aa321527d4d6fde827b582fc3521e8f|2024-03-10 15:29:02 +0300|Maxim Samsonov|Added Windows-MSys status badge
+2f46d6fa570a328ad5c358b0344f1f65268e8463|2024-03-10 21:17:51 +0300|Maxim Samsonov|Fixed command-line parameters handling for MinGW port
+bb71265300b16694faba427ce344a4c67af15ef1|2024-03-10 12:55:21 +0300|Maxim Samsonov|Pinned glog/gflags linking order for MinGW port (#35)
+0d5099b6ac6426d8544216b2e6850a3862022617|2024-03-10 01:07:24 +0300|Maxim Samsonov|Created new mingw/ucrt64 workflow (#32)
+e81faee506921fb35f44f4736bab9301bd0a889e|2024-02-03 19:40:20 +0300|Maxim Samsonov|Tools update to v0.3.1
+275b5a9109b716f1e9165de4b034946d70d4871e|2024-02-03 19:26:49 +0300|Maxim Samsonov|Update macos runner version to 12.1
+b7d82b4cb387b29e514b5d3a9dff143290c0651f|2024-02-03 19:24:59 +0300|Maxim Samsonov|Update GHA actions' versions
+887040d417623f45c652df159b14c37c6f97e404|2024-02-03 19:17:58 +0300|Maxim Samsonov|Fixed SIMPLE progress output
+4c2574235ce1e19d6caa3f81629f3d80d44fe6ef|2023-11-08 12:32:29 +0300|Maxim [maxirmx] Samsonov|Removed duplicate setting
+1311ee65318d6a2a84d45b5ea61a5ac78b6a82a2|2023-11-08 00:11:34 +0300|Maxim [maxirmx] Samsonov|Created status badge for Windows workflow
+5cca42cb63994d21ed81a5d9624f7d178b9690ac|2023-11-07 20:55:40 +0300|Maxim [maxirmx] Samsonov|Added libbtrotli installation
+e22093d7cef9f9100cf197d242a865816a46bd79|2023-11-07 20:54:39 +0300|Maxim [maxirmx] Samsonov|Changed archive version requirements to meet versions available for Ubiubtu 20 LTS
+17d089225bfafc591a4c471c8375b03d596bb6dc|2023-11-04 23:51:30 +0300|Maxim Samsonov|Fixed MSVC issues with /MT(d) flag propagation
+51d4ec2f77115fcb002bab8071903a8823c93bdc|2023-11-05 00:40:40 +0300|Maxim Samsonov|Created tebako GHA Windows workflow
+b203fe3a6bb59fd0f7169a91b14acac7fa72fbcf|2023-11-04 23:51:30 +0300|Maxim Samsonov|Fixed MSVC issues with /MT(d) flag propagation
+a691df689e6136301815c8149d4745857c85ef25|2023-11-04 23:51:30 +0300|Maxim Samsonov|Fixed MSVC issues with /MT(d) flag proper propagation and v142 toolset support
+978a9fb79e7f1d7a54001259d985d864e75eca6e|2023-10-17 20:04:54 +0300|Maxim [maxirmx] Samsonov|Fixed tebako build inconsistencies
+9ccc36d4daa7bb005433bff17fe7bf73fa369002|2023-10-17 19:34:23 +0300|Maxim [maxirmx] Samsonov|Revert ccache for Cirrus-CI MacOS workflow
+5c6d9edd73f89ebe4a38abe04c4fb18c4cacdf6a|2023-10-13 14:44:43 +0300|Maxim [maxirmx] Samsonov|Updated brotli linkage to meet Alpine downstream requirements
+e893acaf1907892a8d268231fe7afbd54d71dd03|2023-10-12 22:24:09 +0300|Maxim [maxirmx] Samsonov|Decreased resource allocation for Cirrus-CI MacOS build
+bf5bc8ced6bf2c37e5f6a0562ea7d3eb42035754|2023-10-12 11:34:36 +0300|Maxim Samsonov|Update status badges for tebako fork
+15b97db4f5ad4ae3990c7af672e350f213ce10ca|2023-10-11 13:01:36 +0300|Maxim [maxirmx] Samsonov|Upgrade tebako tools to v0.2.0
+55b1da6a547efac2cf6f7a2d71c13b04f193389b|2023-10-05 22:43:39 +0300|Maxim [maxirmx] Samsonov|Fake update to retarget merge
+d40db730bcfd0bb7cc0627ef6ea7029c6de2c5c1|2023-10-05 22:36:38 +0300|Maxim [maxirmx] Samsonov|Updated .gitignore
+6622e5ef35b3df333ca3b8c3abd6818e10b00ec1|2023-10-05 20:37:36 +0300|Maxim [maxirmx] Samsonov|Updated tebako-tools
+c749aa1717f44808eefda8032037c04919e5ee5e|2023-10-05 15:52:23 +0300|Maxim [maxirmx] Samsonov|Fixed FOLLY_NO_EXCEPTION_TRACER flag
+bc6c11eedcc3e0c5edec145dceb0a07ce2ed2d46|2023-10-05 12:09:42 +0300|Maxim [maxirmx] Samsonov|Added status badges for tebako builds
+315c002e03985ae92c4b9fbd1f9805b68291448e|2023-10-05 10:51:20 +0300|Maxim [maxirmx] Samsonov|Fixed formatting
+e34ec2afb717b5875df6ab473b98cc37aee420d0|2023-10-03 23:56:57 +0300|maxirmx|Cirrus CI setup
+419b99ba68e5cd3ac8099d3ae34bcae798a57f59|2023-10-03 22:33:00 +0300|maxirmx|Created reusable build and test action to be shared accross all GHA workflows
+83ef0c2f208253cd7456f4b0e20749dc86afd19e|2023-09-30 12:49:21 +0300|Maxim [maxirmx] Samsonov|MacOS setup
+eba2976c788299f54e9d9135b52084f4351e36b6|2023-09-30 12:42:27 +0300|Maxim Samsonov|Alpine setup (#2)
+7c51b1a7a11e57082d6126149c65655f7df20453|2023-09-28 23:56:26 +0300|Maxim [maxirmx] Samsonov|Disabled upstream build
+977f2bd2ef6dc9a0bc720d5a265c979c620f1fec|2023-09-28 23:34:33 +0300|Maxim Samsonov|Ubuntu setup (#1)
+af149d345ce1a51eda524031a8fb82a3617dbb19|2023-06-16 13:58:58 +0300|Maxim Samsonov|Update README.md
+17ab453d8065127b930fcd23d68b5fd10a66845e|2023-06-16 11:49:07 +0300|Maxim [maxirmx] Samsonov|version bump to tebako-v0.3.5
+3014e7be59a5503a1223c765828148ed296a63fe|2023-06-16 11:33:35 +0300|Maxim [maxirmx] Samsonov|libfmt v10 support [https://github.com/tamatebako/dwarfs/commit/d8b9391e9cf3137e83877ed9468384d9e4af8b4c]
+1bc0b6c087d9651b849da1ec7a5e32f1845bed24|2023-06-16 11:03:18 +0300|Maxim [maxirmx] Samsonov|Disable automatic MSys builds
+dda0ae01d901d3dd82964364e05075a3e794a0cb|2023-06-16 11:01:58 +0300|Maxim [maxirmx] Samsonov|Update ZSTD deprecated API [https://github.com/tamatebako/dwarfs/commit/521baed23bf9b5de12201ece273b70adc5532a70]
+99401e17176b7711b20758c5cb7be4d7f81aeecf|2023-05-17 12:44:07 +0300|Maxim Samsonov|Updated cirrus-ci badges (#19)
+73fcdb54961ab04f35f3afd979095663d555ff4d|2023-05-16 09:50:40 +0300|Maxim Samsonov|Support of newer compiler versions, MacOS arm64 & Ubuntu aarch64 builds
+97bb298ac85a3a84f836b99bedb15982a6cba372|2023-02-18 16:13:19 +0300|Maxim [maxirmx] Samsonov|Fixed MacOS workflow
+f4ee1b40285f68cdd808785dc0df4bcf97bb594e|2023-02-18 00:11:26 +0300|Maxim Samsonov|Added cron jobs for all workflows
+8875ba909d4df1738ee0fcab989bd2f0e0bd5e0d|2023-01-12 10:15:56 +0300|Maxim Samsonov|Fixing tebako link issues
+3e5b1d7b7f8d68984218b4d3e0eb62ee4dec53ef|2023-01-10 23:11:45 +0300|Maxim Samsonov|Fixing glog
+4d17ec786d551d981e8f827e1eb5a8663e7edf1e|2023-01-10 22:44:31 +0300|Maxim Samsonov|Fixing glog
+4e1440f04eff9838735d1784f867b6777a9fe8f6|2023-01-10 18:36:34 +0300|Maxim Samsonov|Fixing libglog linkage issue
+94c1c10a0104579f44efaf212369d5d7815f42c5|2023-01-09 23:38:04 +0300|Maxim Samsonov|Removed cron job
+b8affc389716ab8ab1c47a81327f5f978ffd9207|2022-12-21 01:59:34 +0300|maxirmx|Fixing libarchive 3.6.2 packaging issue
+22a10b13c4dd2e561cd4dd561dcd2dc474e17cb4|2022-12-21 01:59:34 +0300|maxirmx|Fixing libarchive 3.6.2 packaging issue
+201e5b70645287a370ff921686e8158e7229d2da|2021-10-26 22:57:24 +0200|Marcus Holland-Moritz|Ensure regular inactive logging code has no side effects
+c26909593c80b02295b6a26f390bedd64aa9c2d1|2021-10-26 14:06:17 +0200|Marcus Holland-Moritz|Use string refs for python logging object
+b2b5d7f03ee2d0513893888a27825b853285afa3|2021-10-26 10:30:04 +0200|Marcus Holland-Moritz|Add a comment to prevent head scratching in the future
+9295d44cd6416c82a349fca93cb19b1fa1666022|2022-10-06 18:25:43 +0300|Maxim [maxirmx] Samsonov|Added cron job for MSys workflow
+b249e8b671a9ec88b078b7345d3aa1c6e719eb37|2022-09-03 22:10:13 +0300|Maxim Samsonov|Ruby compatibility for MSys versions of gmtime_r, localtime_r
+8f1aed3544897175479b337c55842c5f6461f7df|2022-08-30 21:07:17 +0300|Maxim Samsonov|Workflow optimizatiion
+7ebd11035064c9d23a10ea9d6659a724fc0af170|2022-08-30 13:56:38 +0300|Maxim Samsonov|Fixed patch for folly/gettimeofday
+bc0ffb452394922b891df9fcdec59b23a664b0a2|2022-08-29 23:43:40 +0300|Maxim Samsonov|Removed MacOS 10.15 build/test run
+7f62112067d380e4ddf8e2f46a12cbe2fed6c73a|2022-08-21 19:20:01 +0300|Maxim Samsonov|Created GHA badges
+7736ea711a2389528a1b7bff0d0ba36eddb67348|2022-08-21 19:00:05 +0300|Maxim Samsonov|Ensure MSys port compatibility with Ruby (#15)
+7340ceef812d4511e491b2ed455fe6507a4d2779|2022-07-09 23:18:06 +0300|Maxim Samsonov|Build script optimization
+4a5d8a48e5a4931caf7d3a1d30bc78daf3378029|2022-07-09 20:32:03 +0300|Maxim Samsonov|MSys (mingw64) port
+8130975d0739944ea94ae5ed1d3e93da50546dab|2022-06-06 23:20:33 +0300|Maxim Samsonov|Fetched upstream and consolidated code lines (#5)
+78fd324b038ec424049f05ecb9509869d5abf8ee|2021-08-14 20:37:32 +0300|Maxim Samsonov|Remove orphan reference to libxml2
+78401c33a657683046ad5a635f1cd37a51071e12|2021-08-13 23:25:48 +0300|Maxim Samsonov|Undo static jemalloc
+1ab62afa50ff808600391a57835956758aad7ad4|2021-08-13 22:51:54 +0300|Maxim Samsonov|Static jemalloc

@@ -43,8 +43,6 @@
 
 #include <dwarfs/reader/metadata_types.h>
 
-#include <dwarfs/reader/internal/metadata_types.h>
-
 namespace dwarfs {
 
 class logger;
@@ -54,11 +52,6 @@ struct vfs_stat;
 
 class performance_monitor;
 
-namespace thrift::metadata {
-class fs_options;
-class metadata;
-} // namespace thrift::metadata
-
 namespace reader {
 
 struct fsinfo_options;
@@ -66,8 +59,6 @@ struct getattr_options;
 struct metadata_options;
 
 namespace internal {
-
-class metadata_v2_data;
 
 class metadata_v2 {
  public:
@@ -146,9 +137,7 @@ class metadata_v2 {
 
   void statvfs(vfs_stat* stbuf) const { impl_->statvfs(stbuf); }
 
-  chunk_range get_chunks(int inode, std::error_code& ec) const {
-    return impl_->get_chunks(inode, ec);
-  }
+  chunk_range get_chunks(int inode, std::error_code& ec) const;
 
   size_t block_size() const { return impl_->block_size(); }
 
@@ -184,10 +173,6 @@ class metadata_v2 {
   std::vector<size_t>
   get_block_numbers_by_category(std::string_view category) const {
     return impl_->get_block_numbers_by_category(category);
-  }
-
-  metadata_v2_data const& internal_data() const {
-    return impl_->internal_data();
   }
 
   class impl {
@@ -261,8 +246,34 @@ class metadata_v2 {
     virtual std::vector<size_t>
     get_block_numbers_by_category(std::string_view category) const = 0;
 
-    virtual metadata_v2_data const& internal_data() const = 0;
+    // Methods for metadata_v2_utils to delegate to
+    virtual void dump(std::ostream& os, fsinfo_options const& opts,
+                      filesystem_info const* fsinfo,
+                      std::function<void(std::string const&, uint32_t)> const& icb) const = 0;
+
+    virtual nlohmann::json
+    info_as_json(fsinfo_options const& opts, filesystem_info const* fsinfo) const = 0;
+
+    virtual nlohmann::json as_json() const = 0;
+
+    virtual std::string serialize_as_json(bool simple) const = 0;
   };
+
+  // Friend declarations for factory functions (dual-format builds)
+  friend metadata_v2 make_metadata_v2_thrift(
+      logger& lgr, std::span<uint8_t const> schema,
+      std::span<uint8_t const> data, metadata_options const& options,
+      int inode_offset, bool force_consistency_check,
+      std::shared_ptr<performance_monitor const> const& perfmon);
+
+  friend metadata_v2 make_metadata_v2_flatbuffers(
+      logger& lgr, std::span<uint8_t const> data,
+      metadata_options const& options,
+      int inode_offset, bool force_consistency_check,
+      std::shared_ptr<performance_monitor const> const& perfmon);
+
+  friend class metadata_v2_utils;       // Allow access to impl_
+  friend class metadata_v2_thrift_export; // Allow Thrift export to access impl_
 
  private:
   std::unique_ptr<impl> impl_;
@@ -283,14 +294,8 @@ class metadata_v2_utils {
 
   std::string serialize_as_json(bool simple) const;
 
-  std::unique_ptr<thrift::metadata::metadata> thaw() const;
-
-  std::unique_ptr<thrift::metadata::metadata> unpack() const;
-
-  std::unique_ptr<thrift::metadata::fs_options> thaw_fs_options() const;
-
  private:
-  metadata_v2_data const& data_;
+  metadata_v2::impl const& impl_;  // Changed from metadata_v2_data const&
 };
 
 } // namespace internal

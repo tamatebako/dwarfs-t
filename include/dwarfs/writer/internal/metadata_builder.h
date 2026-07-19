@@ -21,11 +21,20 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <optional>
 #include <span>
-#include <utility>
+#include <string>
 #include <vector>
+
+#include <dwarfs/file_stat.h>
+#include <dwarfs/fstypes.h>
+
+// Full definition needed for inline methods
+#include <dwarfs/metadata/domain/metadata.h>
 
 namespace dwarfs {
 
@@ -33,14 +42,18 @@ struct filesystem_version;
 
 class logger;
 
+namespace metadata::domain {
+class metadata;
+class fs_options;
+} // namespace metadata::domain
+
+namespace metadata::serialization {
+enum class SerializationFormat;
+} // namespace metadata::serialization
+
 namespace writer {
 struct metadata_options;
 }
-
-namespace thrift::metadata {
-class fs_options;
-class metadata;
-} // namespace thrift::metadata
 
 namespace writer::internal {
 
@@ -68,12 +81,15 @@ class metadata_builder {
   metadata_builder(logger& lgr, metadata_options const& options);
 
   // Start with existing metadata, upgrade if necessary
-  metadata_builder(logger& lgr, thrift::metadata::metadata const& md,
-                   thrift::metadata::fs_options const* orig_fs_options,
+  // CHANGED: Accept domain model instead of Thrift type
+  metadata_builder(logger& lgr,
+                   metadata::domain::metadata const& md,
+                   metadata::domain::fs_options const* orig_fs_options,
                    filesystem_version const& orig_fs_version,
                    metadata_options const& options);
-  metadata_builder(logger& lgr, thrift::metadata::metadata&& md,
-                   thrift::metadata::fs_options const* orig_fs_options,
+  metadata_builder(logger& lgr,
+                   metadata::domain::metadata&& md,
+                   metadata::domain::fs_options const* orig_fs_options,
                    filesystem_version const& orig_fs_version,
                    metadata_options const& options);
 
@@ -146,11 +162,33 @@ class metadata_builder {
     impl_->remap_blocks(mapping, new_block_count);
   }
 
-  thrift::metadata::metadata const& build() { return impl_->build(); }
+  metadata::domain::metadata build() { return impl_->build(); }
 
   class impl {
    public:
     virtual ~impl() = default;
+
+    // Factory methods for creating appropriate strategy
+    static std::unique_ptr<impl> create(
+        logger& lgr,
+        metadata_options const& options,
+        metadata::serialization::SerializationFormat format);
+        
+    static std::unique_ptr<impl> create_from_existing(
+        logger& lgr,
+        metadata::domain::metadata const& existing_md,
+        metadata::domain::fs_options const* orig_fs_options,
+        filesystem_version const& orig_fs_version,
+        metadata_options const& options,
+        metadata::serialization::SerializationFormat format);
+        
+    static std::unique_ptr<impl> create_from_existing(
+        logger& lgr,
+        metadata::domain::metadata&& existing_md,
+        metadata::domain::fs_options const* orig_fs_options,
+        filesystem_version const& orig_fs_version,
+        metadata_options const& options,
+        metadata::serialization::SerializationFormat format);
 
     virtual void set_devices(std::vector<uint64_t> devices) = 0;
     virtual void set_symlink_table_size(size_t size) = 0;
@@ -179,7 +217,7 @@ class metadata_builder {
     virtual void remap_blocks(std::span<block_mapping const> mapping,
                               size_t new_block_count) = 0;
 
-    virtual thrift::metadata::metadata const& build() = 0;
+    virtual metadata::domain::metadata build() = 0;
   };
 
  private:

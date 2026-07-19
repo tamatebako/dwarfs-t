@@ -16,62 +16,63 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.28.0)
+#
+# VCPKG-ONLY FBTHRIFT CONFIGURATION
+#
+# This file enforces use of FBThrift from vcpkg overlay ports (Tebako fork).
+# Submodule-based builds are NO LONGER SUPPORTED.
+#
 
+# Enforce vcpkg toolchain
+if(NOT VCPKG_TOOLCHAIN AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  message(FATAL_ERROR
+    "FBThrift MUST be provided by vcpkg. "
+    "Set CMAKE_TOOLCHAIN_FILE to vcpkg.cmake or use -DCMAKE_TOOLCHAIN_FILE=\${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+  )
+endif()
+
+# Apple-specific: Ensure OpenSSL is found
 if(APPLE)
-  # For whatever reason, thrift is unhappy if we don't do this
   find_package(OpenSSL 1.1.1 MODULE REQUIRED)
 endif()
 
-if(DWARFS_GIT_BUILD)
-  set(THRIFT_COMPILER_ONLY ON CACHE BOOL "only build thrift compiler")
-  # We need to fake a folly module for fbthrift, but we just alias our
-  # dwarfs_folly_lite target. Fortunately, we only need this hack in
-  # a git build. :-)
-  set(folly_DIR "${CMAKE_BINARY_DIR}/fake_folly")
-  file(MAKE_DIRECTORY "${folly_DIR}")
-  file(WRITE "${folly_DIR}/follyConfig.cmake" "set(folly_FOUND TRUE)")
-  list(PREPEND CMAKE_MODULE_PATH "${folly_DIR}")
-  add_library(Folly::folly ALIAS dwarfs_folly_lite)
-  set(CMAKE_SKIP_INSTALL_RULES ON)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/fbthrift EXCLUDE_FROM_ALL SYSTEM)
-  unset(CMAKE_SKIP_INSTALL_RULES)
-  set(THRIFT_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR})
-else()
-  set(THRIFT_GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+# Find FBThrift from vcpkg
+find_package(FBThrift CONFIG REQUIRED)
+
+message(STATUS "Using vcpkg-provided FBThrift library")
+
+# Verify FBThrift::thrift target exists
+if(NOT TARGET FBThrift::thrift)
+  message(FATAL_ERROR "FBThrift::thrift target not found. Ensure vcpkg overlay ports are configured correctly.")
 endif()
 
-add_cpp2_thrift_library(fbthrift/thrift/lib/thrift/frozen.thrift
-                        OUTPUT_PATH lib/thrift NO_LIBRARY)
-
-add_library(
-  dwarfs_thrift_lite OBJECT
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp/protocol/TBase64Utils.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp/protocol/TProtocolException.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp/util/VarintUtils.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/FieldRef.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/frozen/Frozen.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/frozen/FrozenUtil.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/frozen/schema/MemorySchema.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/gen/module_types_cpp.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/BinaryProtocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/CompactProtocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/DebugProtocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/JSONProtocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/JSONProtocolCommon.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/Protocol.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/TableBasedSerializer.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fbthrift/thrift/lib/cpp2/protocol/TableBasedSerializerImpl.cpp
-  ${THRIFT_GENERATED_DIR}/thrift/lib/thrift/gen-cpp2/frozen_data.cpp
-  ${THRIFT_GENERATED_DIR}/thrift/lib/thrift/gen-cpp2/frozen_types.cpp
-  ${THRIFT_GENERATED_DIR}/thrift/lib/thrift/gen-cpp2/frozen_types_compact.cpp
+# Locate thrift1 compiler for code generation
+# Priority: vcpkg tools → Homebrew → system PATH
+find_program(THRIFT1_COMPILER
+  NAMES thrift1
+  PATHS
+    # vcpkg locations (highest priority)
+    ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/fbthrift
+    ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/fbthrift
+    # Homebrew locations (macOS)
+    /opt/homebrew/bin
+    /usr/local/bin
+  NO_DEFAULT_PATH
 )
 
-set_property(TARGET dwarfs_thrift_lite PROPERTY CXX_STANDARD ${DWARFS_CXX_STANDARD})
-target_link_libraries(dwarfs_thrift_lite PUBLIC dwarfs_folly_lite)
+# Fallback to system PATH if not found above
+if(NOT THRIFT1_COMPILER)
+  find_program(THRIFT1_COMPILER thrift1)
+endif()
 
-target_include_directories(dwarfs_thrift_lite SYSTEM PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fbthrift>
-  $<BUILD_INTERFACE:${THRIFT_GENERATED_DIR}>
-)
+if(THRIFT1_COMPILER)
+  message(STATUS "Found thrift1 compiler: ${THRIFT1_COMPILER}")
+else()
+  message(FATAL_ERROR
+    "thrift1 compiler not found! "
+    "Ensure fbthrift is installed via vcpkg overlay ports or available in PATH."
+  )
+endif()
 
+# Export for use in thrift_library.cmake
+set(THRIFT1_COMPILER ${THRIFT1_COMPILER} CACHE FILEPATH "Path to thrift1 compiler" FORCE)
