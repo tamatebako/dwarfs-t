@@ -72,6 +72,7 @@ class console_writer : public stream_logger {
   double frac_{0.0};
   std::atomic<size_t> counter_{0};
   options const opts_;
+  bool const fancy_;
   mem_usage_fn mem_usage_;
 };
 
