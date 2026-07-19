@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fmt/core.h>
+#include <fmt/format.h>
 #include <stdexcept>
 #include <span>
 #include <string>
