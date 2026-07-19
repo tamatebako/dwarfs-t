@@ -14,7 +14,7 @@ on:
   pull_request:
     branches: [main, feature/*]
   push:
-    branches: [main, feature/**]
+    branches: ['**']
     paths-ignore:
       - '.benchmark/**'
       - '.clang-format'
