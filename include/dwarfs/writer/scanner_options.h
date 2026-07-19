@@ -32,6 +32,7 @@
 
 #include <dwarfs/file_stat.h>
 #include <dwarfs/history_config.h>
+#include <dwarfs/metadata/serialization/serialization_format.h>
 #include <dwarfs/writer/inode_options.h>
 #include <dwarfs/writer/metadata_options.h>
 
@@ -52,6 +53,16 @@ struct scanner_options {
   std::optional<std::vector<std::string>> command_line_arguments;
   history_config history;
   metadata_options metadata;
+  // Metadata format defaults to available format
+#if defined(DWARFS_HAVE_FLATBUFFERS)
+  metadata::serialization::SerializationFormat metadata_format{
+      metadata::serialization::SerializationFormat::FLATBUFFERS};
+#elif defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
+  metadata::serialization::SerializationFormat metadata_format{
+      metadata::serialization::SerializationFormat::THRIFT_COMPACT};
+#else
+  #error "At least one serialization format must be enabled"
+#endif
 };
 
 } // namespace dwarfs::writer

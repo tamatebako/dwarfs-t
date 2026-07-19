@@ -35,10 +35,11 @@
 
 #ifndef _WIN32
 #include <sys/ioctl.h>
+#include <unistd.h>
+#else
+#include <windows.h>
+#include <io.h>
 #endif
-
-#include <folly/portability/Unistd.h>
-#include <folly/portability/Windows.h>
 
 #include <dwarfs/terminal_ansi.h>
 

@@ -38,7 +38,7 @@
 #include <optional>
 #include <utility>
 
-#include <folly/Function.h>
+#include <dwarfs/internal/folly_compat.h>
 
 namespace dwarfs {
 
@@ -57,7 +57,7 @@ namespace internal {
 class worker_group {
  public:
   using job_t = std::function<void()>;
-  using moveonly_job_t = folly::Function<void()>;
+  using moveonly_job_t = compat::Function<void()>;
 
   /**
    * Create a worker group
@@ -67,7 +67,7 @@ class worker_group {
   explicit worker_group(
       logger& lgr, os_access const& os, char const* group_name,
       size_t num_workers = 1,
-      size_t max_queue_len = std::numeric_limits<size_t>::max(),
+      size_t max_queue_len = (std::numeric_limits<size_t>::max)(),
       int niceness = 0);
 
   worker_group() = default;
@@ -83,13 +83,23 @@ class worker_group {
   bool running() const { return impl_->running(); }
 
   bool add_job(job_t&& job) { return impl_->add_job(std::move(job)); }
+#ifdef DWARFS_HAVE_FOLLY
+  // Only needed when using real folly::Function (move-only)
   bool add_job(moveonly_job_t&& job) {
     return impl_->add_moveonly_job(std::move(job));
   }
+#endif
+
 
   template <std::invocable T>
+    requires (!std::same_as<std::decay_t<T>, job_t> &&
+              !std::same_as<std::decay_t<T>, moveonly_job_t>)
   bool add_job(T&& job) {
+#ifdef DWARFS_HAVE_FOLLY
     return add_job(moveonly_job_t{std::forward<T>(job)});
+#else
+    return add_job(job_t{std::forward<T>(job)});
+#endif
   }
 
   size_t size() const { return impl_->size(); }
@@ -109,7 +119,10 @@ class worker_group {
 
   template <typename T>
   bool add_job(std::packaged_task<T()>&& task) {
-    return add_job([task = std::move(task)]() mutable { task(); });
+    // Wrap in shared_ptr to make lambda copyable (std::function requirement)
+    // Follows Composition pattern: packaged_task wrapped in copyable container
+    auto task_ptr = std::make_shared<std::packaged_task<T()>>(std::move(task));
+    return add_job([task_ptr]() mutable { (*task_ptr)(); });
   }
 
   class impl {

@@ -138,8 +138,8 @@ mkdwarfs_tester::add_random_file_tree(random_file_tree_options const& opt) {
   size_t max_size{128 * static_cast<size_t>(opt.avg_size)};
   std::mt19937_64 rng{42};
   std::exponential_distribution<> size_dist{1 / opt.avg_size};
-  std::uniform_int_distribution<> path_comp_size_dist{0, opt.max_name_len};
-  std::uniform_int_distribution<> invalid_dist{0, 1};
+  std::uniform_int_distribution<int> path_comp_size_dist{0, opt.max_name_len};
+  std::uniform_int_distribution<int> invalid_dist{0, 1};
   std::vector<std::pair<fs::path, std::string>> paths;
 
   auto random_path_component = [&] {

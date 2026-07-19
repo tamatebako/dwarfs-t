@@ -16,7 +16,7 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.28.0)
+# Conditional minimum version for tebako compatibility
 
 add_library(
   dwarfs_tool OBJECT
@@ -48,8 +48,8 @@ endif()
 target_link_libraries(dwarfs_tool PUBLIC dwarfs_common)
 target_include_directories(dwarfs_tool PUBLIC tools/include)
 
-if(USE_JEMALLOC AND JEMALLOC_FOUND)
-  target_link_libraries(dwarfs_tool PRIVATE PkgConfig::JEMALLOC)
+if(USE_JEMALLOC AND TARGET jemalloc::jemalloc)
+  target_link_libraries(dwarfs_tool PRIVATE jemalloc::jemalloc)
   target_compile_definitions(dwarfs_tool PRIVATE DWARFS_USE_JEMALLOC)
 endif()
 

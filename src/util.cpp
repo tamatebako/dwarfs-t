@@ -57,14 +57,12 @@
 #define DWARFS_USE_HH_DATE 0
 #endif
 
-#include <folly/ExceptionString.h>
-#include <folly/String.h>
-#include <folly/portability/Fcntl.h>
-#include <folly/portability/SysStat.h>
-#include <folly/portability/Windows.h>
-#include <folly/system/HardwareConcurrency.h>
 
 #include <dwarfs/config.h>
+
+#include <dwarfs/internal/folly_compat.h>
+
+#include <fmt/format.h>
 
 #ifdef _WIN32
 #include <psapi.h>
@@ -104,15 +102,41 @@ inline std::string trimmed(std::string in) {
 } // namespace
 
 std::string size_with_unit(file_size_t size) {
-  return trimmed(folly::prettyPrint(size, folly::PRETTY_BYTES_IEC, true));
+  return trimmed(compat::prettyPrint(size, compat::PRETTY_BYTES_IEC, true));
 }
 
 std::string time_with_unit(double sec) {
-  return trimmed(folly::prettyPrint(sec, folly::PRETTY_TIME_HMS, false));
+  return trimmed(compat::prettyPrint(sec, compat::PRETTY_TIME_HMS, false));
 }
 
 std::string time_with_unit(std::chrono::nanoseconds ns) {
-  return time_with_unit(1e-9 * ns.count());
+  auto ns_count = ns.count();
+
+  // Special handling for fractional seconds between 1s and 60s where
+  // prettyPrint might lose millisecond precision
+  if (std::abs(ns_count) >= 1'000'000'000 && std::abs(ns_count) < 60'000'000'000) {
+    double sec = 1e-9 * ns_count;
+
+    // Check if this is a whole number of seconds
+    auto whole_sec = static_cast<int64_t>(std::round(sec));
+    if (std::abs(sec - whole_sec) >= 1e-6) {
+      // Has fractional component - show with millisecond precision
+      auto result = fmt::format("{:.3f}", sec);  // Don't include 's' yet
+      // Remove trailing zeros after decimal point
+      auto dot_pos = result.find('.');
+      if (dot_pos != std::string::npos) {
+        auto last_nonzero = result.find_last_not_of('0');
+        if (last_nonzero > dot_pos) {
+          result = result.substr(0, last_nonzero + 1);
+        }
+      }
+      return result + "s";  // Add 's' suffix
+    }
+  }
+
+  // For all other cases, use the double-based formatter which handles
+  // conversion to minutes, hours, etc.
+  return time_with_unit(1e-9 * ns_count);
 }
 
 file_size_t parse_size_with_unit(std::string const& str) {
@@ -154,11 +178,12 @@ file_size_t parse_size_with_unit(std::string const& str) {
 }
 
 std::string ratio_to_string(double num, double den, int precision) {
-  if (den == 0.0) {
+  constexpr double epsilon = 1e-9;
+  if (std::fabs(den) < epsilon) {
     return "N/A";
   }
 
-  if (num == 0.0) {
+  if (std::fabs(num) < epsilon) {
     return "0x";
   }
 
@@ -488,7 +513,7 @@ void ensure_binary_mode(std::ostream& os [[maybe_unused]]) {
 }
 
 std::string exception_str(std::exception const& e) {
-  return folly::exceptionStr(e).toStdString();
+  return compat::exceptionStr(e);
 }
 
 std::string exception_str(std::exception_ptr const& e) {
@@ -498,18 +523,18 @@ std::string exception_str(std::exception_ptr const& e) {
       std::rethrow_exception(e);
     }
   } catch (std::exception const& ex) {
-    return folly::exceptionStr(ex).toStdString();
+    return compat::exceptionStr(ex);
   } catch (...) {
     return "unknown exception";
   }
   return "no exception";
 #else
-  return folly::exceptionStr(e).toStdString();
+  return compat::exceptionStr(e);
 #endif
 }
 
 std::string hexdump(void const* data, size_t size) {
-  return folly::hexDump(data, size);
+  return compat::hexDump(data, size);
 }
 
 unsigned int hardware_concurrency() noexcept {
@@ -520,7 +545,7 @@ unsigned int hardware_concurrency() noexcept {
     }
     return concurrency;
   }();
-  return env.value_or(folly::hardware_concurrency());
+  return env.value_or(compat::system::hardware_concurrency());
 }
 
 int get_current_umask() {

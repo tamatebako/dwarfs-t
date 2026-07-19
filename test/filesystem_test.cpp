@@ -47,7 +47,36 @@ namespace {
 
 auto test_dir = fs::path(TEST_DATA_DIR).make_preferred();
 
+std::string valid_v1_header() {
+  section_header hdr{};
+  hdr.type = folly::to_underlying(section_type::BLOCK);
+  hdr.compression = compression_type_v1::NONE;
+  hdr.length = 1;
+  std::string buf;
+  buf.resize(8 + sizeof(hdr));
+  std::memcpy(buf.data(), "DWARFS\x02\x01", 8);
+  std::memcpy(buf.data() + 8, &hdr, sizeof(hdr));
+  return buf;
+}
+
+std::string valid_v2_header(uint32_t section_number = 0) {
+  section_header_v2 hdr{};
+  std::memcpy(hdr.magic.data(), "DWARFS", 6);
+  hdr.major = 2;
+  hdr.minor = 3;
+  hdr.number = section_number;
+  hdr.type = folly::to_underlying(section_type::BLOCK);
+  hdr.compression = folly::to_underlying(compression_type::NONE);
+  hdr.length = 1;
+  std::string buf;
+  buf.resize(sizeof(hdr));
+  std::memcpy(buf.data(), &hdr, sizeof(hdr));
+  return buf;
+}
+
 } // namespace
+
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 
 TEST(filesystem, metadata_symlink_win) {
   test::test_logger lgr;
@@ -192,38 +221,10 @@ TEST(filesystem, metadata_symlink_unix) {
   }
 }
 
-namespace {
-
-std::string valid_v1_header() {
-  section_header hdr{};
-  hdr.type = folly::to_underlying(section_type::BLOCK);
-  hdr.compression = compression_type_v1::NONE;
-  hdr.length = 1;
-  std::string buf;
-  buf.resize(8 + sizeof(hdr));
-  std::memcpy(buf.data(), "DWARFS\x02\x01", 8);
-  std::memcpy(buf.data() + 8, &hdr, sizeof(hdr));
-  return buf;
-}
-
-std::string valid_v2_header(uint32_t section_number = 0) {
-  section_header_v2 hdr{};
-  std::memcpy(hdr.magic.data(), "DWARFS", 6);
-  hdr.major = 2;
-  hdr.minor = 3;
-  hdr.number = section_number;
-  hdr.type = folly::to_underlying(section_type::BLOCK);
-  hdr.compression = folly::to_underlying(compression_type::NONE);
-  hdr.length = 1;
-  std::string buf;
-  buf.resize(sizeof(hdr));
-  std::memcpy(buf.data(), &hdr, sizeof(hdr));
-  return buf;
-}
-
-} // namespace
-
 TEST(filesystem, find_image_offset) {
+#ifndef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  GTEST_SKIP() << "Test uses pre-built Thrift image";
+#endif
   DWARFS_SLOW_TEST();
 
   test::test_logger lgr;
@@ -458,3 +459,11 @@ TEST(filesystem, future_features) {
           "file system uses the following features unsupported by this build: "
           "this-feature-will-never-exist")));
 }
+
+#else
+
+TEST(filesystem, pre_built_images_unavailable) {
+  GTEST_SKIP() << "Pre-built test images are in Thrift format - skipping when Thrift reader unavailable";
+}
+
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

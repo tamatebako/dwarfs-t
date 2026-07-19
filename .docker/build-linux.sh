@@ -261,6 +261,10 @@ if [[ "-$BUILD_TYPE-" == *-nojemalloc-* ]]; then
   CMAKE_ARGS="${CMAKE_ARGS} -DUSE_JEMALLOC=0"
 fi
 
+if [[ "-$BUILD_TYPE-" == *-jemalloc-* ]]; then
+  CMAKE_ARGS="${CMAKE_ARGS} -DUSE_JEMALLOC=1 -DUSE_MIMALLOC=0"
+fi
+
 if [[ "-$BUILD_TYPE-" == *-mimalloc-* ]]; then
   CMAKE_ARGS="${CMAKE_ARGS} -DUSE_JEMALLOC=0 -DUSE_MIMALLOC=1"
 fi

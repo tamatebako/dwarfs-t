@@ -35,11 +35,17 @@ namespace dwarfs::internal {
 #ifdef _WIN32
 
 DWORD std_to_win_thread_id(std::thread::id tid) {
+#if defined(_MSC_VER)
   static_assert(sizeof(std::thread::id) == sizeof(DWORD),
-                "Win32 thread id type mismatch");
+                  "Win32 thread id type mismatch");
   DWORD id;
   std::memcpy(&id, &tid, sizeof(id));
   return id;
+#else
+  // MinGW/GCC uses a different std::thread::id representation
+  // Use hash to convert to a DWORD
+  return std::hash<std::thread::id>{}(tid);
+#endif
 }
 
 #else

@@ -16,7 +16,7 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.28.0)
+# Conditional minimum version for tebako compatibility
 
 try_run(
   PHMAP_RUN_RESULT

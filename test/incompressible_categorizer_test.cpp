@@ -32,7 +32,6 @@
 
 #include <boost/program_options.hpp>
 
-#include <folly/String.h>
 
 #include <dwarfs/binary_literals.h>
 #include <dwarfs/writer/categorizer.h>
@@ -107,7 +106,7 @@ class incompressible_categorizer_fixture : public Base {
   }
 
   std::shared_ptr<writer::categorizer_manager> catmgr;
-  test::test_logger lgr{logger::INFO};
+  test::test_logger lgr{LOGGER_LEVEL_INFO};
 };
 
 using incompressible_categorizer =

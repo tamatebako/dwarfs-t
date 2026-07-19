@@ -1,0 +1,138 @@
+= DwarFS Documentation
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+
+== Welcome to DwarFS
+
+DwarFS is a fast, high-compression read-only file system designed for extreme compression ratios while maintaining fast random access performance. It functions as a mountable archive that can be browsed instantly without full extraction.
+
+**Version**: 0.17.0 +
+**Release Date**: 2026-01-06
+
+=== Key Features
+
+* **Extreme compression**: 100:1+ ratios on redundant data
+* **Fast random access**: Memory-mapped, zero-copy access
+* **Multi-format metadata**: FlatBuffers (modern default), Thrift Frozen2 (legacy), Modern Thrift (optional)
+* **Cross-platform**: Linux, FreeBSD, macOS, Windows
+* **Multi-architecture**: x86_64, aarch64, arm, ppc64, riscv64, s390x, loongarch64
+
+== What's New in v0.17.0
+
+=== Multi-Format Metadata Serialization
+
+v0.17.0 introduces a flexible multi-format metadata serialization architecture:
+
+* **FlatBuffers** as the modern default format
+* **Legacy Thrift (Frozen2)** maintained for backward compatibility (always available)
+* **Modern Thrift** as optional format for smallest metadata size
+* **Strategy Pattern** implementation for clean format abstraction
+* **Build-time format selection** via CMake options
+
+See link:reference/metadata-formats.html[Metadata Formats Reference] for details.
+
+=== Critical Fixes
+
+* Fixed FlatBuffers buffer overflow in verification (affected large filesystem images)
+* Increased verifier limits: max_depth 64->256, max_tables 1M->10M
+* Fixed Frozen2 string_table.buffer reading for legacy archives
+
+== Getting Started
+
+=== Quick Start
+
+[source,bash]
+----
+# Install dependencies (Ubuntu/Debian)
+sudo apt-get install -y cmake ninja-build libboost-all-dev \
+  libssl-dev libzstd-dev libxxhash-dev libarchive-dev
+
+# Clone repository
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs
+cd dwarfs
+
+# Build with FlatBuffers (recommended)
+cmake -B build -GNinja -DDWARFS_WITH_FLATBUFFERS=ON
+ninja -C build
+
+# Create your first filesystem
+./build/mkdwarfs -i /path/to/source -o myfs.dff
+
+# Mount and browse
+./build/dwarfs myfs.dff /mnt/point
+----
+
+== Guides
+
+=== Building and Installation
+
+* link:guides/building.html[Building DwarFS] - Build instructions with vcpkg
+* link:guides/developer-guide.html[Developer Guide] - Development workflow
+
+=== Testing and Benchmarking
+
+* link:guides/testing.html[Testing Guide] - Test suite organization and execution
+* link:guides/benchmarking.html[Benchmark Guide] - Performance benchmarking
+
+=== Release
+
+* link:guides/release-checklist.html[Release Checklist] - Pre-release verification
+
+== Reference Documentation
+
+=== Architecture
+
+* link:reference/architecture.html[Architecture Overview] - System architecture and library overview
+* link:reference/metadata-formats.html[Metadata Formats] - FlatBuffers, Thrift, Legacy formats
+* link:reference/dwarfs-format.html[Format Specification] - DwarFS file format details
+* link:reference/tech.html[Technical Details] - Technical implementation notes
+
+=== Metadata Implementation
+
+* link:reference/frozen2-modular-architecture.html[Frozen2 Architecture] - Legacy Thrift implementation
+* link:reference/modern-thrift-architecture.html[Modern Thrift Architecture] - Modern Thrift implementation
+* link:reference/modern-thrift-guide.html[Modern Thrift Guide] - Usage guide for Modern Thrift
+
+=== Library Integration
+
+* link:reference/libdwarfs-integration-guide.html[libdwarfs Integration] - Using DwarFS as a library
+* link:reference/dwarfs-env.html[Environment Variables] - Runtime configuration
+
+== Command-Line Tools
+
+=== Man Pages
+
+* link:../doc/mkdwarfs.html[mkdwarfs] - Create DwarFS filesystems
+* link:../doc/dwarfs.html[dwarfs] - Mount DwarFS filesystems (FUSE driver)
+* link:../doc/dwarfsck.html[dwarfsck] - Check and inspect filesystems
+* link:../doc/dwarfsextract.html[dwarfsextract] - Extract filesystems
+
+== Support & Resources
+
+=== Repository
+
+* **GitHub**: https://github.com/tamatebako/dwarfs
+* **Issues**: https://github.com/tamatebako/dwarfs/issues
+* **Pull Requests**: https://github.com/tamatebako/dwarfs/pulls
+
+=== Original Project
+
+* **Upstream**: https://github.com/mhx/dwarfs
+* **Differences**: This Tebako fork adds:
+  - FlatBuffers as default metadata format
+  - Multi-format metadata architecture
+  - Extensive CI/CD across platforms
+  - Library compilation targets
+  - FUSE-T support for macOS
+
+=== License
+
+DwarFS is licensed under GPL-3.0. See link:../LICENSE.GPL-3.0[LICENSE] for details.
+
+---
+
+**Last Updated**: 2026-02-19 +
+**Documentation Version**: v0.17.0

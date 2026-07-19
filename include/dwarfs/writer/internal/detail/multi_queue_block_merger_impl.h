@@ -36,7 +36,7 @@
 
 #include <fmt/format.h>
 
-#include <folly/Function.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/all.hpp>
@@ -59,7 +59,7 @@ class multi_queue_block_merger_impl : public block_merger_base,
   using source_type = SourceT;
   using block_type = BlockT;
   using on_block_merged_callback_type =
-      folly::Function<void(block_type&&, size_t)>;
+      compat::Function<void(block_type&&, size_t)>;
 
   multi_queue_block_merger_impl(
       size_t num_active_slots, size_t max_queued_size,

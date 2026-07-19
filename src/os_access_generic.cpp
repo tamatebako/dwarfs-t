@@ -29,9 +29,23 @@
 #include <cerrno>
 #include <cstdlib>
 #include <iostream>
+#include <span>
+#include <string>
+#include <string_view>
+#include <optional>
+#include <filesystem>
+#include <chrono>
+#include <memory>
+#include <cerrno>
+#include <cassert>
+#include <thread>
 
-#include <folly/portability/PThread.h>
-#include <folly/portability/Unistd.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#include <unistd.h>
+#endif
 
 #if __has_include(<boost/process/v2/environment.hpp>) && defined(DWARFS_HAVE_CLOSE_RANGE)
 #define BOOST_PROCESS_VERSION 2
@@ -137,7 +151,14 @@ fs::path os_access_generic::current_path() const { return fs::current_path(); }
 std::optional<std::string>
 os_access_generic::getenv(std::string_view name) const {
   std::string name_str(name);
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996) // getenv: deprecation warning
   if (auto value = std::getenv(name_str.c_str())) {
+#pragma warning(pop)
+#else
+  if (auto value = std::getenv(name_str.c_str())) {
+#endif
     return value;
   }
   return std::nullopt;
@@ -250,9 +271,25 @@ os_access_generic::native_file_time_resolution() const {
 os_access_generic::os_access_generic()
     : os_access_generic(std::cerr) {}
 
+// Wrapper function for getenv to avoid MSVC deprecation warning
+namespace {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996) // getenv: deprecation warning
+  inline char* getenv_wrapper(const char* name) {
+    return std::getenv(name);
+  }
+#pragma warning(pop)
+#else
+  inline char* getenv_wrapper(const char* name) {
+    return std::getenv(name);
+  }
+#endif
+}
+
 os_access_generic::os_access_generic(std::ostream& err)
     : data_{std::make_unique<internal::os_access_generic_data>(err,
-                                                               std::getenv)} {}
+                                                               getenv_wrapper)} {}
 
 os_access_generic::~os_access_generic() = default;
 

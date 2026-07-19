@@ -1,0 +1,7 @@
+set(VCPKG_TARGET_ARCHITECTURE arm64)
+set(VCPKG_CRT_LINKAGE static)
+set(VCPKG_LIBRARY_LINKAGE static)
+set(VCPKG_CMAKE_SYSTEM_NAME Linux)
+# Add -flax-vector-conversions for ARM NEON compatibility (libsodium)
+set(VCPKG_C_FLAGS "-fPIC -flax-vector-conversions")
+set(VCPKG_CXX_FLAGS "-fPIC -flax-vector-conversions")

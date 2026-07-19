@@ -16,7 +16,7 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.28.0)
+# Conditional minimum version for tebako compatibility
 
 set(VERSION_SRC_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp)
 set(VERSION_HDR_FILE ${CMAKE_CURRENT_SOURCE_DIR}/include/dwarfs/version.h)
@@ -39,7 +39,13 @@ if("${NIXPKGS_DWARFS_VERSION_OVERRIDE}" STREQUAL "")
     OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 endif()
 
-get_filename_component(GIT_TOPLEVEL "${GIT_TOPLEVEL_RAW}" REALPATH)
+# Handle case where git commands fail (depth=1 clones, Docker containers)
+if("${GIT_TOPLEVEL_RAW}" STREQUAL "")
+  set(GIT_TOPLEVEL "")
+else()
+  get_filename_component(GIT_TOPLEVEL "${GIT_TOPLEVEL_RAW}" REALPATH)
+endif()
+
 get_filename_component(REAL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" REALPATH)
 
 message(STATUS "REAL_SOURCE_DIR: ${REAL_SOURCE_DIR} (${CMAKE_CURRENT_SOURCE_DIR})")
@@ -47,11 +53,12 @@ message(STATUS "GIT_TOPLEVEL: ${GIT_TOPLEVEL} (${GIT_TOPLEVEL_RAW})")
 message(STATUS "PRJ_GIT_REV: ${PRJ_GIT_REV}")
 message(STATUS "PRJ_GIT_DATE: ${PRJ_GIT_DATE}")
 
-if(((NOT "${REAL_SOURCE_DIR}" STREQUAL "${GIT_TOPLEVEL}")
-   OR ("${PRJ_GIT_REV}" STREQUAL ""))
-   AND ("${NIXPKGS_DWARFS_VERSION_OVERRIDE}" STREQUAL ""))
+# Determine build type:
+# - If git is working (PRJ_GIT_REV is set) OR NIXPKGS override is set: generate version files
+# - Otherwise: require pre-generated version files (source package build)
+if(("${PRJ_GIT_REV}" STREQUAL "") AND ("${NIXPKGS_DWARFS_VERSION_OVERRIDE}" STREQUAL ""))
   if(NOT EXISTS ${VERSION_SRC_FILE} OR NOT EXISTS ${VERSION_HDR_FILE} OR NOT EXISTS ${PKG_VERSION_FILE})
-    message(FATAL_ERROR "missing version files")
+    message(FATAL_ERROR "missing version files - git metadata unavailable and no pre-generated version files found")
   endif()
 
   include(${PKG_VERSION_FILE})
@@ -78,12 +85,19 @@ else()
       OUTPUT_VARIABLE PRJ_GIT_RELEASE_TAG)
     execute_process(
       COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" describe --tags --match "v*" --dirty --abbrev=10
+      ERROR_QUIET
       OUTPUT_STRIP_TRAILING_WHITESPACE
       OUTPUT_VARIABLE PRJ_GIT_DESC)
     execute_process(
       COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" rev-parse --abbrev-ref HEAD
       OUTPUT_STRIP_TRAILING_WHITESPACE
       OUTPUT_VARIABLE PRJ_GIT_BRANCH)
+
+    # Fallback if no tags exist (e.g., shallow clone)
+    if("${PRJ_GIT_DESC}" STREQUAL "")
+      set(PRJ_GIT_DESC "v0.0.0-dev-${PRJ_GIT_REV}")
+      message(WARNING "No git tags found, using fallback version: ${PRJ_GIT_DESC}")
+    endif()
   else()
     set(PRJ_GIT_REV "NIXPKGS")
     set(PRJ_GIT_RELEASE_TAG "${NIXPKGS_DWARFS_VERSION_OVERRIDE}")

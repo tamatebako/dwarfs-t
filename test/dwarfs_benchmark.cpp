@@ -21,6 +21,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+// This benchmark uses Thrift Frozen utilities
+
 #include <fstream>
 #include <sstream>
 
@@ -371,7 +374,7 @@ class filesystem_walk : public ::benchmark::Fixture {
 
   static std::string make_data(std::mt19937_64& rng, size_t size) {
     std::string data;
-    std::uniform_int_distribution<> byte_dist{0, 31};
+    std::uniform_int_distribution<int> byte_dist{0, 31};
     data.reserve(size * kPatternLength * 2);
     for (size_t i = 0; i < size; ++i) {
       char p1 = byte_dist(rng);
@@ -386,8 +389,8 @@ class filesystem_walk : public ::benchmark::Fixture {
 
   static void add_random_file_tree(test::os_access_mock& os) {
     std::mt19937_64 rng{42};
-    std::uniform_int_distribution<> size_dist{1, 16};
-    std::uniform_int_distribution<> path_comp_size_dist{1, 10};
+    std::uniform_int_distribution<int> size_dist{1, 16};
+    std::uniform_int_distribution<int> path_comp_size_dist{1, 10};
 
     auto random_path_component = [&] {
       auto size = path_comp_size_dist(rng);
@@ -782,3 +785,20 @@ BENCHMARK_REGISTER_F(filesystem_walk, walk_data_order)
     ->Unit(benchmark::kMillisecond);
 
 BENCHMARK_MAIN();
+
+#else
+
+#include <benchmark/benchmark.h>
+
+// Thrift not available - provide empty benchmark
+static void BM_thrift_unavailable(benchmark::State& state) {
+  for (auto _ : state) {
+    // Skip - Thrift benchmarks require DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  }
+}
+
+BENCHMARK(BM_thrift_unavailable);
+
+BENCHMARK_MAIN();
+
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT

@@ -36,12 +36,10 @@
 
 #include <fmt/format.h>
 
+#include <dwarfs/internal/folly_compat.h>
+
 #include <parallel_hashmap/phmap.h>
 
-#include <folly/hash/Hash.h>
-#include <folly/small_vector.h>
-#include <folly/sorted_vector_types.h>
-#include <folly/stats/Histogram.h>
 
 #include <dwarfs/compiler.h>
 #include <dwarfs/compression_constraints.h>
@@ -100,13 +98,13 @@ struct segmenter_stats {
   uint64_t bloom_lookups{0};
   uint64_t bloom_hits{0};
   uint64_t bloom_true_positives{0};
-  folly::Histogram<uint64_t> l2_collision_vec_size;
+  compat::stats::Histogram<uint64_t> l2_collision_vec_size;
 };
 
 template <typename KeyT, typename ValT, size_t MaxCollInline = 2>
 class fast_multimap {
  private:
-  using collision_vector = folly::small_vector<ValT, MaxCollInline>;
+  using collision_vector = compat::small_vector<ValT, MaxCollInline>;
   using blockhash_t = phmap::flat_hash_map<KeyT, ValT>;
   using collision_t = phmap::flat_hash_map<KeyT, collision_vector>;
 
@@ -177,9 +175,7 @@ class fast_multimap {
 };
 
 template <typename T, size_t MaxInline = 1>
-using small_sorted_vector_set =
-    folly::sorted_vector_set<T, std::less<T>, std::allocator<T>, void,
-                             folly::small_vector<T, MaxInline>>;
+using small_sorted_vector_set = compat::sorted_vector_set<T>;
 
 using repeating_sequence_map_type =
     phmap::flat_hash_map<uint32_t, small_sorted_vector_set<uint8_t, 8>>;
@@ -926,7 +922,7 @@ class granular_extent_adapter<GranularityPolicy, true>
  private:
   DWARFS_FORCE_INLINE auto
   collect_spans(file_off_t offset_in_bytes, file_size_t size_in_bytes) const {
-    folly::small_vector<std::span<value_type const>, 8> spans;
+    compat::small_vector<std::span<value_type const>, 8> spans;
 
     for (auto const& span : get_span_range(offset_in_bytes, size_in_bytes)) {
       spans.emplace_back(reinterpret_cast<value_type const*>(span.data()),
@@ -1371,7 +1367,7 @@ class segmenter_ final : public segmenter::impl, private SegmentingPolicy {
   repeating_sequence_map_type repeating_sequence_hash_values_;
   repeating_collisions_map_type repeating_collisions_;
 
-  folly::Histogram<uint64_t> match_counts_;
+  compat::stats::Histogram<uint64_t> match_counts_;
 };
 
 template <typename LoggerPolicy, typename GranularityPolicy>
@@ -1738,7 +1734,7 @@ segmenter_<LoggerPolicy, SegmentingPolicy>::segment_and_add_data(
 
   offset_in_frames = hashwin.seek(hasher, data, 0);
 
-  folly::small_vector<segment_match<LoggerPolicy, GranularityPolicyT>, 1>
+  compat::small_vector<segment_match<LoggerPolicy, GranularityPolicyT>, 1>
       matches;
 
   // // TODO: we have multiple segmenter threads, so this doesn't fly anymore
@@ -1898,7 +1894,7 @@ create_segmenter2(logger& lgr, progress& prog,
                   segmenter::config const& cfg,
                   compression_constraints const& cc, file_size_t total_size,
                   segmenter::block_ready_cb block_ready) {
-  uint32_t granularity = cc.granularity ? cc.granularity.value() : 1;
+  uint32_t granularity = cc.granularity.value_or(1);
 
   auto make_const_granularity_segmenter = [&]<uint32_t Granularity>() {
     return make_unique_logging_object<
@@ -1928,7 +1924,7 @@ create_segmenter2(logger& lgr, progress& prog,
       segmenter::impl,
       variable_granularity_segmenter_<SegmentingPolicy>::template type,
       logger_policies>(lgr, prog, std::move(blkmgr), cfg, total_size,
-                       std::move(block_ready), cc.granularity.value());
+                       std::move(block_ready), granularity);
 }
 
 std::unique_ptr<segmenter::impl>

@@ -27,6 +27,7 @@
  */
 
 #include <cassert>
+#include <iostream>
 #include <numeric>
 #include <stdexcept>
 

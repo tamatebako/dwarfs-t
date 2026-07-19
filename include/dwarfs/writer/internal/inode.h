@@ -42,10 +42,12 @@
 
 namespace dwarfs {
 
-namespace thrift::metadata {
-
+namespace metadata::domain {
 class chunk;
+}
 
+namespace thrift::metadata {
+class chunk;
 }
 
 class os_access;
@@ -77,9 +79,16 @@ class inode : public object {
   virtual file_size_t size() const = 0;
   virtual file const* any() const = 0;
   virtual files_vector const& all() const = 0;
+  // Primary implementation uses domain chunks
+  virtual bool
+  append_chunks_to(std::vector<metadata::domain::chunk>& vec,
+                   std::optional<inode_hole_mapper>& hole_mapper) const = 0;
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  // Thrift compatibility wrapper (only when Thrift available)
   virtual bool
   append_chunks_to(std::vector<thrift::metadata::chunk>& vec,
                    std::optional<inode_hole_mapper>& hole_mapper) const = 0;
+#endif
   virtual inode_fragments& fragments() = 0;
   virtual void dump(std::ostream& os, inode_options const& options) const = 0;
   virtual void set_scan_error(file const* fp, std::exception_ptr ep) = 0;

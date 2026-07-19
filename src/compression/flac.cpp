@@ -29,15 +29,18 @@
 #include <cassert>
 #include <cstring>
 #include <span>
+#include <vector>
 
 #include <FLAC++/decoder.h>
 #include <FLAC++/encoder.h>
 
-#include <thrift/lib/cpp2/protocol/Serializer.h>
-
 #include <fmt/format.h>
 
 #include <nlohmann/json.hpp>
+
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+#include <dwarfs/gen-cpp2/compression_types.h>
+#endif
 
 #include <dwarfs/compressor_registry.h>
 #include <dwarfs/decompressor_registry.h>
@@ -46,8 +49,6 @@
 #include <dwarfs/option_map.h>
 #include <dwarfs/pcm_sample_transformer.h>
 #include <dwarfs/varint.h>
-
-#include <dwarfs/gen-cpp2/compression_types.h>
 
 #include "base.h"
 
@@ -60,6 +61,57 @@ constexpr uint8_t const kFlagSigned{0x40};
 constexpr uint8_t const kFlagLsbPadding{0x20};
 constexpr uint8_t const kBytesPerSampleMask{0x03};
 constexpr size_t const kBlockSize{65536};
+
+// Format-agnostic FLAC block header (works with or without Thrift)
+struct flac_block_header {
+  uint16_t num_channels;
+  uint16_t bits_per_sample;
+  uint8_t flags;
+
+  // Serialize to binary format (5 bytes total)
+  void serialize_to(std::vector<uint8_t>& buf) const {
+    buf.push_back(static_cast<uint8_t>(num_channels & 0xFF));
+    buf.push_back(static_cast<uint8_t>((num_channels >> 8) & 0xFF));
+    buf.push_back(static_cast<uint8_t>(bits_per_sample & 0xFF));
+    buf.push_back(static_cast<uint8_t>((bits_per_sample >> 8) & 0xFF));
+    buf.push_back(flags);
+  }
+
+  // Deserialize from binary format
+  static flac_block_header deserialize_from(std::span<uint8_t const>& data) {
+    if (data.size() < 5) {
+      DWARFS_THROW(runtime_error, "FLAC header too small");
+    }
+    flac_block_header hdr;
+    hdr.num_channels = static_cast<uint16_t>(data[0]) |
+                      (static_cast<uint16_t>(data[1]) << 8);
+    hdr.bits_per_sample = static_cast<uint16_t>(data[2]) |
+                         (static_cast<uint16_t>(data[3]) << 8);
+    hdr.flags = data[4];
+    data = data.subspan(5);
+    return hdr;
+  }
+
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  // Convert to/from Thrift format for backward compatibility
+  static flac_block_header from_thrift(
+      thrift::compression::flac_block_header const& thrift_hdr) {
+    return {
+      static_cast<uint16_t>(thrift_hdr.num_channels().value()),
+      static_cast<uint16_t>(thrift_hdr.bits_per_sample().value()),
+      static_cast<uint8_t>(thrift_hdr.flags().value())
+    };
+  }
+
+  thrift::compression::flac_block_header to_thrift() const {
+    thrift::compression::flac_block_header thrift_hdr;
+    thrift_hdr.num_channels() = num_channels;
+    thrift_hdr.bits_per_sample() = bits_per_sample;
+    thrift_hdr.flags() = flags;
+    return thrift_hdr;
+  }
+#endif
+};
 
 class dwarfs_flac_stream_encoder final : public FLAC::Encoder::Stream {
  public:
@@ -106,22 +158,18 @@ class dwarfs_flac_stream_encoder final : public FLAC::Encoder::Stream {
 
 class dwarfs_flac_stream_decoder final : public FLAC::Decoder::Stream {
  public:
-  dwarfs_flac_stream_decoder(
-      std::span<uint8_t const> data,
-      thrift::compression::flac_block_header const& header)
+  dwarfs_flac_stream_decoder(std::span<uint8_t const> data,
+                             flac_block_header const& header)
       : data_{data}
       , header_{header}
-      , bytes_per_sample_{(header_.flags().value() & kBytesPerSampleMask) + 1}
-      , xfm_{header_.flags().value() & kFlagBigEndian
-                 ? pcm_sample_endianness::Big
-                 : pcm_sample_endianness::Little,
-             header_.flags().value() & kFlagSigned
-                 ? pcm_sample_signedness::Signed
-                 : pcm_sample_signedness::Unsigned,
-             header_.flags().value() & kFlagLsbPadding
-                 ? pcm_sample_padding::Lsb
-                 : pcm_sample_padding::Msb,
-             bytes_per_sample_, header_.bits_per_sample().value()} {}
+      , bytes_per_sample_{(header_.flags & kBytesPerSampleMask) + 1}
+      , xfm_{header_.flags & kFlagBigEndian ? pcm_sample_endianness::Big
+                                            : pcm_sample_endianness::Little,
+             header_.flags & kFlagSigned ? pcm_sample_signedness::Signed
+                                         : pcm_sample_signedness::Unsigned,
+             header_.flags & kFlagLsbPadding ? pcm_sample_padding::Lsb
+                                             : pcm_sample_padding::Msb,
+             bytes_per_sample_, header_.bits_per_sample} {}
 
   void set_target(mutable_byte_buffer target) {
     DWARFS_CHECK(!target_, "target buffer already set");
@@ -206,7 +254,7 @@ class dwarfs_flac_stream_decoder final : public FLAC::Decoder::Stream {
   mutable_byte_buffer target_;
   std::vector<FLAC__int32> tmp_;
   std::span<uint8_t const> data_;
-  thrift::compression::flac_block_header const& header_;
+  flac_block_header const header_;
   int const bytes_per_sample_;
   pcm_sample_transformer<FLAC__int32> xfm_;
   size_t pos_{0};
@@ -283,26 +331,21 @@ class flac_block_compressor final : public block_compressor::impl {
 
     auto compressed = malloc_byte_buffer::create(); // TODO: make configurable
 
-    {
-      using namespace ::apache::thrift;
+    compressed.reserve(5 * data.size() / 8); // optimistic guess
+    compressed.resize(varint::max_size);
 
-      compressed.reserve(5 * data.size() / 8); // optimistic guess
-      compressed.resize(varint::max_size);
+    size_t pos = 0;
+    pos += varint::encode(data.size(), compressed.data() + pos);
+    compressed.resize(pos);
 
-      size_t pos = 0;
-      pos += varint::encode(data.size(), compressed.data() + pos);
-      compressed.resize(pos);
+    flac_block_header hdr;
+    hdr.num_channels = num_channels;
+    hdr.bits_per_sample = bits_per_sample;
+    hdr.flags = flags;
 
-      thrift::compression::flac_block_header hdr;
-      hdr.num_channels() = num_channels;
-      hdr.bits_per_sample() = bits_per_sample;
-      hdr.flags() = flags;
-
-      std::string hdrbuf;
-      CompactSerializer::serialize(hdr, &hdrbuf);
-
-      compressed.append(hdrbuf.data(), hdrbuf.size());
-    }
+    std::vector<uint8_t> hdrbuf;
+    hdr.serialize_to(hdrbuf);
+    compressed.append(hdrbuf.data(), hdrbuf.size());
 
     dwarfs_flac_stream_encoder encoder(compressed);
 
@@ -428,14 +471,13 @@ class flac_block_decompressor final : public block_decompressor_base {
   compression_type type() const override { return compression_type::FLAC; }
 
   std::optional<std::string> metadata() const override {
-    auto const flags = header_.flags().value();
     nlohmann::json meta{
-        {"endianness", flags & kFlagBigEndian ? "big" : "little"},
-        {"signedness", flags & kFlagSigned ? "signed" : "unsigned"},
-        {"padding", flags & kFlagLsbPadding ? "lsb" : "msb"},
-        {"bytes_per_sample", (flags & kBytesPerSampleMask) + 1},
-        {"bits_per_sample", header_.bits_per_sample().value()},
-        {"number_of_channels", header_.num_channels().value()},
+        {"endianness", header_.flags & kFlagBigEndian ? "big" : "little"},
+        {"signedness", header_.flags & kFlagSigned ? "signed" : "unsigned"},
+        {"padding", header_.flags & kFlagLsbPadding ? "lsb" : "msb"},
+        {"bytes_per_sample", (header_.flags & kBytesPerSampleMask) + 1},
+        {"bits_per_sample", header_.bits_per_sample},
+        {"number_of_channels", header_.num_channels},
     };
     return meta.dump();
   }
@@ -474,18 +516,12 @@ class flac_block_decompressor final : public block_decompressor_base {
   size_t uncompressed_size() const override { return uncompressed_size_; }
 
  private:
-  static thrift::compression::flac_block_header
-  decode_header(folly::span<uint8_t const>& span) {
-    using namespace ::apache::thrift;
-    thrift::compression::flac_block_header hdr;
-    auto size = CompactSerializer::deserialize(
-        folly::ByteRange{span.data(), span.size()}, hdr);
-    span = span.subspan(size);
-    return hdr;
+  static flac_block_header decode_header(std::span<uint8_t const>& span) {
+    return flac_block_header::deserialize_from(span);
   }
 
   uint64_t const uncompressed_size_;
-  thrift::compression::flac_block_header const header_;
+  flac_block_header const header_;
   std::unique_ptr<dwarfs_flac_stream_decoder> decoder_;
 };
 

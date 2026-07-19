@@ -1,0 +1,14 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "experimental-overlays",
+      "hidden": true,
+      "description": "Experimental configuration overlays (+ Modern Thrift)",
+      "cacheVariables": {
+        "DWARFS_WITH_FLATBUFFERS": "ON",
+        "DWARFS_WITH_THRIFT": "ON"
+      }
+    }
+  ]
+}

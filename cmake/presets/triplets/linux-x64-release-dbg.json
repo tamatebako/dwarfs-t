@@ -1,0 +1,66 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "linux-x64-release-dbg-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Linux x64 Release with Debug info base configuration",
+      "binaryDir": "${sourceDir}/build-linux-x64-release-dbg-${config}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "TRY_ENABLE_FLAC": "ON",
+        "TRY_ENABLE_BROTLI": "ON",
+        "TRY_ENABLE_LZ4": "ON",
+        "TRY_ENABLE_LZMA": "ON",
+        "ENABLE_RICEPP": "ON",
+        "USE_JEMALLOC": "ON"
+      }
+    },
+    {
+      "name": "linux-x64-release-dbg-production",
+      "inherits": ["linux-x64-release-dbg-base", "production-overlays"],
+      "description": "Linux x64 Release+Debug Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "linux-x64-release-dbg-experimental",
+      "inherits": ["linux-x64-release-dbg-base", "experimental-overlays"],
+      "description": "Linux x64 Release+Debug Experimental (+ Modern Thrift)"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-x64-release-dbg-production",
+      "configurePreset": "linux-x64-release-dbg-production",
+      "description": "Build Linux x64 Release+Debug Production"
+    },
+    {
+      "name": "linux-x64-release-dbg-experimental",
+      "configurePreset": "linux-x64-release-dbg-experimental",
+      "description": "Build Linux x64 Release+Debug Experimental"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "linux-x64-release-dbg-production",
+      "configurePreset": "linux-x64-release-dbg-production",
+      "description": "Test Linux x64 Release+Debug Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "linux-x64-release-dbg-experimental",
+      "configurePreset": "linux-x64-release-dbg-experimental",
+      "description": "Test Linux x64 Release+Debug Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    }
+  ]
+}

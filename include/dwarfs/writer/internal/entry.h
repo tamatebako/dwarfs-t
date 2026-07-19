@@ -42,6 +42,11 @@
 
 namespace dwarfs {
 
+namespace metadata::domain {
+class inode_data;
+class metadata;
+}
+
 namespace thrift::metadata {
 
 class inode_data;
@@ -91,8 +96,15 @@ class entry : public entry_interface {
   virtual type_t type() const = 0;
   bool is_directory() const override;
   virtual void walk(std::function<void(entry*)> const& f);
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  // Thrift overload (only when Thrift is available)
   void
   pack(thrift::metadata::inode_data& entry_v2, global_entry_data const& data,
+       time_resolution_converter const& timeres) const;
+#endif
+  // Domain model overload (always available)
+  void
+  pack(metadata::domain::inode_data& entry_v2, global_entry_data const& data,
        time_resolution_converter const& timeres) const;
   void update(global_entry_data& data) const;
   virtual void accept(entry_visitor& v, bool preorder = false) = 0;
@@ -171,10 +183,19 @@ class dir : public entry {
   void walk(std::function<void(entry*)> const& f) override;
   void accept(entry_visitor& v, bool preorder) override;
   void sort();
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  // Thrift overloads (only when Thrift is available)
   void pack(thrift::metadata::metadata& mv2, global_entry_data const& data,
             time_resolution_converter const& timeres) const;
   void
   pack_entry(thrift::metadata::metadata& mv2, global_entry_data const& data,
+             time_resolution_converter const& timeres) const;
+#endif
+  // Domain model overloads (always available)
+  void pack(metadata::domain::metadata& mv2, global_entry_data const& data,
+            time_resolution_converter const& timeres) const;
+  void
+  pack_entry(metadata::domain::metadata& mv2, global_entry_data const& data,
              time_resolution_converter const& timeres) const;
   void scan(os_access const& os, progress& prog) override;
   bool empty() const { return entries_.empty(); }

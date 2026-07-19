@@ -28,10 +28,12 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <iosfwd>
 #include <memory>
 #include <optional>
+#include <set>
 #include <span>
 #include <string>
 #include <vector>
@@ -45,11 +47,39 @@ namespace dwarfs {
 
 class library_dependencies;
 
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 namespace thrift::history {
-
 class history;
-
 } // namespace thrift::history
+#else
+// Plain C++ structures for non-Thrift builds
+namespace history_internal {
+
+struct dwarfs_version {
+  uint16_t major{0};
+  uint16_t minor{0};
+  uint16_t patch{0};
+  bool is_release{false};
+  std::optional<std::string> git_rev;
+  std::optional<std::string> git_branch;
+  std::optional<std::string> git_desc;
+};
+
+struct history_entry {
+  dwarfs_version version;
+  std::string system_id;
+  std::string compiler_id;
+  std::optional<std::vector<std::string>> arguments;
+  std::optional<uint64_t> timestamp;
+  std::optional<std::set<std::string>> library_versions;
+};
+
+struct history_data {
+  std::vector<history_entry> entries;
+};
+
+} // namespace history_internal
+#endif
 
 class history {
  public:
@@ -69,7 +99,11 @@ class history {
   nlohmann::json as_json() const;
 
  private:
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   std::unique_ptr<thrift::history::history> history_;
+#else
+  std::unique_ptr<history_internal::history_data> history_;
+#endif
   history_config cfg_;
 };
 

@@ -2266,7 +2266,7 @@ class sparse_files_test : public ::testing::Test {
 
     size_t total_extents;
 
-    if (std::uniform_int_distribution<>(0, 1)(rng) == 0) {
+    if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
       total_extents = std::uniform_int_distribution<size_t>(1, 2)(rng);
     } else {
       total_extents = static_cast<size_t>(
@@ -2276,7 +2276,7 @@ class sparse_files_test : public ::testing::Test {
     std::exponential_distribution<> hole_size_dist(1 / cfg.avg_hole_size);
     std::exponential_distribution<> data_size_dist(1 / cfg.avg_data_size);
 
-    bool is_hole = std::uniform_int_distribution<>(0, 1)(rng) == 0;
+    bool is_hole = std::uniform_int_distribution<int>(0, 1)(rng) == 0;
     std::vector<dwarfs::detail::file_extent_info> extents;
     file_off_t offset{0};
     file_size_t data_size{0};
@@ -2319,7 +2319,7 @@ class sparse_files_test : public ::testing::Test {
     for (auto const& e : extents) {
       if (e.kind == dwarfs::extent_kind::data) {
         bool const random_data =
-            std::uniform_int_distribution<>(0, 4)(data_rng) != 0;
+            std::uniform_int_distribution<int>(0, 4)(data_rng) != 0;
         sfb.write_data(e.range.offset(),
                        random_data ? dwarfs::test::create_random_string(
                                          e.range.size(), data_rng)

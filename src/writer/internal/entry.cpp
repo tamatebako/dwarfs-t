@@ -40,7 +40,12 @@
 #include <dwarfs/writer/internal/progress.h>
 #include <dwarfs/writer/internal/scanner_progress.h>
 
+#include <dwarfs/metadata/domain/inode_data.h>
+#include <dwarfs/metadata/domain/metadata.h>
+
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
+#endif
 
 namespace dwarfs::writer::internal {
 
@@ -165,7 +170,17 @@ void entry::update(global_entry_data& data) const {
   data.add_ctime(stat_.ctime_unchecked());
 }
 
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+// Thrift overload (only when Thrift is available)
 void entry::pack(thrift::metadata::inode_data& entry_v2,
+                 global_entry_data const& data,
+                 time_resolution_converter const& timeres) const {
+  data.pack_inode_stat(entry_v2, stat_, timeres);
+}
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
+
+// Domain model overload (always available)
+void entry::pack(metadata::domain::inode_data& entry_v2,
                  global_entry_data const& data,
                  time_resolution_converter const& timeres) const {
   data.pack_inode_stat(entry_v2, stat_, timeres);
@@ -324,12 +339,16 @@ void dir::sort() {
 
 void dir::scan(os_access const&, progress&) {}
 
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+// Thrift overloads (only when Thrift is available)
 void dir::pack_entry(thrift::metadata::metadata& mv2,
                      global_entry_data const& data,
                      time_resolution_converter const& timeres) const {
   auto& de = mv2.dir_entries()->emplace_back();
   de.name_index() = has_parent() ? data.get_name_index(name()) : 0;
-  de.inode_num() = DWARFS_NOTHROW(inode_num().value());
+  auto ino = inode_num();
+  DWARFS_CHECK(ino.has_value(), "inode number not set for directory entry");
+  de.inode_num() = ino.value();
   entry::pack(DWARFS_NOTHROW(mv2.inodes()->at(de.inode_num().value())), data,
               timeres);
 }
@@ -351,12 +370,63 @@ void dir::pack(thrift::metadata::metadata& mv2, global_entry_data const& data,
   DWARFS_CHECK(se, "self entry index not set");
   d.self_entry() = *se;
   mv2.directories()->push_back(d);
+  // Add ALL children to dir_entries (both subdirectories and files)
+  // This maintains depth-first ordering for the walk algorithm
   for (entry_ptr const& e : entries_) {
     e->set_entry_index(mv2.dir_entries()->size());
     auto& de = mv2.dir_entries()->emplace_back();
     de.name_index() = data.get_name_index(e->name());
-    de.inode_num() = DWARFS_NOTHROW(e->inode_num().value());
+    auto ino = e->inode_num();
+    DWARFS_CHECK(ino.has_value(), "inode number not set for entry: " + e->path_as_string());
+    de.inode_num() = ino.value();
     e->pack(DWARFS_NOTHROW(mv2.inodes()->at(de.inode_num().value())), data,
+            timeres);
+  }
+}
+#endif // DWARFS_HAVE_EXPERIMENTAL_THRIFT
+
+// Domain model overloads (always available)
+void dir::pack_entry(metadata::domain::metadata& mv2,
+                     global_entry_data const& data,
+                     time_resolution_converter const& timeres) const {
+  auto& de = mv2.dir_entries->emplace_back();
+  de.set_name_index(has_parent() ? data.get_name_index(name()) : 0);
+  auto ino = inode_num();
+  DWARFS_CHECK(ino.has_value(), "inode number not set for directory entry");
+  de.set_inode_num(ino.value());
+  entry::pack(DWARFS_NOTHROW(mv2.inodes.at(de.inode_num())), data,
+              timeres);
+}
+
+void dir::pack(metadata::domain::metadata& mv2, global_entry_data const& data,
+               time_resolution_converter const& timeres) const {
+  metadata::domain::directory d;
+  if (has_parent()) {
+    auto pd = std::dynamic_pointer_cast<dir>(parent());
+    DWARFS_CHECK(pd, "unexpected parent entry (not a directory)");
+    auto pe = pd->entry_index();
+    DWARFS_CHECK(pe, "parent entry index not set");
+    d.set_parent_entry(*pe);
+  } else {
+    d.set_parent_entry(0);
+  }
+  // first_entry is the index of the first child entry
+  d.set_first_entry(mv2.dir_entries->size());
+  auto se = entry_index();
+  DWARFS_CHECK(se, "self entry index not set");
+  d.set_self_entry(*se);
+  mv2.directories.push_back(d);
+
+  // Add ALL children to dir_entries (both subdirectories and files)
+  // This maintains depth-first ordering for the walk algorithm
+  for (entry_ptr const& e : entries_) {
+    e->set_entry_index(mv2.dir_entries->size());
+    auto& de = mv2.dir_entries->emplace_back();
+    de.set_name_index(data.get_name_index(e->name()));
+    auto ino = e->inode_num();
+    DWARFS_CHECK(ino.has_value(), "inode number not set for entry: " + e->path_as_string());
+    de.set_inode_num(ino.value());
+    e->pack(DWARFS_NOTHROW(mv2.inodes.at(de.inode_num())), data,
             timeres);
   }
 }

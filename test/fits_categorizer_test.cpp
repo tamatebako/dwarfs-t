@@ -75,7 +75,7 @@ class fits_categorizer_fixture : public Base {
 
  public:
   std::shared_ptr<writer::categorizer_manager> catmgr;
-  test::test_logger lgr{logger::INFO};
+  test::test_logger lgr{LOGGER_LEVEL_INFO};
 };
 
 using fits_categorizer = fits_categorizer_fixture<::testing::Test>;

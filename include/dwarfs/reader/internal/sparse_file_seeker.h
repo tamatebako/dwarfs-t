@@ -42,6 +42,9 @@ template <typename T>
 concept chunk_like = requires(T const& chk) {
   { chk.is_hole() } -> std::same_as<bool>;
   { chk.size() } -> std::convertible_to<file_size_t>;
+} || requires(T const& chk) {
+  { chk->is_hole() } -> std::same_as<bool>;
+  { chk->size() } -> std::convertible_to<file_size_t>;
 };
 
 class sparse_file_seeker {
@@ -71,10 +74,25 @@ class sparse_file_seeker {
 
     for (auto const& chk : chunks) {
       --chunks_remaining;
-      auto const size = chk.size();
+      // Handle both value types (chk.size()) and pointer types (chk->size())
+      auto const size = [&chk]() -> file_size_t {
+        if constexpr (requires { chk.size(); }) {
+          return chk.size();
+        } else {
+          return chk->size();
+        }
+      }();
       auto const end = pos + size;
 
-      if (chk.is_hole() && offset < end) {
+      auto const is_hole = [&chk]() -> bool {
+        if constexpr (requires { chk.is_hole(); }) {
+          return chk.is_hole();
+        } else {
+          return chk->is_hole();
+        }
+      }();
+
+      if (is_hole && offset < end) {
         return get_offset(file_range(pos, size), offset, whence,
                           chunks_remaining == 0, ec);
       }
@@ -103,9 +121,24 @@ class sparse_file_seeker {
     file_off_t pos{0};
 
     for (auto const& chk : chunks) {
-      auto const size = chk.size();
+      // Handle both value types (chk.size()) and pointer types (chk->size())
+      auto const size = [&chk]() -> file_size_t {
+        if constexpr (requires { chk.size(); }) {
+          return chk.size();
+        } else {
+          return chk->size();
+        }
+      }();
 
-      if (chk.is_hole()) {
+      auto const is_hole = [&chk]() -> bool {
+        if constexpr (requires { chk.is_hole(); }) {
+          return chk.is_hole();
+        } else {
+          return chk->is_hole();
+        }
+      }();
+
+      if (is_hole) {
         holes_.emplace_back(pos, size);
       }
 

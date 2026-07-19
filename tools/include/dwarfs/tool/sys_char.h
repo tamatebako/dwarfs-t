@@ -29,20 +29,33 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace dwarfs::tool {
 
 #ifdef _WIN32
 #define SYS_MAIN wmain
+#define SYS_STR(x) L##x
 using sys_char = wchar_t;
 using sys_string = std::wstring;
 #else
 #define SYS_MAIN main
+#define SYS_STR(x) x
 using sys_char = char;
 using sys_string = std::string;
 #endif
 
 std::string sys_string_to_string(sys_string const& in);
 sys_string string_to_sys_string(std::string const& in);
+
+// Helper to convert vector of strings
+inline std::vector<sys_string> vector_to_sys_strings(std::vector<std::string> const& in) {
+  std::vector<sys_string> out;
+  out.reserve(in.size());
+  for (auto const& s : in) {
+    out.push_back(string_to_sys_string(s));
+  }
+  return out;
+}
 
 } // namespace dwarfs::tool

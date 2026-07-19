@@ -1,0 +1,4 @@
+# Python packages required for DwarFS development and CI
+
+# Manpage generation
+mistletoe

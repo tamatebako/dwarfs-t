@@ -44,7 +44,8 @@ struct unique_ptr_policy {
 
   template <class U, class... Args>
   static return_type create(Args&&... args) {
-    return std::make_unique<U>(std::forward<Args>(args)...);
+    auto ptr = std::make_unique<U>(std::forward<Args>(args)...);
+    return return_type(static_cast<T*>(ptr.release()));
   }
 };
 

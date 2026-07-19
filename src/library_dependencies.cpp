@@ -42,6 +42,10 @@
 
 #include <dwarfs/config.h>
 
+#ifdef DWARFS_HAVE_FLATBUFFERS
+#include <flatbuffers/flatbuffers.h>
+#endif
+
 #ifdef DWARFS_STACKTRACE_ENABLED
 #include <cpptrace/version.hpp>
 #endif
@@ -119,6 +123,16 @@ void library_dependencies::add_common_libraries() {
   add_library("libboost", BOOST_VERSION, version_format::boost);
   add_library("phmap", PHMAP_VERSION_MAJOR, PHMAP_VERSION_MINOR,
               PHMAP_VERSION_PATCH);
+#ifdef DWARFS_HAVE_FLATBUFFERS
+  add_library("libflatbuffers", FLATBUFFERS_VERSION_MAJOR,
+              FLATBUFFERS_VERSION_MINOR, FLATBUFFERS_VERSION_REVISION);
+#endif
+#ifdef DWARFS_HAVE_JEMALLOC
+  // Add jemalloc version - tamatebako fork provides version info
+  // Version format: major.minor.bugfix (e.g., 5.3.0)
+  add_library("jemalloc", JEMALLOC_VERSION_MAJOR, JEMALLOC_VERSION_MINOR,
+              JEMALLOC_VERSION_BUGFIX);
+#endif
 #ifdef DWARFS_STACKTRACE_ENABLED
   add_library("cpptrace", CPPTRACE_VERSION_MAJOR, CPPTRACE_VERSION_MINOR,
               CPPTRACE_VERSION_PATCH);

@@ -41,8 +41,10 @@
 
 #include <fmt/format.h>
 
-#include <folly/stats/Histogram.h>
-#include <folly/system/ThreadName.h>
+#include <dwarfs/internal/folly_compat.h>
+
+
+
 
 #include <parallel_hashmap/phmap.h>
 
@@ -249,6 +251,18 @@ class block_cache_ final : public block_cache::impl {
           on_block_removed("evicted", block_no, std::move(block));
           blocks_evicted_.fetch_add(1, std::memory_order_relaxed);
         });
+
+    // Eagerly initialize the worker group to avoid potential race conditions
+    // and ensure the logger reference is valid during initialization.
+    // This fixes a SIGBUS crash on macOS ARM64 when reading highly compressible
+    // files where lazy initialization via std::call_once could cause issues.
+    auto num_workers = std::max(options_.num_workers > 0
+                                    ? options_.num_workers
+                                    : hardware_concurrency(),
+                                static_cast<size_t>(1));
+    // Limit the number of workers to prevent resource exhaustion
+    num_workers = std::min(num_workers, static_cast<size_t>(16));
+    wg_ = worker_group(LOG_GET_LOGGER, os_, "blkcache", num_workers);
   }
 
   ~block_cache_() noexcept override {
@@ -343,12 +357,13 @@ class block_cache_ final : public block_cache::impl {
   }
 
   void set_num_workers(size_t num) override {
+    // Limit the number of workers to prevent resource exhaustion
+    num = std::min(num, static_cast<size_t>(16));
+    num = std::max(num, static_cast<size_t>(1));
+
     std::unique_lock lock(mx_wg_);
 
-    if (wg_) {
-      wg_.stop();
-    }
-
+    wg_.stop();
     wg_ = worker_group(LOG_GET_LOGGER, os_, "blkcache", num);
   }
 
@@ -606,22 +621,8 @@ class block_cache_ final : public block_cache::impl {
                                  std::memory_order_relaxed);
   }
 
-  void init_worker_group() const {
-    std::unique_lock lock(mx_wg_);
-
-    if (!wg_) {
-      wg_ = worker_group(LOG_GET_LOGGER, os_, "blkcache",
-                         std::max(options_.num_workers > 0
-                                      ? options_.num_workers
-                                      : hardware_concurrency(),
-                                  static_cast<size_t>(1)));
-    }
-  }
-
   void enqueue_job(std::shared_ptr<block_request_set> brs) const {
-    // lazy initialization of worker group
-    std::call_once(wg_init_flag_, [this] { init_worker_group(); });
-
+    // Worker group is now eagerly initialized in the constructor
     std::shared_lock lock(mx_wg_);
 
     // Lambda needs to be mutable so we can actually move out of it
@@ -802,11 +803,10 @@ class block_cache_ final : public block_cache::impl {
   mutable std::atomic<size_t> blocks_tidied_{0};
   mutable std::atomic<size_t> active_expired_{0};
   mutable std::atomic<size_t> sequential_prefetches_{0};
-  mutable folly::Histogram<size_t> active_set_size_{1, 0, 1024};
+  mutable compat::stats::Histogram<size_t> active_set_size_{1, 0, 1024};
 
   mutable std::shared_mutex mx_wg_;
   mutable worker_group wg_;
-  mutable std::once_flag wg_init_flag_;
   std::vector<fs_section> block_;
   file_view mm_;
   byte_buffer_factory buffer_factory_;

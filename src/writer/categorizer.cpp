@@ -29,7 +29,7 @@
 
 #include <fmt/format.h>
 
-#include <folly/String.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <nlohmann/json.hpp>
 

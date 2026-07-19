@@ -41,14 +41,14 @@
 
 #include <fmt/format.h>
 
-#include <folly/Demangle.h>
-#include <folly/sorted_vector_types.h>
+#include <dwarfs/internal/folly_compat.h>
 
 #include <dwarfs/compiler.h>
 #include <dwarfs/error.h>
 #include <dwarfs/file_view.h>
 #include <dwarfs/logger.h>
 #include <dwarfs/match.h>
+#include <dwarfs/metadata/domain/chunk.h>
 #include <dwarfs/os_access.h>
 #include <dwarfs/util.h>
 #include <dwarfs/writer/categorizer.h>
@@ -65,7 +65,9 @@
 #include <dwarfs/writer/internal/similarity.h>
 #include <dwarfs/writer/internal/similarity_ordering.h>
 
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <dwarfs/gen-cpp2/metadata_types.h>
+#endif
 
 namespace dwarfs::writer::internal {
 
@@ -86,7 +88,7 @@ enum class scan_mode {
 
 class inode_ : public inode {
  public:
-  using chunk_type = thrift::metadata::chunk;
+  using chunk_type = metadata::domain::chunk;
 
   inode_() = default;
 
@@ -237,14 +239,39 @@ class inode_ : public inode {
           auto& hm = hole_mapper.value();
           hm.map_hole(chk, src.size());
         } else {
-          chk.block() = src.block();
-          chk.offset() = src.offset();
-          chk.size() = src.size();
+          chk.set_block(src.block());
+          chk.set_offset(src.offset());
+          chk.set_size(src.size());
         }
       }
     }
     return true;
   }
+
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+  // Thrift compatibility wrapper
+  bool append_chunks_to(
+      std::vector<thrift::metadata::chunk>& vec,
+      std::optional<inode_hole_mapper>& hole_mapper) const override {
+    // Build into domain chunks first
+    std::vector<metadata::domain::chunk> domain_chunks;
+    domain_chunks.reserve(vec.capacity());
+
+    if (!append_chunks_to(domain_chunks, hole_mapper)) {
+      return false;
+    }
+
+    // Convert domain → Thrift
+    for (auto const& dc : domain_chunks) {
+      auto& tc = vec.emplace_back();
+      tc.block() = dc.block();
+      tc.offset() = dc.offset();
+      tc.size() = dc.size();
+    }
+
+    return true;
+  }
+#endif
 
   inode_fragments& fragments() override { return fragments_; }
 
@@ -378,14 +405,14 @@ class inode_ : public inode {
   template <typename T>
   T const* find_similarity(fragment_category cat) const {
     DWARFS_CHECK(!fragments_.empty(), fmt::format("inode has no fragments ({})",
-                                                  folly::demangle(typeid(T))));
+                                                  compat::demangle(typeid(T).name())));
     if (std::holds_alternative<std::monostate>(similarity_)) {
       return nullptr;
     }
     if (fragments_.size() == 1) {
       DWARFS_CHECK(
           fragments_.get_single_category() == cat,
-          fmt::format("category mismatch ({})", folly::demangle(typeid(T))));
+          fmt::format("category mismatch ({})", compat::demangle(typeid(T).name())));
       return &std::get<T>(similarity_);
     }
     auto& m = std::get<similarity_map_type>(similarity_);
@@ -536,7 +563,7 @@ class inode_ : public inode {
   }
 
   using similarity_map_type =
-      folly::sorted_vector_map<fragment_category,
+      compat::sorted_vector_map<fragment_category,
                                std::variant<nilsimsa::hash_type, uint32_t>>;
 
   static constexpr uint32_t const kNumIsValid{UINT32_C(1) << 0};

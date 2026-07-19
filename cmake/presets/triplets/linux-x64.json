@@ -1,0 +1,66 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "linux-x64-base",
+      "hidden": true,
+      "inherits": "common-base",
+      "description": "Linux x64 base configuration",
+      "binaryDir": "${sourceDir}/build-linux-x64-${config}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "TRY_ENABLE_FLAC": "ON",
+        "TRY_ENABLE_BROTLI": "ON",
+        "TRY_ENABLE_LZ4": "ON",
+        "TRY_ENABLE_LZMA": "ON",
+        "ENABLE_RICEPP": "ON",
+        "USE_JEMALLOC": "ON"
+      }
+    },
+    {
+      "name": "linux-x64-production",
+      "inherits": ["linux-x64-base", "production-overlays"],
+      "description": "Linux x64 Production (FlatBuffers + Legacy Thrift)"
+    },
+    {
+      "name": "linux-x64-experimental",
+      "inherits": ["linux-x64-base", "experimental-overlays"],
+      "description": "Linux x64 Experimental (+ Modern Thrift)"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-x64-production",
+      "configurePreset": "linux-x64-production",
+      "description": "Build Linux x64 Production"
+    },
+    {
+      "name": "linux-x64-experimental",
+      "configurePreset": "linux-x64-experimental",
+      "description": "Build Linux x64 Experimental"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "linux-x64-production",
+      "configurePreset": "linux-x64-production",
+      "description": "Test Linux x64 Production",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "linux-x64-experimental",
+      "configurePreset": "linux-x64-experimental",
+      "description": "Test Linux x64 Experimental",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      }
+    }
+  ]
+}

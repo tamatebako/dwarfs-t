@@ -16,7 +16,7 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.28.0)
+# Conditional minimum version for tebako compatibility
 
 if(PREFER_SYSTEM_GTEST)
   find_package(GTest ${GOOGLETEST_REQUIRED_VERSION} CONFIG)

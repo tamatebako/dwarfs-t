@@ -1,0 +1,38 @@
+vcpkg_from_github(
+    OUT_SOURCE_PATH SOURCE_PATH
+    REPO tamatebako/dwarfs
+    REF v${VERSION}
+    SHA512 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    HEAD_REF main
+)
+
+vcpkg_cmake_configure(
+    SOURCE_PATH "${SOURCE_PATH}"
+    OPTIONS
+        -DWITH_LIBDWARFS=ON
+        -DWITH_TOOLS=OFF
+        -DWITH_FUSE_DRIVER=OFF
+        -DWITH_TESTS=OFF
+        -DWITH_BENCHMARKS=OFF
+        -DDWARFS_WITH_FLATBUFFERS=ON
+        -DDWARFS_WITH_THRIFT=OFF
+        -DTRY_ENABLE_FLAC=$<IF:$<IN_LIST:flac,$<TARGET_PROPERTY:VCPKG_MANIFEST_FEATURES>>,ON,OFF>
+        -DTRY_ENABLE_LZ4=$<IF:$<IN_LIST:lz4,$<TARGET_PROPERTY:VCPKG_MANIFEST_FEATURES>>,ON,OFF>
+        -DTRY_ENABLE_LZMA=$<IF:$<IN_LIST:lzma,$<TARGET_PROPERTY:VCPKG_MANIFEST_FEATURES>>,ON,OFF>
+        -DTRY_ENABLE_BROTLI=$<IF:$<IN_LIST:brotli,$<TARGET_PROPERTY:VCPKG_MANIFEST_FEATURES>>,ON,OFF>
+)
+
+vcpkg_cmake_install()
+
+# The project uses dwarfs-config.cmake (not dwarfsConfig.cmake)
+# and dwarfs-targets.cmake (not dwarfsTargets.cmake)
+vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/dwarfs)
+
+vcpkg_copy_pdbs()
+
+file(REMOVE_RECURSE 
+    "${CURRENT_PACKAGES_DIR}/debug/include"
+    "${CURRENT_PACKAGES_DIR}/debug/share"
+)
+
+vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE.GPL-3.0")

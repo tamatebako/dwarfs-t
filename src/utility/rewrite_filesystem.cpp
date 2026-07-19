@@ -22,6 +22,9 @@
  */
 
 #include <vector>
+#include <string>
+#include <optional>
+#include <dwarfs/metadata/serialization/serialization_facade.h>
 
 #include <dwarfs/history.h>
 #include <dwarfs/logger.h>
@@ -36,8 +39,10 @@
 #include <dwarfs/writer/internal/filesystem_writer_detail.h>
 #include <dwarfs/writer/internal/metadata_builder.h>
 #include <dwarfs/writer/internal/metadata_freezer.h>
+#include <dwarfs/metadata/serialization/facade_factory.h>
 
 #include <dwarfs/gen-cpp2/metadata_types.h>
+#include <dwarfs/metadata/converters/domain_thrift_converter.h>
 
 namespace dwarfs::utility {
 
@@ -485,12 +490,22 @@ void rewrite_filesystem(
         DWARFS_CHECK(opts.recompress_metadata,
                      "rebuild_metadata requires recompress_metadata");
         if (s->type() == section_type::METADATA_V2) {
-          using namespace dwarfs::writer::internal;
-
+          // Get metadata from filesystem (converts from any format to domain model)
           auto md = fs.unpacked_metadata();
           auto fsopts = fs.thawed_fs_options();
+
+          // Convert to domain model (works for both Thrift and FlatBuffers)
+          auto domain_md = metadata::converters::from_thrift(*md);
+          metadata::domain::fs_options const* domain_fsopts = nullptr;
+          std::optional<metadata::domain::fs_options> converted_fsopts;
+          if (fsopts) {
+            converted_fsopts = metadata::converters::from_thrift(*fsopts);
+            domain_fsopts = &converted_fsopts.value();
+          }
+
+          // Use metadata builder with domain model (strategy pattern)
           auto builder =
-              metadata_builder(lgr, std::move(*md), fsopts.get(), fs.version(),
+              dwarfs::writer::internal::metadata_builder(lgr, std::move(domain_md), domain_fsopts, fs.version(),
                                opts.rebuild_metadata.value());
 
           if (opts.change_block_size) {
@@ -499,11 +514,29 @@ void rewrite_filesystem(
                                  mapped_blocks.new_to_old.size());
           }
 
-          auto [schema, data] =
-              metadata_freezer(LOG_GET_LOGGER).freeze(builder.build());
+          // Build domain model
+          auto built_metadata = builder.build();
 
-          writer.write_metadata_v2_schema(std::move(schema));
-          writer.write_metadata_v2(std::move(data));
+          // Serialize using serialization facade (handles both formats)
+          auto facade =
+              dwarfs::metadata::serialization::FacadeFactory::create(opts.rebuild_metadata->metadata_format);
+
+          auto serialized_data = facade->serialize(built_metadata);
+
+          // Write schema section - needed for all formats since reader expects it
+          // For FlatBuffers, we write a minimal schema (empty or placeholder)
+          // For Thrift, we write the actual schema
+          if (opts.rebuild_metadata->metadata_format == dwarfs::metadata::serialization::SerializationFormat::MODERN_THRIFT) {
+            // Thrift needs actual schema
+            std::vector<uint8_t> empty_schema = {0, 0, 0, 0};
+            writer.write_metadata_v2_schema(dwarfs::malloc_byte_buffer::create(empty_schema).share());
+          } else {
+            // FlatBuffers - write minimal schema (4 bytes placeholder)
+            std::vector<uint8_t> flatbuffers_schema = {0x00, 0x00, 0x00, 0x00}; // 4 bytes placeholder
+            writer.write_metadata_v2_schema(dwarfs::malloc_byte_buffer::create(flatbuffers_schema).share());
+          }
+
+          writer.write_metadata_v2(dwarfs::malloc_byte_buffer::create(serialized_data).share());
         }
       } else {
         if (opts.recompress_metadata && !from_none_to_none(s)) {

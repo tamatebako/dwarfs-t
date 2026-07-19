@@ -35,14 +35,13 @@
 
 #include <fmt/format.h>
 
-#include <folly/Synchronized.h>
-#include <folly/lang/Bits.h>
-
+#include <dwarfs/internal/folly_compat.h>
 #include <range/v3/algorithm/fold_left.hpp>
-#include <range/v3/view/chunk.hpp>
 
 #include <dwarfs/error.h>
+#include <dwarfs/internal/folly_compat.h>
 #include <dwarfs/logger.h>
+#include <dwarfs/types.h>
 #include <dwarfs/map_util.h>
 #include <dwarfs/writer/categorizer.h>
 #include <dwarfs/writer/compression_metadata_requirements.h>
@@ -169,7 +168,7 @@ uint16_t merge_sample_bits<uint16_t>(std::span<uint8_t const> imagedata) {
   b16 |= fold_left_bit_or<uint16_t>(imagedata.subspan(
       size * kAlignment, imagedata.size_bytes() % kAlignment));
 
-  return folly::Endian::big(b16);
+  return compat::endian::big(b16);
 }
 
 template <>
@@ -405,7 +404,7 @@ class fits_categorizer_ final : public fits_categorizer_base {
                                 fragment_category c) const override {
     if (category_name == IMAGE_CATEGORY) {
       DWARFS_CHECK(c.has_subcategory(), "expected IMAGE to have subcategory");
-      return meta_.rlock()->lookup(c.subcategory());
+      return meta_.withRLock([&](auto const& store) { return store.lookup(c.subcategory()); });
     }
     return {};
   }
@@ -420,7 +419,7 @@ class fits_categorizer_ final : public fits_categorizer_base {
   bool check_metadata(fits_metadata const& meta, fs::path const& path) const;
 
   LOG_PROXY_DECL(LoggerPolicy);
-  folly::Synchronized<fits_metadata_store, std::shared_mutex> mutable meta_;
+  compat::Synchronized<fits_metadata_store> mutable meta_;
   compression_metadata_requirements<fits_metadata> image_req_;
 };
 
@@ -471,7 +470,7 @@ inode_fragments fits_categorizer_<LoggerPolicy>::categorize(
         meta.component_count = fi->component_count;
 
         if (check_metadata(meta, path.full_path())) {
-          auto subcategory = meta_.wlock()->add(meta);
+          auto subcategory = meta_.withWLock([&](auto& store) { return store.add(meta); });
           fragments.emplace_back(fragment_category(mapper(METADATA_CATEGORY)),
                                  fi->header.size());
           fragments.emplace_back(
@@ -505,7 +504,9 @@ void fits_categorizer_<LoggerPolicy>::set_metadata_requirements(
 template <typename LoggerPolicy>
 bool fits_categorizer_<LoggerPolicy>::subcategory_less(
     fragment_category a, fragment_category b) const {
-  return meta_.rlock()->less(a.subcategory(), b.subcategory());
+  return meta_.withRLock([&](auto const& store) {
+    return store.less(a.subcategory(), b.subcategory());
+  });
 }
 
 class fits_categorizer_factory : public categorizer_factory {

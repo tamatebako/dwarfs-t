@@ -1,0 +1,10 @@
+The package libdwarfs provides CMake targets:
+
+    find_package(dwarfs CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE dwarfs::dwarfs_common dwarfs::dwarfs_reader dwarfs::dwarfs_writer)
+
+Available targets:
+  - dwarfs::dwarfs_common    - Core utilities, compression, serialization
+  - dwarfs::dwarfs_reader    - DwarFS filesystem reading and FUSE driver
+  - dwarfs::dwarfs_writer    - DwarFS filesystem creation
+  - dwarfs::dwarfs_extractor - Filesystem extraction utilities

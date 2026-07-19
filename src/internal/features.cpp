@@ -28,8 +28,12 @@
 
 #include <algorithm>
 #include <iterator>
+#include <optional>
+#include <stdexcept>
 
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
 #include <thrift/lib/cpp/util/EnumUtils.h>
+#endif
 
 #include <dwarfs/internal/features.h>
 
@@ -37,10 +41,48 @@ namespace dwarfs::internal {
 
 namespace {
 
+#ifndef DWARFS_HAVE_EXPERIMENTAL_THRIFT
+// Plain C++ enum string mapping (no Thrift utilities)
+struct feature_info {
+  feature value;
+  const char* name;
+};
+
+// IMPORTANT: Keep this synchronized with thrift/features.thrift
+// Never change feature names (they're serialized in metadata)
+constexpr feature_info feature_table[] = {
+    {feature::sparsefiles, "sparsefiles"},
+};
+
+constexpr size_t feature_count = sizeof(feature_table) / sizeof(feature_table[0]);
+
+std::string plain_feature_name(feature f) {
+  for (auto const& info : feature_table) {
+    if (info.value == f) {
+      return info.name;
+    }
+  }
+  throw std::runtime_error("feature_name: invalid feature enum value");
+}
+
+std::optional<feature> plain_string_to_feature(std::string_view name) {
+  for (auto const& info : feature_table) {
+    if (name == info.name) {
+      return info.value;
+    }
+  }
+  return std::nullopt;
+}
+#endif
+
 constexpr bool is_supported_feature(feature /*f*/) { return true; }
 
 std::string feature_name(feature f) {
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   return apache::thrift::util::enumNameOrThrow(f);
+#else
+  return plain_feature_name(f);
+#endif
 }
 
 } // namespace
@@ -53,11 +95,19 @@ bool feature_set::has(feature f) const {
 
 std::set<std::string> feature_set::get_supported() {
   std::set<std::string> rv;
+#ifdef DWARFS_HAVE_EXPERIMENTAL_THRIFT
   for (auto f : apache::thrift::TEnumTraits<feature>::values) {
     if (is_supported_feature(f)) {
       rv.insert(feature_name(f));
     }
   }
+#else
+  for (auto const& info : feature_table) {
+    if (is_supported_feature(info.value)) {
+      rv.insert(info.name);
+    }
+  }
+#endif
   return rv;
 };
 

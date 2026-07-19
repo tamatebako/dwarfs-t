@@ -2,8 +2,8 @@
 
 ## SYNOPSIS
 
-`mkdwarfs` `-i` *path* `-o` *file*\|`-` [*options*...]  
-`mkdwarfs` `--input-list=`*file*\|`-` `-o` *file*\|`-` [*options*...]  
+`mkdwarfs` `-i` *path* `-o` *file*\|`-` [*options*...]
+`mkdwarfs` `--input-list=`*file*\|`-` `-o` *file*\|`-` [*options*...]
 `mkdwarfs` `-i` *file* `-o` *file*\|`-` `--recompress` [*options*...]
 
 ## DESCRIPTION
@@ -164,7 +164,7 @@ Most other options are concerned with compression tuning:
   and `--window-step=1`, then a cyclic hash across 65536 bytes will be stored
   at every 32768 bytes of input data. If `--window-step=2`, then a hash value
   will be stored at every 16384 bytes. This means that not every possible
-  65536-byte duplicate segment will be detected, but it is guaranteed that
+  65536-byte duplicate segment will be found, but it is guaranteed that
   all duplicate segments of (`window_size` + `window_step`) bytes or more
   will be detected (unless they span across block boundaries, of course).
   If you use a larger value for this option, the increments become *smaller*,
@@ -218,6 +218,54 @@ Most other options are concerned with compression tuning:
   systems compared to e.g. an lzma compressed metadata block. If you don't
   care about mount time, you can safely choose `lzma` compression here, as
   the data will only have to be decompressed once when mounting the image.
+
+- `--metadata-format=flatbuffers`|`modern-thrift`|`legacy-thrift`:
+  The serialization format to use for metadata storage. DwarFS supports three
+  different metadata serialization formats, each with different performance
+  characteristics. The default is `flatbuffers`, which provides excellent
+  portability, memory-mappable zero-copy access, and works on all platforms.
+
+  **FlatBuffers** (default, recommended):
+  - File extension: `.dff` (DwarFS FlatBuffers)
+  - Magic bytes: "DFBF" (0x44 0x46 0x42 0x46)
+  - Dependencies: Header-only FlatBuffers library (auto-fetched)
+  - Size: 101.41% of Modern Thrift (+385 KB on 27 MB metadata)
+  - Memory: Zero-copy, memory-mappable
+  - Portability: Excellent - works on all platforms
+  - Build time: Fast (5-10 min)
+  - Use case: Default for all new filesystem images
+
+  **Modern Thrift Compact** (v0.17.0+, optional):
+  - File extension: `.dtc` (DwarFS Thrift Compact)
+  - Magic bytes: 0x82 0x21 (CompactProtocol header)
+  - Dependencies: Folly + fbthrift v2025.12.29.00 + jemalloc (via vcpkg overlay ports)
+  - Size: 100% baseline (smallest possible)
+  - Memory: Zero-copy, memory-mappable (CompactProtocol)
+  - Portability: Limited - requires complex build toolchain
+  - Build time: Slow (45-60 min first build)
+  - Test coverage: 15/15 tests PASSED (validated 2026-01-06)
+  - Use case: Minimum size requirement with Facebook stack available
+
+  **Legacy Thrift** (backward compatibility, always available):
+  - File extension: `.dth` (DwarFS Thrift Hand-coded)
+  - Magic bytes: None (fallback detection)
+  - Dependencies: None (hand-coded implementation, 2,500 lines)
+  - Size: 103-106% of Modern Thrift
+  - Memory: Sequential parsing (efficient but no zero-copy)
+  - Portability: Excellent - works on all platforms
+  - Build time: Fast (<1 min)
+  - Use case: Compatibility with DwarFS v0.14.1 images without fbthrift
+
+  To select a format, use the `--metadata-format` option when creating a
+  filesystem:
+
+      mkdwarfs -i input -o image.dff --metadata-format=flatbuffers
+      mkdwarfs -i input -o image.dtc --metadata-format=modern-thrift
+      mkdwarfs -i input -o image.dth --metadata-format=legacy-thrift
+
+  For detailed performance comparisons and benchmarking methodology, see
+  [DWARFS_METADATA_FORMAT_PERFORMANCE.md](DWARFS_METADATA_FORMAT_PERFORMANCE.md)
+  and [MODERN_THRIFT_GUIDE.md](MODERN_THRIFT_GUIDE.md).
 
 - `--history-compression=`*algorithm*[`:`*algopt*[`=`*value*][`,`...]]:
   The compression algorithm and configuration used for the file system
@@ -359,12 +407,7 @@ Most other options are concerned with compression tuning:
   typically better than `similarity`, but can be significantly slower to
   determine a good ordering.
   However, the new implementation of this algorithm can be parallelized and
-  will perform much better on huge numbers of files. `nilsimsa` ordering can
-  be tweaked by specifying `max-children` and `max-cluster-size`. In general,
-  larger values for `max-cluster-size` tend to result in better compression,
-  but will slow down the algorithm quadratically. There is no point in setting
-  `max-cluster-size` larger than the number of files in the input.
-  Unlike the old implementation, `nilsimsa` ordering is now completely
+  will perform much better on huge numbers of files. `nilsimsa` ordering is now completely
   deterministic. See [Nilsimsa Ordering](#nilsimsa-ordering) for a detailed
   description of the algorithm.
   `explicit` ordering allows you to specify a file that contains the paths in
@@ -533,8 +576,33 @@ Most other options are concerned with compression tuning:
 
 ## ENVIRONMENT VARIABLES
 
-See [dwarfs-env(7)](dwarfs-env.md) for environment variables that
-influence the behavior of `mkdwarfs`.
+All options can be configured via environment variables using the pattern:
+
+    DWARFS_MKDWARFS_<OPTION>=value
+
+For example:
+
+    export DWARFS_MKDWARFS_COMPRESSION_LEVEL=5
+    mkdwarfs -i /src -o fs.dff              # Uses level 5 from ENV
+    mkdwarfs -i /src -o fs.dff -l 7         # Uses level 7 (CLI overrides ENV)
+
+Command-line arguments always take precedence over environment variables, which in turn
+take precedence over default values. This follows the MECE (Mutually Exclusive,
+Collectively Exhaustive) principle.
+
+Common environment variables:
+
+- `DWARFS_MKDWARFS_COMPRESSION_LEVEL`: Default compression level (0-9)
+- `DWARFS_MKDWARFS_NUM_WORKERS`: Number of compression worker threads
+- `DWARFS_MKDWARFS_MEMORY_LIMIT`: Block manager memory limit (e.g., `4g`)
+- `DWARFS_MKDWARFS_BLOCK_SIZE_BITS`: Block size as power of 2 (10-30)
+- `DWARFS_MKDWARFS_LOG_LEVEL`: Logging level (error|warn|info|verbose|debug|trace)
+
+For a complete reference of all supported environment variables, see
+[ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
+
+For runtime environment variables that affect filesystem operation, see
+[dwarfs-env(7)](dwarfs-env.md).
 
 ## EXIT CODES
 
@@ -638,18 +706,6 @@ level from 7 (the default) to 6, the only difference is that the metadata
 is left uncompressed. This can be useful if mounting speed of the file
 system is important, as the uncompressed metadata part of the file can
 then simply be mapped into memory.
-
-### Metadata Packing
-
-The filesystem metadata is stored in [Frozen](https://github.com/facebook/fbthrift/blob/master/thrift/lib/cpp2/frozen/Frozen.h),
-a library that allows serialization of structures defined in
-[Thrift IDL](https://github.com/facebook/fbthrift/) into an extremely
-compact representation that can be used in-place without the need for
-deserialization. It is very well suited for persistent, memory-mappable
-data. With Frozen, you essentially only "pay for what you use": if fields
-are defined in the IDL, but they always hold the same value (or are not
-used at all), not a single bit will be allocated for this field even if
-you have a list of millions of items.
 
 Frozen metadata has relatively low redundancy and doesn't compress well,
 but you can still save around 30-50% by enabling compression. However,
@@ -817,189 +873,29 @@ to data in all of the 16 blocks that the original 16 MiB block was
 split into. The resulting file system will be very similar to one that
 was built with a block size of 1 MiB and 16 blocks of lookback.
 
-## FILTER RULES
+### Metadata Serialization Formats
 
-The filter rules have been inspired by the `rsync` utility. These
-look very similar, though there are differences. These rules are quite
-powerful, yet they're somewhat hard to get used to.
+DwarFS supports two different metadata serialization formats. The choice of format
+has an impact on both the size of the filesystem image and on various performance characteristics.
 
-There are only 3 different kinds of rules:
+When reading a filesystem, the format is automatically detected, so images
+created with different formats can be used interchangeably as long as the
+mkdwarfs tool is built with support for the specified formats.
 
-- `+ `*pattern*:
-  An "include" rule.
+The default format is `flatbuffers`, which provides excellent portability and compatibility both across platforms
+and within the lmtools toolchain. It uses the header-only FlatBuffers library, offers memory-mappable and zero-copy
+access, and works on all platforms that support the lmtools binary.
 
-- `- `*pattern*:
-  An "exclude" rule.
+The `thrift` format (optionally) refers to Apache Thrift's CompactProtocol with supporting serialization schemas.
 
-- `. `*file*:
-  A merge file rule. Rules are read (recursively) from the
-  specified file.
+The `thrift` format requires language bindings and a runtime dependency on Folly + fbthrift. If built using the bundled schemas, it additionally requires a snowball build dependency.
 
-Ultimately, only include and exclude rules remain in the rule set
-as file rules are merged in at the place where they occur.
+The `thrift` format may suffer slight size overheads due to ComplexTypes necessary to encode Deeply Nested Collections (DNCs).
 
-The most important rule to remember when building a rule set is that
-all rules are applied strictly in order and processing stops at the
-first matching rule. If no rules match, the default is to include the
-entry.
+To select a format, use the `--metadata-format` option when creating a
+filesystem:
 
-Patterns can be anchored or floating. Anchored patterns are patterns
-that start with a `/`. These patterns match relative to the file
-system root (i.e. the `--input` path). Floating patterns match in
-any directory in the hierarchy.
+    mkdwarfs -i input -o image.dww --metadata-format=flatbuffers
 
-Patterns ending with a `/` only match directories. All other patterns
-only match non-directories.
-
-Note that regardless of the preferred native directory separator,
-filter rules will always use UNIX-style directory separators (`/`).
-
-Patterns support `?` and `*` wildcards matching a single character
-and any number of characters, respectively. These patterns don't match
-across directory separators (`/`).
-
-Patterns also support the `**` globstar wildcard, which matches across
-directory separators.
-
-Patterns also support character classes (`[avt]`), ranges (`[a-h]`),
-and complementation (`[!a-h]`).
-
-Here's an exemplary rule set:
-
-```
-+ File/Spec/[EM]*.pm
-- unicore/**.pl
-+ *.pl
-- *
-```
-
-This set of rules will include all files matching `File/Spec/[EM]*.pm`
-anywhere in the hierarchy. It will also include all `*.pl` files, except
-for those anywhere below a `unicore` directory. The last rule excludes
-all other files.
-
-This will likely leave a lot of empty directories around, but these can
-be removed using `--remove-empty-dirs`.
-
-You can use the `--debug-filter` option to show the sets of included
-and excluded files without building an actual file system.
-
-## INTERNAL OPERATION
-
-Internally, `mkdwarfs` runs in two completely separate phases. The first
-phase is scanning the input data, the second phase is building the file
-system. Both phases try to do as little work as possible, and try to run
-as much of the remaining work as possible in parallel, while still making
-sure that the file system images produced are reproducible (see the
-`--order` option documentation for details on reproducible images).
-
-### Scanning
-
-The scanning process is driven by the main thread which traverses the
-input directory recursively and builds an internal representation of the
-directory structure. Traversal is breadth-first and single-threaded.
-Filter rules as specified by `--filter` are handled immediately during
-traversal.
-
-When a regular file is discovered, its hardlink count is checked and
-if greater than one, its inode is looked up in a hardlink cache. Another
-lookup is performed to see if this is the first file/inode of a particular
-size. If it's the first file, we just keep track of the file. If it's not
-the first file, we add a job to a pool of `--num-scanner-workers` worker
-threads to compute a hash (which hash function is used is determined by
-the the `--file-hash` option) of the file. We also add a hash-computing
-job for the first file we found with this size earlier. These hashes will
-then be used for de-duplicating files. If `--order` is set to one of the
-similarity order modes, for each unique file, a further job is added to
-the pool to compute a similarity hash. This happens immediately for each
-inode of a unique size, but it is guaranteed that duplicates don't trigger
-another similarity hash scan (the implementation for this is actually a bit
-tricky).
-
-Once all file contents have been scanned by the worker threads, all
-unique files will be assigned an internal inode number.
-
-This behaviour can be customized. When using `--file-hash=none`,
-de-duplication is completely disabled. Using `--max-similarity-size`,
-it is possible to prevent computation of similarity hashes for huge
-files. These huge files will then be stored separately before all other
-files in the image.
-
-### Building
-
-Building the filesystem image uses a `--num-workers` separate threads.
-
-If `nilsimsa` ordering is selected, the ordering algorithm runs in its
-own thread and continuously emits file inodes. These will be picked up
-by the segmenter thread, which scans the inode contents using a cyclic
-hash and determines overlapping segments between previously written
-data and new incoming data. The segmenter will look at up to
-`--max-lookback-blocks` previous filesystem blocks to find overlaps.
-
-Once the segmenter has produced enough data to fill a filesystem
-block, the block is added to a queue where from which the blocks
-will be picked up by a pool of `--num-workers` worker threads whose
-only job is to compress the block using the `--compression` algorithm.
-
-Blocks that have been compressed will be added to the next queue,
-in the original order, and will be picked up by the filesystem writer
-thread that will ultimately produce the final filesystem image.
-
-When all data has been segmented, the filesystem metadata is being
-finalized and frozen into a compact representation. If metadata
-compression is enabled, the metadata is sent to the worker thread
-pool for compression.
-
-When using different ordering schemes, the file inodes will be
-either sorted upfront, or just sent to the segmenter in the order
-in which they were discovered.
-
-### Nilsimsa Ordering
-
-The actual ordering step for nilsimsa ordering uses a recursive
-divide-and-conquer approach in order for the algorithm to be both
-parallelizable and deterministic. In the following description, a
-"node" is typically equivalent to a "unique file", although that's
-not a requirement for the algorithm.
-
-1. Nodes are clustered by distance to centroids into up to `max-children`
-   clusters. With `max-children` set to 1, all nodes end up in the same
-   cluster. If `max-children` is larger than 1, a new cluster is created
-   as soon as all existing clusters are further away than a "maximum
-   distance" that gets smaller as recursion depth increases.
-
-2. After the nodes have been clustered, each cluster that is larger than
-   `max-cluster-size` is recursively clustered again with a smaller
-   "maximum distance" as per (1). These recursive clustering steps can
-   potentially run in parallel.
-
-3. As soon as a cluster is smaller than `max-cluster-size`, its nodes
-   will be ordered by performing a nearest neighbour search. Note that
-   this only happens for leaf clusters in the tree. The ordering of each
-   leaf cluster can also run parallel with clustering / ordering of other
-   clusters.
-
-4. Once all clustering / ordering is done, the nodes are "collected" from
-   the clusters in the tree. There is currently no similarity ordering
-   between individual clusters, but this is something that can be explored
-   further in the future.
-
-By setting `max-children` to 1 and `max-cluster-size` to a really large
-number, only a single cluster will be created and the nearest neighbour
-search will be performed on the set of all nodes. Since the algorithm is
-O(n^2), this does not scale well for `max-cluster-size` beyond a few
-100,000. Also, since the algorithm does not minimize the global distance
-between all nodes, there's no guarantee that the result will be better
-if you use only a single cluster.
-
-## AUTHOR
-
-Written by Marcus Holland-Moritz.
-
-## COPYRIGHT
-
-Copyright (C) Marcus Holland-Moritz.
-
-## SEE ALSO
-
-[dwarfs(1)](dwarfs.md), [dwarfsextract(1)](dwarfsextract.md), [dwarfsck(1)](dwarfsck.md), [dwarfs-format(5)](dwarfs-format.md), [dwarfs-env(7)](dwarfs-env.md)
+For detailed performance comparisons and benchmarking methodology, see
+[benchmark-metadata(7)](benchmark-metadata.md).

@@ -1,0 +1,43 @@
+vcpkg_from_github(
+    OUT_SOURCE_PATH SOURCE_PATH
+    REPO tamatebako/dwarfs
+    REF v${VERSION}
+    SHA512 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    HEAD_REF main
+)
+
+# Check if FUSE feature is enabled
+set(FUSE_DRIVER OFF)
+if("fuse" IN_LIST FEATURES)
+    set(FUSE_DRIVER ON)
+endif()
+
+vcpkg_cmake_configure(
+    SOURCE_PATH "${SOURCE_PATH}"
+    OPTIONS
+        -DWITH_LIBDWARFS=OFF
+        -DWITH_TOOLS=ON
+        -DWITH_FUSE_DRIVER=${FUSE_DRIVER}
+        -DWITH_TESTS=OFF
+        -DWITH_BENCHMARKS=OFF
+        -DDWARFS_WITH_FLATBUFFERS=ON
+        -DDWARFS_WITH_THRIFT=OFF
+)
+
+vcpkg_cmake_install()
+
+# Install tools
+set(TOOLS mkdwarfs dwarfsck dwarfsextract)
+if(FUSE_DRIVER)
+    list(APPEND TOOLS dwarfs)
+endif()
+
+vcpkg_copy_tools(TOOL_NAMES ${TOOLS} AUTO_CLEAN)
+
+file(REMOVE_RECURSE 
+    "${CURRENT_PACKAGES_DIR}/debug/bin"
+    "${CURRENT_PACKAGES_DIR}/debug/include"
+    "${CURRENT_PACKAGES_DIR}/debug/share"
+)
+
+vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE.GPL-3.0")

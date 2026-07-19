@@ -177,6 +177,7 @@ std::vector<dwarfs::detail::file_extent_info> file_reader::extents() const {
     auto rv = fs_.seek(inode, offset, whence, ec);
 
     if (ec) {
+      // ENXIO means no more sparse regions
       if (ec == std::errc::no_such_device_or_address) {
         break;
       }

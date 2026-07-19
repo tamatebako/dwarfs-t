@@ -47,7 +47,7 @@ constexpr sorted_array_map file_type_name{
     std::pair{fs::file_type::not_found, "not_found"sv},
     std::pair{fs::file_type::regular, "regular"sv},
     std::pair{fs::file_type::directory, "directory"sv},
-#ifdef _WIN32
+#if defined(_WIN32) && defined(_MSC_VER)
     std::pair{fs::file_type::junction, "junction"sv},
 #endif
     std::pair{fs::file_type::symlink, "symlink"sv},
@@ -60,7 +60,7 @@ constexpr sorted_array_map file_type_name{
 
 bool is_directory(fs::file_type ft) {
   return ft == fs::file_type::directory
-#ifdef _WIN32
+#if defined(_WIN32) && defined(_MSC_VER)
          || ft == fs::file_type::junction
 #endif
       ;

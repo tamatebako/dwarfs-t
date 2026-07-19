@@ -71,7 +71,7 @@ TEST_P(mkdwarfs_input_list_test, basic) {
   ASSERT_EQ(0, t.run(args)) << t.err();
 
   std::ostringstream oss;
-  t.add_stream_logger(oss, logger::DEBUG);
+  t.add_stream_logger(oss, LOGGER_LEVEL_DEBUG);
 
   auto fs = t.fs_from_file(image_file);
 
@@ -134,7 +134,7 @@ TEST_P(mkdwarfs_input_list_test, with_abs_input_dir) {
   }
 
   std::ostringstream oss;
-  t.add_stream_logger(oss, logger::DEBUG);
+  t.add_stream_logger(oss, LOGGER_LEVEL_DEBUG);
 
   auto fs = t.fs_from_file(image_file);
 
@@ -176,7 +176,7 @@ TEST(mkdwarfs_test, input_list_with_rel_input_dir) {
                   "skipping duplicate entry 'ipsum.py' in input list"));
 
   std::ostringstream oss;
-  t.add_stream_logger(oss, logger::DEBUG);
+  t.add_stream_logger(oss, LOGGER_LEVEL_DEBUG);
 
   auto fs = t.fs_from_file(image_file);
 
@@ -262,7 +262,7 @@ TEST(mkdwarfs_test, input_list_with_leading_dots_github292) {
                   "skipping duplicate entry 'ipsum.py' in input list"));
 
   std::ostringstream oss;
-  t.add_stream_logger(oss, logger::DEBUG);
+  t.add_stream_logger(oss, LOGGER_LEVEL_DEBUG);
 
   auto fs = t.fs_from_file(image_file);
 

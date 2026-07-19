@@ -37,16 +37,14 @@
 #include <vector>
 
 #ifdef _WIN32
-#include <folly/portability/Windows.h>
+#include <windows.h>
 #include <winioctl.h>
 #else
 #include <fcntl.h>
+#include <unistd.h>
 #endif
 
-#include <folly/portability/Unistd.h>
-
 #include <sys/stat.h>
-#include <sys/types.h>
 
 #include <fmt/format.h>
 
@@ -84,6 +82,11 @@ int utf8_len_of_print_name(WCHAR const* wstr, int wlen_chars) {
 
   int need = ::WideCharToMultiByte(CP_UTF8, 0, wstr, wlen_chars, nullptr, 0,
                                    nullptr, nullptr);
+  // Undef Windows min/max macros to avoid conflict with std::max
+#ifdef _MSC_VER
+#undef min
+#undef max
+#endif
   return std::max(0, need);
 };
 

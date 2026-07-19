@@ -29,8 +29,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <folly/String.h>
-
 #include <dwarfs/error.h>
 #include <dwarfs/util.h>
 
@@ -95,15 +93,27 @@ TEST(error_test, system_error) {
 
 TEST(error_test, dwarfs_check) {
   DWARFS_CHECK(true, "my test error");
+#ifdef _WIN32
+  GTEST_SKIP() << "Death tests are not reliable on Windows";
+#else
   EXPECT_DEATH(DWARFS_CHECK(false, "my test error"), "my test error");
+#endif
 }
 
 TEST(error_test, dwarfs_nothrow) {
   std::vector<int> v{1, 2, 3};
   EXPECT_EQ(3, DWARFS_NOTHROW(v.at(2)));
+#ifdef _WIN32
+  GTEST_SKIP() << "Death tests are not reliable on Windows";
+#else
   EXPECT_DEATH(DWARFS_NOTHROW(v.at(3)), "Expression `v.at\\(3\\)` threw .*");
+#endif
 }
 
 TEST(error_test, dwarfs_panic) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Death tests are not reliable on Windows";
+#else
   EXPECT_DEATH(DWARFS_PANIC("my test panic"), "my test panic");
+#endif
 }

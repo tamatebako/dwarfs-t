@@ -1,0 +1,18 @@
+# Build directories
+build/
+_deps/
+
+# DwarFS images (may be generated during build/test)
+*.dff
+*.dft
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
