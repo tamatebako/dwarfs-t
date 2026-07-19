@@ -229,7 +229,7 @@ shared_byte_buffer make_fits_image_data(
   std::mt19937_64 rng(42);
   std::uniform_int_distribution<uint16_t> noise(30000, 31000);
   
-  size_t pixels = width * height;
+  size_t pixels = static_cast<size_t>(width) * height;
   std::vector<uint16_t> data(components * pixels);
   
   uint16_t mask = static_cast<uint16_t>(0xFFFF << unused_lsb);

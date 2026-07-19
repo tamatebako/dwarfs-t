@@ -201,7 +201,7 @@ void Serializer::serialize_vector(
   if (elem_layout && !elem_layout->is_none() && !vec.empty()) {
     uint16_t elem_size = elem_layout->byte_size();
     size_t new_base = buf_.size();
-    buf_.resize(new_base + len * elem_size, 0);
+    buf_.resize(new_base + static_cast<size_t>(len) * elem_size, 0);
 
     Serializer elem_ser(elem_layout, buf_, static_cast<uint32_t>(new_base),
                         static_cast<uint32_t>(new_base));
