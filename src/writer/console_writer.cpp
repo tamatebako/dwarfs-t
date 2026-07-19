@@ -167,10 +167,11 @@ console_writer::console_writer(std::shared_ptr<terminal const> term,
                                std::ostream& os, options const& opts,
                                logger_options const& logger_opts)
     : stream_logger{std::move(term), os, logger_opts}
-    , opts_{opts} {}
+    , opts_{opts}
+    , fancy_{opts.progress == UNICODE || opts.progress == ASCII} {}
 
 void console_writer::rewind(std::ostream& os, int next_rewind_lines) {
-  if (!statebuf_.empty()) {
+  if (!statebuf_.empty() && fancy_) {
     auto& term = this->term();
     auto clear_line = term.clear_line();
     auto rewind_line = term.rewind_line();
@@ -194,13 +195,13 @@ void console_writer::rewind(std::ostream& os, int next_rewind_lines) {
 void console_writer::preamble(std::ostream& os) { rewind(os, rewind_lines_); }
 
 void console_writer::postamble(std::ostream& os) {
-  if (opts_.progress == UNICODE || opts_.progress == ASCII) {
+  if (fancy_) {
     os << statebuf_;
   }
 }
 
 std::string_view console_writer::get_newline() const {
-  return opts_.progress != NONE ? "\x1b[K\n" : "\n";
+  return fancy_ ? "\x1b[K\n" : "\n";
 }
 
 void console_writer::update(writer_progress& prog, bool last) {
@@ -213,8 +214,6 @@ void console_writer::update(writer_progress& prog, bool last) {
   std::ostringstream oss;
 
   lazy_value<size_t> width([this] { return term().width(); });
-
-  bool fancy = opts_.progress == ASCII || opts_.progress == UNICODE;
 
   auto update_chunk_size = [](internal::progress::scan_progress& sp) {
     if (auto usec = sp.usec.load(); usec > 10'000) {
@@ -243,8 +242,8 @@ void console_writer::update(writer_progress& prog, bool last) {
   update_chunk_size(p.similarity);
   update_chunk_size(p.categorize);
 
-  if (last || fancy) {
-    if (fancy) {
+  if (last || fancy_) {
+    if (fancy_) {
       for (size_t i = 0; i < width.get(); ++i) {
         oss << (opts_.progress == UNICODE ? "⎯" : "-");
       }
@@ -253,7 +252,7 @@ void console_writer::update(writer_progress& prog, bool last) {
 
     switch (opts_.display) {
     case NORMAL:
-      if (fancy) {
+      if (fancy_) {
         oss << term().colored(p.status(width.get()), termcolor::BOLD_CYAN,
                               log_is_colored())
             << newline;
