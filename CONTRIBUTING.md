@@ -19,8 +19,8 @@ Thank you for your interest in contributing to DwarFS! This document will help y
 
 ```bash
 # Clone with submodules
-git clone --recurse-submodules https://github.com/tamatebako/dwarfs.git
-cd dwarfs
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs-t.git
+cd dwarfs-t
 
 # Install vcpkg (one-time)
 git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg

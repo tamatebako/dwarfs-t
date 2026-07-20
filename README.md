@@ -1,4 +1,4 @@
-# DwarFS (Tebako Fork)
+# dwarfs-t
 
 > **dwarfs-t** is a permanent, tebako-hardened variant of [DwarFS](https://github.com/mhx/dwarfs),
 > maintained by the [tamatebako](https://github.com/tamatebako) project for the
@@ -8,15 +8,16 @@
 > This is **not a tracking fork**: upstream fixes are cherry-picked per release.
 > Releases are tagged `tebako-vX.Y.Z`.
 
-[![CI Main](https://github.com/tamatebako/dwarfs/actions/workflows/ci-main.yml/badge.svg)](https://github.com/tamatebako/dwarfs/actions/workflows/ci-main.yml)
-[![PR Validation](https://github.com/tamatebako/dwarfs/actions/workflows/pr-validation.yml/badge.svg)](https://github.com/tamatebako/dwarfs/actions/workflows/pr-validation.yml)
+[![CI Main](https://github.com/tamatebako/dwarfs-t/actions/workflows/ci-main.yml/badge.svg)](https://github.com/tamatebako/dwarfs-t/actions/workflows/ci-main.yml)
+[![PR Validation](https://github.com/tamatebako/dwarfs-t/actions/workflows/pr-validation.yml/badge.svg)](https://github.com/tamatebako/dwarfs-t/actions/workflows/pr-validation.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.GPL-3.0)
 
 A fast, high-compression, read-only filesystem with excellent metadata serialization flexibility.
 
-This is the **Tebako fork** of DwarFS, providing enhanced portability, extensive
-CI/CD coverage, and flexible metadata serialization options. For the original
-upstream DwarFS, see https://github.com/mhx/dwarfs.
+dwarfs-t is the tebako variant of DwarFS — see the declaration above. It
+provides enhanced portability, extensive CI/CD coverage, and flexible metadata
+serialization options. For the original upstream DwarFS, see
+https://github.com/mhx/dwarfs.
 
 **CI/CD**: See [.github/workflows/](.github/workflows/) for all workflows and [.github/README.md](.github/README.md) for CI/CD documentation.
 
@@ -500,7 +501,7 @@ dwarfs output.dff /mnt # ✅ Works
 
 #### From Binary
 
-Check the [Releases](https://github.com/tamatebako/dwarfs/releases) page for pre-built binaries.
+Check the [Releases](https://github.com/tamatebako/dwarfs-t/releases) page for pre-built binaries.
 
 #### From Source (Recommended: Unified Build System)
 
@@ -508,8 +509,8 @@ The **unified build system** provides one-step commands for building and testing
 
 ```bash
 # Clone repository
-git clone --recurse-submodules https://github.com/tamatebako/dwarfs
-cd dwarfs
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs-t
+cd dwarfs-t
 
 # One-time vcpkg setup
 git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
@@ -535,8 +536,8 @@ export VCPKG_ROOT="$HOME/vcpkg"
 
 ```bash
 # Clone repository
-git clone --recurse-submodules https://github.com/tamatebako/dwarfs
-cd dwarfs
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs-t
+cd dwarfs-t
 
 # Build FlatBuffers-only (recommended)
 cmake -B build -GNinja \
@@ -561,7 +562,7 @@ git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
 export VCPKG_ROOT="$HOME/vcpkg"
 
 # Build DwarFS
-cd dwarfs
+cd dwarfs-t
 ./scripts/build-all-and-test.sh --vcpkg
 ```
 
@@ -1018,8 +1019,8 @@ DwarFS includes a **production-ready unified build system** designed to simplify
 
 ```bash
 # Clone and setup
-git clone --recurse-submodules https://github.com/tamatebako/dwarfs.git
-cd dwarfs
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs-t.git
+cd dwarfs-t
 
 # One-time vcpkg setup
 git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
@@ -1417,7 +1418,7 @@ This is a fork maintained for Tebako project integration. For general DwarFS iss
 - **Upstream**: https://github.com/mhx/dwarfs
 
 For Tebako-specific or fork-specific issues:
-- **This fork**: https://github.com/tamatebako/dwarfs/issues
+- **This fork**: https://github.com/tamatebako/dwarfs-t/issues
 
 ### Development
 
@@ -1446,7 +1447,7 @@ DwarFS is licensed under the GNU General Public License v3.0. See [`LICENSE.GPL-
 
 ---
 
-**Repository**: https://github.com/tamatebako/dwarfs
+**Repository**: https://github.com/tamatebako/dwarfs-t
 **Upstream**: https://github.com/mhx/dwarfs
 **Documentation**: [`docs/`](docs/)
 
