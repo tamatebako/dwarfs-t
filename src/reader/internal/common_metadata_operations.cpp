@@ -1104,7 +1104,7 @@ chunk_range common_metadata_operations::get_chunks(int inode,
   return backend_adapter::make_chunk_range(domain_meta_, begin, end);
 }
 
-nlohmann::json common_metadata_operations::get_inode_info(inode_view iv,
+nlohmann::json common_metadata_operations::get_inode_info([[maybe_unused]] inode_view iv,
                                                            [[maybe_unused]] size_t max_chunks) const {
   // TODO: Implement get_inode_info using domain model
   return nlohmann::json::object();
