@@ -42,6 +42,14 @@ if(@DWARFS_HAVE_FLATBUFFERS@) # DWARFS_HAVE_FLATBUFFERS
   find_dependency(flatbuffers CONFIG REQUIRED)
 endif()
 
+# Dependency resolution is CMake-first with a pkg-config fallback for every
+# dependency that has a CMake config package: consumers without a pkg-config
+# tool (notably Windows) cannot run pkg_check_modules at all. Exported targets
+# record PkgConfig::<DEP> names when dwarfs was built against system libraries
+# via pkg-config, and the CMake config targets (OpenSSL::Crypto, lz4::lz4, ...)
+# when built via vcpkg, so where only the CMake target is available a
+# PkgConfig::<DEP> compatibility wrapper is created for those exports.
+
 # Try CMake config first, fall back to pkg-config
 find_package(xxHash CONFIG QUIET)
 if(NOT xxHash_FOUND)
@@ -54,18 +62,48 @@ if(NOT xxHash_FOUND)
     )
   endif()
 endif()
+if(NOT TARGET PkgConfig::XXHASH AND TARGET xxHash::xxhash)
+  add_library(PkgConfig::XXHASH INTERFACE IMPORTED)
+  set_target_properties(PkgConfig::XXHASH PROPERTIES
+    INTERFACE_LINK_LIBRARIES "xxHash::xxhash"
+  )
+endif()
 
 # For zstd, only use pkg-config fallback if CONFIG doesn't work
-# Don't create alias here - let Boost create it if needed
 find_package(zstd CONFIG QUIET)
 if(NOT zstd_FOUND)
   pkg_check_modules(ZSTD REQUIRED IMPORTED_TARGET libzstd>=@ZSTD_REQUIRED_VERSION@)
+endif()
+if(NOT TARGET PkgConfig::ZSTD)
+  # Use whichever zstd target is available (static or shared)
+  if(TARGET zstd::libzstd_static)
+    add_library(PkgConfig::ZSTD INTERFACE IMPORTED)
+    set_target_properties(PkgConfig::ZSTD PROPERTIES
+      INTERFACE_LINK_LIBRARIES "zstd::libzstd_static"
+    )
+  elseif(TARGET zstd::libzstd)
+    add_library(PkgConfig::ZSTD INTERFACE IMPORTED)
+    set_target_properties(PkgConfig::ZSTD PROPERTIES
+      INTERFACE_LINK_LIBRARIES "zstd::libzstd"
+    )
+  endif()
 endif()
 
 find_dependency(Boost @BOOST_REQUIRED_VERSION@ REQUIRED CONFIG
                 COMPONENTS chrono context filesystem program_options regex thread
                 OPTIONAL_COMPONENTS process system)
-pkg_check_modules(LIBCRYPTO REQUIRED IMPORTED_TARGET libcrypto>=@LIBCRYPTO_REQUIRED_VERSION@)
+# OpenSSL::Crypto comes from find_dependency(OpenSSL) above; only fall back
+# to pkg-config when that target is absent
+if(NOT TARGET PkgConfig::LIBCRYPTO)
+  if(TARGET OpenSSL::Crypto)
+    add_library(PkgConfig::LIBCRYPTO INTERFACE IMPORTED)
+    set_target_properties(PkgConfig::LIBCRYPTO PROPERTIES
+      INTERFACE_LINK_LIBRARIES "OpenSSL::Crypto"
+    )
+  else()
+    pkg_check_modules(LIBCRYPTO REQUIRED IMPORTED_TARGET libcrypto>=@LIBCRYPTO_REQUIRED_VERSION@)
+  endif()
+endif()
 # Prefer CMake's FindLibArchive module (matches the build's own vcpkg-mode
 # resolution and needs no libarchive.pc); fall back to pkg-config elsewhere
 find_package(LibArchive QUIET MODULE)
@@ -102,26 +140,93 @@ if(LIBDWARFS_WITH_CPPTRACE)
 endif()
 
 if(LIBDWARFS_WITH_LIBLZ4)
-  pkg_check_modules(LIBLZ4 REQUIRED IMPORTED_TARGET liblz4>=@LIBLZ4_REQUIRED_VERSION@)
+  # lz4::lz4 comes from find_dependency(lz4 CONFIG) above
+  if(NOT TARGET PkgConfig::LIBLZ4)
+    if(TARGET lz4::lz4)
+      add_library(PkgConfig::LIBLZ4 INTERFACE IMPORTED)
+      set_target_properties(PkgConfig::LIBLZ4 PROPERTIES
+        INTERFACE_LINK_LIBRARIES "lz4::lz4"
+      )
+    else()
+      pkg_check_modules(LIBLZ4 REQUIRED IMPORTED_TARGET liblz4>=@LIBLZ4_REQUIRED_VERSION@)
+    endif()
+  endif()
 endif()
 
 if(LIBDWARFS_WITH_LIBLZMA)
-  pkg_check_modules(LIBLZMA REQUIRED IMPORTED_TARGET liblzma>=@LIBLZMA_REQUIRED_VERSION@)
+  # liblzma::liblzma comes from find_dependency(liblzma CONFIG) above
+  if(NOT TARGET PkgConfig::LIBLZMA)
+    if(TARGET liblzma::liblzma)
+      add_library(PkgConfig::LIBLZMA INTERFACE IMPORTED)
+      set_target_properties(PkgConfig::LIBLZMA PROPERTIES
+        INTERFACE_LINK_LIBRARIES "liblzma::liblzma"
+      )
+    elseif(TARGET LibLZMA::LibLZMA)
+      add_library(PkgConfig::LIBLZMA INTERFACE IMPORTED)
+      set_target_properties(PkgConfig::LIBLZMA PROPERTIES
+        INTERFACE_LINK_LIBRARIES "LibLZMA::LibLZMA"
+      )
+    else()
+      pkg_check_modules(LIBLZMA REQUIRED IMPORTED_TARGET liblzma>=@LIBLZMA_REQUIRED_VERSION@)
+    endif()
+  endif()
 endif()
 
 if(LIBDWARFS_WITH_LIBBROTLI)
-  pkg_check_modules(LIBBROTLIDEC REQUIRED IMPORTED_TARGET libbrotlidec>=@LIBBROTLI_REQUIRED_VERSION@)
-  pkg_check_modules(LIBBROTLIENC REQUIRED IMPORTED_TARGET libbrotlienc>=@LIBBROTLI_REQUIRED_VERSION@)
+  # unofficial::brotli targets come from find_dependency(unofficial-brotli CONFIG) above
+  if(NOT TARGET PkgConfig::LIBBROTLIDEC)
+    if(TARGET unofficial::brotli::brotlidec)
+      add_library(PkgConfig::LIBBROTLIDEC INTERFACE IMPORTED)
+      set_target_properties(PkgConfig::LIBBROTLIDEC PROPERTIES
+        INTERFACE_LINK_LIBRARIES "unofficial::brotli::brotlidec"
+      )
+    else()
+      pkg_check_modules(LIBBROTLIDEC REQUIRED IMPORTED_TARGET libbrotlidec>=@LIBBROTLI_REQUIRED_VERSION@)
+    endif()
+  endif()
+  if(NOT TARGET PkgConfig::LIBBROTLIENC)
+    if(TARGET unofficial::brotli::brotlienc)
+      add_library(PkgConfig::LIBBROTLIENC INTERFACE IMPORTED)
+      set_target_properties(PkgConfig::LIBBROTLIENC PROPERTIES
+        INTERFACE_LINK_LIBRARIES "unofficial::brotli::brotlienc"
+      )
+    else()
+      pkg_check_modules(LIBBROTLIENC REQUIRED IMPORTED_TARGET libbrotlienc>=@LIBBROTLI_REQUIRED_VERSION@)
+    endif()
+  endif()
 endif()
 
 if(LIBDWARFS_WITH_FLAC)
-  pkg_check_modules(FLAC REQUIRED IMPORTED_TARGET flac++>=@FLAC_REQUIRED_VERSION@)
+  # FLAC::FLAC++ comes from find_dependency(FLAC CONFIG) above
+  if(NOT TARGET PkgConfig::FLAC)
+    if(TARGET FLAC::FLAC++)
+      add_library(PkgConfig::FLAC INTERFACE IMPORTED)
+      set_target_properties(PkgConfig::FLAC PROPERTIES
+        INTERFACE_LINK_LIBRARIES "FLAC::FLAC++"
+      )
+    else()
+      pkg_check_modules(FLAC REQUIRED IMPORTED_TARGET flac++>=@FLAC_REQUIRED_VERSION@)
+    endif()
+  endif()
 endif()
 
 if(LIBDWARFS_WITH_JEMALLOC)
   find_package(jemalloc CONFIG QUIET)
   if(NOT jemalloc_FOUND)
     pkg_check_modules(JEMALLOC REQUIRED IMPORTED_TARGET jemalloc>=@JEMALLOC_REQUIRED_VERSION@)
+  endif()
+  if(NOT TARGET PkgConfig::JEMALLOC)
+    if(TARGET jemalloc::jemalloc_static)
+      add_library(PkgConfig::JEMALLOC INTERFACE IMPORTED)
+      set_target_properties(PkgConfig::JEMALLOC PROPERTIES
+        INTERFACE_LINK_LIBRARIES "jemalloc::jemalloc_static"
+      )
+    elseif(TARGET jemalloc::jemalloc)
+      add_library(PkgConfig::JEMALLOC INTERFACE IMPORTED)
+      set_target_properties(PkgConfig::JEMALLOC PROPERTIES
+        INTERFACE_LINK_LIBRARIES "jemalloc::jemalloc"
+      )
+    endif()
   endif()
 endif()
 
