@@ -22,7 +22,10 @@ endif()
 
 find_dependency(Threads REQUIRED)
 find_dependency(fmt CONFIG REQUIRED)
-find_dependency(gflags CONFIG REQUIRED)
+# NOTE: no gflags dependency — dwarfs-t removed gflags from the build, so the
+# exported targets do not reference it. Requiring it here would force consumers
+# to provide an unused package (and breaks vcpkg consumers, where the runner
+# has no system gflags).
 find_dependency(OpenSSL REQUIRED)
 find_dependency(nlohmann_json CONFIG REQUIRED)
 find_dependency(lz4 CONFIG REQUIRED)
