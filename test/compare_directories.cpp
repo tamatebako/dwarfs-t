@@ -78,9 +78,19 @@ fs::file_type get_type(fs::path const& p, std::error_code& ec) {
   return ec ? fs::file_type::none : st.type();
 }
 
-std::unordered_set<fs::path>
+// std::hash<std::filesystem::path> is unavailable with some standard
+// library versions (e.g. newer libc++), so use the portable
+// std::filesystem::hash_value explicitly (mirrors fs_path_hash in
+// test_tool_main_tester.h)
+struct fs_path_hash {
+  auto operator()(fs::path const& p) const noexcept {
+    return fs::hash_value(p);
+  }
+};
+
+std::unordered_set<fs::path, fs_path_hash>
 get_dir_entries(fs::path const& dir, std::error_code& ec) {
-  std::unordered_set<fs::path> out;
+  std::unordered_set<fs::path, fs_path_hash> out;
   fs::directory_options opts = fs::directory_options::skip_permission_denied;
   for (fs::directory_iterator it(dir, opts, ec), end; !ec && it != end;
        it.increment(ec)) {
@@ -117,7 +127,7 @@ void compare_dirs_impl(fs::path const& left_root, fs::path const& right_root,
     });
   }
 
-  std::unordered_set<fs::path> all_files;
+  std::unordered_set<fs::path, fs_path_hash> all_files;
   all_files.insert(left_set.begin(), left_set.end());
   all_files.insert(right_set.begin(), right_set.end());
 
