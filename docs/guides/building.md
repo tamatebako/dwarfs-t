@@ -160,8 +160,8 @@ dwarfs/
 
 ```bash
 # Clone and setup
-git clone --recurse-submodules https://github.com/tamatebako/dwarfs.git
-cd dwarfs
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs-t.git
+cd dwarfs-t
 export VCPKG_ROOT="$HOME/vcpkg"  # One-time setup
 
 # Run everything

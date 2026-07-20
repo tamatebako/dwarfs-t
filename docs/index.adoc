@@ -51,8 +51,8 @@ sudo apt-get install -y cmake ninja-build libboost-all-dev \
   libssl-dev libzstd-dev libxxhash-dev libarchive-dev
 
 # Clone repository
-git clone --recurse-submodules https://github.com/tamatebako/dwarfs
-cd dwarfs
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs-t
+cd dwarfs-t
 
 # Build with FlatBuffers (recommended)
 cmake -B build -GNinja -DDWARFS_WITH_FLATBUFFERS=ON
@@ -114,9 +114,9 @@ ninja -C build
 
 === Repository
 
-* **GitHub**: https://github.com/tamatebako/dwarfs
-* **Issues**: https://github.com/tamatebako/dwarfs/issues
-* **Pull Requests**: https://github.com/tamatebako/dwarfs/pulls
+* **GitHub**: https://github.com/tamatebako/dwarfs-t
+* **Issues**: https://github.com/tamatebako/dwarfs-t/issues
+* **Pull Requests**: https://github.com/tamatebako/dwarfs-t/pulls
 
 === Original Project
 

@@ -63,8 +63,8 @@ DwarFS supports two build configurations:
 
 ```bash
 # 1. Clone repository
-git clone --recurse-submodules https://github.com/tamatebako/dwarfs.git
-cd dwarfs
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs-t.git
+cd dwarfs-t
 
 # 2. Install vcpkg
 git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
@@ -361,7 +361,7 @@ gh release view v0.9.0
 
 ```bash
 # Update Homebrew dwarfs formula
-brew bump-formula-pr --url=https://github.com/tamatebako/dwarfs/archive/refs/tags/v0.9.0.tar.gz
+brew bump-formula-pr --url=https://github.com/tamatebako/dwarfs-t/archive/refs/tags/v0.9.0.tar.gz
 ```
 
 #### 2. Update Documentation
@@ -514,7 +514,7 @@ Tebako-DwarFS extends DwarFS with Ruby integration:
 1. **Use DwarFS as submodule:**
 ```bash
 cd tebako
-git submodule add https://github.com/tamatebako/dwarfs.git ext/dwarfs
+git submodule add https://github.com/tamatebako/dwarfs-t.git ext/dwarfs
 ```
 
 2. **Build static library:**
@@ -551,7 +551,7 @@ create_makefile('tebako_dwarfs')
 # .github/workflows/tebako-ci.yml
 jobs:
   test:
-    uses: tamatebako/dwarfs/.github/workflows/_build-test-reusable.yml@main
+    uses: tamatebako/dwarfs-t/.github/workflows/_build-test-reusable.yml@main
     with:
       triplet: x64-linux-static
       config: flatbuffers
@@ -583,7 +583,7 @@ Tebako-DwarFS can use DwarFS CI workflows:
 # tebako-dwarfs/.github/workflows/ci.yml
 jobs:
   test:
-    uses: tamatebako/dwarfs/.github/workflows/_build-test-reusable.yml@main
+    uses: tamatebako/dwarfs-t/.github/workflows/_build-test-reusable.yml@main
     with:
       runner: ubuntu-latest
       triplet: ${{ matrix.triplet }}
@@ -628,7 +628,7 @@ jobs:
 - **BUILD_SYSTEM_ARCHITECTURE.md**: Build system details
 - **README.md**: Project overview
 - **CHANGELOG.md**: Version history
-- **GitHub**: https://github.com/tamatebako/dwarfs
+- **GitHub**: https://github.com/tamatebako/dwarfs-t
 
 ## Appendix
 

@@ -602,8 +602,8 @@ python benchmarks/comprehensive_benchmark.py ...
 
 ## Support
 
-- **Issues**: https://github.com/tamatebako/dwarfs/issues
-- **Discussions**: https://github.com/tamatebako/dwarfs/discussions
+- **Issues**: https://github.com/tamatebako/dwarfs-t/issues
+- **Discussions**: https://github.com/tamatebako/dwarfs-t/discussions
 - **Documentation**: See `doc/` directory
 
 ---

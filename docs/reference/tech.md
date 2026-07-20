@@ -90,8 +90,8 @@ sudo apt-get install -y ninja-build cmake \
   libarchive-dev libgtest-dev liblzma-dev
 
 # Clone with submodules
-git clone --recurse-submodules https://github.com/tamatebako/dwarfs
-cd dwarfs
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs-t
+cd dwarfs-t
 
 # Build
 mkdir build && cd build

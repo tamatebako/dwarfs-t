@@ -77,8 +77,8 @@ ctest --verbose
 
 ```bash
 # Clone repository (with submodules)
-git clone --recurse-submodules https://github.com/tamatebako/dwarfs.git
-cd dwarfs
+git clone --recurse-submodules https://github.com/tamatebako/dwarfs-t.git
+cd dwarfs-t
 
 # Install vcpkg (one-time setup)
 git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
