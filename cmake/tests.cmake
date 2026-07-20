@@ -120,6 +120,7 @@ if(WITH_TESTS)
     test/filesystem/filesystem_uid_gid_test.cpp
     test/filesystem/filesystem_basic_test.cpp
     test/filesystem/filesystem_operations_test.cpp
+    test/filesystem/filesystem_block_cache_test.cpp
   )
   target_link_libraries(dwarfs_filesystem_tests
     PRIVATE dwarfs_test_fixtures GTest::gtest_main
@@ -134,6 +135,33 @@ if(WITH_TESTS)
   # Use PRE_TEST discovery mode for cross-platform compatibility
   # (POST_BUILD can fail on Windows if DLLs aren't in PATH during build)
   gtest_discover_tests(dwarfs_filesystem_tests DISCOVERY_MODE PRE_TEST)
+
+  # Frozen2 string_table deserializer regression tests
+  # (see docs/issues/frozen2_string_table_issue.md)
+  # Registered here (not in metadata_serialization.cmake) because the
+  # deserializer pulls in fsst symbols and dwarfs_fsst is only defined
+  # after libdwarfs.cmake has been included.
+  add_executable(frozen2_string_table_regression_test
+    test/metadata/legacy/frozen2_string_table_regression_test.cpp
+  )
+
+  target_link_libraries(frozen2_string_table_regression_test
+    PRIVATE
+      dwarfs_metadata_legacy
+      dwarfs_fsst
+      GTest::gtest_main
+      GTest::gmock
+  )
+
+  add_test(
+    NAME frozen2_string_table_regression_test
+    COMMAND frozen2_string_table_regression_test
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  set_tests_properties(frozen2_string_table_regression_test
+    PROPERTIES LABELS "legacy;metadata;frozen2;regression"
+  )
 endif()
 
 # Additional libraries for compression benchmark
