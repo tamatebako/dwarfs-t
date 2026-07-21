@@ -386,6 +386,16 @@ void shorten_path_string(std::string& path, char separator, size_t max_len) {
 
 std::filesystem::path canonical_path(std::filesystem::path p) {
   if (!p.empty()) {
+#ifdef _WIN32
+    // Already extended-length prefixed: std::filesystem::canonical() cannot
+    // round-trip the \\?\ prefix on MinGW (it throws, and the absolute()
+    // fallback rebases the path onto the CWD drive, producing garbage like
+    // D:\?\D:\a\...). canonical_path() is applied more than once to image
+    // paths (loader and filesystem_v2 ctor), so it must be idempotent.
+    if (p.wstring().starts_with(L"\\\\?\\")) {
+      return p;
+    }
+#endif
     try {
       p = std::filesystem::canonical(p);
     } catch (std::filesystem::filesystem_error const&) {
