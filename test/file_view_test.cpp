@@ -50,6 +50,16 @@ using ::testing::StrictMock;
 
 namespace {
 
+// std::hash<std::filesystem::path> is unavailable with some standard
+// library versions (e.g. newer libc++), so use the portable
+// std::filesystem::hash_value explicitly (mirrors fs_path_hash in
+// test_tool_main_tester.h)
+struct fs_path_hash {
+  auto operator()(fs::path const& p) const noexcept {
+    return fs::hash_value(p);
+  }
+};
+
 class fake_mm_ops_lowlevel {
  public:
   struct fake_handle {
@@ -153,7 +163,7 @@ class fake_mm_ops_lowlevel {
   }
 
   size_t granularity_;
-  std::unordered_map<fs::path, handle_type> files_;
+  std::unordered_map<fs::path, handle_type, fs_path_hash> files_;
 };
 
 class mm_ops_lowlevel_mock {
