@@ -442,7 +442,7 @@ mappable_file::create(io_ops const& ops, std::filesystem::path const& path) {
   std::error_code ec;
   auto file = create(ops, path, ec);
   if (ec) {
-    throw std::system_error{ec, "create"};
+    throw std::system_error{ec, "create '" + path.generic_string() + "'"};
   }
   return file;
 }
