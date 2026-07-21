@@ -56,6 +56,7 @@ jobs:
       VCPKG_DEFAULT_TRIPLET: x64-mingw-static
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite
 
     defaults:
       run:
@@ -88,6 +89,14 @@ jobs:
           vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
           vcpkgJsonGlob: vcpkg-production.json
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+
+      # Per-package ABI cache: port/source bumps rebuild only the changed package.
+      - name: 💾 Cache vcpkg package archives
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-archives-${{ runner.os }}-x64-mingw-static-mingw-${{ hashFiles('vcpkg-production.json', 'vcpkg-configuration.json') }}
+          restore-keys: vcpkg-archives-${{ runner.os }}-x64-mingw-static-mingw-
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -127,6 +136,7 @@ jobs:
       VCPKG_DEFAULT_TRIPLET: x64-mingw-static
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/vcpkg_ports
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/vcpkg_triplets
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite
 
     defaults:
       run:
@@ -166,6 +176,14 @@ jobs:
           vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
           vcpkgJsonGlob: vcpkg-production.json
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
+
+      # Per-package ABI cache: port/source bumps rebuild only the changed package.
+      - name: 💾 Cache vcpkg package archives
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-archives-${{ runner.os }}-x64-mingw-static-msys-${{ hashFiles('vcpkg-production.json', 'vcpkg-configuration.json') }}
+          restore-keys: vcpkg-archives-${{ runner.os }}-x64-mingw-static-msys-
 
       - name: 🔨 Install CMake and Ninja
         uses: lukka/get-cmake@latest
