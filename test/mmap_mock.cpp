@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <variant>
@@ -81,12 +82,7 @@ class mmap_mock final : public detail::file_view_impl,
   file_segment segment_at(file_range range) const override;
 
   file_extents_iterable
-  extents(std::optional<file_range> range) const override {
-    if (!range.has_value()) {
-      range.emplace(0, size());
-    }
-    return file_extents_iterable(shared_from_this(), extents_, *range);
-  }
+  extents(std::optional<file_range> range) const override;
 
   bool supports_raw_bytes() const noexcept override {
     return supports_raw_bytes_;
@@ -261,6 +257,49 @@ file_segment mmap_mock::segment_at(file_range range) const {
 
   return file_segment(std::make_shared<mmap_mock_file_segment>(
       shared_from_this(), std::move(segment_data), range));
+}
+
+namespace {
+
+// Allocate (and immediately free) a bunch of blocks in the same malloc
+// size class as the buffer of a std::vector<detail::file_extent_info>
+// holding a single element, filling them with zeros. A zeroed
+// file_extent_info is a hole extent with an empty range, so reading it is
+// well-defined yet useless for locating a filesystem image.
+void poison_freed_extent_info_storage() {
+  std::vector<std::vector<char>> blocks;
+  for (size_t i = 0; i < 64; ++i) {
+    blocks.emplace_back(sizeof(detail::file_extent_info), '\0');
+  }
+}
+
+} // namespace
+
+file_extents_iterable
+mmap_mock::extents(std::optional<file_range> range) const {
+  if (!range.has_value()) {
+    range.emplace(0, size());
+  }
+
+  if (opts_.transient_extents) {
+    // Mimic libtfs' memory_file_view_impl (tebako): build the iterable
+    // from a function-local vector, so the span handed to
+    // file_extents_iterable dangles as soon as the vector is destroyed.
+    // In production, the freed block was nondeterministically reused by
+    // unrelated allocations before iteration, causing intermittent "no
+    // filesystem found" mount failures; poisoning makes any use of the
+    // dangling span deterministic here (sanitizers catch it regardless).
+    std::optional<file_extents_iterable> rv;
+    {
+      std::vector<detail::file_extent_info> extents;
+      extents.emplace_back(extent_kind::data, *range);
+      rv.emplace(shared_from_this(), extents, *range);
+    }
+    poison_freed_extent_info_storage();
+    return std::move(*rv);
+  }
+
+  return file_extents_iterable(shared_from_this(), extents_, *range);
 }
 
 void mmap_mock::copy_bytes(void* dest, file_range range,

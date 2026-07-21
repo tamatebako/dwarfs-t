@@ -35,6 +35,11 @@ namespace dwarfs::test {
 
 struct mock_file_view_options {
   std::optional<bool> support_raw_bytes;
+  // Mimic libtfs' memory_file_view_impl (tebako), which implements
+  // extents() by handing file_extents_iterable a span into function-local
+  // storage, and poison the freed storage so that any use of the dangling
+  // span deterministically observes garbage (see mmap_mock.cpp).
+  bool transient_extents{false};
 };
 
 file_view

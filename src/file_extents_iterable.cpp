@@ -38,21 +38,24 @@ file_extents_iterable::file_extents_iterable(
     std::shared_ptr<detail::file_view_impl const> fv,
     std::span<detail::file_extent_info const> extents, file_range range)
     : fv_{std::move(fv)}
-    , extents_{extents}
+    , extents_{std::make_shared<
+          std::vector<detail::file_extent_info> const>(extents.begin(),
+                                                       extents.end())}
     , range_{range} {}
 
 file_extents_iterable::iterator::iterator(
     std::shared_ptr<detail::file_view_impl const> fv,
-    std::span<detail::file_extent_info const> extents, file_range range)
+    std::shared_ptr<std::vector<detail::file_extent_info> const> extents,
+    file_range range)
     : fv_{std::move(fv)}
     , end_offset_{range.end()}
-    , extents_{extents}
-    , it_{extents_.begin()} {
+    , extents_{std::move(extents)}
+    , it_{extents_->begin()} {
   if (!range.empty()) {
-    while (it_ != extents_.end() && it_->range.end() <= range.offset()) {
+    while (it_ != extents_->end() && it_->range.end() <= range.offset()) {
       ++it_;
     }
-    if (it_ != extents_.end()) {
+    if (it_ != extents_->end()) {
       auto ext = *it_;
       ext.range =
           file_range{range.offset(),
@@ -60,7 +63,7 @@ file_extents_iterable::iterator::iterator(
       cur_ = file_extent{fv_, ext};
     }
   } else {
-    it_ = extents_.end();
+    it_ = extents_->end();
     fv_.reset();
     cur_ = file_extent{};
   }
@@ -68,7 +71,7 @@ file_extents_iterable::iterator::iterator(
 
 auto file_extents_iterable::iterator::operator++() -> iterator& {
   ++it_;
-  if (it_ != extents_.end() && it_->range.offset() < end_offset_) {
+  if (it_ != extents_->end() && it_->range.offset() < end_offset_) {
     auto ext = *it_;
     if (ext.range.end() > end_offset_) {
       ext.range =
@@ -77,7 +80,7 @@ auto file_extents_iterable::iterator::operator++() -> iterator& {
     assert(fv_);
     cur_ = file_extent{fv_, ext};
   } else {
-    it_ = extents_.end();
+    it_ = extents_->end();
     fv_.reset();
     cur_ = file_extent{};
   }

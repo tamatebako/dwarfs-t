@@ -37,7 +37,12 @@
 #include <dwarfs/internal/mappable_file.h>
 #include <dwarfs/internal/mmap_file_view.h>
 
+#include <dwarfs/reader/filesystem_options.h>
+#include <dwarfs/reader/internal/filesystem_parser.h>
+
 #include "mmap_mock.h"
+#include "test_helpers.h"
+#include "test_logger.h"
 
 using namespace dwarfs;
 using namespace dwarfs::binary_literals;
@@ -363,6 +368,60 @@ TEST(mock_file_view, basic) {
                          [](auto b) { return static_cast<char>(b); });
 
   EXPECT_EQ(raw_str, "Hello, World!");
+}
+
+TEST(filesystem_parser, find_image_offset_transient_extents) {
+  // Regression test for the nondeterministic "no filesystem found" failure
+  // when mounting a dwarfs image from memory with image_offset="auto"
+  // (tebako/libtfs): memory_file_view_impl::extents() handed
+  // file_extents_iterable a span into function-local storage, so
+  // find_image_offset iterated freed heap. Depending on heap reuse, the
+  // first extent looked like a hole or a tiny range and the header scan
+  // never ran. The transient_extents mock reproduces that access pattern
+  // and poisons the freed storage, so this fails on the first iteration
+  // without the fix and must pass 100/100 with it.
+  test::test_logger lgr;
+
+  std::string image;
+  {
+    auto mm = test::make_real_file_view(fs::path{TEST_DATA_DIR} /
+                                        "unixlink.dwarfs");
+    image = mm.read_string(0, mm.size());
+  }
+
+  for (int i = 0; i < 100; ++i) {
+    auto view = test::make_mock_file_view(
+        image, test::mock_file_view_options{.transient_extents = true});
+    std::optional<reader::internal::filesystem_parser> parser;
+    ASSERT_NO_THROW(parser.emplace(
+        lgr, view, reader::filesystem_options::IMAGE_OFFSET_AUTO))
+        << "iteration " << i;
+    EXPECT_EQ(0, parser->image_offset()) << "iteration " << i;
+  }
+}
+
+TEST(mock_file_view, transient_extents_storage) {
+  // Regression test for a use-after-free in file_extents_iterable: libtfs
+  // (tebako) implements file_view_impl::extents() by handing the iterable
+  // a span into a function-local std::vector, so the iterable used to
+  // iterate freed heap storage. Depending on heap reuse, mounting a dwarfs
+  // image from memory with image_offset="auto" then failed
+  // nondeterministically with "no filesystem found". The iterable must own
+  // a copy of the extents; the transient_extents option reproduces the
+  // libtfs access pattern and poisons the freed storage, so this test
+  // deterministically fails without the fix.
+  auto view = test::make_mock_file_view(
+      "Hello, World!"s,
+      test::mock_file_view_options{.support_raw_bytes = true,
+                                   .transient_extents = true});
+
+  std::vector<dwarfs::detail::file_extent_info> exts;
+  for (auto const& ext : view.extents()) {
+    exts.emplace_back(ext.kind(), ext.range());
+  }
+
+  EXPECT_THAT(exts, testing::ElementsAre(dwarfs::detail::file_extent_info{
+                        extent_kind::data, {0, 13}}));
 }
 
 TEST(mock_file_view, extents) {

@@ -29,7 +29,9 @@
 #pragma once
 
 #include <iterator>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include <dwarfs/file_extent.h>
 
@@ -41,6 +43,11 @@ class file_view_impl;
 
 class file_extents_iterable {
  public:
+  // The iterable owns a copy of `extents`, so the caller's storage only
+  // needs to stay valid for the duration of the constructor call. This is
+  // deliberate: implementations have handed us spans into function-local
+  // storage (libtfs' memory_file_view_impl in tebako), which turned
+  // iteration into a nondeterministic use-after-free.
   file_extents_iterable(std::shared_ptr<detail::file_view_impl const> fv,
                         std::span<detail::file_extent_info const> extents,
                         file_range range);
@@ -54,9 +61,10 @@ class file_extents_iterable {
     using pointer = file_extent const*;
 
     iterator() = default;
-    iterator(std::shared_ptr<detail::file_view_impl const> fv,
-             std::span<detail::file_extent_info const> extents,
-             file_range range);
+    iterator(
+        std::shared_ptr<detail::file_view_impl const> fv,
+        std::shared_ptr<std::vector<detail::file_extent_info> const> extents,
+        file_range range);
 
     reference operator*() const noexcept { return cur_; }
     pointer operator->() const noexcept { return &cur_; }
@@ -70,7 +78,7 @@ class file_extents_iterable {
     }
 
     friend bool operator==(iterator const& a, std::default_sentinel_t) {
-      return a.it_ == a.extents_.end();
+      return !a.extents_ || a.it_ == a.extents_->end();
     }
 
     friend bool operator!=(iterator const& a, std::default_sentinel_t s) {
@@ -81,22 +89,22 @@ class file_extents_iterable {
     std::shared_ptr<detail::file_view_impl const> fv_;
     file_extent cur_;
     file_off_t end_offset_{0};
-    std::span<detail::file_extent_info const> extents_;
-    std::span<detail::file_extent_info const>::iterator it_;
+    std::shared_ptr<std::vector<detail::file_extent_info> const> extents_;
+    std::vector<detail::file_extent_info>::const_iterator it_;
   };
 
   static_assert(std::input_iterator<iterator>);
 
-  iterator begin() const noexcept { return iterator{fv_, extents_, range_}; }
+  iterator begin() const { return iterator{fv_, extents_, range_}; }
   std::default_sentinel_t end() const noexcept { return {}; }
 
-  size_t size() const noexcept { return extents_.size(); }
+  size_t size() const noexcept { return extents_->size(); }
 
   std::string as_string() const;
 
  private:
   std::shared_ptr<detail::file_view_impl const> fv_;
-  std::span<detail::file_extent_info const> extents_;
+  std::shared_ptr<std::vector<detail::file_extent_info> const> extents_;
   file_range range_;
 };
 
