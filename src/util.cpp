@@ -393,6 +393,10 @@ std::filesystem::path canonical_path(std::filesystem::path p) {
     }
 
 #ifdef _WIN32
+    // MinGW's std::filesystem::canonical()/absolute() keep forward slashes,
+    // but the \\?\ prefix disables Win32 path normalization, so CreateFileW
+    // would fail with ERROR_INVALID_NAME. Force native separators first.
+    p.make_preferred();
     if (auto wstr = p.wstring(); !wstr.starts_with(L"\\\\")) {
       p = std::filesystem::path(L"\\\\?\\" + wstr);
     }
