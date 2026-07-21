@@ -90,7 +90,7 @@ int utf8_len_of_print_name(WCHAR const* wstr, int wlen_chars) {
   return std::max(0, need);
 };
 
-bool is_executable(fs::path const& path) {
+bool is_executable(fs::path const& path, HANDLE h) {
   static constexpr std::array executable_exts{
       std::wstring_view{L".exe"},
       std::wstring_view{L".com"},
@@ -98,9 +98,23 @@ bool is_executable(fs::path const& path) {
       std::wstring_view{L".cmd"},
   };
 
-  return std::ranges::any_of(
-      executable_exts,
-      [ext = path.extension().wstring()](auto const& e) { return ext == e; });
+  if (std::ranges::any_of(
+          executable_exts,
+          [ext = path.extension().wstring()](auto const& e) { return ext == e; })) {
+    return true;
+  }
+
+  // NTFS has no x bit; Cygwin/MSYS2 additionally treat scripts with a
+  // shebang as executable, so sniff the first two bytes (h is GENERIC_READ).
+  char magic[2];
+  DWORD read = 0;
+  if (::ReadFile(h, magic, sizeof(magic), &read, nullptr) &&
+      read == sizeof(magic)) {
+    ::SetFilePointer(h, 0, nullptr, FILE_BEGIN);
+    return magic[0] == '#' && magic[1] == '!';
+  }
+
+  return false;
 }
 
 file_stat::off_type
@@ -330,7 +344,7 @@ file_stat::file_stat(fs::path const& path) {
   } else {
     mode_ = posix_file_type::regular;
     mode_ |= is_readonly ? 0444 : 0644;
-    if (is_executable(path)) {
+    if (is_executable(path, h)) {
       mode_ |= 0111;
     }
   }
