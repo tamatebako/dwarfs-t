@@ -142,6 +142,15 @@ class domain_metadata_impl : public metadata_v2::impl {
   int inode_offset_;
   int file_inode_offset_;  // Calculated offset to first regular file inode
 
+  // Number of regular file inodes with unique content. Inodes with a
+  // regular-file index >= num_unique_files_ are shared (duplicate content)
+  // files whose chunk table index must be resolved via shared_files_.
+  uint32_t num_unique_files_{0};
+
+  // Unpacked shared files table. For each shared file, this maps
+  // `reg_inode_num - num_unique_files_` to `chunk_table_index - num_unique_files_`.
+  std::vector<uint32_t> shared_files_;
+
   // UID/GID override options from metadata_options
   std::optional<file_stat::uid_type> fs_uid_override_;
   std::optional<file_stat::gid_type> fs_gid_override_;
@@ -164,9 +173,11 @@ class domain_metadata_impl : public metadata_v2::impl {
   // Helper: Get file size for inode with both index and num for legacy images
   file_off_t get_file_size(uint32_t inode_index, uint32_t inode_num) const;
 
-  // Helper: Convert file inode number to chunk table index
-  // This handles the mapping from file inode (as stored in dir_entries) to
-  // the chunk_table index, accounting for legacy writer bugs and shared files
+  // Helper: Convert file inode number to chunk table index.
+  //
+  // `inode` is the index into the inodes table. Unique-content files map to
+  // `inode - file_inode_offset_` directly; shared (duplicate content) files
+  // are resolved through shared_files_ as documented in the metadata schema.
   uint32_t file_inode_to_chunk_index(int inode) const;
 
   // Helper: Check if inode is directory

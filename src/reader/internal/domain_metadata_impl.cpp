@@ -170,6 +170,39 @@ domain_metadata_impl::domain_metadata_impl(
   if (!meta_) {
     DWARFS_THROW(runtime_error, "metadata cannot be null");
   }
+
+  // Compute the number of regular file inodes with unique content and the
+  // unpacked shared files table. The chunk table has one entry per unique
+  // file *content* (unique files plus one entry per distinct duplicate
+  // content), plus a sentinel.
+  size_t const num_chunked =
+      meta_->chunk_table.empty() ? 0 : meta_->chunk_table.size() - 1;
+  size_t num_distinct_duplicates{0};
+
+  if (meta_->shared_files_table && !meta_->shared_files_table->empty()) {
+    bool const packed =
+        meta_->options && meta_->options->packed_shared_files_table;
+
+    if (packed) {
+      // Packed format: entry i holds the number of files sharing duplicate
+      // content i, minus 2. Unpack to the full mapping.
+      auto const& sf = *meta_->shared_files_table;
+      for (uint32_t i = 0; i < sf.size(); ++i) {
+        shared_files_.insert(shared_files_.end(), sf[i] + 2, i);
+      }
+      num_distinct_duplicates = sf.size();
+    } else {
+      shared_files_ = *meta_->shared_files_table;
+      // The table is sorted and holds each distinct duplicate content index
+      // at least twice, so back() + 1 is the number of distinct duplicates.
+      num_distinct_duplicates = shared_files_.back() + 1;
+    }
+  }
+
+  num_unique_files_ = num_chunked > num_distinct_duplicates
+                          ? static_cast<uint32_t>(num_chunked -
+                                                  num_distinct_duplicates)
+                          : 0;
 }
 
 // ========== Helper Methods ==========
@@ -206,83 +239,49 @@ dir_entry_view domain_metadata_impl::make_dir_entry_view(
 // ========== Helper Methods ==========
 
 uint32_t domain_metadata_impl::file_inode_to_chunk_index(int inode) const {
-  // Convert file inode number to chunk table index
-  // This handles shared files and ensures correct chunk access
+  // Convert a file inode number to a chunk table index.
   //
-  // For modern images:
-  // - open() returns inode_num directly (the absolute inode number)
-  // - We need to convert to chunk_table_index = sequential position of regular files (0, 1, 2, ...)
-  // - The chunk_table is indexed by the sequential position of regular files, NOT by inode_num
+  // For modern images (with dir_entries), `inode` is the index into the
+  // inodes table. Regular file inodes are stored contiguously starting at
+  // file_inode_offset_: first the unique-content files, then the shared
+  // (duplicate content) files.
   //
-  // CRITICAL: When file hashing is enabled, regular file inodes are NOT contiguous!
-  // For example: inodes might be [4=loremipsum, 6=empty, 9=bar.pl/baz.pl/foo.pl]
-  // So we can't use "inode_num - file_inode_offset_" as the chunk_table_index.
+  // Following the metadata format specification, the chunk table index is:
   //
-  // SOLUTION: Use the reg_file_size_cache that was built by the writer.
-  // The cache maps inode_num -> size, and we can infer the chunk_table_index
-  // from the cache keys' order. We find the position of this inode_num
-  // among the cache keys to get the chunk_table_index.
-
-  uint32_t inode_num = static_cast<uint32_t>(inode);
-
-  // Handle shared files if present
-  // In DwarFS, file inodes beyond unique_files_ are shared files
-  // The shared_files_table maps shared file inodes to original file inodes
-  if (meta_->shared_files_table && inode_num >= static_cast<uint32_t>(meta_->inodes.size() + inode_offset_)) {
-    // This is a shared file inode, look up the original file inode
-    uint32_t shared_index = inode_num - (meta_->inodes.size() + inode_offset_);
-    if (shared_index < meta_->shared_files_table->size()) {
-      inode_num = (*meta_->shared_files_table)[shared_index] + inode_offset_;
-    }
+  //   - inode - file_inode_offset_            for unique file inodes
+  //   - shared_files_[reg - num_unique_files_]
+  //         + num_unique_files_               for shared file inodes
+  //
+  // where reg = inode - file_inode_offset_.
+  if (inode < file_inode_offset_) {
+    // Not a regular file inode.
+    return 0;
   }
 
-  // For modern images with dir_entries, calculate chunk_table_index by counting
-  // unique regular file sizes up to the target inode_num.
-  // The chunk_table is indexed by unique FILE CONTENT (deduplicated by size),
-  // NOT by unique inodes. Files with identical content share the same chunk_table_index.
-  // We CANNOT use the reg_file_size_cache because the writer's cache building logic
-  // creates entries for ALL inode_nums in the range [reg_offset, dev_offset),
-  // even if they don't correspond to actual directory entries.
-  if (meta_->dir_entries && inode_num >= static_cast<uint32_t>(file_inode_offset_)) {
-    uint32_t chunk_table_index = 0;
-    std::optional<uint64_t> prev_size;
+  uint32_t const reg =
+      static_cast<uint32_t>(inode) - static_cast<uint32_t>(file_inode_offset_);
 
-    // Count unique file sizes in order (by inode number)
-    // This matches how the writer constructs the chunk_table based on deduplication
-    for (uint32_t i = file_inode_offset_; i < meta_->inodes.size(); ++i) {
-      auto const& inode_entry = meta_->inodes[i];
-      if (inode_entry.mode_index < meta_->modes.size()) {
-        uint32_t mode = meta_->modes[inode_entry.mode_index];
-        if ((mode & 0170000) == 0100000) {  // S_IFREG
-          // Get file size for this inode
-          uint64_t size = 0;
-          if (meta_->reg_file_size_cache) {
-            auto it = meta_->reg_file_size_cache->size_lookup.find(i);
-            if (it != meta_->reg_file_size_cache->size_lookup.end()) {
-              size = it->second;
-            }
-          }
-
-          // Check if this is a new unique file size
-          bool is_new_size = !prev_size.has_value() || size != *prev_size;
-
-          if (i == inode_num) {
-            // Found the target inode
-            return chunk_table_index;
-          }
-
-          // Only increment chunk_table_index for unique file sizes (content deduplication)
-          if (is_new_size) {
-            ++chunk_table_index;
-            prev_size = size;
-          }
-        }
-      }
-    }
+  if (reg < num_unique_files_) {
+    // Unique-content file: chunk table is indexed directly by reg.
+    return reg;
   }
 
-  // Fallback: Return 0 (shouldn't happen for valid regular files)
-  return 0;
+  uint32_t const shared_index = reg - num_unique_files_;
+
+  if (shared_index < shared_files_.size()) {
+    // Shared (duplicate content) file: resolve via shared files table.
+    return num_unique_files_ + shared_files_[shared_index];
+  }
+
+  // Fallback for images without dir_entries/shared files information:
+  // preserve the historical behavior of returning 0.
+  if (!meta_->dir_entries) {
+    return 0;
+  }
+
+  // Out-of-range regular file inode on a modern image; return reg and let
+  // the caller's bounds check deal with it.
+  return reg;
 }
 
 // ========== File Size ==========
@@ -375,11 +374,10 @@ file_off_t domain_metadata_impl::get_file_size(uint32_t inode_index,
   file_off_t chunk_based_size = 0;
 
   if (meta_->dir_entries && !meta_->chunk_table.empty()) {
-    // Modern format: chunk_table_index = reg_inode_num = inode_num - file_inode_offset_
-    // This matches the writer's logic: chunk_table_index = reg_inode_num
-    uint32_t chunk_table_index = (inode_num >= static_cast<uint32_t>(file_inode_offset_))
-        ? (inode_num - file_inode_offset_)
-        : 0;
+    // Modern format: resolve the chunk table index exactly as get_chunks()
+    // does, including shared (duplicate content) files.
+    uint32_t chunk_table_index =
+        file_inode_to_chunk_index(static_cast<int>(inode_num));
 
     // CRITICAL FIX: Only use chunk_table if the index is valid!
     // Files that don't meet min_chunk_count won't have chunk_table entries.
@@ -1576,8 +1574,7 @@ nlohmann::json domain_metadata_impl::entry_to_json(dir_entry_view entry, bool is
         auto dir = *dir_opt;
         size_t num_entries = dirsize(dir);
 
-        // Skip . (index 0) and .. (index 1)
-        for (size_t i = 2; i < num_entries; ++i) {
+        for (size_t i = 0; i < num_entries; ++i) {
           auto child_opt = readdir(dir, i);
           if (child_opt) {
             j["inodes"].push_back(entry_to_json(*child_opt, false));

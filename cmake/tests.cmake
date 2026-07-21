@@ -304,6 +304,18 @@ if(WITH_TESTS)
   endif()
   gtest_discover_tests(dwarfs_unit_tests DISCOVERY_TIMEOUT 60 DISCOVERY_MODE PRE_TEST)
 
+  # Tool tests - mkdwarfs write/read roundtrip regression tests
+  if(TARGET dwarfs_tool_main_tester)
+    add_executable(dwarfs_tool_tests
+      test/tool_mkdwarfs_dedup_test.cpp
+    )
+    target_link_libraries(dwarfs_tool_tests
+      PRIVATE dwarfs_tool_main_tester GTest::gtest_main GTest::gmock
+              PkgConfig::LIBARCHIVE
+    )
+    gtest_discover_tests(dwarfs_tool_tests DISCOVERY_TIMEOUT 60 DISCOVERY_MODE PRE_TEST)
+  endif()
+
   # Categorizer tests require folly
   if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     add_executable(dwarfs_categorizer_tests
@@ -361,6 +373,7 @@ if(WITH_TESTS)
     dwarfs_filter_tests
     dwarfs_compression_tests
     dwarfs_unit_tests
+    dwarfs_tool_tests
     dwarfs_categorizer_tests
     dwarfs_expensive_tests
     dwarfs_compressor_tests
