@@ -616,7 +616,9 @@ int mkdwarfs_main(int argc, sys_char** argv, iolayer const& iol) {
       return 1;
     }
 
-    output = iol.file->open_output(output_path, ec);
+    // The filesystem image is binary data: open the output in binary mode so
+    // 0x0A bytes are not CRLF-mangled by text-mode streams on Windows
+    output = iol.file->open_output_binary(output_path, ec);
     if (ec) {
       iol.err << "error: cannot open output file: " << ec.message() << "\n";
       return 1;
