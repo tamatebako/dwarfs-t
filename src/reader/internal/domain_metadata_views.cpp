@@ -217,8 +217,11 @@ bool domain_inode_view_impl::is_directory() const {
 
 domain_dir_entry_view_impl::domain_dir_entry_view_impl(
     metadata::domain::metadata const& meta, uint32_t self_index,
-    uint32_t parent_index)
-    : meta_{meta}, self_index_{self_index}, parent_index_{parent_index} {
+    uint32_t parent_index, std::optional<std::string> name_override)
+    : meta_{meta},
+      self_index_{self_index},
+      parent_index_{parent_index},
+      name_override_{std::move(name_override)} {
 }
 
 // Helper method to read name by index (handles both legacy names and compact_names)
@@ -247,6 +250,11 @@ std::string domain_dir_entry_view_impl::name_at(uint32_t index) const {
 }
 
 std::string domain_dir_entry_view_impl::name() const {
+  // Synthesized entries ("." / "..") carry an explicit name
+  if (name_override_) {
+    return *name_override_;
+  }
+
   // For legacy format (no dir_entries), names are indexed directly by entry index
   if (!meta_.dir_entries) {
     return name_at(self_index_);

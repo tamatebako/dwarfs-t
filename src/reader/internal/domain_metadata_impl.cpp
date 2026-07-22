@@ -230,9 +230,10 @@ inode_view domain_metadata_impl::make_inode_view(uint32_t inode_index,
 }
 
 dir_entry_view domain_metadata_impl::make_dir_entry_view(
-    uint32_t self_index, uint32_t parent_index) const {
+    uint32_t self_index, uint32_t parent_index,
+    std::optional<std::string> name_override) const {
   auto impl = std::make_shared<domain_dir_entry_view_impl>(
-      *meta_, self_index, parent_index);
+      *meta_, self_index, parent_index, std::move(name_override));
   return dir_entry_view{impl};
 }
 
@@ -1094,29 +1095,62 @@ std::optional<dir_entry_view> domain_metadata_impl::readdir(
     directory_view dir, size_t offset) const {
   auto range = dir.entry_range();
 
-  if (offset >= range.size()) {
+  // Directory streams lead with synthesized "." and ".." entries, matching
+  // the common_metadata_operations path and the POSIX readdir semantics
+  // consumers (e.g. ruby's Dir.read) rely on; real entries follow,
+  // shifted by two. Directory inodes index the directories table directly.
+  uint32_t dir_inode = dir.inode();
+  if (dir_inode >= meta_->directories.size()) {
     return std::nullopt;
   }
 
-  uint32_t entry_index = range.front() + offset;
-
-  if (meta_->dir_entries && entry_index < meta_->dir_entries->size()) {
-    // Find parent index by looking up which directory contains this entry
-    uint32_t parent_index = 0;
-    for (size_t dir_idx = 0; dir_idx < meta_->directories.size(); ++dir_idx) {
-      if (entry_index >= meta_->directories[dir_idx].first_entry()) {
-        parent_index = meta_->directories[dir_idx].parent_entry();
-      }
-    }
-    auto view = make_dir_entry_view(entry_index, parent_index);
-    return view;
+  switch (offset) {
+  case 0: {
+    // "." — the directory itself
+    uint32_t self_idx = meta_->dir_entries
+                            ? meta_->directories[dir_inode].self_entry()
+                            : dir_inode;
+    return make_dir_entry_view(self_idx, self_idx, ".");
   }
 
-  return std::nullopt;
+  case 1: {
+    // ".." — the parent directory. parent_entry records the parent's own
+    // entry; for the root this is self-referential.
+    uint32_t parent_self = meta_->directories[dir_inode].parent_entry();
+    uint32_t self_idx = meta_->dir_entries
+                            ? meta_->directories[dir_inode].self_entry()
+                            : dir_inode;
+    return make_dir_entry_view(parent_self, self_idx, "..");
+  }
+
+  default:
+    offset -= 2;
+
+    if (offset >= range.size()) {
+      return std::nullopt;
+    }
+
+    uint32_t entry_index = range.front() + offset;
+
+    if (meta_->dir_entries && entry_index < meta_->dir_entries->size()) {
+      // Find parent index by looking up which directory contains this entry
+      uint32_t parent_index = 0;
+      for (size_t dir_idx = 0; dir_idx < meta_->directories.size(); ++dir_idx) {
+        if (entry_index >= meta_->directories[dir_idx].first_entry()) {
+          parent_index = meta_->directories[dir_idx].parent_entry();
+        }
+      }
+      auto view = make_dir_entry_view(entry_index, parent_index);
+      return view;
+    }
+
+    return std::nullopt;
+  }
 }
 
 size_t domain_metadata_impl::dirsize(directory_view dir) const {
-  return dir.entry_count();
+  // +2 for the synthesized "." and ".." entries (see readdir)
+  return dir.entry_count() + 2;
 }
 
 // ========== Special Files ==========
@@ -1564,7 +1598,9 @@ nlohmann::json domain_metadata_impl::entry_to_json(dir_entry_view entry, bool is
         auto dir = *dir_opt;
         size_t num_entries = dirsize(dir);
 
-        for (size_t i = 0; i < num_entries; ++i) {
+        // Skip the synthesized "." and ".." entries (see readdir): they are
+        // not real children and would recurse into the directory itself.
+        for (size_t i = 2; i < num_entries; ++i) {
           auto child_opt = readdir(dir, i);
           if (child_opt) {
             j["inodes"].push_back(entry_to_json(*child_opt, false));
