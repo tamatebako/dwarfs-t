@@ -44,9 +44,16 @@ namespace detail {
 template <std::unsigned_integral T>
 [[nodiscard]] RICEPP_FORCE_INLINE constexpr T
 byteswap_fallback(T value) noexcept {
-  auto value_repr = std::bit_cast<std::array<std::byte, sizeof(T)>>(value);
-  ranges::reverse(value_repr);
-  return std::bit_cast<T>(value_repr);
+  // shift-based reversal: std::bit_cast needs a C++20-complete standard
+  // library (libstdc++ >= 11), which the tebako baseline toolchains
+  // (ubuntu-20.04, gcc-9/10 era) do not ship; this is constexpr-legal
+  // everywhere and equivalent for unsigned integral types.
+  T result{};
+  for (std::size_t i = 0; i < sizeof(T); ++i) {
+    result = static_cast<T>(result << 8) | static_cast<T>(value & 0xFF);
+    value = static_cast<T>(value >> 8);
+  }
+  return result;
 }
 
 template <std::unsigned_integral T>
