@@ -86,3 +86,52 @@ TEST(mkdwarfs_test, duplicate_content_files_read_own_data) {
   EXPECT_THAT(names, ::testing::UnorderedElementsAre(
                          "a-copy.txt", "a.txt", "b.txt", "c.txt", "d.txt"));
 }
+
+TEST(mkdwarfs_test, empty_shared_files_read_no_data) {
+  // Regression test for a bug where zero-size files in the shared files table
+  // (the empty-content duplicate group) read back the first file's data: the
+  // reader redirected an empty chunk range to chunk table index 0 instead of
+  // returning an empty range.
+  std::map<std::string, std::string> const expected{
+      // Several zero-size files so the empty-content group is deduplicated
+      // into the shared files table.
+      {"empty1.txt", ""},
+      {"empty2.txt", ""},
+      {"empty3.txt", ""},
+      // A group of duplicate non-empty files.
+      {"dup1.txt", "duplicate content for dup group\n"},
+      {"dup2.txt", "duplicate content for dup group\n"},
+      {"dup3.txt", "duplicate content for dup group\n"},
+      // Unique files.
+      {"uniq1.txt", "unique content one\n"},
+      {"uniq2.txt", "unique content twenty-two\n"},
+  };
+
+  auto t = mkdwarfs_tester::create_empty();
+  t.add_root_dir();
+
+  for (auto const& [name, content] : expected) {
+    t.os->add_file(name, content);
+  }
+
+  ASSERT_EQ(0, t.run("-i / -o - --no-progress")) << t.err();
+
+  auto fs = t.fs_from_stdout();
+
+  std::map<std::string, std::string> actual;
+
+  fs.walk([&](auto const& dev) {
+    auto iv = dev.inode();
+    if (iv.is_regular_file()) {
+      // Raw read with no size clamp: the buffer is deliberately larger than
+      // any file so the reader must report the correct number of bytes.
+      std::string data;
+      data.resize(8192, '\xff');
+      auto const n = fs.read(iv.inode_num(), data.data(), data.size());
+      data.resize(n);
+      ASSERT_TRUE(actual.emplace(dev.unix_path(), std::move(data)).second);
+    }
+  });
+
+  EXPECT_THAT(actual, ::testing::ContainerEq(expected));
+}

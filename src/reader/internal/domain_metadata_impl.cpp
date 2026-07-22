@@ -1246,16 +1246,6 @@ chunk_range domain_metadata_impl::get_chunks(int inode, std::error_code& ec) con
           ? meta_->chunk_table[chunk_index + 1]
           : meta_->chunks.size();
 
-      // WORKAROUND: If we got an empty range and chunk_index > 0, try chunk_index 0
-      // This handles test images where file inode_num doesn't point to actual data
-      if ((begin >= end || begin >= meta_->chunks.size()) && chunk_index > 0) {
-        chunk_index = 0;
-        begin = meta_->chunk_table[chunk_index];
-        end = (chunk_index + 1 < meta_->chunk_table.size())
-            ? meta_->chunk_table[chunk_index + 1]
-            : meta_->chunks.size();
-      }
-
 #if defined(DWARFS_HAVE_FLATBUFFERS) && defined(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
       return backend_adapter::make_chunk_range(*meta_, begin, end);
 #else
