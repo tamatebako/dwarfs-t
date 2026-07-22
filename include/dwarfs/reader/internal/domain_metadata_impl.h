@@ -165,7 +165,8 @@ class domain_metadata_impl : public metadata_v2::impl {
   inode_view make_inode_view(uint32_t inode_index, uint32_t inode_num) const;
 
   // Helper: Create directory entry view
-  dir_entry_view make_dir_entry_view(uint32_t self_index, uint32_t parent_index) const;
+  dir_entry_view make_dir_entry_view(uint32_t self_index, uint32_t parent_index,
+                                     std::optional<std::string> name_override = std::nullopt) const;
 
   // Helper: Get file size for inode (legacy compatibility)
   file_off_t get_file_size(uint32_t inode_index) const;

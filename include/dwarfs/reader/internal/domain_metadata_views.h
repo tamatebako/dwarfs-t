@@ -127,7 +127,8 @@ class domain_inode_view_impl : public inode_view_interface {
 class domain_dir_entry_view_impl : public dir_entry_view_interface {
  public:
   domain_dir_entry_view_impl(metadata::domain::metadata const& meta,
-                             uint32_t self_index, uint32_t parent_index);
+                             uint32_t self_index, uint32_t parent_index,
+                             std::optional<std::string> name_override = std::nullopt);
 
   std::string name() const override;
   std::shared_ptr<inode_view_interface> inode() const override;
@@ -155,6 +156,7 @@ class domain_dir_entry_view_impl : public dir_entry_view_interface {
   metadata::domain::metadata const& meta_;
   uint32_t self_index_;
   uint32_t parent_index_;
+  std::optional<std::string> name_override_;
 };
 
 /**

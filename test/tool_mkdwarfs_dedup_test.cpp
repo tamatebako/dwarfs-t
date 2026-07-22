@@ -135,3 +135,56 @@ TEST(mkdwarfs_test, empty_shared_files_read_no_data) {
 
   EXPECT_THAT(actual, ::testing::ContainerEq(expected));
 }
+
+TEST(mkdwarfs_test, directory_streams_synthesize_dot_entries) {
+  // Regression test for missing "." and ".." synthesis in the domain
+  // metadata readdir path: directory streams must lead with "." (self)
+  // and ".." (parent), then the real entries shifted by two, and dirsize
+  // must count them. ruby's Dir.read (via tebako's memfs) relies on this.
+  auto t = mkdwarfs_tester::create_empty();
+  t.add_root_dir();
+  t.os->add_dir("somedir");
+  t.os->add_file("somedir/file-1.txt", "one\n");
+  t.os->add_file("somedir/file-2.txt", "two\n");
+  t.os->add_dir("emptydir");
+  ASSERT_EQ(0, t.run("-i / -o - --no-progress")) << t.err();
+  auto fs = t.fs_from_stdout();
+
+  auto dev = fs.find("/somedir");
+  ASSERT_TRUE(dev);
+  auto iv = dev->inode();
+  auto dir = fs.opendir(iv);
+  ASSERT_TRUE(dir);
+
+  ASSERT_EQ(4u, fs.dirsize(*dir));
+
+  auto r0 = fs.readdir(*dir, 0);
+  ASSERT_TRUE(r0);
+  EXPECT_EQ(".", r0->name());
+  EXPECT_EQ(iv.inode_num(), r0->inode().inode_num());
+
+  auto r1 = fs.readdir(*dir, 1);
+  ASSERT_TRUE(r1);
+  EXPECT_EQ("..", r1->name());
+  auto parent = fs.find("/");
+  ASSERT_TRUE(parent);
+  EXPECT_EQ(parent->inode().inode_num(), r1->inode().inode_num());
+
+  std::vector<std::string> names;
+  for (size_t off = 2; off < fs.dirsize(*dir); ++off) {
+    auto r = fs.readdir(*dir, off);
+    ASSERT_TRUE(r);
+    names.push_back(r->name());
+  }
+  EXPECT_THAT(names, ::testing::UnorderedElementsAre("file-1.txt", "file-2.txt"));
+
+  // Empty directory: just the two synthesized entries.
+  auto edev = fs.find("/emptydir");
+  ASSERT_TRUE(edev);
+  auto edir = fs.opendir(edev->inode());
+  ASSERT_TRUE(edir);
+  ASSERT_EQ(2u, fs.dirsize(*edir));
+  EXPECT_TRUE(fs.readdir(*edir, 0));
+  EXPECT_TRUE(fs.readdir(*edir, 1));
+  EXPECT_FALSE(fs.readdir(*edir, 2));
+}
