@@ -22,7 +22,7 @@
  */
 
 #include <concepts>
-#include <latch>
+#include <dwarfs/internal/folly_compat.h>
 #include <mutex>
 #include <string_view>
 #include <vector>
@@ -113,7 +113,7 @@ class file_scanner_ final : public file_scanner::impl {
     os << fmt::format("{}", val);
   }
 
-  void dump_value(std::ostream& os, std::shared_ptr<std::latch> const&) const {
+  void dump_value(std::ostream& os, std::shared_ptr<compat::countdown_latch> const&) const {
     os << "null";
   }
 
@@ -143,7 +143,7 @@ class file_scanner_ final : public file_scanner::impl {
   // We need this lookup table to later find the unique_size_ entry
   // given just a file pointer.
   fast_map_type<file const*, uint64_t> file_start_hash_;
-  fast_map_type<std::pair<uint64_t, uint64_t>, std::shared_ptr<std::latch>>
+  fast_map_type<std::pair<uint64_t, uint64_t>, std::shared_ptr<compat::countdown_latch>>
       first_file_hashed_;
   fast_map_type<uint64_t, inode::files_vector> by_raw_inode_;
   fast_map_type<std::string_view, inode::files_vector> by_hash_;
@@ -318,7 +318,7 @@ void file_scanner_<LoggerPolicy>::scan_dedupe(file* p) {
     // This file (size, start_hash) has been seen before, so this is potentially
     // a duplicate.
 
-    std::shared_ptr<std::latch> latch;
+    std::shared_ptr<compat::countdown_latch> latch;
 
     if (it->second.empty()) {
       // This is any file of this (size, start_hash) after the second file
@@ -334,7 +334,7 @@ void file_scanner_<LoggerPolicy>::scan_dedupe(file* p) {
       // hash is stored to `by_hash_` first. We set up a latch to synchronize
       // insertion into `by_hash_`.
 
-      latch = std::make_shared<std::latch>(1);
+      latch = std::make_shared<compat::countdown_latch>(1);
 
       {
         std::lock_guard lock(mx_);
