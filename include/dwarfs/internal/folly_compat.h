@@ -129,6 +129,7 @@ inline std::string exceptionStr(std::exception const& e) {
 
 #include <algorithm>
 #include <bit>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -214,6 +215,40 @@ public:
 private:
   mutable std::mutex mutex_;
   T data_;
+};
+
+// countdown_latch: minimal one-shot latch (C++11) covering the operations
+// the dwarfs writer needs (count_down/wait). std::latch requires a
+// C++20-complete standard library (libstdc++ >= 11), which the tebako
+// baseline toolchains (ubuntu-20.04, gcc-9/10 era) do not ship.
+class countdown_latch {
+public:
+  explicit countdown_latch(std::ptrdiff_t expected) : count_(expected) {}
+
+  countdown_latch(countdown_latch const&) = delete;
+  countdown_latch& operator=(countdown_latch const&) = delete;
+
+  void count_down(std::ptrdiff_t update = 1) {
+    bool reached_zero;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      count_ -= update;
+      reached_zero = (count_ <= 0);
+    }
+    if (reached_zero) {
+      cv_.notify_all();
+    }
+  }
+
+  void wait() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    cv_.wait(lock, [this] { return count_ <= 0; });
+  }
+
+private:
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  std::ptrdiff_t count_;
 };
 
 // sorted_vector_map: Simple wrapper around std::map
