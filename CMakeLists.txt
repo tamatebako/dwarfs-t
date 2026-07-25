@@ -387,6 +387,9 @@ if(WITH_LIBDWARFS)
 
   include(cmake/libdwarfs.cmake)
 
+  # Stable C ABI for the reader (libdwarfs_c / dwarfs_c.h)
+  include(cmake/libdwarfs_c.cmake)
+
   # Tool support library (CLI utilities for all tools)
   include(cmake/tool_support.cmake)
 
