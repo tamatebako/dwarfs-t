@@ -162,6 +162,24 @@ if(WITH_TESTS)
   set_tests_properties(frozen2_string_table_regression_test
     PROPERTIES LABELS "legacy;metadata;frozen2;regression"
   )
+
+  # C (not C++) compile+link+run smoke test for the libdwarfs_c reader binding.
+  # Exercises open (file/memory/region), stat, pread, directory listing,
+  # image metadata and the errno-style error paths against test/data.dwarfs.
+  add_executable(dwarfs_c_smoke_test test/dwarfs_c_smoke_test.c)
+  target_link_libraries(dwarfs_c_smoke_test PRIVATE dwarfs_c)
+  target_compile_definitions(dwarfs_c_smoke_test PRIVATE
+    TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test"
+  )
+  add_fuse_rpath_to_tests(dwarfs_c_smoke_test)
+  add_test(
+    NAME dwarfs_c_smoke_test
+    COMMAND dwarfs_c_smoke_test
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
+  set_tests_properties(dwarfs_c_smoke_test
+    PROPERTIES LABELS "c-binding;reader;smoke"
+  )
 endif()
 
 # Additional libraries for compression benchmark
