@@ -29,22 +29,52 @@
 #include <cstdlib>
 #include <iostream>
 
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#endif
+
 #include "cpu_variant.h"
 
 namespace ricepp::detail {
 
 namespace {
 
+#if defined(__APPLE__)
+
+// On Apple platforms, __builtin_cpu_supports() is implemented via the
+// compiler-rt builtins __cpu_model and __cpu_indicator_init, which live in
+// libclang_rt.osx.a. That archive is only linked implicitly by the clang
+// driver; links that don't go through the driver (e.g. statically linked
+// binaries) fail with undefined ___cpu_model symbols. Use the hw.optional.*
+// sysctls instead, which only depend on libSystem. Keys that don't exist on
+// older macOS versions simply report the feature as unavailable.
+bool has_cpu_feature(char const* name) {
+  int value = 0;
+  size_t size = sizeof(value);
+  return ::sysctlbyname(name, &value, &size, nullptr, 0) == 0 && value != 0;
+}
+
+#endif
+
 detail::cpu_variant get_cpu_variant_init() {
 #ifndef _WIN32
-#if defined(__has_builtin)
-#if __has_builtin(__builtin_cpu_supports) &&                                   \
-    (defined(RICEPP_CPU_BMI2) || defined(RICEPP_CPU_BMI2_AVX512))
+#if defined(RICEPP_CPU_BMI2) || defined(RICEPP_CPU_BMI2_AVX512)
+  bool has_avx512vl = false;
+  bool has_avx512vbmi = false;
+  bool has_bmi2 = false;
+#if defined(__APPLE__)
+  has_avx512vl = has_cpu_feature("hw.optional.avx512vl");
+  has_avx512vbmi = has_cpu_feature("hw.optional.avx512vbmi");
+  has_bmi2 = has_cpu_feature("hw.optional.bmi2");
+#elif defined(__has_builtin)
+#if __has_builtin(__builtin_cpu_supports)
   __builtin_cpu_init();
 
-  bool const has_avx512vl = __builtin_cpu_supports("avx512vl");
-  bool const has_avx512vbmi = __builtin_cpu_supports("avx512vbmi");
-  bool const has_bmi2 = __builtin_cpu_supports("bmi2");
+  has_avx512vl = __builtin_cpu_supports("avx512vl");
+  has_avx512vbmi = __builtin_cpu_supports("avx512vbmi");
+  has_bmi2 = __builtin_cpu_supports("bmi2");
+#endif
+#endif
 
   if (has_avx512vl && has_avx512vbmi && has_bmi2) {
     return detail::cpu_variant::has_bmi2_avx512;
@@ -53,7 +83,6 @@ detail::cpu_variant get_cpu_variant_init() {
   if (has_bmi2) {
     return detail::cpu_variant::has_bmi2;
   }
-#endif
 #endif
 #endif
 
