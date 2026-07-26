@@ -28,7 +28,9 @@
 
 add_library(dwarfs_c src/dwarfs_c.cpp)
 
-target_link_libraries(dwarfs_c PUBLIC dwarfs_reader)
+# dwarfs_reader for the reader API, dwarfs_writer for the writer API;
+# both drag in the transitive closure (common, compressor, decompressor).
+target_link_libraries(dwarfs_c PUBLIC dwarfs_reader dwarfs_writer)
 
 target_include_directories(dwarfs_c PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

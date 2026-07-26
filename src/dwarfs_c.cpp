@@ -589,3 +589,358 @@ DWARFS_C_API
 void dwarfs_c_free(void* ptr) { std::free(ptr); }
 
 } // extern "C"
+
+// ---------------------------------------------------------------------------
+// Image writer (v1)
+// ---------------------------------------------------------------------------
+
+#include <dwarfs/block_compressor_parser.h>
+#include <dwarfs/thread_pool.h>
+#include <dwarfs/writer/categorizer.h>
+#include <dwarfs/writer/entry_factory.h>
+#include <dwarfs/writer/filesystem_writer.h>
+#include <dwarfs/writer/filesystem_writer_options.h>
+#include <dwarfs/writer/fragment_order_options.h>
+#include <dwarfs/writer/scanner.h>
+#include <dwarfs/writer/scanner_options.h>
+#include <dwarfs/writer/segmenter_factory.h>
+#include <dwarfs/writer/writer_progress.h>
+
+#include <fmt/format.h>
+
+#include <boost/program_options/variables_map.hpp>
+
+#include <chrono>
+#include <fstream>
+#include <thread>
+#include <vector>
+
+namespace {
+
+// mkdwarfs level-7 (default) profile, mirrored so the binding produces
+// what plain `mkdwarfs -i dir -o img` produces (see
+// tools/src/mkdwarfs/argtable3_options_parser.cpp: levels[7]).
+constexpr unsigned kDefaultBlockSizeBits{24};
+constexpr char kSchemaCompression[] = "zstd:level=16";
+constexpr char kMetadataCompression[] = "zstd:level=22";
+constexpr unsigned kWindowSize{12};
+constexpr unsigned kWindowStep{3};
+constexpr size_t kMaxActiveBlocks{1};
+constexpr unsigned kBloomFilterSize{4};
+
+std::string block_compression_spec(dwarfs_c_writer_options const& opts) {
+  switch (opts.compression) {
+  case DWARFS_C_COMPRESSION_NONE:
+    return "null";
+  case DWARFS_C_COMPRESSION_LZMA:
+    return opts.compression_level < 0
+               ? "lzma"
+               : fmt::format("lzma:level={}", opts.compression_level);
+  case DWARFS_C_COMPRESSION_BROTLI:
+    return opts.compression_level < 0
+               ? "brotli"
+               : fmt::format("brotli:quality={}", opts.compression_level);
+  case DWARFS_C_COMPRESSION_ZSTD:
+  default:
+    // mkdwarfs level-7 data default is zstd:level=22
+    return opts.compression_level < 0
+               ? "zstd:level=22"
+               : fmt::format("zstd:level={}", opts.compression_level);
+  }
+}
+
+bool compression_level_in_range(int32_t compression, int32_t level) {
+  if (level < 0) {
+    return true; // -1 = library default
+  }
+  switch (compression) {
+  case DWARFS_C_COMPRESSION_ZSTD:
+    return level >= 1 && level <= 22;
+  case DWARFS_C_COMPRESSION_LZMA:
+    return level >= 0 && level <= 9;
+  case DWARFS_C_COMPRESSION_BROTLI:
+    return level >= 0 && level <= 11;
+  case DWARFS_C_COMPRESSION_NONE:
+  default:
+    return true; // ignored
+  }
+}
+
+} // namespace
+
+struct dwarfs_c_writer {
+  enum class source_kind { none, tree, files };
+
+  dwarfs::null_logger lgr;
+  dwarfs::os_access_generic os;
+  dwarfs_c_writer_options opts{};
+  source_kind kind{source_kind::none};
+  std::filesystem::path tree_path;              // kind == tree
+  std::filesystem::path files_root;             // kind == files
+  std::vector<std::string> file_names;          // kind == files
+  bool written{false};
+};
+
+extern "C" {
+
+DWARFS_C_API
+void dwarfs_c_writer_options_init(dwarfs_c_writer_options* opts) {
+  if (!opts) {
+    return;
+  }
+  opts->struct_version = DWARFS_C_WRITER_OPTIONS_VERSION;
+  opts->compression = DWARFS_C_COMPRESSION_ZSTD;
+  opts->compression_level = -1;
+  opts->block_size_bits = 0;
+  opts->enable_categorizer = 0;
+  opts->num_workers = 0;
+}
+
+DWARFS_C_API
+dwarfs_c_writer* dwarfs_c_writer_create(const dwarfs_c_writer_options* opts) {
+  clear_error();
+
+  dwarfs_c_writer_options eff;
+  if (!opts) {
+    dwarfs_c_writer_options_init(&eff);
+  } else {
+    eff = *opts;
+  }
+
+  if (opts && eff.struct_version != DWARFS_C_WRITER_OPTIONS_VERSION) {
+    fail(EINVAL, "unsupported dwarfs_c_writer_options struct_version");
+    return nullptr;
+  }
+  if (eff.compression < DWARFS_C_COMPRESSION_NONE ||
+      eff.compression > DWARFS_C_COMPRESSION_BROTLI) {
+    fail(EINVAL, "invalid compression algorithm");
+    return nullptr;
+  }
+  if (!compression_level_in_range(eff.compression, eff.compression_level)) {
+    fail(EINVAL, "compression level out of range for the chosen algorithm");
+    return nullptr;
+  }
+  if (eff.block_size_bits != 0 &&
+      (eff.block_size_bits < 10 || eff.block_size_bits > 30)) {
+    fail(EINVAL, "block_size_bits must be 0 (default) or in [10, 30]");
+    return nullptr;
+  }
+  if (eff.enable_categorizer != 0 && eff.enable_categorizer != 1) {
+    fail(EINVAL, "enable_categorizer must be 0 or 1");
+    return nullptr;
+  }
+  if (eff.block_size_bits == 0) {
+    eff.block_size_bits = kDefaultBlockSizeBits;
+  }
+
+  auto w = std::make_unique<dwarfs_c_writer>();
+  w->opts = eff;
+  return w.release();
+}
+
+DWARFS_C_API
+int dwarfs_c_writer_add_tree(dwarfs_c_writer* w, const char* host_path,
+                             const char* image_prefix) {
+  clear_error();
+  if (!w || !host_path || !*host_path) {
+    return fail(EINVAL, "writer and host_path must not be null");
+  }
+  if (w->written) {
+    return fail(EALREADY, "image already written");
+  }
+  if (image_prefix && *image_prefix &&
+      !(image_prefix[0] == '/' && image_prefix[1] == '\0')) {
+    return fail(EINVAL,
+                "v1 supports only '/' as image_prefix (the tree lands at "
+                "the image root)");
+  }
+  if (w->kind != dwarfs_c_writer::source_kind::none) {
+    return fail(EALREADY,
+                "writer already has a source (v1 is single-source; see "
+                "dwarfs_c.h)");
+  }
+
+  std::error_code ec;
+  auto const status = std::filesystem::status(host_path, ec);
+  if (ec) {
+    return fail(ENOENT, "host_path does not exist");
+  }
+  if (!std::filesystem::is_directory(status)) {
+    return fail(ENOTDIR, "host_path is not a directory");
+  }
+
+  w->kind = dwarfs_c_writer::source_kind::tree;
+  w->tree_path = host_path;
+  return 0;
+}
+
+DWARFS_C_API
+int dwarfs_c_writer_add_file(dwarfs_c_writer* w, const char* host_path,
+                             const char* image_path) {
+  clear_error();
+  if (!w || !host_path || !*host_path || !image_path || !*image_path) {
+    return fail(EINVAL, "writer, host_path and image_path must not be null");
+  }
+  if (w->written) {
+    return fail(EALREADY, "image already written");
+  }
+
+  std::filesystem::path const hp(host_path);
+  std::filesystem::path const base = hp.filename();
+  // v1 places files at the image root by basename (no renames, no
+  // directories in image_path)
+  if (base.empty() || image_path != base.native()) {
+    return fail(EINVAL,
+                "v1 requires image_path to equal basename(host_path) "
+                "(files land at the image root by basename)");
+  }
+  if (w->kind == dwarfs_c_writer::source_kind::tree) {
+    return fail(EALREADY,
+                "writer already has a tree source (v1 is single-source; "
+                "see dwarfs_c.h)");
+  }
+
+  std::error_code ec;
+  auto const status = std::filesystem::status(hp, ec);
+  if (ec) {
+    return fail(ENOENT, "host_path does not exist");
+  }
+  if (!std::filesystem::is_regular_file(status)) {
+    return fail(EINVAL, "host_path is not a regular file");
+  }
+
+  auto const parent = hp.parent_path();
+  if (w->kind == dwarfs_c_writer::source_kind::none) {
+    w->kind = dwarfs_c_writer::source_kind::files;
+    w->files_root = parent.empty() ? std::filesystem::path{"."} : parent;
+  } else if (w->files_root != (parent.empty() ? std::filesystem::path{"."} : parent)) {
+    return fail(EINVAL,
+                "v1 requires all add_file sources to share one directory");
+  }
+
+  w->file_names.push_back(base.native());
+  return 0;
+}
+
+DWARFS_C_API
+int dwarfs_c_writer_write(dwarfs_c_writer* w, const char* out_path) {
+  clear_error();
+  if (!w || !out_path || !*out_path) {
+    return fail(EINVAL, "writer and out_path must not be null");
+  }
+  if (w->written) {
+    return fail(EALREADY, "image already written");
+  }
+  if (w->kind == dwarfs_c_writer::source_kind::none) {
+    return fail(EINVAL, "no source added (add_tree or add_file first)");
+  }
+
+  // The writer never overwrites (same as plain mkdwarfs without --force)
+  {
+    std::error_code ec;
+    if (std::filesystem::exists(out_path, ec)) {
+      return fail(EEXIST, "output file exists");
+    }
+  }
+
+  try {
+    using namespace std::chrono_literals;
+    auto& lgr = w->lgr;
+    auto& os = w->os;
+    size_t const num_workers =
+        w->opts.num_workers == 0
+            ? std::max(std::thread::hardware_concurrency(), 1U)
+            : static_cast<size_t>(w->opts.num_workers);
+
+    dwarfs::writer::writer_progress prog(
+        [](dwarfs::writer::writer_progress&, bool) {}, 1000ms);
+    dwarfs::thread_pool pool(lgr, os, "compress", num_workers,
+                             (std::numeric_limits<size_t>::max)(), 5);
+    dwarfs::thread_pool scanner_pool(lgr, os, "scanner", num_workers);
+
+    std::ofstream out(out_path, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) {
+      return fail(EIO, "cannot open output file");
+    }
+
+    dwarfs::writer::filesystem_writer_options fsopts;
+    dwarfs::writer::filesystem_writer fsw(out, lgr, pool, prog, fsopts);
+
+    dwarfs::block_compressor_parser compressor_parser;
+    fsw.add_default_compressor(
+        compressor_parser.parse(block_compression_spec(w->opts)));
+    fsw.add_section_compressor(
+        dwarfs::section_type::METADATA_V2_SCHEMA,
+        compressor_parser.parse(kSchemaCompression));
+    fsw.add_section_compressor(dwarfs::section_type::METADATA_V2,
+                               compressor_parser.parse(kMetadataCompression));
+
+    // Scanner options: the mkdwarfs level-7 profile (similarity ordering,
+    // sparse files on, history on; categorizers off unless requested)
+    dwarfs::writer::scanner_options sopts;
+    sopts.num_segmenter_workers = num_workers;
+    sopts.metadata.enable_sparse_files = true;
+
+    dwarfs::writer::fragment_order_options order;
+    order.mode = dwarfs::writer::fragment_order_mode::NILSIMSA;
+    sopts.inode.fragment_order.set_default(order);
+
+    std::shared_ptr<dwarfs::writer::categorizer_manager> catmgr;
+    if (w->opts.enable_categorizer) {
+      auto const& cat_root = w->kind == dwarfs_c_writer::source_kind::tree
+                                 ? w->tree_path
+                                 : w->files_root;
+      catmgr =
+          std::make_shared<dwarfs::writer::categorizer_manager>(lgr, cat_root);
+      dwarfs::writer::categorizer_registry catreg;
+      boost::program_options::variables_map vm;
+      if (auto cat = catreg.create(lgr, "pcmaudio", vm, nullptr)) {
+        catmgr->add(std::move(cat));
+      }
+      sopts.inode.categorizer_mgr = catmgr;
+    }
+
+    dwarfs::writer::segmenter_factory::config sf_config;
+    sf_config.block_size_bits = w->opts.block_size_bits;
+    sf_config.blockhash_window_size.set_default(kWindowSize);
+    sf_config.window_increment_shift.set_default(kWindowStep);
+    sf_config.max_active_blocks.set_default(kMaxActiveBlocks);
+    sf_config.bloom_filter_size.set_default(kBloomFilterSize);
+
+    dwarfs::writer::segmenter_factory sf(lgr, prog, catmgr, sf_config);
+    dwarfs::writer::entry_factory ef;
+    dwarfs::writer::scanner s(lgr, scanner_pool, sf, ef, os, sopts);
+
+    if (w->kind == dwarfs_c_writer::source_kind::tree) {
+      s.scan(fsw, w->tree_path, prog);
+    } else {
+      std::vector<std::filesystem::path> list;
+      list.reserve(w->file_names.size());
+      for (auto const& name : w->file_names) {
+        list.emplace_back(name);
+      }
+      std::span<std::filesystem::path const> list_span{list};
+      std::optional<std::span<std::filesystem::path const>> list_opt{
+          list_span};
+      s.scan(fsw, w->files_root, prog, list_opt);
+    }
+
+    out.flush();
+    if (!out.good()) {
+      return fail(EIO, "failed to write the image");
+    }
+    out.close();
+  } catch (std::exception const& e) {
+    return fail_from_exception(e);
+  } catch (...) {
+    return fail(EIO, "unknown error");
+  }
+
+  w->written = true;
+  return 0;
+}
+
+DWARFS_C_API
+void dwarfs_c_writer_free(dwarfs_c_writer* w) { delete w; }
+
+} // extern "C"
