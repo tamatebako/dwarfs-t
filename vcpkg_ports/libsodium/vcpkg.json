@@ -1,0 +1,15 @@
+{
+  "name": "libsodium",
+  "version": "1.0.21",
+  "port-version": 1,
+  "description": "A modern and easy-to-use crypto library. Tebako overlay: carries upstream commit 91fe8a46ecf0 (fixes jedisct1/libsodium#1502) repairing the aarch64 GCC build of crypto_ipcrypt NEON code; identical to the baseline registry port otherwise.",
+  "homepage": "https://libsodium.org/",
+  "license": "ISC",
+  "dependencies": [
+    {
+      "name": "vcpkg-msbuild",
+      "host": true,
+      "platform": "windows & !mingw"
+    }
+  ]
+}
