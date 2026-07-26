@@ -4,6 +4,25 @@
 
 ### New Features
 
+- **libdwarfs_c writer API**: the stable C ABI now creates DwarFS images
+  fully in-process — no mkdwarfs subprocess, no shell, no PATH dependency.
+  New entry points: `dwarfs_c_writer_options_init`,
+  `dwarfs_c_writer_create`, `dwarfs_c_writer_add_tree`,
+  `dwarfs_c_writer_add_file`, `dwarfs_c_writer_write`,
+  `dwarfs_c_writer_free`. v1 covers the mkdwarfs defaults path (level-7
+  profile: zstd block compression, 16 MiB blocks, similarity ordering,
+  categorizers off by default, one worker per CPU) with a versioned
+  options struct (compression algo/level, block size bits, categorizer
+  toggle, worker count) and the same thread-local errno channel as the
+  reader. v1 is single-source and places content at the image root (one
+  `add_tree` dir, or `add_file`s sharing one directory, by basename) —
+  arbitrary prefixes/renames are rejected with clear EINVAL errors.
+  Round-trip coverage in `dwarfs_c_smoke_test` (write via the writer,
+  read back via the reader API) plus a `dwarfs_c_writer_tool_check` ctest
+  that validates the produced image with the repo's own dwarfsck
+  (block integrity). Note: output bytes are not run-to-run deterministic
+  (history timestamps), and `dwarfs_c` now also links `dwarfs_writer`.
+
 - **Modern Thrift Metadata Format** (Sessions 86-94)
   - CompactProtocol-based format providing smallest metadata size
   - Magic bytes: `{0x82, 0x21}` for fast format detection
