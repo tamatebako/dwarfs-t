@@ -91,6 +91,10 @@ int distance(std::array<T, N> const& a, std::array<T, N> const& b) {
 #define DWARFS_USE_POPCNT
 #endif
 
+#if defined(DWARFS_USE_POPCNT) && defined(__APPLE__)
+#include <cpuid.h>
+#endif
+
 enum class cpu_feature {
   none,
   popcnt,
@@ -99,9 +103,23 @@ enum class cpu_feature {
 #ifdef DWARFS_USE_POPCNT
 cpu_feature detect_cpu_feature() {
   static cpu_feature const feature = [] {
+#if defined(__APPLE__)
+    // On Apple platforms, __builtin_cpu_supports() is implemented via the
+    // compiler-rt builtin __cpu_model, which lives in libclang_rt.osx.a and
+    // is only linked implicitly by the clang driver; links that don't go
+    // through the driver (e.g. statically linked binaries) fail with an
+    // undefined ___cpu_model symbol. XNU has no hw.optional sysctl for
+    // POPCNT, so check the CPUID feature bit directly instead; POPCNT
+    // requires no OS state support, so the bit alone is authoritative.
+    unsigned int eax, ebx, ecx, edx;
+    if (__get_cpuid(1, &eax, &ebx, &ecx, &edx) && (ecx & bit_POPCNT)) {
+      return cpu_feature::popcnt;
+    }
+#else
     if (__builtin_cpu_supports("popcnt")) {
       return cpu_feature::popcnt;
     }
+#endif
     return cpu_feature::none;
   }();
   return feature;
