@@ -306,6 +306,133 @@ DWARFS_C_API char* dwarfs_c_image_info_json(dwarfs_c_filesystem* fs);
 /** Free a pointer returned by this library (e.g. dwarfs_c_image_info_json). */
 DWARFS_C_API void dwarfs_c_free(void* ptr);
 
+/* --------------------------------------------------------------------- */
+/* Image writer (v1)                                                      */
+/* --------------------------------------------------------------------- */
+
+/**
+ * @file dwarfs_c.h writer section
+ *
+ * In-process creation of DwarFS images: no mkdwarfs subprocess, no shell,
+ * no PATH dependency anywhere. The v1 surface deliberately covers the
+ * mkdwarfs DEFAULTS path (level-7 profile: zstd block compression, 16 MiB
+ * blocks, similarity ordering, categorizers off, one worker per CPU),
+ * not every mkdwarfs knob.
+ *
+ * Single-shot discipline: create -> add -> write -> free.
+ *
+ * v1 source rules (validated eagerly, fail with EINVAL):
+ *  - The writer is single-source: content comes from exactly one
+ *    dwarfs_c_writer_add_tree() call XOR one or more
+ *    dwarfs_c_writer_add_file() calls; mixing the two is rejected.
+ *  - dwarfs_c_writer_add_tree() accepts only "/", "" or NULL as
+ *    image_prefix (the whole tree lands at the image root, the
+ *    mkdwarfs -i <dir> equivalent). Arbitrary prefixes/renames are not
+ *    supported by the underlying scanner in v1.
+ *  - dwarfs_c_writer_add_file() places files at the image root by
+ *    basename: image_path must equal basename(host_path) and all files
+ *    must live in the same directory.
+ *
+ * Ownership: the writer handle is owned by the caller and must be
+ * released with dwarfs_c_writer_free(). It is not thread-safe; do not
+ * share one handle between threads without external synchronization.
+ */
+
+/** Opaque writer handle. */
+typedef struct dwarfs_c_writer dwarfs_c_writer;
+
+/** Block compression algorithms supported by the writer. */
+typedef enum dwarfs_c_compression {
+  DWARFS_C_COMPRESSION_NONE = 0,   /**< store blocks uncompressed ("null") */
+  DWARFS_C_COMPRESSION_ZSTD = 1,   /**< Zstandard (mkdwarfs default) */
+  DWARFS_C_COMPRESSION_LZMA = 2,   /**< LZMA */
+  DWARFS_C_COMPRESSION_BROTLI = 3  /**< Brotli */
+} dwarfs_c_compression;
+
+/** Current version of the dwarfs_c_writer_options layout. */
+#define DWARFS_C_WRITER_OPTIONS_VERSION 1
+
+/**
+ * Writer options. Always obtain via dwarfs_c_writer_options_init() (which
+ * fills in the mkdwarfs-defaults profile) and then override individual
+ * fields; never zero-init or memcpy from elsewhere — new fields may be
+ * appended in later ABI versions and are only defaulted correctly by
+ * _init (struct_version lets the library reject layouts it does not know).
+ */
+typedef struct dwarfs_c_writer_options {
+  uint32_t struct_version;   /**< DWARFS_C_WRITER_OPTIONS_VERSION */
+  int32_t compression;       /**< dwarfs_c_compression */
+  int32_t compression_level; /**< algorithm-native level (zstd "level",
+                                  lzma "level", brotli "quality");
+                                  -1 = the mkdwarfs default for the chosen
+                                  algorithm (zstd: 22, lzma: 9, brotli: 11);
+                                  ignored for DWARFS_C_COMPRESSION_NONE */
+  uint32_t block_size_bits;  /**< log2 of the block size (10..30);
+                                  0 = mkdwarfs default (24, i.e. 16 MiB) */
+  int32_t enable_categorizer; /**< 0 = off (mkdwarfs default);
+                                   1 = enable the "pcmaudio" categorizer */
+  uint32_t num_workers;      /**< worker threads for scanning and
+                                  compression; 0 = one per CPU */
+} dwarfs_c_writer_options;
+
+/**
+ * Initialize a writer options struct to the mkdwarfs defaults profile
+ * (compression = ZSTD with the default level, block_size_bits = 24,
+ * categorizer off, num_workers = one per CPU) and stamp its
+ * struct_version. NULL opts are ignored.
+ */
+DWARFS_C_API void dwarfs_c_writer_options_init(dwarfs_c_writer_options* opts);
+
+/**
+ * Create a writer. Returns NULL on error (EINVAL for a bad struct_version
+ * or out-of-range option values). No filesystem work happens here.
+ */
+DWARFS_C_API dwarfs_c_writer*
+dwarfs_c_writer_create(const dwarfs_c_writer_options* opts);
+
+/**
+ * Add a whole directory tree to the image (the mkdwarfs -i <dir>
+ * equivalent): the directory's CONTENT lands at the image root.
+ *
+ * @param w            writer handle
+ * @param host_path    host directory to scan (must exist and be a directory)
+ * @param image_prefix must be NULL, "" or "/" (see the v1 source rules)
+ * @return 0 on success, -1 on error (EINVAL for a bad/prefix argument,
+ *         ENOENT if host_path does not exist, ENOTDIR if it is not a
+ *         directory, EALREADY if a source was already added)
+ */
+DWARFS_C_API int dwarfs_c_writer_add_tree(dwarfs_c_writer* w,
+                                          const char* host_path,
+                                          const char* image_prefix);
+
+/**
+ * Add a single file at the image root. image_path must equal
+ * basename(host_path); all files added to one writer must live in the
+ * same directory (see the v1 source rules).
+ *
+ * @return 0 on success, -1 on error (EINVAL, ENOENT, EALREADY as above)
+ */
+DWARFS_C_API int dwarfs_c_writer_add_file(dwarfs_c_writer* w,
+                                          const char* host_path,
+                                          const char* image_path);
+
+/**
+ * Write the image to out_path. This is where all scanning and
+ * compression happens.
+ *
+ * The output file must not exist (the writer never overwrites, same as
+ * plain mkdwarfs without --force).
+ *
+ * @return 0 on success, -1 on error (EINVAL if no source was added,
+ *         EEXIST if out_path exists, EIO on scan/compress/write failure;
+ *         dwarfs_c_error_message() carries details)
+ */
+DWARFS_C_API int dwarfs_c_writer_write(dwarfs_c_writer* w,
+                                       const char* out_path);
+
+/** Release a writer handle. Safe to call with NULL. */
+DWARFS_C_API void dwarfs_c_writer_free(dwarfs_c_writer* w);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

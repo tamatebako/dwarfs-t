@@ -180,6 +180,20 @@ if(WITH_TESTS)
   set_tests_properties(dwarfs_c_smoke_test
     PROPERTIES LABELS "c-binding;reader;smoke"
   )
+
+  # Tool verification for the writer API: the image produced by
+  # dwarfs_c_smoke_test via dwarfs_c_writer_write() must be a valid
+  # DwarFS image for the repo's own dwarfsck (block integrity included).
+  add_test(
+    NAME dwarfs_c_writer_tool_check
+    COMMAND dwarfsck --input=${CMAKE_CURRENT_BINARY_DIR}/wout_tree.dwarfs --check-integrity
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
+  set_tests_properties(dwarfs_c_writer_tool_check
+    PROPERTIES LABELS "c-binding;writer;smoke"
+    DEPENDS dwarfs_c_smoke_test
+    REQUIRED_FILES ${CMAKE_CURRENT_BINARY_DIR}/wout_tree.dwarfs
+  )
 endif()
 
 # Additional libraries for compression benchmark

@@ -45,6 +45,15 @@
 #define TEST_DATA_DIR "."
 #endif
 
+#if defined(_WIN32)
+#include <direct.h>
+#define MKDIR(p) _mkdir(p)
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#define MKDIR(p) mkdir((p), 0755)
+#endif
+
 static int failures = 0;
 
 #define CHECK(cond)                                                          \
@@ -54,6 +63,36 @@ static int failures = 0;
       ++failures;                                                            \
     }                                                                        \
   } while (0)
+
+static int write_text(const char* path, const char* text) {
+  FILE* f = fopen(path, "wb");
+  int rc = -1;
+  if (f) {
+    rc = fputs(text, f) < 0 ? -1 : 0;
+    if (fclose(f) != 0) {
+      rc = -1;
+    }
+  }
+  return rc;
+}
+
+/* Open `inner` in the mounted image `fs` and verify its full contents. */
+static int readback_matches(dwarfs_c_filesystem* fs, const char* inner,
+                            const char* expect) {
+  struct dwarfs_c_stat st;
+  char buf[4096];
+  size_t const want = strlen(expect);
+  int64_t n;
+
+  if (dwarfs_c_stat(fs, inner, &st) != 0) {
+    return 0;
+  }
+  if (st.type != DWARFS_C_FILE_REGULAR || (size_t)st.size != want) {
+    return 0;
+  }
+  n = dwarfs_c_pread(fs, inner, buf, want, 0);
+  return n == (int64_t)want && memcmp(buf, expect, want) == 0;
+}
 
 static long file_size_of(const char* path) {
   FILE* f = fopen(path, "rb");
@@ -310,6 +349,157 @@ int main(void) {
     CHECK(dwarfs_c_open_region(image_path, 0, 0) == NULL);
     CHECK(dwarfs_c_errno() == EINVAL);
   }
+
+  /* ================================================================ */
+  /* Writer API                                                       */
+  /* ================================================================ */
+
+  /* ---- option validation ---------------------------------------- */
+  {
+    dwarfs_c_writer_options opts;
+    dwarfs_c_writer* w;
+
+    dwarfs_c_writer_options_init(&opts);
+    CHECK(opts.struct_version == DWARFS_C_WRITER_OPTIONS_VERSION);
+    CHECK(opts.compression == DWARFS_C_COMPRESSION_ZSTD);
+
+    opts.struct_version = 9999;
+    CHECK(dwarfs_c_writer_create(&opts) == NULL);
+    CHECK(dwarfs_c_errno() == EINVAL);
+
+    dwarfs_c_writer_options_init(&opts);
+    opts.compression = 99;
+    CHECK(dwarfs_c_writer_create(&opts) == NULL);
+    CHECK(dwarfs_c_errno() == EINVAL);
+
+    dwarfs_c_writer_options_init(&opts);
+    opts.compression_level = 99; /* out of range for zstd */
+    CHECK(dwarfs_c_writer_create(&opts) == NULL);
+    CHECK(dwarfs_c_errno() == EINVAL);
+
+    dwarfs_c_writer_options_init(&opts);
+    opts.block_size_bits = 7; /* below the 10..30 range */
+    CHECK(dwarfs_c_writer_create(&opts) == NULL);
+    CHECK(dwarfs_c_errno() == EINVAL);
+
+    /* NULL options mean "all defaults" */
+    w = dwarfs_c_writer_create(NULL);
+    CHECK(w != NULL);
+    CHECK(dwarfs_c_writer_write(w, "wout_nosource.dwarfs") == -1);
+    CHECK(dwarfs_c_errno() == EINVAL);
+    dwarfs_c_writer_free(w);
+    dwarfs_c_writer_free(NULL); /* safe */
+  }
+
+  /* ---- add_tree error paths ------------------------------------- */
+  {
+    dwarfs_c_writer* w = dwarfs_c_writer_create(NULL);
+    CHECK(w != NULL);
+    CHECK(dwarfs_c_writer_add_tree(w, "/nonexistent/tree", "/") == -1);
+    CHECK(dwarfs_c_errno() == ENOENT);
+    CHECK(dwarfs_c_writer_add_tree(w, image_path, "/") == -1);
+    CHECK(dwarfs_c_errno() == ENOTDIR);
+    CHECK(dwarfs_c_writer_add_tree(w, "wtree", "/appsub") == -1);
+    CHECK(dwarfs_c_errno() == EINVAL);
+    dwarfs_c_writer_free(w);
+  }
+
+  /* ---- build a fixture tree ------------------------------------- */
+  CHECK(MKDIR("wtree") == 0);
+  CHECK(MKDIR("wtree/sub") == 0);
+  CHECK(write_text("wtree/hello.txt", "hello-dwarfs-c\n") == 0);
+  CHECK(write_text("wtree/sub/nested.txt", "nested-payload-42\n") == 0);
+
+  /* ---- add_tree: EALREADY / EEXIST / round-trip ------------------ */
+  {
+    dwarfs_c_writer* w = dwarfs_c_writer_create(NULL);
+    FILE* f;
+    CHECK(w != NULL);
+    CHECK(dwarfs_c_writer_add_tree(w, "wtree", "/") == 0);
+    CHECK(dwarfs_c_writer_add_tree(w, "wtree", "/") == -1);
+    CHECK(dwarfs_c_errno() == EALREADY);
+    CHECK(dwarfs_c_writer_add_file(w, "wtree/hello.txt", "hello.txt") == -1);
+    CHECK(dwarfs_c_errno() == EALREADY);
+
+    /* the writer never overwrites */
+    f = fopen("wout_tree.dwarfs", "wb");
+    CHECK(f != NULL);
+    if (f) {
+      fclose(f);
+    }
+    CHECK(dwarfs_c_writer_write(w, "wout_tree.dwarfs") == -1);
+    CHECK(dwarfs_c_errno() == EEXIST);
+    remove("wout_tree.dwarfs");
+
+    CHECK(dwarfs_c_writer_write(w, "wout_tree.dwarfs") == 0);
+    CHECK(dwarfs_c_errno() == 0);
+    /* single-shot: no second write, no adds after write */
+    CHECK(dwarfs_c_writer_write(w, "wout_tree2.dwarfs") == -1);
+    CHECK(dwarfs_c_errno() == EALREADY);
+    CHECK(dwarfs_c_writer_add_tree(w, "wtree", "/") == -1);
+    CHECK(dwarfs_c_errno() == EALREADY);
+    dwarfs_c_writer_free(w);
+  }
+
+  /* read the tree image back through the reader API */
+  {
+    dwarfs_c_filesystem* rfs = dwarfs_c_open("wout_tree.dwarfs");
+    char* json;
+    CHECK(rfs != NULL);
+    if (rfs) {
+      CHECK(dwarfs_c_stat(rfs, "/", &st) == 0);
+      CHECK(st.type == DWARFS_C_FILE_DIRECTORY);
+      CHECK(dwarfs_c_stat(rfs, "sub", &st) == 0);
+      CHECK(st.type == DWARFS_C_FILE_DIRECTORY);
+      CHECK(readback_matches(rfs, "hello.txt", "hello-dwarfs-c\n"));
+      CHECK(readback_matches(rfs, "sub/nested.txt", "nested-payload-42\n"));
+
+      /* metadata sections must be present and parse */
+      json = dwarfs_c_image_info_json(rfs);
+      CHECK(json != NULL);
+      if (json) {
+        CHECK(strstr(json, "\"sections\"") != NULL);
+        CHECK(strstr(json, "\"history\"") != NULL);
+        dwarfs_c_free(json);
+      }
+      dwarfs_c_close(rfs);
+    }
+  }
+
+  /* ---- add_file mode --------------------------------------------- */
+  {
+    dwarfs_c_writer* w = dwarfs_c_writer_create(NULL);
+    CHECK(w != NULL);
+    /* rename not supported in v1 */
+    CHECK(dwarfs_c_writer_add_file(w, "wtree/hello.txt", "renamed.txt") == -1);
+    CHECK(dwarfs_c_errno() == EINVAL);
+    CHECK(dwarfs_c_writer_add_file(w, "/nonexistent/f.txt", "f.txt") == -1);
+    CHECK(dwarfs_c_errno() == ENOENT);
+    CHECK(dwarfs_c_writer_add_file(w, "wtree/hello.txt", "hello.txt") == 0);
+    /* all files must share one directory in v1 */
+    CHECK(dwarfs_c_writer_add_file(w, "wtree/sub/nested.txt", "nested.txt") == -1);
+    CHECK(dwarfs_c_errno() == EINVAL);
+    CHECK(dwarfs_c_writer_write(w, "wout_files.dwarfs") == 0);
+    dwarfs_c_writer_free(w);
+
+    /* read it back */
+    {
+      dwarfs_c_filesystem* rfs = dwarfs_c_open("wout_files.dwarfs");
+      CHECK(rfs != NULL);
+      if (rfs) {
+        CHECK(readback_matches(rfs, "hello.txt", "hello-dwarfs-c\n"));
+        dwarfs_c_close(rfs);
+      }
+    }
+  }
+
+  /* cleanup (wout_tree.dwarfs stays: the dwarfs_c_writer_tool_check
+     ctest inspects it with the repo's own dwarfsck) */
+  remove("wout_files.dwarfs");
+  remove("wtree/hello.txt");
+  remove("wtree/sub/nested.txt");
+  remove("wtree/sub");
+  remove("wtree");
 
   if (failures > 0) {
     fprintf(stderr, "dwarfs_c_smoke_test: %d check(s) failed\n", failures);
