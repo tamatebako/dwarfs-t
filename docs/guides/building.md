@@ -516,6 +516,11 @@ cmake --build build
 ### Linux
 - **Triplets**: `x64-linux-static`, `arm64-linux-static`
 - **FUSE Support**: `sudo apt install libfuse3-dev`
+- **FUSE driver with vcpkg**: the `libfuse` dependency lives behind the opt-in
+  `fuse` vcpkg manifest feature (default is the lean library, e.g. for musl
+  targets where libfuse does not build). Enable it with
+  `-DVCPKG_MANIFEST_FEATURES=fuse`, or pass `-DWITH_FUSE_DRIVER=OFF` for
+  library-only builds. The checked-in CMake presets enable it already.
 
 ### Windows
 - **Triplets**: `x64-windows-static`, `arm64-windows-static`

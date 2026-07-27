@@ -44,18 +44,18 @@
     {
       "name": "production-base",
       "hidden": true,
-      "description": "Production configuration (FlatBuffers + Legacy Thrift only)",
+      "description": "Production configuration (FlatBuffers + Legacy Thrift, FUSE driver)",
       "cacheVariables": {
-        "VCPKG_MANIFEST_FEATURES": ""
+        "VCPKG_MANIFEST_FEATURES": "fuse"
       }
     },
     {
       "name": "experimental-base",
       "hidden": true,
-      "description": "Experimental configuration (+ Modern Thrift)",
+      "description": "Experimental configuration (FUSE driver + Modern Thrift)",
       "cacheVariables": {
         "DWARFS_WITH_EXPERIMENTAL_THRIFT": "ON",
-        "VCPKG_MANIFEST_FEATURES": "modern-thrift"
+        "VCPKG_MANIFEST_FEATURES": "fuse;modern-thrift"
       }
     },
     {
