@@ -818,7 +818,7 @@ int dwarfs_c_writer_add_file(dwarfs_c_writer* w, const char* host_path,
   std::filesystem::path const base = hp.filename();
   // v1 places files at the image root by basename (no renames, no
   // directories in image_path)
-  if (base.empty() || image_path != base.native()) {
+  if (base.empty() || image_path != base.string()) {
     return fail(EINVAL,
                 "v1 requires image_path to equal basename(host_path) "
                 "(files land at the image root by basename)");
@@ -847,7 +847,7 @@ int dwarfs_c_writer_add_file(dwarfs_c_writer* w, const char* host_path,
                 "v1 requires all add_file sources to share one directory");
   }
 
-  w->file_names.push_back(base.native());
+  w->file_names.push_back(base.string());
   return 0;
 }
 
