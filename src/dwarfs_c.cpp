@@ -119,6 +119,32 @@ int fail_from_exception(std::exception const& e) {
     if (ec.category() == std::generic_category()) {
       return fail(ec.value(), e.what());
     }
+#ifdef _WIN32
+    // MSVC's std::system_category carries raw WinAPI error codes — map
+    // the common ones so the C ABI's errno contract holds on Windows
+    // (otherwise every filesystem error collapses to EIO).
+    if (ec.category() == std::system_category()) {
+      switch (ec.value()) {
+        case 2:   // ERROR_FILE_NOT_FOUND
+        case 3:   // ERROR_PATH_NOT_FOUND (POSIX open() gives ENOENT too)
+          return fail(ENOENT, e.what());
+        case 5:   // ERROR_ACCESS_DENIED
+          return fail(EACCES, e.what());
+        case 8:   // ERROR_NOT_ENOUGH_MEMORY
+          return fail(ENOMEM, e.what());
+        case 32:  // ERROR_SHARING_VIOLATION
+          return fail(EBUSY, e.what());
+        case 80:  // ERROR_FILE_EXISTS
+          return fail(EEXIST, e.what());
+        case 87:  // ERROR_INVALID_PARAMETER
+          return fail(EINVAL, e.what());
+        case 145: // ERROR_DIR_NOT_EMPTY
+          return fail(ENOTEMPTY, e.what());
+        default:
+          break;
+      }
+    }
+#endif
   }
   if (dynamic_cast<std::invalid_argument const*>(&e)) {
     return fail(EINVAL, e.what());
