@@ -19,6 +19,10 @@ concurrency:
 
 permissions:
   contents: read
+  # The reusable _build.yml workflow pushes binary-cache packages
+  # (nuget) — caller must grant packages: write or every PR run dies at
+  # startup (the repo-wide startup_failure since 2026-07-26).
+  packages: write
 
 jobs:
   validate:
