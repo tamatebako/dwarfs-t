@@ -42,12 +42,15 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <new>
 #include <optional>
 #include <span>
 #include <string>
 #include <system_error>
 #include <utility>
+
+#include <openssl/crypto.h>
 
 #include <dwarfs/detail/file_extent_info.h>
 #include <dwarfs/detail/file_segment_impl.h>
@@ -69,6 +72,28 @@
 #include <dwarfs/version.h>
 
 namespace {
+
+// ---------------------------------------------------------------------------
+// One-time native library initialization
+// ---------------------------------------------------------------------------
+
+// Initialize OpenSSL exactly once with OPENSSL_INIT_NO_ATEXIT. OpenSSL's
+// default is to register OPENSSL_cleanup via atexit(3) on first use, and
+// that teardown (ossl_method_store_free → alg_cleanup → OPENSSL_sk_pop_free)
+// races any thread still doing EVP work at process exit — a free-under-
+// live-use abort seen as SIGABRT/SIGSEGV, "double free or corruption" on
+// glibc, or a hang when teardown waits on a lock held by a dying thread.
+// It only ever fires under concurrent use at exit (a parallel test harness
+// exposes it at ~50% per run on ubuntu; valgrind and serialized runs are
+// always clean). Suppressing the atexit registration makes the process
+// leak the method store at exit instead — the process is dying anyway,
+// which is the same trade curl and other embedders make. Must run before
+// the first EVP call: init options take effect only at first init.
+void ensure_native_init() {
+  static std::once_flag flag;
+  std::call_once(
+      flag, [] { OPENSSL_init_crypto(OPENSSL_INIT_NO_ATEXIT, nullptr); });
+}
 
 // ---------------------------------------------------------------------------
 // Thread-local errno-style error channel
@@ -301,6 +326,7 @@ const char* dwarfs_c_version_string(void) { return dwarfs::DWARFS_GIT_DESC; }
 
 DWARFS_C_API
 dwarfs_c_filesystem* dwarfs_c_open(const char* path) {
+  ensure_native_init();
   clear_error();
   if (!path || !*path) {
     fail(EINVAL, "path must not be null or empty");
@@ -322,6 +348,7 @@ dwarfs_c_filesystem* dwarfs_c_open(const char* path) {
 DWARFS_C_API
 dwarfs_c_filesystem*
 dwarfs_c_open_region(const char* path, int64_t offset, int64_t length) {
+  ensure_native_init();
   clear_error();
   static_assert(DWARFS_C_OFFSET_AUTO ==
                 dwarfs::reader::filesystem_options::IMAGE_OFFSET_AUTO);
@@ -355,6 +382,7 @@ dwarfs_c_open_region(const char* path, int64_t offset, int64_t length) {
 
 DWARFS_C_API
 dwarfs_c_filesystem* dwarfs_c_open_memory(const void* data, size_t size) {
+  ensure_native_init();
   clear_error();
   if (!data || size == 0) {
     fail(EINVAL, "data must not be null and size must be non-zero");
@@ -685,6 +713,7 @@ extern "C" {
 
 DWARFS_C_API
 void dwarfs_c_writer_options_init(dwarfs_c_writer_options* opts) {
+  ensure_native_init();
   if (!opts) {
     return;
   }
