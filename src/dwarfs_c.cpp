@@ -42,12 +42,15 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <new>
 #include <optional>
 #include <span>
 #include <string>
 #include <system_error>
 #include <utility>
+
+#include <openssl/crypto.h>
 
 #include <dwarfs/detail/file_extent_info.h>
 #include <dwarfs/detail/file_segment_impl.h>
@@ -69,6 +72,28 @@
 #include <dwarfs/version.h>
 
 namespace {
+
+// ---------------------------------------------------------------------------
+// One-time native library initialization
+// ---------------------------------------------------------------------------
+
+// Initialize OpenSSL exactly once with OPENSSL_INIT_NO_ATEXIT. OpenSSL's
+// default is to register OPENSSL_cleanup via atexit(3) on first use, and
+// that teardown (ossl_method_store_free → alg_cleanup → OPENSSL_sk_pop_free)
+// races any thread still doing EVP work at process exit — a free-under-
+// live-use abort seen as SIGABRT/SIGSEGV, "double free or corruption" on
+// glibc, or a hang when teardown waits on a lock held by a dying thread.
+// It only ever fires under concurrent use at exit (a parallel test harness
+// exposes it at ~50% per run on ubuntu; valgrind and serialized runs are
+// always clean). Suppressing the atexit registration makes the process
+// leak the method store at exit instead — the process is dying anyway,
+// which is the same trade curl and other embedders make. Must run before
+// the first EVP call: init options take effect only at first init.
+void ensure_native_init() {
+  static std::once_flag flag;
+  std::call_once(
+      flag, [] { OPENSSL_init_crypto(OPENSSL_INIT_NO_ATEXIT, nullptr); });
+}
 
 // ---------------------------------------------------------------------------
 // Thread-local errno-style error channel
@@ -94,6 +119,32 @@ int fail_from_exception(std::exception const& e) {
     if (ec.category() == std::generic_category()) {
       return fail(ec.value(), e.what());
     }
+#ifdef _WIN32
+    // MSVC's std::system_category carries raw WinAPI error codes — map
+    // the common ones so the C ABI's errno contract holds on Windows
+    // (otherwise every filesystem error collapses to EIO).
+    if (ec.category() == std::system_category()) {
+      switch (ec.value()) {
+        case 2:   // ERROR_FILE_NOT_FOUND
+        case 3:   // ERROR_PATH_NOT_FOUND (POSIX open() gives ENOENT too)
+          return fail(ENOENT, e.what());
+        case 5:   // ERROR_ACCESS_DENIED
+          return fail(EACCES, e.what());
+        case 8:   // ERROR_NOT_ENOUGH_MEMORY
+          return fail(ENOMEM, e.what());
+        case 32:  // ERROR_SHARING_VIOLATION
+          return fail(EBUSY, e.what());
+        case 80:  // ERROR_FILE_EXISTS
+          return fail(EEXIST, e.what());
+        case 87:  // ERROR_INVALID_PARAMETER
+          return fail(EINVAL, e.what());
+        case 145: // ERROR_DIR_NOT_EMPTY
+          return fail(ENOTEMPTY, e.what());
+        default:
+          break;
+      }
+    }
+#endif
   }
   if (dynamic_cast<std::invalid_argument const*>(&e)) {
     return fail(EINVAL, e.what());
@@ -301,6 +352,7 @@ const char* dwarfs_c_version_string(void) { return dwarfs::DWARFS_GIT_DESC; }
 
 DWARFS_C_API
 dwarfs_c_filesystem* dwarfs_c_open(const char* path) {
+  ensure_native_init();
   clear_error();
   if (!path || !*path) {
     fail(EINVAL, "path must not be null or empty");
@@ -322,6 +374,7 @@ dwarfs_c_filesystem* dwarfs_c_open(const char* path) {
 DWARFS_C_API
 dwarfs_c_filesystem*
 dwarfs_c_open_region(const char* path, int64_t offset, int64_t length) {
+  ensure_native_init();
   clear_error();
   static_assert(DWARFS_C_OFFSET_AUTO ==
                 dwarfs::reader::filesystem_options::IMAGE_OFFSET_AUTO);
@@ -355,6 +408,7 @@ dwarfs_c_open_region(const char* path, int64_t offset, int64_t length) {
 
 DWARFS_C_API
 dwarfs_c_filesystem* dwarfs_c_open_memory(const void* data, size_t size) {
+  ensure_native_init();
   clear_error();
   if (!data || size == 0) {
     fail(EINVAL, "data must not be null and size must be non-zero");
@@ -685,6 +739,7 @@ extern "C" {
 
 DWARFS_C_API
 void dwarfs_c_writer_options_init(dwarfs_c_writer_options* opts) {
+  ensure_native_init();
   if (!opts) {
     return;
   }
@@ -789,7 +844,7 @@ int dwarfs_c_writer_add_file(dwarfs_c_writer* w, const char* host_path,
   std::filesystem::path const base = hp.filename();
   // v1 places files at the image root by basename (no renames, no
   // directories in image_path)
-  if (base.empty() || image_path != base.native()) {
+  if (base.empty() || image_path != base.string()) {
     return fail(EINVAL,
                 "v1 requires image_path to equal basename(host_path) "
                 "(files land at the image root by basename)");
@@ -818,7 +873,7 @@ int dwarfs_c_writer_add_file(dwarfs_c_writer* w, const char* host_path,
                 "v1 requires all add_file sources to share one directory");
   }
 
-  w->file_names.push_back(base.native());
+  w->file_names.push_back(base.string());
   return 0;
 }
 
