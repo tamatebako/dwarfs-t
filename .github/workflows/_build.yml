@@ -84,6 +84,8 @@ jobs:
       # Note: GitHub Packages NuGet feeds are scoped to the owner/organization, not individual repos
       # Note: NuGet caching is disabled for ARM64 Linux because VCPKG_FORCE_SYSTEM_BINARIES=1
       #       prevents vcpkg from downloading nuget (the files archive cache still works there)
+      # Note: on macOS a real nuget.exe is shimmed into PATH (see "Add NuGet source (macOS)")
+      #       because Mono.framework's `nuget` is a wrapper script, not a .NET assembly
       USERNAME: github
       FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
       # Use format() to properly construct the NuGet URL - nested ${{ }} in string literals don't expand
@@ -251,6 +253,49 @@ jobs:
             -Password "${{ secrets.GITHUB_TOKEN }}"
 
           mono "${nugetExe}" \
+            setapikey "${{ secrets.GITHUB_TOKEN }}" \
+            -Source "${{ env.FEED_URL }}"
+
+          echo "✓ Added NuGet source for vcpkg binary caching"
+
+      - name: 🔗 Add NuGet source (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          # Mono.framework's `nuget` command on macOS runners is a shell wrapper
+          # script, not a .NET assembly, so vcpkg's `mono <nuget>` invocations
+          # fail with "Cannot open assembly ... File does not contain a valid
+          # CIL image" (exit code 2). VCPKG_FORCE_SYSTEM_BINARIES=1 (set on ARM
+          # runners) prevents vcpkg from fetching its own nuget.exe, so install
+          # a real nuget.exe and shadow the wrapper in PATH.
+          nugetDir="${RUNNER_TEMP}/nuget-bin"
+          mkdir -p "${nugetDir}"
+
+          # nuget.exe 7.0.1, same version vcpkg fetches on other platforms
+          curl -sSL -o "${nugetDir}/nuget" \
+            "https://dist.nuget.org/win-x86-commandline/v7.0.1/nuget.exe"
+
+          if ! echo "8ddc8cc04298fa08277efdca35373eb158f0c95f5bb1b15efcab2b62952028f6  ${nugetDir}/nuget" | shasum -a 256 -c -; then
+            echo "⚠️ nuget.exe download failed checksum verification, skipping NuGet source setup"
+            echo "Binary caching via NuGet will not be available, but the build will continue"
+            exit 0
+          fi
+          chmod +x "${nugetDir}/nuget"
+
+          # Must sort before Mono.framework's Commands directory in PATH so
+          # vcpkg finds the real assembly when it searches PATH for `nuget`
+          echo "${nugetDir}" >> "${GITHUB_PATH}"
+
+          # Add NuGet source with GitHub authentication (same as the Linux step)
+          mono "${nugetDir}/nuget" \
+            sources add \
+            -Source "${{ env.FEED_URL }}" \
+            -StorePasswordInClearText \
+            -Name "GitHubPackages" \
+            -UserName "${{ env.USERNAME }}" \
+            -Password "${{ secrets.GITHUB_TOKEN }}"
+
+          mono "${nugetDir}/nuget" \
             setapikey "${{ secrets.GITHUB_TOKEN }}" \
             -Source "${{ env.FEED_URL }}"
 

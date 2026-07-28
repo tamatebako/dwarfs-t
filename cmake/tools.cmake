@@ -31,11 +31,23 @@ function(link_fuse_library TARGET_NAME)
     # FUSE-T doesn't always provide pkg-config files, link directly
     target_link_libraries(${TARGET_NAME} PRIVATE "${FUSE_T_LIBRARY}")
     # Set RPATH for FUSE-T library directory so dyld can find it at runtime
-    # RPATH is only needed on macOS/Unix, not Windows
+    # (libfuse-t.dylib's install name is @rpath/libfuse-t.dylib, so every final
+    # executable that transitively links it needs an LC_RPATH entry).
+    # PRIVATE link options of OBJECT/STATIC libraries never reach the final
+    # executable's link line, so for libraries the rpath must be added as an
+    # INTERFACE (usage requirement) option instead. $<BUILD_INTERFACE:...>
+    # keeps the build-machine path out of the installed dwarfs-targets export.
     if(APPLE AND FUSE_T_LIBRARY_DIRS)
-      target_link_options(${TARGET_NAME} PRIVATE
-        "LINKER:-rpath,${FUSE_T_LIBRARY_DIRS}"
-      )
+      get_target_property(_fuse_link_target_type ${TARGET_NAME} TYPE)
+      if(_fuse_link_target_type STREQUAL "EXECUTABLE")
+        target_link_options(${TARGET_NAME} PRIVATE
+          "LINKER:-rpath,${FUSE_T_LIBRARY_DIRS}"
+        )
+      else()
+        target_link_options(${TARGET_NAME} INTERFACE
+          "$<BUILD_INTERFACE:-Wl,-rpath,${FUSE_T_LIBRARY_DIRS}>"
+        )
+      endif()
     endif()
   elseif(TARGET PkgConfig::FUSE3)
     target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::FUSE3)

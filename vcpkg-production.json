@@ -87,9 +87,6 @@
       "version>=": "5.5.0"
     },
     {
-      "name": "libsodium"
-    },
-    {
       "name": "gtest",
       "version>=": "1.14.0"
     }
