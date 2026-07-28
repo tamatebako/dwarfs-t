@@ -51,6 +51,7 @@
 #include <utility>
 
 #include <openssl/crypto.h>
+#include <openssl/evp.h>
 
 #include <dwarfs/detail/file_extent_info.h>
 #include <dwarfs/detail/file_segment_impl.h>
@@ -89,10 +90,25 @@ namespace {
 // leak the method store at exit instead — the process is dying anyway,
 // which is the same trade curl and other embedders make. Must run before
 // the first EVP call: init options take effect only at first init.
+//
+// After init, prime the digest algorithms dwarfs uses into the method
+// store while still single-threaded: openssl's lazy provider/algorithm
+// fetch (evp_generic_fetch → EVP_MD_fetch) is the second crash site of
+// the same family when N writer threads (dwarfs::writer's pool) fetch
+// concurrently at first use (backtrace: writer_thread →
+// fsblock::build_section_header → checksum(sha2_512_256_tag) →
+// evp_md_init_internal → evp_generic_fetch). Fetching each algorithm
+// once here means every later fetch hits the warm store.
 void ensure_native_init() {
   static std::once_flag flag;
-  std::call_once(
-      flag, [] { OPENSSL_init_crypto(OPENSSL_INIT_NO_ATEXIT, nullptr); });
+  std::call_once(flag, [] {
+    OPENSSL_init_crypto(OPENSSL_INIT_NO_ATEXIT, nullptr);
+    for (auto const* name : {"SHA512-256", "SHA512", "SHA256"}) {
+      if (auto* md = EVP_MD_fetch(nullptr, name, nullptr)) {
+        EVP_MD_free(md);
+      }
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
