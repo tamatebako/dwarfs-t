@@ -769,6 +769,11 @@ void dwarfs_c_writer_options_init(dwarfs_c_writer_options* opts) {
 
 DWARFS_C_API
 dwarfs_c_writer* dwarfs_c_writer_create(const dwarfs_c_writer_options* opts) {
+  // The init guard must live here, not in options_init: consumers may
+  // stamp the options struct themselves (the Rust binding does) and call
+  // create directly — options_init then never runs, and the writer pool
+  // would fetch EVP unprimed (the race-B crash site).
+  ensure_native_init();
   clear_error();
 
   dwarfs_c_writer_options eff;
