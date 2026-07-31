@@ -107,7 +107,10 @@ jobs:
         run: |
           set -euo pipefail
           artifact="vcpkg-baseline-${{ matrix.triplet }}.tar.gz"
-          tar -czf "$artifact" -C "$INSTALL_ROOT" ${{ matrix.triplet }}
+          # The triplet tree AND the status DB ($INSTALL_ROOT/vcpkg/) —
+          # without the status records, consumers' manifest-mode vcpkg sees
+          # "nothing installed" and rebuilds every port anyway.
+          tar -czf "$artifact" -C "$INSTALL_ROOT" ${{ matrix.triplet }} vcpkg
           sha=$(sha256sum "$artifact" | cut -d' ' -f1)
           echo "$sha  $artifact" > SHA256SUMS
           gh release create "$TAG" --repo "${{ github.repository }}" \
