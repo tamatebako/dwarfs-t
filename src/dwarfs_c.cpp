@@ -526,8 +526,11 @@ int64_t dwarfs_c_pread(dwarfs_c_filesystem* fs, const char* path, void* buf,
     }
     auto const to_read =
         std::min(count, static_cast<size_t>(size - offset));
+    fprintf(stderr, "DBG pread: fs->read inode=%llu to_read=%zu offset=%lld\n",
+            (unsigned long long)inode.inode_num(), to_read, (long long)offset);
     size_t const bytes_read = fs->fs->read(
         inode.inode_num(), static_cast<char*>(buf), to_read, offset, ec);
+    fprintf(stderr, "DBG pread: read done bytes=%zu ec=%d\n", bytes_read, ec.value());
     if (ec) {
       return fail(EIO, "read failed: " + ec.message());
     }
