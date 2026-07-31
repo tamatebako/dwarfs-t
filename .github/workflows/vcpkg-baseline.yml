@@ -54,7 +54,8 @@ jobs:
           - { triplet: x64-mingw-static, os: windows-latest, install_root: 'C:/vcpkg-inst' }
           - { triplet: arm64-osx-static, os: macos-14, install_root: '/Users/runner/vcpkg-inst' }
           - { triplet: x64-linux-static, os: ubuntu-24.04, install_root: '/home/runner/vcpkg-inst' }
-    if: inputs.triplet_filter == '' || inputs.triplet_filter == matrix.triplet
+    # NOTE: job-level `if` is evaluated before the matrix is applied, so the
+    # triplet filter is enforced in the skip step below instead.
     runs-on: ${{ matrix.os }}
     env:
       INSTALL_ROOT: ${{ matrix.install_root }}
@@ -62,10 +63,16 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Skip if the baseline already exists
+      - name: Skip if filtered out or the baseline already exists
         id: exists
         shell: bash
         run: |
+          filter='${{ inputs.triplet_filter }}'
+          if [ -n "$filter" ] && [ "$filter" != "${{ matrix.triplet }}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "triplet '${{ matrix.triplet }}' filtered out by input — skipping"
+            exit 0
+          fi
           if gh release view "$TAG" --repo "${{ github.repository }}" > /dev/null 2>&1; then
             echo "present=true" >> "$GITHUB_OUTPUT"
             echo "baseline $TAG already published — skipping the build"
