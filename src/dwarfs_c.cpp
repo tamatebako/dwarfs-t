@@ -42,6 +42,7 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <atomic>
 #include <mutex>
 #include <new>
 #include <optional>
@@ -100,15 +101,24 @@ namespace {
 // evp_md_init_internal → evp_generic_fetch). Fetching each algorithm
 // once here means every later fetch hits the warm store.
 void ensure_native_init() {
-  static std::once_flag flag;
-  std::call_once(flag, [] {
+  // A plain atomic guard, never std::call_once: libstdc++'s once
+  // machinery carries emutls TLS state (__emutls_v._ZSt11__once_call)
+  // whose destructor free corrupts the heap at thread exit on mingw.
+  static std::atomic<int> state{0};
+  int expected = 0;
+  if (state.compare_exchange_strong(expected, 1)) {
     OPENSSL_init_crypto(OPENSSL_INIT_NO_ATEXIT, nullptr);
     for (auto const* name : {"SHA512-256", "SHA512", "SHA256"}) {
       if (auto* md = EVP_MD_fetch(nullptr, name, nullptr)) {
         EVP_MD_free(md);
       }
     }
-  });
+    state.store(2, std::memory_order_release);
+  } else {
+    while (state.load(std::memory_order_acquire) != 2) {
+      std::this_thread::yield();
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -116,16 +126,22 @@ void ensure_native_init() {
 // ---------------------------------------------------------------------------
 
 thread_local int t_last_error{0};
-thread_local std::string t_last_message;
+// A fixed-size buffer, NEVER a std::string: thread_local objects with
+// destructors are freed by mingw's emutls at thread exit, and that free
+// corrupts the heap on mingw (STATUS_HEAP_CORRUPTION c0000374 in
+// tls_callback at LdrShutdownThread — the worker-thread crash class).
+constexpr size_t ERROR_MESSAGE_CAP = 512;
+thread_local char t_last_message[ERROR_MESSAGE_CAP]{};
 
 void clear_error() {
   t_last_error = 0;
-  t_last_message.clear();
+  t_last_message[0] = '\0';
 }
 
 int fail(int err, std::string msg = {}) {
   t_last_error = err;
-  t_last_message = std::move(msg);
+  std::strncpy(t_last_message, msg.c_str(), ERROR_MESSAGE_CAP - 1);
+  t_last_message[ERROR_MESSAGE_CAP - 1] = '\0';
   return -1;
 }
 
@@ -347,7 +363,7 @@ DWARFS_C_API
 int dwarfs_c_errno(void) { return t_last_error; }
 
 DWARFS_C_API
-const char* dwarfs_c_error_message(void) { return t_last_message.c_str(); }
+const char* dwarfs_c_error_message(void) { return t_last_message; }
 
 DWARFS_C_API
 const char* dwarfs_c_strerror(int err) { return std::strerror(err); }
