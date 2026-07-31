@@ -257,11 +257,15 @@ if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   )
 endif()
 
-add_library(
-  dwarfs_extractor
+# The extractor is tools-only (dwarfsextract): lib-only builds skip the
+# target and its libarchive tail (vcpkg's opt-in 'extractor' feature).
+if(WITH_TOOLS)
+  add_library(
+    dwarfs_extractor
 
-  src/utility/filesystem_extractor.cpp
-)
+    src/utility/filesystem_extractor.cpp
+  )
+endif()
 
 # Tool Support Library - now in separate module
 # Included at end of file to ensure all dependencies are defined
@@ -313,7 +317,9 @@ target_link_libraries(dwarfs_decompressor PRIVATE dwarfs_common)
 target_link_libraries(dwarfs_reader PUBLIC dwarfs_common dwarfs_decompressor)
 target_link_libraries(dwarfs_writer PUBLIC dwarfs_common dwarfs_compressor dwarfs_decompressor)
 target_link_libraries(dwarfs_writer PRIVATE PkgConfig::ZSTD)
-target_link_libraries(dwarfs_extractor PUBLIC dwarfs_reader)
+if(WITH_TOOLS)
+  target_link_libraries(dwarfs_extractor PUBLIC dwarfs_reader)
+endif()
 if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
   target_link_libraries(dwarfs_rewrite PUBLIC dwarfs_reader dwarfs_writer)
 endif()
@@ -417,7 +423,9 @@ if(ENABLE_STACKTRACE)
   target_link_libraries(dwarfs_common PUBLIC cpptrace::cpptrace)
 endif()
 
-target_link_libraries(dwarfs_extractor PRIVATE PkgConfig::LIBARCHIVE)
+if(WITH_TOOLS)
+  target_link_libraries(dwarfs_extractor PRIVATE PkgConfig::LIBARCHIVE)
+endif()
 
 target_include_directories(dwarfs_common SYSTEM PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fsst>)
 set_property(TARGET dwarfs_fsst PROPERTY CXX_STANDARD ${DWARFS_CXX_STANDARD})
@@ -452,8 +460,11 @@ list(APPEND LIBDWARFS_TARGETS
   dwarfs_decompressor
   dwarfs_reader
   dwarfs_writer
-  dwarfs_extractor
 )
+
+if(WITH_TOOLS)
+  list(APPEND LIBDWARFS_TARGETS dwarfs_extractor)
+endif()
 
 # Add legacy metadata library to exports (always available)
 if(TARGET dwarfs_metadata_legacy)

@@ -31,6 +31,16 @@ if((DEFINED ENV{TEBAKO_BUILD} OR TEBAKO_BUILD) AND POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()
 
+# The extractor's libarchive tail ships only with the tools: map WITH_TOOLS
+# (option default ON, declared below) onto the opt-in vcpkg 'extractor'
+# manifest feature BEFORE project() — the toolchain's manifest install reads
+# VCPKG_MANIFEST_FEATURES at configure time. Lib-only consumers
+# (-DWITH_TOOLS=OFF, e.g. dwarfs-t-sys) skip libarchive and its
+# xar → libxml2 → libiconv chain (which fails on vcpkg's msys2).
+if(NOT DEFINED WITH_TOOLS OR WITH_TOOLS)
+  list(APPEND VCPKG_MANIFEST_FEATURES "extractor")
+endif()
+
 project(dwarfs LANGUAGES CXX C)
 
 include(ExternalProject)
@@ -300,7 +310,11 @@ if(WITH_LIBDWARFS)
 
   # Standard libraries - always required
   include(cmake/vcpkg/openssl.cmake)
-  include(cmake/vcpkg/libarchive.cmake)
+  # libarchive is tools-only (the dwarfsextract extractor lib); lib-only
+  # builds neither find nor link it
+  if(WITH_TOOLS)
+    include(cmake/vcpkg/libarchive.cmake)
+  endif()
   include(cmake/vcpkg/xxhash.cmake)
   include(cmake/vcpkg/zstd.cmake)
 
@@ -424,7 +438,9 @@ else()
   if(DWARFS_HAVE_EXPERIMENTAL_THRIFT)
     add_library(dwarfs_rewrite ALIAS dwarfs::dwarfs_rewrite)
   endif()
-  add_library(dwarfs_extractor ALIAS dwarfs::dwarfs_extractor)
+  if(TARGET dwarfs::dwarfs_extractor)
+    add_library(dwarfs_extractor ALIAS dwarfs::dwarfs_extractor)
+  endif()
 endif()
 
 include(cmake/libdwarfs_tool.cmake)
