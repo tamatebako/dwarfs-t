@@ -97,7 +97,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$INSTALL_ROOT"
+          # --vcpkg-root is explicit: without it vcpkg's root detection
+          # walks to the REPO root (the vcpkg clone lives INSIDE the
+          # checkout at .vcpkg-root/) and then fails taking the
+          # filesystem lock — the lock path lands on the directory.
           "${{ github.workspace }}/.vcpkg-root/vcpkg" install \
+            --vcpkg-root "${{ github.workspace }}/.vcpkg-root" \
             --triplet ${{ matrix.triplet }} \
             --overlay-ports="${{ github.workspace }}/vcpkg_ports" \
             --overlay-triplets="${{ github.workspace }}/vcpkg_triplets" \
