@@ -55,6 +55,9 @@
           "name": "fbthrift",
           "version>=": "2025.12.29.00",
           "platform": "!windows"
+        },
+        {
+          "name": "libsodium"
         }
       ]
     }
@@ -140,9 +143,6 @@
     {
       "name": "jemalloc",
       "version>=": "5.5.0"
-    },
-    {
-      "name": "libsodium"
     },
     {
       "name": "gtest",
