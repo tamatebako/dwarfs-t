@@ -1,0 +1,111 @@
+name: vcpkg-baseline
+
+# The vcpkg-baseline artifacts: the installed tree per (triplet × manifest
+# hash), built ONCE here (dwarfs-t owns vcpkg.json — the single writer) and
+# published as a release asset. Every consumer across the stack restores
+# from it (ci/vcpkg-baseline-restore.sh) instead of rebuilding the ports on
+# every CI run (~40-60 min → ~1 min).
+#
+# Relocation rule: the tree installs at the CANONICAL absolute path baked
+# into the artifact name, and every consumer extracts to the SAME path —
+# vcpkg's embedded absolute paths (cmake configs, pkg-config) stay valid.
+
+on:
+  push:
+    branches: [main]
+    paths: ["vcpkg.json", "vcpkg_ports/**", "vcpkg_triplets/**", ".github/workflows/vcpkg-baseline.yml"]
+  schedule:
+    - cron: "23 4 * * 1"  # weekly, keeps the artifacts warm against upstream drift
+  workflow_dispatch:
+    inputs:
+      triplet_filter:
+        description: "build only this triplet (empty = all)"
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vcpkg-baseline-${{ inputs.triplet_filter || 'all' }}
+  cancel-in-progress: false
+
+jobs:
+  hash:
+    name: manifest hash
+    runs-on: ubuntu-24.04
+    outputs:
+      manifest_sha: ${{ steps.h.outputs.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - id: h
+        run: |
+          # The baseline key: the manifest + the overlays (the inputs that
+          # change the port set; the vcpkg baseline commit is pinned inside).
+          sha=$(cat vcpkg.json $(find vcpkg_ports vcpkg_triplets -type f | sort) | sha256sum | cut -d' ' -f1)
+          echo "sha=${sha:0:16}" >> "$GITHUB_OUTPUT"
+
+  baseline:
+    name: ${{ matrix.triplet }}
+    needs: hash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { triplet: x64-mingw-static, os: windows-latest, install_root: 'C:/vcpkg-inst' }
+          - { triplet: arm64-osx-static, os: macos-14, install_root: '/Users/runner/vcpkg-inst' }
+          - { triplet: x64-linux-static, os: ubuntu-24.04, install_root: '/home/runner/vcpkg-inst' }
+    if: inputs.triplet_filter == '' || inputs.triplet_filter == matrix.triplet
+    runs-on: ${{ matrix.os }}
+    env:
+      INSTALL_ROOT: ${{ matrix.install_root }}
+      TAG: vcpkg-baseline-${{ needs.hash.outputs.manifest_sha }}-${{ matrix.triplet }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Skip if the baseline already exists
+        id: exists
+        shell: bash
+        run: |
+          if gh release view "$TAG" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "baseline $TAG already published — skipping the build"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up vcpkg
+        if: steps.exists.outputs.present == 'false'
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
+        with:
+          vcpkgGitCommitId: f14401ca0f2754347c3864da7488a9b955b4e47a
+          vcpkgDirectory: ${{ github.workspace }}/.vcpkg-root
+
+      - name: Install the ports (canonical path)
+        if: steps.exists.outputs.present == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$INSTALL_ROOT"
+          "${{ github.workspace }}/.vcpkg-root/vcpkg" install \
+            --triplet ${{ matrix.triplet }} \
+            --overlay-ports="${{ github.workspace }}/vcpkg_ports" \
+            --overlay-triplets="${{ github.workspace }}/vcpkg_triplets" \
+            --x-install-root="$INSTALL_ROOT"
+
+      - name: Package + publish
+        if: steps.exists.outputs.present == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact="vcpkg-baseline-${{ matrix.triplet }}.tar.gz"
+          tar -czf "$artifact" -C "$INSTALL_ROOT" ${{ matrix.triplet }}
+          sha=$(sha256sum "$artifact" | cut -d' ' -f1)
+          echo "$sha  $artifact" > SHA256SUMS
+          gh release create "$TAG" --repo "${{ github.repository }}" \
+            --title "vcpkg baseline ${{ matrix.triplet }} (${{ needs.hash.outputs.manifest_sha }})" \
+            --notes "installed tree at ${{ matrix.install_root }} — sha256 $sha" \
+            "$artifact" SHA256SUMS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
