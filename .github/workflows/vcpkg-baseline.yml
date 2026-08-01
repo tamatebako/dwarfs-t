@@ -41,7 +41,10 @@ jobs:
         run: |
           # The baseline key: the manifest + the overlays (the inputs that
           # change the port set; the vcpkg baseline commit is pinned inside).
-          sha=$(cat vcpkg.json $(find vcpkg_ports vcpkg_triplets -type f | sort) | sha256sum | cut -d' ' -f1)
+          # CR-stripped: consumers on windows checkouts hash the same files
+          # with CRLF endings (core.autocrlf) — the key must not depend on
+          # the checkout's EOL convention.
+          sha=$(cat vcpkg.json $(find vcpkg_ports vcpkg_triplets -type f | sort) | tr -d '\r' | sha256sum | cut -d' ' -f1)
           echo "sha=${sha:0:16}" >> "$GITHUB_OUTPUT"
 
   baseline:
@@ -51,11 +54,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { triplet: x64-mingw-static, os: windows-latest, install_root: 'C:/vcpkg-inst' }
-          - { triplet: arm64-osx-static, os: macos-14, install_root: '/Users/runner/vcpkg-inst' }
-          - { triplet: x64-osx-static, os: macos-15-intel, install_root: '/Users/runner/vcpkg-inst' }
-          - { triplet: x64-linux-static, os: ubuntu-24.04, install_root: '/home/runner/vcpkg-inst' }
-          - { triplet: arm64-linux-static, os: ubuntu-24.04-arm, install_root: '/home/runner/vcpkg-inst' }
+          # host_triplet: vcpkg installs host-tool ports (flatbuffers'
+          # flatc) under the HOST triplet, and the target triplet's
+          # share/flatbuffers/flatbuffers-config.cmake includes the host
+          # tree by relative path — an archive without it restores into a
+          # tree whose cmake configure fails (tebako-rs CI, run
+          # 30714614829). The host tree ships inside the same artifact.
+          - { triplet: x64-mingw-static, os: windows-latest, install_root: 'C:/vcpkg-inst', host_triplet: x64-windows }
+          - { triplet: arm64-osx-static, os: macos-14, install_root: '/Users/runner/vcpkg-inst', host_triplet: arm64-osx }
+          - { triplet: x64-osx-static, os: macos-15-intel, install_root: '/Users/runner/vcpkg-inst', host_triplet: x64-osx }
+          - { triplet: x64-linux-static, os: ubuntu-24.04, install_root: '/home/runner/vcpkg-inst', host_triplet: x64-linux }
+          - { triplet: arm64-linux-static, os: ubuntu-24.04-arm, install_root: '/home/runner/vcpkg-inst', host_triplet: arm64-linux }
     # NOTE: job-level `if` is evaluated before the matrix is applied, so the
     # triplet filter is enforced in the skip step below instead.
     runs-on: ${{ matrix.os }}
@@ -135,8 +144,14 @@ jobs:
           artifact="vcpkg-baseline-${{ matrix.triplet }}.tar.gz"
           # The triplet tree AND the status DB ($INSTALL_ROOT/vcpkg/) —
           # without the status records, consumers' manifest-mode vcpkg sees
-          # "nothing installed" and rebuilds every port anyway.
-          tar -czf "$artifact" -C "$INSTALL_ROOT" ${{ matrix.triplet }} vcpkg
+          # "nothing installed" and rebuilds every port anyway. The HOST
+          # triplet tree rides along when present (flatbuffers' flatc
+          # delegation — see the matrix note).
+          targets="${{ matrix.triplet }} vcpkg"
+          if [ -d "$INSTALL_ROOT/${{ matrix.host_triplet }}" ]; then
+            targets="${{ matrix.host_triplet }} $targets"
+          fi
+          tar -czf "$artifact" -C "$INSTALL_ROOT" $targets
           # sha256sum exists on Git-bash + linux; macOS has only shasum.
           sha=$(sha256sum "$artifact" 2>/dev/null || shasum -a 256 "$artifact")
           sha="${sha%% *}"

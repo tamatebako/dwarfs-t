@@ -43,8 +43,11 @@ fi
 REPO="${VCPKG_BASELINE_REPO:-tamatebako/dwarfs-t}"
 
 # The same key the baseline workflow computes. sha256sum exists on
-# Git-bash + linux; macOS has only shasum.
-sha=$(cat "$MANIFEST_DIR/vcpkg.json" $(find "$MANIFEST_DIR/vcpkg_ports" "$MANIFEST_DIR/vcpkg_triplets" -type f 2>/dev/null | sort) | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)
+# Git-bash + linux; macOS has only shasum. CR-stripped: windows checkouts
+# carry CRLF (core.autocrlf) and the key must not depend on the checkout's
+# EOL convention (a CRLF hash is a permanent restore miss = a full port
+# build on every windows leg).
+sha=$(cat "$MANIFEST_DIR/vcpkg.json" $(find "$MANIFEST_DIR/vcpkg_ports" "$MANIFEST_DIR/vcpkg_triplets" -type f 2>/dev/null | sort) | tr -d '\r' | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)
 sha="${sha:0:16}"
 TAG="vcpkg-baseline-${sha}-${TRIPLET}"
 ARTIFACT="vcpkg-baseline-${TRIPLET}.tar.gz"
