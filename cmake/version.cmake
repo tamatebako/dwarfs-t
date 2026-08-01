@@ -79,12 +79,12 @@ else()
 
   if ("${NIXPKGS_DWARFS_VERSION_OVERRIDE}" STREQUAL "")
     execute_process(
-      COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" describe --match "v*" --exact-match
+      COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" describe --match "v[0-9]*" --exact-match
       ERROR_QUIET
       OUTPUT_STRIP_TRAILING_WHITESPACE
       OUTPUT_VARIABLE PRJ_GIT_RELEASE_TAG)
     execute_process(
-      COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" describe --tags --match "v*" --dirty --abbrev=10
+      COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" describe --tags --match "v[0-9]*" --dirty --abbrev=10
       ERROR_QUIET
       OUTPUT_STRIP_TRAILING_WHITESPACE
       OUTPUT_VARIABLE PRJ_GIT_DESC)
@@ -117,6 +117,17 @@ else()
                        "${PRJ_GIT_DESC}")
   string(REGEX REPLACE "^v[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" PRJ_VERSION_PATCH
                        "${PRJ_GIT_DESC}")
+
+  # A no-match regex above returns the FULL desc string — which then lands
+  # in the integer version fields as bare tokens (a tooling tag like
+  # vcpkg-baseline-<sha>-<triplet> broke exactly this way: "invalid digit
+  # 'a' in decimal constant"). Fail closed to the 0.0.0 fallback.
+  if(NOT PRJ_VERSION_FULL MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+")
+    message(WARNING "git describe '${PRJ_GIT_DESC}' is not a version tag — using 0.0.0 for the integer version fields")
+    set(PRJ_VERSION_MAJOR 0)
+    set(PRJ_VERSION_MINOR 0)
+    set(PRJ_VERSION_PATCH 0)
+  endif()
 
   set(PRJ_VERSION_SHORT "${PRJ_VERSION_MAJOR}.${PRJ_VERSION_MINOR}.${PRJ_VERSION_PATCH}")
 
