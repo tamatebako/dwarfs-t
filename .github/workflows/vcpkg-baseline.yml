@@ -137,8 +137,9 @@ jobs:
           # without the status records, consumers' manifest-mode vcpkg sees
           # "nothing installed" and rebuilds every port anyway.
           tar -czf "$artifact" -C "$INSTALL_ROOT" ${{ matrix.triplet }} vcpkg
-          # shasum -a 256, not sha256sum: macOS runners have no coreutils.
-          sha=$(shasum -a 256 "$artifact" | cut -d' ' -f1)
+          # sha256sum exists on Git-bash + linux; macOS has only shasum.
+          sha=$(sha256sum "$artifact" 2>/dev/null || shasum -a 256 "$artifact")
+          sha="${sha%% *}"
           echo "$sha  $artifact" > SHA256SUMS
           gh release create "$TAG" --repo "${{ github.repository }}" \
             --title "vcpkg baseline ${{ matrix.triplet }} (${{ needs.hash.outputs.manifest_sha }})" \

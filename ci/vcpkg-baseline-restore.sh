@@ -22,9 +22,9 @@ INSTALL_ROOT="${3:?install root required}"
 
 REPO="${VCPKG_BASELINE_REPO:-tamatebako/dwarfs-t}"
 
-# The same key the baseline workflow computes. shasum -a 256 (not
-# sha256sum): macOS runners have no coreutils.
-sha=$(cat "$MANIFEST_DIR/vcpkg.json" $(find "$MANIFEST_DIR/vcpkg_ports" "$MANIFEST_DIR/vcpkg_triplets" -type f 2>/dev/null | sort) | shasum -a 256 | cut -d' ' -f1)
+# The same key the baseline workflow computes. sha256sum exists on
+# Git-bash + linux; macOS has only shasum.
+sha=$(cat "$MANIFEST_DIR/vcpkg.json" $(find "$MANIFEST_DIR/vcpkg_ports" "$MANIFEST_DIR/vcpkg_triplets" -type f 2>/dev/null | sort) | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)
 sha="${sha:0:16}"
 TAG="vcpkg-baseline-${sha}-${TRIPLET}"
 ARTIFACT="vcpkg-baseline-${TRIPLET}.tar.gz"
