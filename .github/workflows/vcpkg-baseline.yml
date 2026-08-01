@@ -84,6 +84,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up MSys2 (ucrt64 toolchain — windows only)
+        if: steps.exists.outputs.present == 'false' && matrix.triplet == 'x64-mingw-static'
+        uses: msys2/setup-msys2@2b679eae0dfb7c68c8dbb425db97e33565362826 # v2.29.0
+        with:
+          msystem: ucrt64
+          path-type: minimal
+          update: true
+          install: mingw-w64-ucrt-x86_64-toolchain
+
       - name: Set up vcpkg
         if: steps.exists.outputs.present == 'false'
         uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
@@ -97,6 +106,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$INSTALL_ROOT"
+          if [ "${{ matrix.triplet }}" = "x64-mingw-static" ]; then
+            # The ports compile with the ucrt64 gcc — the SAME toolchain
+            # every consumer links with (the factory's ruby link, the
+            # dwarfs-rs test exes). A choco-gcc-built baseline linked by
+            # ucrt64 gcc is the __emutls_v/pthread_once skew class.
+            # Git-bash discipline: setup-msys2's /usr/bin stays OFF PATH
+            # (vcpkg's downloaded msys2 ABI-clashes with it); Git's own
+            # /usr/bin carries the coreutils.
+            export PATH="/d/a/_temp/msys64/ucrt64/bin:/c/Program Files/Git/usr/bin:/c/Program Files/Git/cmd:/c/Windows/System32"
+          fi
           # --vcpkg-root is explicit: without it vcpkg's root detection
           # walks to the REPO root (the vcpkg clone lives INSIDE the
           # checkout at .vcpkg-root/) and then fails taking the
