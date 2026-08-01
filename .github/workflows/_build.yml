@@ -94,7 +94,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
           fetch-depth: 0
@@ -148,7 +148,7 @@ jobs:
           fi
 
       - name: 📦 Setup vcpkg
-        uses: lukka/run-vcpkg@v11
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
           vcpkgJsonGlob: ${{ inputs.vcpkg-manifest || 'vcpkg-production.json' }}
@@ -157,7 +157,7 @@ jobs:
 
       # Per-package ABI cache: port/source bumps rebuild only the changed package.
       - name: 💾 Cache vcpkg package archives
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .vcpkg-cache
           key: vcpkg-archives-${{ runner.os }}-${{ inputs.triplet }}-${{ hashFiles('vcpkg-production.json', 'vcpkg-experimental.json', 'vcpkg-configuration.json') }}
@@ -174,7 +174,7 @@ jobs:
       # lukka/run-vcpkg runs. These steps only add the NuGet source authentication.
 
       - name: 💾 Cache vcpkg assets
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vcpkg_asset_cache
           key: vcpkg-assets-${{ runner.os }}-${{ hashFiles('**/vcpkg-production.json') }}
@@ -302,7 +302,7 @@ jobs:
           echo "✓ Added NuGet source for vcpkg binary caching"
 
       - name: 🔨 Install CMake and Ninja
-        uses: lukka/get-cmake@latest
+        uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
         with:
           cmakeVersion: latest
           ninjaVersion: latest
@@ -345,7 +345,7 @@ jobs:
 
       - name: 📊 Upload build artifacts
         if: inputs.upload-artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dwarfs-${{ inputs.triplet }}-${{ inputs.config }}
           path: build-${{ inputs.triplet }}-${{ inputs.config }}/

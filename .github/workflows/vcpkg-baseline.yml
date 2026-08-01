@@ -36,7 +36,7 @@ jobs:
     outputs:
       manifest_sha: ${{ steps.h.outputs.sha }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: h
         run: |
           # The baseline key: the manifest + the overlays (the inputs that
@@ -63,7 +63,7 @@ jobs:
       INSTALL_ROOT: ${{ matrix.install_root }}
       TAG: vcpkg-baseline-${{ needs.hash.outputs.manifest_sha }}-${{ matrix.triplet }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Skip if filtered out or the baseline already exists
         id: exists
