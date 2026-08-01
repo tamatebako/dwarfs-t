@@ -167,6 +167,17 @@ DWARFS_C_API int dwarfs_c_version(void);
 /** Return a borrowed, static version string (e.g. the git description). */
 DWARFS_C_API const char* dwarfs_c_version_string(void);
 
+/**
+ * The dwarfs_c ABI version (spec 18 C20). Bump on ANY ABI-breaking
+ * change: a new, changed, or removed export, or a layout change in an
+ * exported struct. The Rust bindings (dwarfs-t-rs) pin the same number
+ * and refuse to bind a library reporting anything else — a stale
+ * prebuilt lib is a named error with both numbers, never a silent
+ * call-into-the-wrong-layout.
+ */
+#define DWARFS_C_ABI_VERSION 1
+DWARFS_C_API int dwarfs_c_abi_version(void);
+
 /* --------------------------------------------------------------------- */
 /* Filesystem lifecycle                                                   */
 /* --------------------------------------------------------------------- */

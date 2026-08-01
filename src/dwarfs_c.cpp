@@ -378,6 +378,9 @@ int dwarfs_c_version(void) { return dwarfs::get_dwarfs_library_version(); }
 DWARFS_C_API
 const char* dwarfs_c_version_string(void) { return dwarfs::DWARFS_GIT_DESC; }
 
+DWARFS_C_API
+int dwarfs_c_abi_version(void) { return DWARFS_C_ABI_VERSION; }
+
 // ---------------------------------------------------------------------------
 // Filesystem lifecycle
 // ---------------------------------------------------------------------------
