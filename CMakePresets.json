@@ -524,6 +524,8 @@
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_CROSSCOMPILING": "TRUE",
+        "WITH_TESTS": "OFF",
+        "WITH_BENCHMARKS": "OFF",
         "WITH_FUSE_DRIVER": "OFF"
       }
     },
