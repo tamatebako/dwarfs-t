@@ -282,6 +282,18 @@ jobs:
           fi
           chmod +x "${nugetDir}/nuget"
 
+          # Mono is what runs nuget.exe. The macos-14 images ship
+          # Mono.framework; the macos-15 images do not put `mono` on PATH,
+          # and the missing command failed this step with exit 127 on the
+          # first macos-15-intel run of the matrix. The NuGet feed is a
+          # speed optimisation over the files cache, never a correctness
+          # requirement, so a runner without Mono skips it and builds.
+          if ! command -v mono >/dev/null 2>&1; then
+            echo "⚠️ mono is not on PATH on this runner image; the NuGet binary cache is skipped"
+            echo "The files cache and the build itself are unaffected"
+            exit 0
+          fi
+
           # Must sort before Mono.framework's Commands directory in PATH so
           # vcpkg finds the real assembly when it searches PATH for `nuget`
           echo "${nugetDir}" >> "${GITHUB_PATH}"
