@@ -56,6 +56,22 @@ jobs:
       config: production
       vcpkg-manifest: vcpkg-production.json
 
+  # The Intel leg our release chain actually consumes: tamatebako/tebako's
+  # release.yml builds the x86_64 macOS artifacts on macos-15-intel (macOS 15
+  # SDK, Xcode 16), so the static libraries this repo supplies are linked there.
+  # Without this leg a macos-15-only SDK break stays invisible until a release
+  # leg fails — the build here is the same triplet and manifest as the macos-14
+  # production leg, only the runner image differs, which is exactly the delta
+  # under test.
+  macos-x64-macos15-production:
+    name: 🍎 x64 · Production (macOS 15 Intel)
+    uses: ./.github/workflows/_build.yml
+    with:
+      runner: macos-15-intel
+      triplet: x64-osx
+      config: production
+      vcpkg-manifest: vcpkg-production.json
+
   # ========================================================================
   # ARM64 (Apple Silicon) Jobs
   # Uses arm64-osx-static triplet for native Apple Silicon builds
@@ -77,6 +93,7 @@ jobs:
     needs:
       - macos-x64-production
       - macos-x64-dynamic-production
+      - macos-x64-macos15-production
       - macos-arm64-production
     runs-on: ubuntu-latest
     if: always()
@@ -90,4 +107,5 @@ jobs:
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Production | ${{ needs.macos-x64-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| x64 Dynamic | ${{ needs.macos-x64-dynamic-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| x64 Production (macOS 15 Intel) | ${{ needs.macos-x64-macos15-production.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ARM64 Production | ${{ needs.macos-arm64-production.result }} |" >> $GITHUB_STEP_SUMMARY
