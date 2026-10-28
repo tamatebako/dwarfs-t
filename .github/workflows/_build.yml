@@ -289,8 +289,12 @@ jobs:
           # speed optimisation over the files cache, never a correctness
           # requirement, so a runner without Mono skips it and builds.
           if ! command -v mono >/dev/null 2>&1; then
-            echo "⚠️ mono is not on PATH on this runner image; the NuGet binary cache is skipped"
-            echo "The files cache and the build itself are unaffected"
+            # vcpkg's NuGet provider shells out to mono itself, so skipping
+            # only this step is not enough: the source has to leave the
+            # binary-source list for the rest of the job. The files cache
+            # stays, so a repeat build on the same runner is still fast.
+            echo "⚠️ mono is not on PATH on this runner image; the NuGet binary source is dropped for this job"
+            echo "VCPKG_BINARY_SOURCES=clear;files,${GITHUB_WORKSPACE}/.vcpkg-cache,readwrite" >> "$GITHUB_ENV"
             exit 0
           fi
 
