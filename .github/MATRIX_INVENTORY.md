@@ -37,24 +37,24 @@ strategy:
         config: both-formats
 
       # macOS x64 (2 jobs)
-      - runner: macos-13
+      - runner: macos-15-intel
         os: macos
         arch: x64
         triplet: x64-osx
         config: flatbuffers-only
-      - runner: macos-13
+      - runner: macos-15-intel
         os: macos
         arch: x64
         triplet: x64-osx
         config: both-formats
 
       # macOS ARM64 (2 jobs)
-      - runner: macos-14
+      - runner: macos-15
         os: macos
         arch: arm64
         triplet: arm64-osx
         config: flatbuffers-only
-      - runner: macos-14
+      - runner: macos-15
         os: macos
         arch: arm64
         triplet: arm64-osx
@@ -93,8 +93,8 @@ matrix-setup:
         MATRIX='[
           {"triplet": "x64-linux-static", "os": "ubuntu-latest", "arch": "x64"},
           {"triplet": "arm64-linux-static", "os": "ubuntu-24.04-arm64", "arch": "arm64"},
-          {"triplet": "x64-osx-static", "os": "macos-13", "arch": "x64"},
-          {"triplet": "arm64-osx-static", "os": "macos-14", "arch": "arm64"},
+          {"triplet": "x64-osx-static", "os": "macos-15-intel", "arch": "x64"},
+          {"triplet": "arm64-osx-static", "os": "macos-15", "arch": "arm64"},
           {"triplet": "x64-windows-static", "os": "windows-latest", "arch": "x64"},
           {"triplet": "arm64-windows-static", "os": "windows-latest", "arch": "arm64"}
         ]'
@@ -124,11 +124,11 @@ strategy:
   fail-fast: false
   matrix:
     include:
-      - runner: macos-14
+      - runner: macos-15
         os: macos
         arch: arm64
         triplet: arm64-osx
-      - runner: macos-13
+      - runner: macos-15-intel
         os: macos
         arch: x64
         triplet: x64-osx
@@ -242,10 +242,10 @@ jobs:
             {"triplet":"arm64-linux","os":"ubuntu-24.04-arm64"},
             {"triplet":"x64-linux-dynamic","os":"ubuntu-latest"},
             {"triplet":"arm64-linux-dynamic","os":"ubuntu-24.04-arm64"},
-            {"triplet":"x64-osx","os":"macos-13"},
-            {"triplet":"arm64-osx","os":"macos-14"},
-            {"triplet":"x64-osx-dynamic","os":"macos-13"},
-            {"triplet":"arm64-osx-dynamic","os":"macos-14"},
+            {"triplet":"x64-osx","os":"macos-15-intel"},
+            {"triplet":"arm64-osx","os":"macos-15"},
+            {"triplet":"x64-osx-dynamic","os":"macos-15-intel"},
+            {"triplet":"arm64-osx-dynamic","os":"macos-15"},
             {"triplet":"x64-windows-static","os":"windows-latest"},
             {"triplet":"x64-windows-dynamic","os":"windows-latest"},
             {"triplet":"arm64-windows-static","os":"windows-latest"},
@@ -264,8 +264,8 @@ jobs:
 |----------|--------|--------------|----------------|-----------------|
 | **Linux** | ubuntu-latest | x64 | `x64-linux` | `x64-linux-dynamic` |
 | **Linux** | ubuntu-24.04-arm64 | ARM64 | `arm64-linux` | `arm64-linux-dynamic` |
-| **macOS** | macos-13 | x64 | `x64-osx` | `x64-osx-dynamic` |
-| **macOS** | macos-14 | ARM64 | `arm64-osx` | `arm64-osx-dynamic` |
+| **macOS** | macos-15-intel | x64 | `x64-osx` | `x64-osx-dynamic` |
+| **macOS** | macos-15 | ARM64 | `arm64-osx` | `arm64-osx-dynamic` |
 | **Windows** | windows-latest | x64 | `x64-windows-static` | `x64-windows-dynamic` |
 | **Windows** | windows-latest | ARM64 | `arm64-windows-static` | `arm64-windows-dynamic` |
 
@@ -280,7 +280,7 @@ jobs:
 
 | Workflow | Matrix Source | Triplets | Configs | Jobs |
 |----------|---------------|----------|---------|------|
-| **pr-validation.yml** (NEW) | Inline | 2 (ubuntu-latest, macos-14) | 2 | **4** |
+| **pr-validation.yml** (NEW) | Inline | 2 (ubuntu-latest, macos-15) | 2 | **4** |
 | **ci-main.yml** (NEW) | Inline | 5 (all platforms) | 2 | **10** |
 | **release.yml** (NEW) | Inline | 5 (all platforms) | 1 | **5** |
 | **scheduled.yml** (NEW) | Dynamic | 12 (all variants) | 2 | **24** |

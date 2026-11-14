@@ -61,7 +61,7 @@ jobs:
           # tree whose cmake configure fails (tebako-rs CI, run
           # 30714614829). The host tree ships inside the same artifact.
           - { triplet: x64-mingw-static, os: windows-latest, install_root: 'C:/vcpkg-inst', host_triplet: x64-windows }
-          - { triplet: arm64-osx-static, os: macos-14, install_root: '/Users/runner/vcpkg-inst', host_triplet: arm64-osx }
+          - { triplet: arm64-osx-static, os: macos-15, install_root: '/Users/runner/vcpkg-inst', host_triplet: arm64-osx }
           - { triplet: x64-osx-static, os: macos-15-intel, install_root: '/Users/runner/vcpkg-inst', host_triplet: x64-osx }
           - { triplet: x64-linux-static, os: ubuntu-24.04, install_root: '/home/runner/vcpkg-inst', host_triplet: x64-linux }
           - { triplet: arm64-linux-static, os: ubuntu-24.04-arm, install_root: '/home/runner/vcpkg-inst', host_triplet: arm64-linux }

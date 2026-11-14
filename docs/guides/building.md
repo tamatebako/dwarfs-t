@@ -281,7 +281,7 @@ jobs:
 {
   "platforms": {
     "macos": {
-      "runners": ["macos-13", "macos-14"],
+      "runners": ["macos-15-intel", "macos-15"],
       "architectures": ["x64", "arm64"],
       "triplets": ["x64-osx", "arm64-osx"]
     },

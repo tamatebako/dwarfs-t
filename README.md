@@ -1135,8 +1135,8 @@ GitHub Actions tests across **multiple platforms** and **configurations**:
 
 | Platform | Runner | Architecture | Triplets |
 |----------|--------|--------------|----------|
-| **macOS** | macos-14 | arm64 | arm64-osx, arm64-osx-dynamic |
-| **macOS** | macos-13 | x64 | x64-osx, x64-osx-dynamic |
+| **macOS** | macos-15 | arm64 | arm64-osx, arm64-osx-dynamic |
+| **macOS** | macos-15-intel | x64 | x64-osx, x64-osx-dynamic |
 | **Linux** | ubuntu-24.04-arm64 | arm64 | arm64-linux, arm64-linux-dynamic |
 | **Linux** | ubuntu-latest | x64 | x64-linux, x64-linux-dynamic |
 | **Windows** | windows-latest | x64 | x64-windows-static/dynamic |

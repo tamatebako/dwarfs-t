@@ -282,7 +282,7 @@ jobs:
           fi
           chmod +x "${nugetDir}/nuget"
 
-          # Mono is what runs nuget.exe. The macos-14 images ship
+          # Mono is what runs nuget.exe. The macos-15 images ship
           # Mono.framework; the macos-15 images do not put `mono` on PATH,
           # and the missing command failed this step with exit 127 on the
           # first macos-15-intel run of the matrix. The NuGet feed is a
