@@ -48,7 +48,7 @@ jobs:
   build-macos-x64:
     uses: ./.github/workflows/_build-release-reusable.yml
     with:
-      runner: macos-15
+      runner: macos-15-intel
       triplet: x64-osx
       artifact-name: dwarfs-macos-x64
       config: flatbuffers
@@ -57,7 +57,7 @@ jobs:
   build-macos-arm64:
     uses: ./.github/workflows/_build-release-reusable.yml
     with:
-      runner: macos-14
+      runner: macos-15
       triplet: arm64-osx
       artifact-name: dwarfs-macos-arm64
       config: flatbuffers

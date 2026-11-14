@@ -65,7 +65,7 @@ jobs:
     name: 🧪 macOS x64 · Experimental
     uses: ./.github/workflows/_build.yml
     with:
-      runner: macos-14
+      runner: macos-15
       triplet: x64-osx
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json
@@ -79,7 +79,7 @@ jobs:
     name: 🧪 macOS ARM64 · Experimental
     uses: ./.github/workflows/_build.yml
     with:
-      runner: macos-14
+      runner: macos-15
       triplet: arm64-osx-static
       config: experimental
       vcpkg-manifest: vcpkg-experimental.json

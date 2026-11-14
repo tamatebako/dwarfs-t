@@ -60,8 +60,8 @@ These are internal workflows called by other workflows:
 |----------|--------|---------|---------|---------------|--------|
 | **Linux x64** | ubuntu-latest | `x64-linux` | ✅ | ✅ | ✅ |
 | **Linux ARM64** | ubuntu-24.04-arm64 | `arm64-linux` | ✅ | ❌ | ✅ |
-| **macOS x64** | macos-13 | `x64-osx` | ✅ | ❌ | ✅ |
-| **macOS ARM64** | macos-14 | `arm64-osx` | ✅ | ✅ | ✅ |
+| **macOS x64** | macos-15-intel | `x64-osx` | ✅ | ❌ | ✅ |
+| **macOS ARM64** | macos-15 | `arm64-osx` | ✅ | ✅ | ✅ |
 | **Windows x64** | windows-latest | `x64-windows-static` | ✅ | ❌ | ✅ |
 
 **Note**: PR validation only tests on Ubuntu x64 and macOS ARM64 for fast feedback.
@@ -205,8 +205,8 @@ The CI system uses a **2×5 platform matrix**:
 │                                                              │
 │  ubuntu-latest      (Linux x64)                             │
 │  ubuntu-24.04-arm64 (Linux ARM64)                          │
-│  macos-13           (macOS x64)                             │
-│  macos-14           (macOS ARM64)                           │
+│  macos-15-intel           (macOS x64)                             │
+│  macos-15           (macOS ARM64)                           │
 │  windows-latest     (Windows x64)                           │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
